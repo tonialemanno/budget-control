@@ -215,6 +215,16 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
 
 .mobile-language-switch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 3px 12px;border-bottom:1px solid var(--line);margin-bottom:10px}.mobile-language-switch>span{font-size:12px;color:var(--muted);font-weight:800}.mobile-language-pills{display:flex;gap:5px}.mobile-language-pills button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;min-width:38px;min-height:34px;font-size:11px;font-weight:850}.mobile-language-pills button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .quick-capture-hero{display:flex;align-items:center;gap:12px;padding:13px 14px;margin:12px 0;border:1px solid var(--line);background:var(--panel2);border-radius:17px}.quick-capture-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:var(--accent2);color:var(--accent);font-size:24px;font-weight:900}.app-toast{position:fixed;left:50%;bottom:calc(92px + var(--safe-bottom));transform:translate(-50%,18px);z-index:60;max-width:min(420px,calc(100% - 28px));padding:11px 15px;border-radius:999px;background:#132033;color:#fff;font-size:13px;font-weight:750;box-shadow:0 12px 35px rgba(0,0,0,.28);opacity:0;pointer-events:none;transition:.22s}.app-toast.show{opacity:1;transform:translate(-50%,0)}
+
+.import-run-card{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel2) 88%,transparent)}
+.import-run-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.import-state-badge{display:inline-flex;align-items:center;justify-content:center;min-width:78px;padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:11px;font-weight:900;color:var(--muted)}
+.import-state-badge.running{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 28%,var(--line));background:var(--accent2)}
+.import-state-badge.done{color:#166534;border-color:color-mix(in srgb,#16a34a 28%,var(--line));background:color-mix(in srgb,#22c55e 10%,var(--panel))}
+.import-state-badge.error{color:#b42318;border-color:color-mix(in srgb,#ef4444 32%,var(--line));background:color-mix(in srgb,#ef4444 9%,var(--panel))}
+.import-live-status{margin-top:8px;min-height:21px;font-size:13px;color:var(--muted);font-weight:700}
+.import-analysis-progress{margin-top:10px}.import-analysis-progress>div{width:0%}
+.import-file-step{display:flex;align-items:center;gap:8px}.import-spinner{width:14px;height:14px;border:2px solid color-mix(in srgb,var(--accent) 20%,var(--line));border-top-color:var(--accent);border-radius:50%;animation:importspin .75s linear infinite}@keyframes importspin{to{transform:rotate(360deg)}}
 @media(min-width:761px){.mobile-language-switch{display:none}.app-toast{bottom:28px}}
 .auth-link-btn{display:block;width:100%;border:0;background:transparent;color:var(--accent);font-weight:850;padding:10px;cursor:pointer}.mobile-menu-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:12px 3px 7px}.mobile-more-actions button{display:flex!important;align-items:center;gap:8px}.mobile-more-actions button span{font-weight:850}.security-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.security-status-grid>div{border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel2);display:grid;gap:6px}.status-pill{font-size:11px;font-weight:850}.status-pill.ok{color:var(--good)}.status-pill.warn{color:#9a6700}@media(max-width:760px){.mobile-quick-actions{grid-template-columns:repeat(2,1fr)}.security-status-grid{grid-template-columns:1fr}}
 
@@ -690,6 +700,12 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
         <div class="field"><label>2 · Konto</label><select id="csvAccount"></select></div>
         <div class="field"><label>Codierung</label><select id="csvEncoding"><option value="auto">Automatisch</option><option value="utf-8">UTF-8</option><option value="windows-1252">Windows-1252</option><option value="iso-8859-1">ISO-8859-1 / Latin-1</option></select></div>
       </div>
+      <div class="import-run-card" id="csvAnalyzeCard">
+        <div class="import-run-head"><div><strong>3 · Stapel analysieren</strong><div class="small">Erst nach diesem Schritt werden die Dateien gelesen und geprüft. Es wird noch nichts gebucht.</div></div><span id="csvAnalysisBadge" class="import-state-badge">Wartet</span></div>
+        <button id="csvAnalyzeBtn" type="button" class="btn wide" disabled>Analyse starten</button>
+        <div class="progress import-analysis-progress"><div id="csvAnalysisBar"></div></div>
+        <div id="csvAnalysisStatus" class="import-live-status">Noch keine Dateien zur Analyse bereit.</div>
+      </div>
 
       <div id="csvMapping" class="hidden">
         <div id="csvAutoStatus" class="csv-auto-box"></div>
@@ -712,7 +728,7 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
           </div>
         </details>
 
-        <button id="startImportBtn" class="btn" style="margin-top:14px">3 · Geprüfte Buchungen importieren</button>
+        <button id="startImportBtn" class="btn" style="margin-top:14px">4 · Import starten</button>
         <div class="small" style="margin-top:7px">Bereits vorhandene Buchungen werden ausgelassen. Ein passender geplanter Posten wird als erledigt übernommen statt doppelt angelegt.</div>
         <div class="progress"><div id="importBar"></div></div>
         <div id="importStatus" class="msg hidden"></div>
@@ -1432,7 +1448,7 @@ function resetUserRuntimeState(){
   financeLocal={wishlist:[],vatRefunds:[],fire:{}};financeCloudReady=false;netWorthSnapshots=[];taxReferenceLimits=[];fireScenarioId=null;parsedQrBill=null;privacyInitialized=false;privacyMode=false;
   try{qa('dialog[open]').forEach(d=>d.close())}catch(e){}
   const fileIds=['csvFile','pdfImportFile','reconcilePdf','qrImageFile'];fileIds.forEach(id=>{const el=q('#'+id);if(el)try{el.value=''}catch(e){}});
-  const clearIds=['csvAutoStatus','csvPreview','csvPreviewTable','csvImportErrors','csvSelectedFiles','pdfSelectedFiles','reconcileFileInfo','reconcileTable','reconcileRaw'];clearIds.forEach(id=>{const el=q('#'+id);if(el)el.textContent=''});
+  const clearIds=['csvAutoStatus','csvPreview','csvPreviewTable','csvImportErrors','csvSelectedFiles','csvAnalysisStatus','pdfSelectedFiles','reconcileFileInfo','reconcileTable','reconcileRaw'];clearIds.forEach(id=>{const el=q('#'+id);if(el)el.textContent=''});
   const hideIds=['csvMapping','importStatus','csvImportErrors','reconcileResults','reconcileMsg'];hideIds.forEach(id=>{const el=q('#'+id);if(el)el.classList.add('hidden')});
   const bar=q('#importBar');if(bar)bar.style.width='0%';renderCsvSelectedFiles();renderPdfSelectedFiles();
   const user=q('#userMail');if(user)user.textContent='';
@@ -2903,17 +2919,19 @@ function renderPdfSelectedFiles(){
   const el=q('#pdfSelectedFiles');if(!el)return;
   el.innerHTML=pdfSelectedFiles.length?'<strong>'+pdfSelectedFiles.length+' PDF-Datei(en) im Stapel</strong><br>'+pdfSelectedFiles.map((f,i)=>(i+1)+'. '+esc(f.name)).join('<br>'):'Noch keine PDF ausgewählt.'
 }
-async function loadCsvBatch(files){
+async function loadCsvBatch(files,onProgress){
   if(!files||!files.length)throw new Error('Bitte mindestens eine CSV-Datei auswählen.');
   const requested=q('#csvEncoding').value||'auto';let headers=null,norm=null,allRows=[],rowMeta=[],delims=[];
-  for(const f of files){
+  for(let fi=0;fi<files.length;fi++){
+    const f=files[fi];if(onProgress)onProgress({stage:'reading',index:fi,total:files.length,file:f.name,percent:Math.max(3,Math.round(fi/files.length*72))});
     const text=decodeCsvBuffer(await f.arrayBuffer(),requested),d=detectDelimiter(text),parsed=parseCSV(text,d),hi=detectHeaderRow(parsed);
     if(!parsed.length||!parsed[hi])throw new Error(f.name+': Keine lesbaren CSV-Zeilen gefunden.');
     const h=parsed[hi].map(x=>String(x||'').trim()),n=h.map(normHeader);
     if(!headers){headers=h;norm=n}else if(n.length!==norm.length||n.some((x,i)=>x!==norm[i]))throw new Error(f.name+': Das Spaltenlayout unterscheidet sich vom ersten CSV. Bitte solche Dateien in einem separaten Stapel importieren.');
     const rows=parsed.slice(hi+1).filter(r=>r.some(x=>String(x||'').trim()!==''));
-    rows.forEach((r,i)=>{allRows.push(r);rowMeta.push({file:f.name,row:hi+2+i})});delims.push(d)
+    rows.forEach((r,i)=>{allRows.push(r);rowMeta.push({file:f.name,row:hi+2+i})});delims.push(d);if(onProgress)onProgress({stage:'read',index:fi,total:files.length,file:f.name,rows:rows.length,percent:Math.round((fi+1)/files.length*72)})
   }
+  if(onProgress)onProgress({stage:'merge',total:files.length,rows:allRows.length,percent:78});
   return {files:files.slice(),headers,rows:allRows,rowMeta,delimiter:Array.from(new Set(delims)).length===1?delims[0]:'mixed',overrides:{},descColumns:findDescriptionColumns(headers),candidates:[]}
 }
 function csvSourceLabel(rowIndex){const m=csvState&&csvState.rowMeta&&csvState.rowMeta[rowIndex];return m?(m.file+' · Zeile '+m.row):('Zeile '+(Number(rowIndex)+1))}
@@ -3001,26 +3019,56 @@ function setImportMode(mode){
 qa('[data-import-mode]').forEach(b=>b.addEventListener('click',()=>setImportMode(b.dataset.importMode)));
 q('#pdfImportFile').addEventListener('click',()=>{q('#pdfImportFile').value=''});q('#pdfImportFile').addEventListener('change',()=>{hideMsg(q('#pdfImportMsg'));pdfSelectedFiles=appendUniqueFiles(pdfSelectedFiles,q('#pdfImportFile').files,'.pdf');renderPdfSelectedFiles();q('#pdfImportDetected').classList.add('hidden');if(pdfSelectedFiles.length)q('#pdfImportDetected').innerHTML='<strong>'+pdfSelectedFiles.length+' PDF-Datei(en) im Stapel</strong><br>'+pdfSelectedFiles.slice(0,6).map(f=>esc(f.name)).join('<br>')+(pdfSelectedFiles.length>6?'<br>… und '+(pdfSelectedFiles.length-6)+' weitere':'')+'<br><span class="small">Bereit zur lokalen Analyse auf diesem Gerät.</span>',q('#pdfImportDetected').classList.remove('hidden')});q('#pdfAddMoreBtn').addEventListener('click',()=>q('#pdfImportFile').click());q('#pdfClearFilesBtn').addEventListener('click',()=>{pdfSelectedFiles=[];q('#pdfImportFile').value='';renderPdfSelectedFiles();q('#pdfImportDetected').classList.add('hidden');hideMsg(q('#pdfImportMsg'))});
 q('#pdfImportAnalyzeBtn').addEventListener('click',async()=>{hideMsg(q('#pdfImportMsg'));const files=pdfSelectedFiles.slice(),acc=q('#pdfImportAccount').value;if(!files.length)return showMsg(q('#pdfImportMsg'),'Bitte mindestens einen PDF-Kontoauszug auswählen.',true);if(!acc)return showMsg(q('#pdfImportMsg'),'Bitte ein Konto wählen.',true);q('#pdfImportAnalyzeBtn').disabled=true;try{const r=await analyzeBankPdfs(files,acc),details=r.summaries.map(x=>'<div><strong>'+esc(x.file)+'</strong> · '+esc(pdfMetaSummary(x.meta,x.count))+'</div>').join('');q('#pdfImportDetected').innerHTML='<strong>'+files.length+' PDF-Datei(en) analysiert · '+r.count+' eindeutige Buchungen</strong>'+(r.detectedAccount?'<br>Konto automatisch erkannt: <strong>'+esc(r.detectedAccount.name)+'</strong>':'')+'<div style="margin-top:8px">'+details+'</div>';q('#pdfImportDetected').classList.remove('hidden');if(!r.count)return showMsg(q('#pdfImportMsg'),'PDFs wurden gelesen, aber keine sicheren Buchungen erkannt. Textbasierte Bank-PDFs funktionieren; reine Scan-/Bild-PDFs brauchen OCR.',true);const bad=r.summaries.filter(x=>x.meta.expectedCount!=null&&x.meta.expectedCount!==x.count);view('reconcile');renderBankReconcile();window.scrollTo({top:0,behavior:'smooth'});if(bad.length)showMsg(q('#reconcileMsg'),'Hinweis: Bei '+bad.length+' PDF-Datei(en) stimmt die erkannte Buchungszahl nicht mit der im Auszug genannten Anzahl überein. Bitte diese Auszüge besonders prüfen.',true)}catch(e){showMsg(q('#pdfImportMsg'),e.message,true)}finally{q('#pdfImportAnalyzeBtn').disabled=false}});
-q('#csvFile').addEventListener('click',()=>{q('#csvFile').value=''});q('#csvAddMoreBtn').addEventListener('click',()=>q('#csvFile').click());q('#csvClearFilesBtn').addEventListener('click',()=>{csvSelectedFiles=[];csvState=null;q('#csvFile').value='';renderCsvSelectedFiles();q('#csvMapping').classList.add('hidden');hideMsg(q('#importStatus'));q('#importBar').style.width='0%'});
-q('#csvFile').addEventListener('change',async()=>{
-  csvSelectedFiles=appendUniqueFiles(csvSelectedFiles,q('#csvFile').files,'.csv');renderCsvSelectedFiles();const files=csvSelectedFiles.slice();if(!files.length)return;
+function setCsvAnalysisState(kind,text,percent){
+  const badge=q('#csvAnalysisBadge'),status=q('#csvAnalysisStatus'),bar=q('#csvAnalysisBar');
+  badge.className='import-state-badge'+(kind==='running'?' running':kind==='done'?' done':kind==='error'?' error':'');
+  badge.textContent=kind==='running'?'Läuft':kind==='done'?'Bereit':kind==='error'?'Fehler':'Wartet';
+  status.innerHTML=kind==='running'?'<span class="import-file-step"><span class="import-spinner"></span><span>'+esc(text||'Analyse läuft…')+'</span></span>':esc(text||'');
+  bar.style.width=Math.max(0,Math.min(100,Number(percent||0)))+'%'
+}
+function markCsvSelectionDirty(){
+  csvState=null;q('#csvMapping').classList.add('hidden');hideMsg(q('#importStatus'));q('#importBar').style.width='0%';q('#csvAnalyzeBtn').disabled=!csvSelectedFiles.length;
+  setCsvAnalysisState('waiting',csvSelectedFiles.length?(csvSelectedFiles.length+' Datei(en) ausgewählt. Noch nicht analysiert.'):'Noch keine Dateien zur Analyse bereit.',0)
+}
+q('#csvFile').addEventListener('click',()=>{q('#csvFile').value=''});
+q('#csvAddMoreBtn').addEventListener('click',()=>q('#csvFile').click());
+q('#csvClearFilesBtn').addEventListener('click',()=>{csvSelectedFiles=[];q('#csvFile').value='';renderCsvSelectedFiles();markCsvSelectionDirty()});
+q('#csvFile').addEventListener('change',()=>{
+  csvSelectedFiles=appendUniqueFiles(csvSelectedFiles,q('#csvFile').files,'.csv');renderCsvSelectedFiles();markCsvSelectionDirty()
+});
+async function analyzeCsvSelection(){
+  const files=csvSelectedFiles.slice();if(!files.length)return setCsvAnalysisState('error','Bitte zuerst mindestens eine CSV-Datei auswählen.',0);
+  if(!q('#csvAccount').value)return setCsvAnalysisState('error','Bitte zuerst das richtige Bankkonto wählen.',0);
+  const btn=q('#csvAnalyzeBtn');btn.disabled=true;btn.textContent='Analyse läuft…';q('#csvAddMoreBtn').disabled=true;q('#csvClearFilesBtn').disabled=true;
+  hideMsg(q('#importStatus'));q('#csvMapping').classList.add('hidden');
   try{
-    csvState=await loadCsvBatch(files);const headers=csvState.headers;
+    setCsvAnalysisState('running','Starte Analyse von '+files.length+' Datei(en)…',2);
+    csvState=await loadCsvBatch(files,p=>{
+      const msg=p.stage==='reading'?('Datei '+(p.index+1)+' von '+p.total+' lesen: '+p.file):p.stage==='read'?('Datei '+(p.index+1)+' von '+p.total+' gelesen · '+p.rows+' Zeilen: '+p.file):'Dateien zusammenführen · '+p.rows+' Datenzeilen';
+      setCsvAnalysisState('running',msg,p.percent)
+    });
+    const headers=csvState.headers;
+    setCsvAnalysisState('running','Spalten erkennen und Bankformat prüfen…',82);
     ['#mapDate','#mapBookedDate','#mapValueDate','#mapDescription','#mapAmount','#mapDebit','#mapCredit','#mapDirection','#mapCounterparty'].forEach(sel=>mapSelect(q(sel),headers,true));
     q('#mapDate').value=findHeader(headers,['transaction date','purchase date','kaufdatum','transaktionsdatum','datum','date'])||findHeader(headers,['booking date','buchungsdatum','buchungstag']);q('#mapBookedDate').value=findHeader(headers,['booking date','buchungsdatum','buchungstag']);q('#mapValueDate').value=findHeader(headers,['value date','valutadatum','valuta']);
     q('#mapDescription').value=findHeader(headers,['buchungstext','description','transaction details','trx details','beschreibung','verwendungszweck','mitteilung','details','supplementary details']);
     q('#mapAmount').value=findHeader(headers,['transaction amount','booking amount','amount','betrag']);q('#mapDebit').value=findHeader(headers,['debit amount','belastung','soll betrag','soll']);q('#mapCredit').value=findHeader(headers,['credit amount','gutschrift','haben betrag','haben']);q('#mapDirection').value=findHeader(headers,['debit credit mark','debit credit','credit debit','soll haben','belastung gutschrift','d c mark']);q('#mapCounterparty').value=findHeader(headers,['counterparty','empfanger','empfaenger','auftraggeber','begunstigter','beguenstigter','name']);
     if(q('#mapDate').value===''&&headers.length>=12){const vi=findHeader(headers,['value date']);if(vi!=='')q('#mapDate').value=vi}
-    q('#csvMapping').classList.remove('hidden');hideMsg(q('#importStatus'));q('#importBar').style.width='0%';prepareCsvPreview()
-  }catch(er){csvState=null;q('#csvMapping').classList.add('hidden');showMsg(q('#importStatus'),er.message,true)}
-});
-['#mapDate','#mapBookedDate','#mapValueDate','#mapDescription','#mapAmount','#mapDebit','#mapCredit','#mapDirection','#mapCounterparty','#positiveMeaning','#csvAccount'].forEach(s=>q(s).addEventListener('change',()=>{if(csvState)prepareCsvPreview()}));
+    setCsvAnalysisState('running','Dubletten, geplante Zahlungen, Umbuchungen und Kategorien prüfen…',90);
+    q('#csvMapping').classList.remove('hidden');prepareCsvPreview();
+    const c=csvState.candidates||[],newCount=c.filter(x=>x.status==='new').length,dupes=c.filter(x=>x.status==='existing'||x.status==='batch_duplicate').length,matched=c.filter(x=>x.status==='planned'||x.status==='pending_match').length,bad=c.filter(x=>x.status==='invalid').length;
+    setCsvAnalysisState('done','Analyse fertig: '+csvState.files.length+' Datei(en), '+csvState.rows.length+' Zeilen · '+newCount+' neu · '+matched+' abgleichbar · '+dupes+' Duplikate · '+bad+' zu prüfen.',100);
+    q('#csvMapping').scrollIntoView({behavior:'smooth',block:'start'})
+  }catch(er){csvState=null;q('#csvMapping').classList.add('hidden');setCsvAnalysisState('error',er.message,0);showMsg(q('#importStatus'),er.message,true)}finally{btn.disabled=!csvSelectedFiles.length;btn.textContent='Analyse starten';q('#csvAddMoreBtn').disabled=false;q('#csvClearFilesBtn').disabled=false}
+}
+q('#csvAnalyzeBtn').addEventListener('click',analyzeCsvSelection);
+['#mapDate','#mapBookedDate','#mapValueDate','#mapDescription','#mapAmount','#mapDebit','#mapCredit','#mapDirection','#mapCounterparty','#positiveMeaning'].forEach(s=>q(s).addEventListener('change',()=>{if(csvState)prepareCsvPreview()}));q('#csvAccount').addEventListener('change',()=>{if(csvSelectedFiles.length)markCsvSelectionDirty()});q('#csvEncoding').addEventListener('change',()=>{if(csvSelectedFiles.length)markCsvSelectionDirty()});
 function parseImportError(er){return (er&&er.data&&er.data.message)||er.message||'Unbekannter Fehler'}
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')}
 q('#startImportBtn').addEventListener('click',async()=>{
   if(!csvState||!q('#csvAccount').value)return;prepareCsvPreview();const todo=csvState.candidates.filter(x=>['new','planned','pending_match'].includes(x.status));if(!todo.length){showMsg(q('#importStatus'),'Nichts Neues zu importieren.',false);return}
   if(!confirm(todo.length+' Positionen aus '+((csvState.files&&csvState.files.length)||1)+' Datei(en) jetzt übernehmen? Bereits definitiv gebuchte Positionen und erkannte Stapel-Dubletten werden nicht verändert.'))return;
-  q('#startImportBtn').disabled=true;let inserted=0,matched=0,pendingDone=0,dupes=0,failed=[];hideMsg(q('#importStatus'));
+  q('#startImportBtn').disabled=true;q('#csvAnalyzeBtn').disabled=true;let inserted=0,matched=0,pendingDone=0,dupes=0,failed=[];showMsg(q('#importStatus'),'Import startet: '+todo.length+' Positionen werden verarbeitet…',false);
   try{
     const accId=q('#csvAccount').value,acc=accounts.find(a=>a.id===accId),batch=await api('/rest/v1/import_batches?select=id',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accId,filename:csvBatchFilename(),delimiter:csvState.delimiter,encoding:q('#csvEncoding').value,row_count:csvState.rows.length})}),batchId=batch[0].id;
     for(let i=0;i<todo.length;i++){
@@ -3038,12 +3086,12 @@ q('#startImportBtn').addEventListener('click',async()=>{
           const txid=await api('/rest/v1/rpc/create_financial_transaction_v2',{method:'POST',body:JSON.stringify(body)});if((c.tags||[]).length){await ensureTagNames(c.tags);await api('/rest/v1/transactions?id=eq.'+txid,{method:'PATCH',body:JSON.stringify({tags:c.tags})})}inserted++
         }
       }catch(er){if(er.data&&er.data.code==='23505')dupes++;else failed.push(csvSourceLabel(c.row)+': '+parseImportError(er))}
-      q('#importBar').style.width=Math.round((i+1)/todo.length*100)+'%'
+      const pct=Math.round((i+1)/todo.length*100);q('#importBar').style.width=pct+'%';q('#importStatus').textContent='Import läuft: '+(i+1)+' von '+todo.length+' · '+csvSourceLabel(c.row)+' · '+pct+'%';q('#importStatus').classList.remove('hidden')
     }
     await api('/rest/v1/import_batches?id=eq.'+batchId,{method:'PATCH',body:JSON.stringify({inserted_count:inserted+matched+pendingDone,duplicate_count:dupes})});
     showMsg(q('#importStatus'),'Import fertig: '+inserted+' neu, '+matched+' geplante Posten erledigt, '+pendingDone+' vorgemerkte bestätigt, '+dupes+' Duplikate, '+failed.length+' Fehler.',failed.length>0);
     const err=q('#csvImportErrors');if(failed.length){err.textContent=failed.slice(0,15).join('\n');err.classList.remove('hidden')}await reloadAll();view('csv')
-  }catch(e){showMsg(q('#importStatus'),e.message,true)}finally{q('#startImportBtn').disabled=false}
+  }catch(e){showMsg(q('#importStatus'),e.message,true)}finally{q('#startImportBtn').disabled=false;q('#csvAnalyzeBtn').disabled=!csvSelectedFiles.length}
 });
 
 function csvCell(v){v=String(v==null?'':v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
