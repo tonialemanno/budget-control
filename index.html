@@ -228,6 +228,10 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
 @media(min-width:761px){.mobile-language-switch{display:none}.app-toast{bottom:28px}}
 .auth-link-btn{display:block;width:100%;border:0;background:transparent;color:var(--accent);font-weight:850;padding:10px;cursor:pointer}.mobile-menu-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:12px 3px 7px}.mobile-more-actions button{display:flex!important;align-items:center;gap:8px}.mobile-more-actions button span{font-weight:850}.security-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.security-status-grid>div{border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel2);display:grid;gap:6px}.status-pill{font-size:11px;font-weight:850}.status-pill.ok{color:var(--good)}.status-pill.warn{color:#9a6700}@media(max-width:760px){.mobile-quick-actions{grid-template-columns:repeat(2,1fr)}.security-status-grid{grid-template-columns:1fr}}
 
+
+/* v65 Family & Sysadmin */
+.admin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.admin-kpi{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--panel2)}.admin-kpi .k{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}.admin-kpi .v{font-size:24px;font-weight:900;margin-top:4px}.admin-user-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--panel);display:grid;gap:10px}.admin-user-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.admin-user-meta{font-size:12px;color:var(--muted);line-height:1.5}.admin-user-actions{display:flex;gap:7px;flex-wrap:wrap}.feature-row{display:grid;grid-template-columns:minmax(170px,1.4fr) minmax(120px,.7fr) minmax(90px,.5fr);gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.feature-row:last-child{border-bottom:0}.feature-source{font-size:11px;color:var(--muted)}.support-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:14px;background:var(--accent2);margin-bottom:14px}.support-banner.danger{background:#fff2f2;border-color:#f0bcbc}.admin-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900;background:var(--accent2);color:var(--accent)}.admin-badge.warn{background:#fff4d8;color:#835c00}.admin-badge.ok{background:#e8f5ee;color:#17653c}.support-scope-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.support-scope-grid label{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2);display:flex;gap:8px;align-items:center}.support-scope-grid input{width:auto}.mfa-qr{max-width:220px;width:100%;background:#fff;border-radius:16px;padding:10px;border:1px solid var(--line)}.context-banner{display:none}.context-banner.show{display:flex}.locked-feature{opacity:.5;pointer-events:none}.read-only-note{display:none}.read-only-note.show{display:block}.admin-list{display:grid;gap:10px}.support-data-table{overflow:auto;max-height:420px}.support-data-table table{width:100%;border-collapse:collapse;font-size:12px}.support-data-table th,.support-data-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.danger-zone{border:1px solid #e6b5b5!important;background:#fff8f8!important}
+@media(max-width:900px){.admin-grid{grid-template-columns:repeat(2,1fr)}.feature-row{grid-template-columns:1fr}.support-scope-grid{grid-template-columns:1fr}.admin-user-head{display:grid}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -241,7 +245,7 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
     <div class="field"><label>E-Mail</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@gmail.com"></div>
     <div class="field"><label>Passwort</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Mindestens 6 Zeichen"></div>
     <button id="loginBtn" class="btn wide">Anmelden</button>
-    <button id="signupBtn" class="btn secondary wide" style="margin-top:8px">Neues Konto erstellen</button>
+    <button id="signupBtn" class="btn secondary wide hidden" style="margin-top:8px">Neues Konto erstellen</button><div class="small" style="margin-top:10px;text-align:center">Neue Zugänge werden durch einen Administrator eingeladen.</div>
     <button id="forgotPasswordBtn" type="button" class="auth-link-btn">Passwort vergessen?</button>
     <div id="authMsg" class="msg hidden"></div>
   </div>
@@ -265,6 +269,8 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
       <button data-view="csv">Import / Export</button>
       <button data-view="documents">Dokumente & Rechnungen</button>
       <button data-view="categories">Kategorien</button>
+      <button data-view="support">Hilfe & Support</button>
+      <button id="adminNavBtn" data-view="admin" class="hidden">Administration</button>
       <button data-view="settings">Einstellungen</button>
     </div>
     <div class="side-bottom">
@@ -283,6 +289,7 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
         <button id="newTxTop" class="btn">+ Neue Buchung</button>
       </div>
     </div>
+    <div id="contextBanner" class="support-banner context-banner"><div><strong id="contextBannerTitle">Vorschau</strong><div id="contextBannerText" class="small"></div></div><button id="exitContextBtn" type="button" class="btn secondary">Beenden</button></div>
 
     <section id="dashboardView" class="view active">
 <div class="mobile-quick-actions" aria-label="Schnellaktionen"><button type="button" data-mobile-action="twint"><span>↗</span><strong>TWINT</strong><small>Schnell erfassen</small></button><button type="button" data-mobile-action="cash"><span>₣</span><strong>Bargeld</strong><small>Geld erhalten</small></button><button type="button" data-mobile-action="travel"><span>◎</span><strong>Reise / ATM</strong><small>Fremdwährung</small></button><button type="button" data-mobile-action="book"><span>＋</span><strong>Buchen</strong><small>Neue Buchung</small></button></div>
@@ -481,7 +488,7 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
     <div class="period-controls"><select id="txPeriodYear"></select><select id="txPeriodKind"><option value="month">Monat</option><option value="quarter">Quartal</option><option value="half">Halbjahr</option><option value="year">Jahr</option></select><select id="txPeriodValue"></select></div>
     <div class="filters"><div class="field"><label>Von</label><input id="txFilterFrom" type="date"></div><div class="field"><label>Bis</label><input id="txFilterTo" type="date"></div><div class="field"><label>Konto</label><select id="txFilterAccount"><option value="">Alle</option></select></div><div class="field"><label>Kategorie</label><select id="txFilterCategory"><option value="">Alle</option></select></div><div class="field"><label>Art</label><select id="txFilterType"><option value="">Alle</option><option value="expense">Ausgabe</option><option value="income">Einnahme</option><option value="transfer">Umbuchung</option><option value="loan_out">Verleih</option><option value="loan_repayment">Rückzahlung</option></select></div><div class="field"><label>Suche</label><input id="txSearch" placeholder="Text, Empfänger …"></div></div>
     <div class="book-summary"><div class="mini-card"><div class="k">Eingänge · CHF-Basis</div><div id="bookIncomeTotal" class="v">CHF 0.00</div></div><div class="mini-card"><div class="k">Ausgänge · CHF-Basis</div><div id="bookExpenseTotal" class="v">CHF 0.00</div></div><div class="mini-card"><div class="k">Saldo · CHF-Basis</div><div id="bookNetTotal" class="v">CHF 0.00</div></div></div>
-    <div class="actions" style="margin-bottom:10px"><button id="txUncategorizedBtn" class="btn secondary">Ohne Kategorie <span id="txUncategorizedCount"></span></button><button id="txResetFilters" class="btn secondary">Filter zurücksetzen</button><span id="txFilteredSummary" class="small"></span></div>
+    <div class="actions" style="margin-bottom:10px"><button id="txUncategorizedBtn" class="btn secondary">Ohne Kategorie <span id="txUncategorizedCount"></span></button><button id="txResetFilters" class="btn secondary">Filter zurücksetzen</button><span id="txFilteredSummary" class="small"></span><span id="txFilterSavedHint" class="small">Filter automatisch gespeichert</span></div>
     <div id="ruleSuggestionsPanel" class="panel hidden" style="margin-bottom:12px">
       <div class="panel-head"><div><h2>Regel-Vorschläge</h2><div class="small">Bereits gespeicherte Regeln wurden in bestehenden Buchungen erkannt. JA übernimmt nur fehlende Zuordnungen; abweichende Kategorien werden nicht überschrieben.</div></div></div>
       <div id="ruleSuggestions" class="rule-suggestions"></div>
@@ -810,6 +817,79 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
       </div>
     </section>
 
+
+<section id="supportView" class="view">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Hilfe & Support</h2><div class="small">Du entscheidest selbst, welche Daten der SuperAdmin wie lange sehen darf.</div></div><span class="admin-badge">Datenschutz zuerst</span></div>
+    <div class="admin-grid">
+      <div class="admin-kpi"><div class="k">App-Version</div><div id="supportAppVersion" class="v" style="font-size:17px">—</div></div>
+      <div class="admin-kpi"><div class="k">Workspace</div><div id="supportWorkspace" class="v" style="font-size:17px">—</div></div>
+      <div class="admin-kpi"><div class="k">Aktive Freigaben</div><div id="supportGrantCount" class="v">0</div></div>
+      <div class="admin-kpi"><div class="k">Letzte Diagnose</div><div id="supportDiagLast" class="v" style="font-size:17px">—</div></div>
+    </div>
+  </div>
+  <div class="grid2 section-gap">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Problem melden</h2><div class="small">Sendet technische Angaben ohne Kontostände, Beträge, Buchungstexte, IBAN oder Dokumentinhalte.</div></div></div>
+      <div class="field"><label>Bereich</label><select id="diagContext"><option value="general">Allgemein</option><option value="import">CSV / PDF Import</option><option value="mobile">Handy / PWA</option><option value="transactions">Buchungen</option><option value="sync">Synchronisation</option><option value="other">Sonstiges</option></select></div>
+      <div class="field"><label>Kurzbeschreibung</label><textarea id="diagNote" rows="3" placeholder="z. B. Beim Klick auf Analyse starten passiert nichts."></textarea></div>
+      <button id="sendDiagnosticBtn" type="button" class="btn">Diagnose senden</button>
+      <div id="diagnosticMsg" class="msg hidden"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div><h2>Temporären Support freigeben</h2><div class="small">Standard ist nur lesen. Dokumente werden separat freigegeben.</div></div></div>
+      <div class="form-grid">
+        <div class="field"><label>Zugriff</label><select id="supportAccessLevel"><option value="diagnosis">Nur Diagnose</option><option value="read" selected>Finanzdaten nur lesen</option><option value="write">Ansehen + korrigieren</option></select></div>
+        <div class="field"><label>Dauer</label><select id="supportDuration"><option value="15">15 Minuten</option><option value="30" selected>30 Minuten</option><option value="60">1 Stunde</option><option value="240">4 Stunden</option><option value="1440">24 Stunden</option></select></div>
+      </div>
+      <div class="support-scope-grid"><label><input id="scopeFinance" type="checkbox" checked> Finanzen</label><label><input id="scopeImports" type="checkbox" checked> Importe</label><label><input id="scopeDocuments" type="checkbox"> Dokumente / PDFs</label></div>
+      <div class="actions" style="margin-top:12px"><button id="grantSupportBtn" type="button" class="btn">Support freigeben</button></div>
+      <div id="supportGrantMsg" class="msg hidden"></div>
+    </div>
+  </div>
+  <div class="panel section-gap"><div class="panel-head"><div><h2>Aktive und letzte Freigaben</h2><div class="small">Du kannst einen laufenden Zugriff jederzeit sofort beenden.</div></div></div><div id="mySupportGrants" class="admin-list"></div></div>
+  <div class="panel section-gap"><div class="panel-head"><div><h2>Support-Protokoll</h2><div class="small">Nachvollziehbar, wann Support freigegeben oder beendet wurde und welche Support-Änderungen erfolgt sind.</div></div></div><div id="mySupportAudit" class="admin-list"></div></div>
+</section>
+
+<section id="adminView" class="view">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Family & Sysadmin</h2><div class="small">Benutzer, Tarife, Features, Support, Diagnose und spätere Bezahlmodelle.</div></div><div><span id="adminMfaBadge" class="admin-badge warn">MFA prüfen</span></div></div>
+    <div id="adminMfaNotice" class="security-note hidden"><strong>Admin-Schutz:</strong> Administrative Änderungen erfordern einen bestätigten zweiten Faktor. <button id="adminSetupMfaBtn" type="button" class="btn secondary" style="margin-left:8px">MFA einrichten / bestätigen</button></div>
+    <div class="admin-grid" style="margin-top:12px">
+      <div class="admin-kpi"><div class="k">Benutzer</div><div id="adminUserCount" class="v">0</div></div>
+      <div class="admin-kpi"><div class="k">Aktive Supportzugriffe</div><div id="adminSupportCount" class="v">0</div></div>
+      <div class="admin-kpi"><div class="k">Offene Diagnosen</div><div id="adminDiagnosticCount" class="v">0</div></div>
+      <div class="admin-kpi"><div class="k">Tarife</div><div id="adminPlanCount" class="v">0</div></div>
+    </div>
+  </div>
+  <div class="grid2 section-gap">
+    <div class="panel">
+      <div class="panel-head"><div><h2>Benutzer einladen</h2><div class="small">Neue Zugänge erhalten ihren eigenen Login und Datenbereich.</div></div></div>
+      <div class="field"><label>E-Mail</label><input id="adminInviteEmail" type="email" placeholder="name@example.com"></div>
+      <div class="field"><label>Tarif</label><select id="adminInvitePlan"></select></div>
+      <button id="adminInviteBtn" type="button" class="btn">Einladung senden</button>
+      <div id="adminInviteMsg" class="msg hidden"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><div><h2>Feature-System</h2><div class="small">Tarif gibt den Standard vor. Individuelle Overrides gewinnen immer.</div></div></div>
+      <div id="adminPlanSummary" class="small"></div><div class="actions" style="margin-top:10px"><button id="adminPlanEditBtn" type="button" class="btn secondary">Tarif-Matrix bearbeiten</button></div>
+      <div class="security-note" style="margin-top:10px">Status: <strong>enabled</strong> = vollständig, <strong>read_only</strong> = nur lesen, <strong>hidden</strong> = nicht sichtbar, <strong>disabled</strong> = gesperrt. Die Datenbank erzwingt diese Rechte zusätzlich zur Oberfläche.</div>
+    </div>
+  </div>
+  <div class="panel section-gap">
+    <div class="panel-head"><div><h2>Benutzerverwaltung</h2><div class="small">UI-Vorschau zeigt nur die freigeschalteten Kacheln – ohne fremde Finanzdaten. Daten-Support benötigt eine aktive Freigabe des Benutzers.</div></div><button id="adminRefreshBtn" class="btn secondary" type="button">Aktualisieren</button></div>
+    <div id="adminUsers" class="admin-list"></div>
+  </div>
+  <div id="adminSupportViewer" class="panel section-gap hidden">
+    <div class="panel-head"><div><h2 id="adminSupportTitle">Support-Daten</h2><div id="adminSupportMeta" class="small"></div></div><button id="adminCloseSupportBtn" type="button" class="btn secondary">Schließen</button></div>
+    <div id="adminSupportData"></div>
+  </div>
+  <div class="grid2 section-gap">
+    <div class="panel"><div class="panel-head"><div><h2>Diagnosen</h2><div class="small">Nur technische, bereinigte Angaben.</div></div></div><div id="adminDiagnostics" class="admin-list"></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Support & Audit</h2><div class="small">Aktive Freigaben und letzte administrative Ereignisse.</div></div></div><div id="adminAudit" class="admin-list"></div></div>
+  </div>
+</section>
+
 <section id="settingsView" class="view">
       <div class="settings-grid">
         <div class="settings-section">
@@ -910,7 +990,7 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
 <div class="mobile-menu-title">Finanzen</div>
 <div class="mobile-more-grid"><button data-mobile-more-view="accounts">Konten & Töpfe</button><button data-mobile-more-view="receivables">Forderungen</button><button data-mobile-more-view="reconcile">Bankabgleich</button><button data-mobile-more-view="categoryDashboard">Kategorien</button></div>
 <div class="mobile-menu-title">Analyse & Verwaltung</div>
-<div class="mobile-more-grid"><button data-mobile-more-view="analysis">Analyse & Archiv</button><button data-mobile-more-view="tax">Steuern</button><button data-mobile-more-view="csv">Import / Export</button><button data-mobile-more-view="documents">Dokumente</button><button data-mobile-more-view="settings">Einstellungen & Sicherheit</button></div>
+<div class="mobile-more-grid"><button data-mobile-more-view="analysis">Analyse & Archiv</button><button data-mobile-more-view="tax">Steuern</button><button data-mobile-more-view="csv">Import / Export</button><button data-mobile-more-view="documents">Dokumente</button><button data-mobile-more-view="support">Hilfe & Support</button><button id="mobileAdminBtn" data-mobile-more-view="admin" class="hidden">Administration</button><button data-mobile-more-view="settings">Einstellungen & Sicherheit</button></div>
 </div></div>
 <div id="appToast" class="app-toast" role="status" aria-live="polite"></div>
 
@@ -1248,6 +1328,40 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
 </dialog>
 
 <dialog id="accountDetailDialog"><div class="dialog-in" style="width:min(980px,94vw)"><div class="dialog-head"><div><h2 id="accountDetailTitle">Kontodetails</h2><div id="accountDetailSub" class="small"></div></div><button type="button" class="x" data-close="accountDetailDialog">×</button></div><div class="period-controls"><select id="accountDetailYear"></select><select id="accountDetailKind"><option value="month">Monat</option><option value="quarter">Quartal</option><option value="half">Halbjahr</option><option value="year">Jahr</option></select><select id="accountDetailValue"></select></div><div id="accountDetailSummary" class="account-detail-summary"></div><div id="accountBankDetails" class="bank-details"></div><div class="grid2"><div class="panel"><div class="panel-head"><h2>Bereits verbucht</h2></div><div id="accountBookedMovements" class="movement-list"></div></div><div class="panel"><div class="panel-head"><h2>Offene Posten</h2></div><div id="accountPlannedMovements" class="movement-list"></div></div></div></div></dialog>
+
+<dialog id="mfaDialog">
+  <form method="dialog" class="dialog-in" style="width:min(520px,94vw)">
+    <div class="dialog-head"><div><h2>Admin-MFA</h2><div class="small">Der SuperAdmin wird mit einem zweiten Faktor geschützt.</div></div><button class="x" value="cancel" type="submit">×</button></div>
+    <div id="mfaSetupBlock" class="hidden">
+      <div class="security-note">Scanne den QR-Code mit einer Authenticator-App. Falls Scannen nicht möglich ist, kannst du den geheimen Schlüssel manuell eintragen.</div>
+      <div style="text-align:center;margin:14px 0"><img id="mfaQr" class="mfa-qr" alt="MFA QR Code"></div>
+      <div class="field"><label>Geheimer Schlüssel</label><input id="mfaSecret" readonly></div>
+    </div>
+    <div id="mfaLoginBlock" class="hidden"><div class="security-note">Öffne deine Authenticator-App und gib den aktuellen sechsstelligen Code ein.</div></div>
+    <div class="field"><label>Authenticator-Code</label><input id="mfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456"></div>
+    <div id="mfaMsg" class="msg hidden"></div>
+    <div class="actions"><button id="mfaVerifyBtn" type="button" class="btn">Bestätigen</button></div>
+  </form>
+</dialog>
+
+<dialog id="adminPlanDialog">
+  <div class="dialog-in" style="width:min(760px,94vw)">
+    <div class="dialog-head"><div><h2>Tarif-Matrix</h2><div class="small">Definiert den Standard je Tarif. Individuelle Benutzer-Overrides haben weiterhin Vorrang.</div></div><button id="adminPlanClose" class="x" type="button">×</button></div>
+    <div class="field"><label>Tarif</label><select id="adminPlanSelect"></select></div>
+    <div id="adminPlanFeatureList"></div>
+    <div id="adminPlanMsg" class="msg hidden"></div>
+  </div>
+</dialog>
+
+<dialog id="adminFeatureDialog">
+  <div class="dialog-in" style="width:min(760px,94vw)">
+    <div class="dialog-head"><div><h2>Features verwalten</h2><div id="adminFeatureUser" class="small"></div></div><button id="adminFeatureClose" class="x" type="button">×</button></div>
+    <div class="field"><label>Tarif</label><select id="adminFeaturePlan"></select></div>
+    <div id="adminFeatureList" style="margin-top:10px"></div>
+    <div id="adminFeatureMsg" class="msg hidden"></div>
+  </div>
+</dialog>
+
 <div id="printTaxArea"></div><div id="printAnalysisArea"></div>
 
 <script>
@@ -1269,6 +1383,8 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
+const APP_VERSION='v65-family-admin-1';
+let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function localDateISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function localMonthISO(d){d=d||new Date();return String(d.getMonth()+1).padStart(2,'0')}
@@ -1394,6 +1510,9 @@ Object.assign(I18N.ro,{"Gesamtbelastung inkl. Gebühr":"Debit total incl. comisi
 Object.assign(I18N.en,{"CSV-Datei(en)":"CSV file(s)","Mehrere Monatsdateien gleichzeitig möglich.":"You can select several monthly files at once.","PDF-Kontoauszug/-auszüge":"PDF statement(s)","Mehrere Monatsauszüge gleichzeitig möglich.":"You can select several monthly statements at once.","PDF(s) analysieren & abgleichen":"Analyse & reconcile PDF(s)"});
 Object.assign(I18N.it,{"CSV-Datei(en)":"File CSV","Mehrere Monatsdateien gleichzeitig möglich.":"Puoi selezionare più file mensili contemporaneamente.","PDF-Kontoauszug/-auszüge":"Estratto/i conto PDF","Mehrere Monatsauszüge gleichzeitig möglich.":"Puoi selezionare più estratti mensili contemporaneamente.","PDF(s) analysieren & abgleichen":"Analizza e riconcilia PDF"});
 Object.assign(I18N.ro,{"CSV-Datei(en)":"Fișier(e) CSV","Mehrere Monatsdateien gleichzeitig möglich.":"Poți selecta mai multe fișiere lunare simultan.","PDF-Kontoauszug/-auszüge":"Extras(e) PDF","Mehrere Monatsauszüge gleichzeitig möglich.":"Poți selecta mai multe extrase lunare simultan.","PDF(s) analysieren & abgleichen":"Analizează și reconciliază PDF-urile"});
+Object.assign(I18N.en,{'Filter automatisch gespeichert':'Filter saved automatically'});
+Object.assign(I18N.it,{'Filter automatisch gespeichert':'Filtro salvato automaticamente'});
+Object.assign(I18N.ro,{'Filter automatisch gespeichert':'Filtrul este salvat automat'});
 function showMsg(el,text,isError){el.textContent=trMessage(text);el.classList.remove('hidden');el.classList.toggle('error',!!isError)}
 function hideMsg(el){el.classList.add('hidden')}
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -1431,13 +1550,65 @@ async function auth(endpoint,body){
 async function login(){
   resetUserRuntimeState();shell.classList.add('hidden');const btn=q('#loginBtn'),old=btn.textContent;hideMsg(authMsg);btn.disabled=true;btn.textContent='Anmeldung läuft …';showMsg(authMsg,'Verbindung zu Budget Control wird geprüft …',false);
   try{
-    const d=await auth('/auth/v1/token?grant_type=password',{email:q('#authEmail').value.trim(),password:q('#authPassword').value});session=d;saveSessionSafe(d);showMsg(authMsg,'Anmeldung erfolgreich. Finanzdaten werden geladen …',false);await enterApp();hideMsg(authMsg)
+    const d=await auth('/auth/v1/token?grant_type=password',{email:q('#authEmail').value.trim(),password:q('#authPassword').value});session=d;saveSessionSafe(d);showMsg(authMsg,'Anmeldung erfolgreich. Sicherheitsstatus wird geprüft …',false);await refreshAuthUser();const rr=await _api('/rest/v1/admin_roles?select=role,active&user_id=eq.'+session.user.id);const isSA=!!(rr&&rr[0]&&rr[0].active&&rr[0].role==='superadmin'),vf=verifiedFactors();if(vf.length&&currentAal()!=='aal2'){openMfaLogin(vf[0].id,true);return}await enterApp();hideMsg(authMsg);if(isSA&&currentAal()!=='aal2'){showToast('SuperAdmin erkannt: Bitte MFA im Adminbereich einrichten.')}
   }catch(e){authScreen.classList.remove('hidden');shell.classList.add('hidden');showMsg(authMsg,(e&&e.message)||'Anmeldung fehlgeschlagen',true)}finally{btn.disabled=false;btn.textContent=old}
 }
 async function signup(){
   hideMsg(authMsg);try{const d=await auth('/auth/v1/signup',{email:q('#authEmail').value.trim(),password:q('#authPassword').value,data:{display_name:q('#authEmail').value.split('@')[0]}});if(d.access_token){session=d;localStorage.setItem('budget_session',JSON.stringify(d));await enterApp()}else{showMsg(authMsg,'Konto erstellt. Falls Supabase eine Bestätigung verlangt, prüfe jetzt deine E-Mail und melde dich danach an.',false)}}catch(e){showMsg(authMsg,e.message,true)}
 }
 let recoveryAccessToken=null;
+
+function currentAal(){return decodeJwt(session&&session.access_token||'').aal||'aal1'}
+function featureState(key){if(!key)return'enabled';if(previewCtx&&previewCtx.features&&key in previewCtx.features)return previewCtx.features[key];return accessCtl.features[key]||'hidden'}
+function featureReadable(key){return ['enabled','read_only'].includes(featureState(key))}
+function featureWritable(key){return featureState(key)==='enabled'}
+const VIEW_FEATURES={dashboard:'dashboard',financeOS:'cockpit',wealth:'net_worth',accounts:'accounts',transactions:'transactions',receivables:'claims',reconcile:'bank_reconciliation',categoryDashboard:'categories',planned:'recurring',analysis:'year_archive',tax:'taxes',csv:'csv_import',documents:'documents',categories:'categories',support:'support',admin:'admin',settings:null};
+const ACTION_FEATURES={twint:'twint',cash:'cash',travel:'travel_atm',book:'transactions',scan:'transactions'};
+function endpointFeature(path){path=String(path||'');if(/\/accounts|account_balances/.test(path))return'accounts';if(/transactions|transaction_entries|transaction_splits/.test(path))return'transactions';if(/planned_transactions|recurring_rules/.test(path))return'recurring';if(/import_batches|csv_profiles/.test(path))return'csv_import';if(/documents|invoices|invoice_items/.test(path))return'documents';if(/tax_/.test(path))return'taxes';if(/fire_scenarios/.test(path))return'fire';if(/finance_wishlist/.test(path))return'wishlist';if(/vat_refunds/.test(path))return'vat';if(/financial_years|year_archives/.test(path))return'year_archive';return null}
+const _api=api;api=async function(path,opt){const method=String((opt&&opt.method)||'GET').toUpperCase(),fk=endpointFeature(path);if(method!=='GET'&&fk&&!featureWritable(fk)&&!String(path).includes('/rpc/admin_'))throw new Error('Diese Funktion ist für deinen Benutzer nur lesbar oder nicht freigeschaltet.');return _api(path,opt)};
+async function loadAccessControl(){
+  if(!session||!session.user)return;
+  const uid=session.user.id;
+  const [roles,defs,ups,pfs,ents,plans,ws]=await Promise.all([
+    _api('/rest/v1/admin_roles?select=role,active&user_id=eq.'+uid),
+    _api('/rest/v1/features?select=feature_key,name,category,default_state,sort_order&active=eq.true&order=category.asc,sort_order.asc'),
+    _api('/rest/v1/user_plans?select=plan_key,status,ends_at&user_id=eq.'+uid),
+    _api('/rest/v1/plan_features?select=plan_key,feature_key,state'),
+    _api('/rest/v1/user_entitlements?select=feature_key,state,expires_at&user_id=eq.'+uid),
+    _api('/rest/v1/plans?select=plan_key,name,description,active,is_paid,sort_order&active=eq.true&order=sort_order.asc'),
+    _api('/rest/v1/user_workspaces?select=workspace_code&user_id=eq.'+uid)
+  ]);
+  const role=(roles||[])[0]||null,up=(ups||[])[0]||null,now=Date.now(),states={};
+  (defs||[]).forEach(f=>states[f.feature_key]=f.default_state||'hidden');
+  if(up&&['active','trial'].includes(up.status)&&(!up.ends_at||new Date(up.ends_at).getTime()>now)){
+    (pfs||[]).filter(x=>x.plan_key===up.plan_key).forEach(x=>states[x.feature_key]=x.state)
+  }
+  (ents||[]).filter(x=>!x.expires_at||new Date(x.expires_at).getTime()>now).forEach(x=>states[x.feature_key]=x.state);
+  const isSuper=!!(role&&role.active&&role.role==='superadmin');if(isSuper)states.admin='enabled';
+  accessCtl={role:role,isSuperAdminRole:isSuper,mfaReady:currentAal()==='aal2',plan:up&&up.plan_key||null,workspace:ws&&ws[0]&&ws[0].workspace_code||null,features:states,featureDefs:defs||[],plans:plans||[]};
+  if(!accessCtl.workspace){try{accessCtl.workspace=await _api('/rest/v1/rpc/ensure_my_workspace',{method:'POST',body:'{}'})}catch(e){}}
+  if(accessCtl.workspace&&!location.hash.startsWith('#access_token')&&!location.hash.startsWith('#type='))history.replaceState(null,'',location.pathname+location.search+'#w/'+accessCtl.workspace);
+  applyFeatureVisibility();registerDevice().catch(()=>{});
+}
+function applyFeatureVisibility(){
+  qa('[data-view]').forEach(b=>{const f=VIEW_FEATURES[b.dataset.view];if(!f)return;const st=featureState(f);if(b.dataset.view==='admin'&&accessCtl.isSuperAdminRole){b.classList.remove('hidden');b.disabled=false;return}b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled';b.classList.toggle('locked-feature',st==='disabled')});
+  qa('[data-mobile-view]').forEach(b=>{const f=VIEW_FEATURES[b.dataset.mobileView];if(!f)return;const st=featureState(f);b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled'});
+  qa('[data-mobile-more-view]').forEach(b=>{const f=VIEW_FEATURES[b.dataset.mobileMoreView];if(!f)return;if(b.dataset.mobileMoreView==='admin'&&accessCtl.isSuperAdminRole){b.classList.remove('hidden');return}const st=featureState(f);b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled'});
+  qa('[data-mobile-action]').forEach(b=>{const f=ACTION_FEATURES[b.dataset.mobileAction];if(!f)return;const st=featureState(f);b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled'});
+  const adminBtn=q('#adminNavBtn'),mobileAdmin=q('#mobileAdminBtn');if(adminBtn)adminBtn.classList.toggle('hidden',!accessCtl.isSuperAdminRole);if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!accessCtl.isSuperAdminRole);
+  const csvBtn=q('[data-import-mode="csv"]'),pdfBtn=q('[data-import-mode="pdf"]');if(csvBtn)csvBtn.classList.toggle('hidden',!featureReadable('csv_import'));if(pdfBtn)pdfBtn.classList.toggle('hidden',!featureReadable('pdf_import'));
+  const cb=q('#contextBanner');if(cb){if(previewCtx){cb.classList.add('show');q('#contextBannerTitle').textContent='UI-Vorschau · '+previewCtx.label;q('#contextBannerText').textContent='Nur Funktionen/Kacheln werden simuliert. Es werden keine fremden Finanzdaten geladen.'}else cb.classList.remove('show')}
+}
+function safeDeviceKey(){let k='';try{k=localStorage.getItem('budget_device_key')||''}catch(e){}if(!k){k=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));try{localStorage.setItem('budget_device_key',k)}catch(e){}}return k}
+async function registerDevice(){if(!session||!session.user)return;const platform=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||'unknown',ua=navigator.userAgent||'',browser=/CriOS|Chrome/.test(ua)?'Chrome':/Safari/.test(ua)?'Safari':/Firefox/.test(ua)?'Firefox':'Browser';await _api('/rest/v1/user_devices?on_conflict=user_id,device_key',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({user_id:session.user.id,device_key:safeDeviceKey(),platform,browser,app_version:APP_VERSION,pwa:matchMedia('(display-mode: standalone)').matches,last_seen_at:new Date().toISOString()})})}
+async function refreshAuthUser(){const r=await fetch(SUPA+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},cache:'no-store'});if(r.ok){const u=await r.json();session.user=u;saveSessionSafe(session);return u}return session.user}
+function verifiedFactors(){return ((session&&session.user&&session.user.factors)||[]).filter(f=>(f.status||'verified')==='verified'&&((f.factor_type||f.type)==='totp'))}
+async function mfaFetch(path,opt={}){if(!(await ensureSession()))throw new Error('Sitzung abgelaufen');opt.headers=Object.assign({apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},opt.headers||{});const r=await fetch(SUPA+'/auth/v1/'+path,opt),txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(e){d={raw:txt}}if(!r.ok)throw new Error(d.msg||d.message||d.error_description||('MFA HTTP '+r.status));return d}
+async function openMfaSetup(){hideMsg(q('#mfaMsg'));mfaMode='setup';q('#mfaSetupBlock').classList.remove('hidden');q('#mfaLoginBlock').classList.add('hidden');q('#mfaCode').value='';q('#mfaDialog').showModal();try{const d=await mfaFetch('factors',{method:'POST',body:JSON.stringify({factor_type:'totp',friendly_name:'Budget Control SuperAdmin'})});mfaFactorId=d.id;const qr=d.totp&&d.totp.qr_code||'',secret=d.totp&&d.totp.secret||'';q('#mfaSecret').value=secret;const src=String(qr).startsWith('data:')?qr:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr);q('#mfaQr').src=src}catch(e){showMsg(q('#mfaMsg'),e.message,true)}}
+function openMfaLogin(factorId,afterLogin=false){hideMsg(q('#mfaMsg'));mfaMode='login';mfaFactorId=factorId;pendingLoginAfterMfa=afterLogin;q('#mfaSetupBlock').classList.add('hidden');q('#mfaLoginBlock').classList.remove('hidden');q('#mfaCode').value='';q('#mfaDialog').showModal();setTimeout(()=>q('#mfaCode').focus(),100)}
+async function verifyMfa(){const code=q('#mfaCode').value.trim();if(!mfaFactorId||code.length<6)return showMsg(q('#mfaMsg'),'Bitte den aktuellen Authenticator-Code eingeben.',true);try{const c=await mfaFetch('factors/'+mfaFactorId+'/challenge',{method:'POST',body:'{}'});const v=await mfaFetch('factors/'+mfaFactorId+'/verify',{method:'POST',body:JSON.stringify({challenge_id:c.id,code})});if(v.access_token){session=Object.assign({},session,v);if(v.user)session.user=v.user;saveSessionSafe(session)}else await refreshSession();await refreshAuthUser();q('#mfaDialog').close();await loadAccessControl();if(pendingLoginAfterMfa){pendingLoginAfterMfa=false;await enterApp()}else{showToast('MFA bestätigt.');if(accessCtl.isSuperAdminRole){await renderAdmin();view('admin')}}}catch(e){showMsg(q('#mfaMsg'),e.message,true)}}
+async function adminEdge(body){if(currentAal()!=='aal2')throw new Error('MFA erforderlich. Bitte zuerst den zweiten Faktor bestätigen.');const r=await fetch(SUPA+'/functions/v1/budget-admin',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'}),txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(e){}if(!r.ok)throw new Error(d.error||d.message||('Admin HTTP '+r.status));return d}
+
 function appRedirectUrl(){return 'https://tonialemanno.github.io/budget-control/'}
 async function sendPasswordReset(email){const r=await fetch(SUPA+'/auth/v1/recover?redirect_to='+encodeURIComponent(appRedirectUrl()),{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email}),cache:'no-store'});const txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(e){}if(!r.ok)throw new Error(d.msg||d.message||'Reset-E-Mail konnte nicht gesendet werden.');return d}
 function recoveryFromHash(){const raw=String(location.hash||'').replace(/^#/,'');if(!raw)return false;const x=new URLSearchParams(raw);if(x.get('type')!=='recovery'||!x.get('access_token'))return false;recoveryAccessToken=x.get('access_token');history.replaceState(null,'',location.pathname+location.search);authScreen.classList.remove('hidden');shell.classList.add('hidden');setTimeout(()=>{q('#resetPasswordDialog').showModal();applyLanguage(q('#resetPasswordDialog'))},120);return true}
@@ -1446,15 +1617,17 @@ function resetUserRuntimeState(){
   accounts=[];categories=[];transactions=[];planned=[];recurringRules=[];taxYears=[];taxReserveRules=[];financialYears=[];yearArchives=[];savedFilters=[];savedTags=[];classificationRules=[];documents=[];invoices=[];
   currentWealth={};currentProfile={};csvState=null;csvSelectedFiles=[];pdfSelectedFiles=[];bankReconCandidates=[];bankReconLines=[];bankReconFileName='';bankReconMeta={};dismissedRuleSuggestions=new Set();
   financeLocal={wishlist:[],vatRefunds:[],fire:{}};financeCloudReady=false;netWorthSnapshots=[];taxReferenceLimits=[];fireScenarioId=null;parsedQrBill=null;privacyInitialized=false;privacyMode=false;
+  accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]};previewCtx=null;adminSupportContext=null;mfaFactorId=null;mfaMode=null;pendingLoginAfterMfa=false;
   try{qa('dialog[open]').forEach(d=>d.close())}catch(e){}
+  ['txFilterFrom','txFilterTo','txSearch'].forEach(id=>{const el=q('#'+id);if(el)el.value=''});['txFilterAccount','txFilterCategory','txFilterType'].forEach(id=>{const el=q('#'+id);if(el)el.value=''});
   const fileIds=['csvFile','pdfImportFile','reconcilePdf','qrImageFile'];fileIds.forEach(id=>{const el=q('#'+id);if(el)try{el.value=''}catch(e){}});
   const clearIds=['csvAutoStatus','csvPreview','csvPreviewTable','csvImportErrors','csvSelectedFiles','csvAnalysisStatus','pdfSelectedFiles','reconcileFileInfo','reconcileTable','reconcileRaw'];clearIds.forEach(id=>{const el=q('#'+id);if(el)el.textContent=''});
   const hideIds=['csvMapping','importStatus','csvImportErrors','reconcileResults','reconcileMsg'];hideIds.forEach(id=>{const el=q('#'+id);if(el)el.classList.add('hidden')});
   const bar=q('#importBar');if(bar)bar.style.width='0%';renderCsvSelectedFiles();renderPdfSelectedFiles();
-  const user=q('#userMail');if(user)user.textContent='';
+  const user=q('#userMail');if(user)user.textContent='';const an=q('#adminNavBtn');if(an)an.classList.add('hidden');const ma=q('#mobileAdminBtn');if(ma)ma.classList.add('hidden');const cb=q('#contextBanner');if(cb)cb.classList.remove('show');['adminUsers','adminDiagnostics','adminAudit','adminSupportData','mySupportGrants','mySupportAudit'].forEach(id=>{const el=q('#'+id);if(el)el.innerHTML=''})
 }
 async function enterApp(){
-  shell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();q('#userMail').textContent=(session.user&&session.user.email)||'';q('#txDate').value=localDateISO();const cy=new Date().getFullYear();q('#dashboardPlanYear').innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');q('#dashboardPlanYear').value=String(cy);q('#dashboardPlanPeriod').value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');shell.classList.remove('hidden')}else{shell.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,'Daten konnten nicht sicher geladen werden. Bitte erneut anmelden.',true)}
+  shell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();q('#userMail').textContent=(session.user&&session.user.email)||'';await loadAccessControl();q('#txDate').value=localDateISO();const cy=new Date().getFullYear();q('#dashboardPlanYear').innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');q('#dashboardPlanYear').value=String(cy);q('#dashboardPlanPeriod').value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');shell.classList.remove('hidden')}else{shell.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,'Daten konnten nicht sicher geladen werden. Bitte erneut anmelden.',true)}
 }
 async function logout(){
   const token=session&&session.access_token;resetUserRuntimeState();try{localStorage.removeItem('budget_session')}catch(e){}try{sessionStorage.removeItem('budget_session')}catch(e){}session=null;shell.classList.add('hidden');authScreen.classList.remove('hidden');
@@ -1468,10 +1641,11 @@ q('#resetPasswordForm').addEventListener('submit',async e=>{e.preventDefault();h
 q('#authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 
 function view(name){
+  const req=VIEW_FEATURES[name];if(req&&name!=='admin'&&!featureReadable(req)){showToast('Dieser Bereich ist für deinen Benutzer nicht freigeschaltet.');name='dashboard'}if(name==='admin'&&!accessCtl.isSuperAdminRole){showToast('Nur für Administratoren.');name='dashboard'}
   qa('.view').forEach(v=>v.classList.remove('active'));q('#'+name+'View').classList.add('active');qa('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));qa('[data-mobile-view]').forEach(b=>b.classList.toggle('active',b.dataset.mobileView===name));const mobileMoreBtn=q('#mobileMoreBtn');if(mobileMoreBtn)mobileMoreBtn.classList.toggle('more-active',!['dashboard','financeOS','transactions','wealth'].includes(name));
-  const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Töpfe',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Kategorien-Dashboard',planned:'Zahlungscheck',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',settings:'Einstellungen'};q('#pageTitle').textContent=tr(titles[name]);setTimeout(()=>applyLanguage(),0)
+  const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Töpfe',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Kategorien-Dashboard',planned:'Zahlungscheck',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=tr(titles[name]);setTimeout(()=>applyLanguage(),0)
 }
-qa('.nav button').forEach(b=>b.addEventListener('click',()=>view(b.dataset.view)));qa('[data-go]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.go)));
+qa('.nav button').forEach(b=>b.addEventListener('click',async()=>{view(b.dataset.view);if(b.dataset.view==='admin')await renderAdmin();if(b.dataset.view==='support')await renderSupport()}));qa('[data-go]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.go)));
 
 async function reloadAll(){
   try{
@@ -1496,7 +1670,7 @@ async function reloadAll(){
       api('/rest/v1/invoices?select=*,invoice_items(*)&order=invoice_date.desc,created_at.desc'),
       api('/rest/v1/tax_reserve_rules?select=*&order=effective_from.asc,created_at.asc')
     ]);
-    accounts=res[0]||[];currentWealth=(res[1]&&res[1][0])||{};categories=res[2]||[];transactions=res[3]||[];planned=res[5]||[];taxYears=res[6]||[];recurringRules=res[7]||[];financialYears=res[8]||[];yearArchives=res[9]||[];savedFilters=res[10]||[];currentProfile=(res[11]&&res[11][0])||{};savedTags=res[12]||[];classificationRules=res[13]||[];documents=res[14]||[];invoices=res[15]||[];taxReserveRules=res[16]||[];if(!privacyInitialized){privacyMode=!!currentProfile.privacy_blur_default;privacyInitialized=true}await refreshLiveFx(true);await loadFinanceCloud();await captureTodaySnapshot(true);applyAppearance();applyPrivacyMode();renderAll(currentWealth,res[4]||[]);updatePwaStatus();return true
+    accounts=res[0]||[];currentWealth=(res[1]&&res[1][0])||{};categories=res[2]||[];transactions=res[3]||[];planned=res[5]||[];taxYears=res[6]||[];recurringRules=res[7]||[];financialYears=res[8]||[];yearArchives=res[9]||[];savedFilters=res[10]||[];currentProfile=(res[11]&&res[11][0])||{};savedTags=res[12]||[];classificationRules=res[13]||[];documents=res[14]||[];invoices=res[15]||[];taxReserveRules=res[16]||[];if(!privacyInitialized){privacyMode=!!currentProfile.privacy_blur_default;privacyInitialized=true}await refreshLiveFx(true);await loadFinanceCloud();await captureTodaySnapshot(true);applyAppearance();applyPrivacyMode();renderAll(currentWealth,res[4]||[]);renderSupport().catch(()=>{});if(accessCtl.isSuperAdminRole)renderAdmin().catch(()=>{});applyFeatureVisibility();updatePwaStatus();return true
   }catch(e){console.error('Secure reload failed',e);resetUserRuntimeState();alert('Daten konnten nicht geladen werden: '+e.message);return false}
 }
 function typeLabel(t){return tr(({bank:'Bankkonto',savings:'Sparkonto / Topf',cash:'Bargeld',fixed_deposit:'Festgeld',rental_deposit:'Mietkaution',receivable:'Forderung',investment:'Anlage',credit_card:'Kreditkarte / Schuld',other:'Sonstiges'})[t]||t)}
@@ -1846,7 +2020,7 @@ function renderAll(w,month){
   const dashAccs=dashboardAccountRows();q('#dashAccounts').innerHTML=dashAccs.length?dashAccs.map(a=>'<div class="account-row click-row" data-dash-account="'+a.id+'"><div><div class="name">'+esc(a.name)+(a.account_type==='cash'?'<span class="standard-pill">Bargeld</span>':'')+'</div><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+'</div></div><div style="text-align:right"><div class="amount">'+money(a.balance,a.currency)+'</div></div></div>').join(''):'<div class="empty">Noch keine Konten.</div>';
   q('#dashTransactions').innerHTML=transactions.length?transactions.slice(0,5).map(t=>'<div class="tx-row click-row" data-dash-tx="'+t.id+'"><div><div class="name">'+esc(t.description||txLabel(t.transaction_type))+'</div><div class="meta">'+esc(txDateValue(t))+(t.counterparty?' · '+esc(t.counterparty):'')+'</div></div><div class="amount '+(t.transaction_type==='expense'?'neg':t.transaction_type==='income'?'pos':'')+'">'+(t.transaction_type==='expense'?'− ':t.transaction_type==='income'?'+ ':'')+money(t.amount,t.currency||'CHF')+'</div></div>').join(''):'<div class="empty">Noch keine Buchungen.</div>';
   fillYearSelect('accForecastYear',2);fillPeriodValue('accForecastKind','accForecastValue',true);fillYearSelect('txPeriodYear',1);fillPeriodValue('txPeriodKind','txPeriodValue',true);fillYearSelect('checkPeriodYear',2);fillPeriodValue('checkPeriodKind','checkPeriodValue',true);
-  q('#onboardingBox').classList.toggle('hidden',accounts.length>0);renderDashboardWhereMoney();renderFinanceOS();renderWealth();renderAccounts();syncTxPeriod(false);renderTransactions();renderReceivables();renderCategoryDashboard();renderPlanned();renderRecurringRules();renderCategories();renderDocuments();fillSelectors();if(bankReconCandidates.length)renderBankReconcile();renderAnalysis();renderTax();renderSettings();applyLanguage()
+  q('#onboardingBox').classList.toggle('hidden',accounts.length>0);renderDashboardWhereMoney();renderFinanceOS();renderWealth();renderAccounts();fillSelectors();if(!restoreTxFilters())syncTxPeriod(false);renderTransactions();renderReceivables();renderCategoryDashboard();renderPlanned();renderRecurringRules();renderCategories();renderDocuments();if(bankReconCandidates.length)renderBankReconcile();renderAnalysis();renderTax();renderSettings();applyLanguage()
 }
 
 
@@ -1999,7 +2173,27 @@ function renderAccounts(){
   q('#accountsTable').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Institut</th><th>Aktuell</th><th>Nach offenen Posten</th><th>Bis wann?</th><th></th></tr></thead><tbody>'+accounts.map(a=>{const rel=plans.filter(p=>p.account_id===a.id||p.to_account_id===a.id),pv=Number(a.balance||0)+plannedDeltaForAccount(a,rel),last=rel.length?rel.map(p=>p.due_on).sort().slice(-1)[0]:'—';return '<tr class="click-row" data-account-detail="'+a.id+'"><td><strong>'+esc(a.name)+'</strong>'+(a.id===preferredAccountId()?'<span class="standard-pill">Standard</span>':'')+'<div class="meta">'+esc(typeLabel(a.account_type))+'</div></td><td>'+esc(a.institution||'—')+'</td><td><strong>'+money(a.balance,a.currency)+'</strong></td><td><strong>'+money(pv,a.currency)+'</strong><div class="meta">'+rel.length+' offene Posten</div></td><td>'+esc(last)+'</td><td><button class="action-link" data-edit-account="'+a.id+'">Konto bearbeiten</button></td></tr>'}).join('')+'</tbody></table></div>'
 }
 
-function syncTxPeriod(render){const r=periodRange(q('#txPeriodYear').value,q('#txPeriodKind').value,q('#txPeriodValue').value);q('#txFilterFrom').value=r.from;q('#txFilterTo').value=r.to;if(render!==false)renderTransactions()}
+function txFilterStorageKey(){return 'budget_tx_filters_'+((session&&session.user&&session.user.id)||'anonymous')}
+function txFilterState(){return {
+  periodYear:q('#txPeriodYear').value||'',periodKind:q('#txPeriodKind').value||'month',periodValue:q('#txPeriodValue').value||'',
+  from:q('#txFilterFrom').value||'',to:q('#txFilterTo').value||'',account:q('#txFilterAccount').value||'',category:q('#txFilterCategory').value||'',type:q('#txFilterType').value||'',search:q('#txSearch').value||''
+}}
+function saveTxFilters(){
+  if(!(session&&session.user&&session.user.id))return;
+  try{localStorage.setItem(txFilterStorageKey(),JSON.stringify(txFilterState()));const h=q('#txFilterSavedHint');if(h){h.textContent='Filter automatisch gespeichert';h.dataset.saved=String(Date.now())}}catch(e){console.warn('Buchungsfilter konnte nicht gespeichert werden',e)}
+}
+function restoreTxFilters(){
+  if(!(session&&session.user&&session.user.id))return false;
+  let s=null;try{s=JSON.parse(localStorage.getItem(txFilterStorageKey())||'null')}catch(e){}
+  if(!s||typeof s!=='object')return false;
+  const setIfOption=(id,val)=>{const el=q('#'+id);if(!el)return;if(Array.from(el.options||[]).some(o=>o.value===String(val||'')))el.value=String(val||'')};
+  setIfOption('txPeriodYear',s.periodYear);setIfOption('txPeriodKind',s.periodKind);
+  fillPeriodValue('txPeriodKind','txPeriodValue',false);setIfOption('txPeriodValue',s.periodValue);
+  q('#txFilterFrom').value=s.from||'';q('#txFilterTo').value=s.to||'';
+  setIfOption('txFilterAccount',s.account);setIfOption('txFilterCategory',s.category);setIfOption('txFilterType',s.type);q('#txSearch').value=s.search||'';
+  return !!(s.from||s.to||s.account||s.category||s.type||s.search||s.periodYear||s.periodValue)
+}
+function syncTxPeriod(render){const r=periodRange(q('#txPeriodYear').value,q('#txPeriodKind').value,q('#txPeriodValue').value);q('#txFilterFrom').value=r.from;q('#txFilterTo').value=r.to;saveTxFilters();if(render!==false)renderTransactions()}
 function filteredTransactions(){
   const from=q('#txFilterFrom').value,to=q('#txFilterTo').value,acc=q('#txFilterAccount').value,cat=q('#txFilterCategory').value,type=q('#txFilterType').value,search=q('#txSearch').value.trim().toLowerCase();
   return transactions.filter(t=>{
@@ -2808,10 +3002,10 @@ q('#wealthScope').addEventListener('change',renderWealthSelection);q('#wealthYea
 q('#wealthBankCards').addEventListener('click',e=>{const acc=e.target.closest('[data-account-scope]');if(acc){e.stopPropagation();q('#wealthScope').value=acc.dataset.accountScope;renderWealthSelection();return}const bank=e.target.closest('[data-bank-scope]');if(bank){q('#wealthScope').value=bank.dataset.bankScope;renderWealthSelection()}});
 q('#dashTransactions').addEventListener('click',e=>{const b=e.target.closest('[data-dash-tx]');if(b)openTx(b.dataset.dashTx)});
 q('#dashAccounts').addEventListener('click',e=>{const b=e.target.closest('[data-dash-account]');if(b)openAccountDetail(b.dataset.dashAccount)});
-qa('[data-month-drill]').forEach(el=>el.addEventListener('click',()=>{const type=el.dataset.monthDrill,now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),1),to=new Date(now.getFullYear(),now.getMonth()+1,0);view('transactions');q('#txFilterFrom').value=localDateISO(from);q('#txFilterTo').value=localDateISO(to);q('#txFilterType').value=type==='all'?'':type;renderTransactions()}));
-['#txFilterFrom','#txFilterTo','#txFilterAccount','#txFilterCategory','#txFilterType','#txSearch'].forEach(s=>q(s).addEventListener(s==='#txSearch'?'input':'change',renderTransactions));
+qa('[data-month-drill]').forEach(el=>el.addEventListener('click',()=>{const type=el.dataset.monthDrill,now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),1),to=new Date(now.getFullYear(),now.getMonth()+1,0);view('transactions');q('#txFilterFrom').value=localDateISO(from);q('#txFilterTo').value=localDateISO(to);q('#txFilterType').value=type==='all'?'':type;saveTxFilters();renderTransactions()}));
+['#txFilterFrom','#txFilterTo','#txFilterAccount','#txFilterCategory','#txFilterType','#txSearch'].forEach(s=>q(s).addEventListener(s==='#txSearch'?'input':'change',()=>{saveTxFilters();renderTransactions()}));
 q('#ruleSuggestions').addEventListener('click',e=>{const y=e.target.closest('[data-rule-suggestion-yes]'),n=e.target.closest('[data-rule-suggestion-no]');if(y)applyRuleSuggestion(y.dataset.ruleSuggestionYes);else if(n)rejectRuleSuggestion(n.dataset.ruleSuggestionNo)});
-q('#txUncategorizedBtn').addEventListener('click',()=>{q('#txFilterCategory').value='__none__';q('#txFilterType').value='';renderTransactions()});
+q('#txUncategorizedBtn').addEventListener('click',()=>{q('#txFilterCategory').value='__none__';q('#txFilterType').value='';saveTxFilters();renderTransactions()});
 q('#txResetFilters').addEventListener('click',()=>{q('#txFilterAccount').value='';q('#txFilterCategory').value='';q('#txFilterType').value='';q('#txSearch').value='';q('#txPeriodYear').value=String(new Date().getFullYear());q('#txPeriodKind').value='month';fillPeriodValue('txPeriodKind','txPeriodValue',false);syncTxPeriod(true)});
 q('#taxYearSelect').addEventListener('change',renderTax);q('#saveTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(true)}catch(e){alert(e.message)}});q('#disableTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(false)}catch(e){alert(e.message)}});['#taxEstimatedInput','#taxPaidInput','#taxFilingStatus','#taxChildren','#taxPremiumReductions','#taxOtherDeductions','#taxNoPension'].forEach(s=>q(s).addEventListener((s==='#taxNoPension'||s==='#taxFilingStatus')?'change':'input',()=>{let existing=taxYears.find(x=>Number(x.tax_year)===taxYear());if(!existing){existing={tax_year:taxYear()};taxYears.push(existing)}existing.estimated_tax=Number(q('#taxEstimatedInput').value||0);existing.tax_paid=Number(q('#taxPaidInput').value||0);existing.filing_status=q('#taxFilingStatus').value||null;existing.eligible_children=Number(q('#taxChildren').value||0);existing.premium_reductions=Number(q('#taxPremiumReductions').value||0);existing.manual_other_deductions=Number(q('#taxOtherDeductions').value||0);existing.no_pension_or_3a=q('#taxNoPension').checked;renderTax()}));
 q('#saveTaxYearBtn').addEventListener('click',async()=>{const y=taxYear(),body={tax_year:y,estimated_tax:Number(q('#taxEstimatedInput').value||0),tax_paid:Number(q('#taxPaidInput').value||0),filing_status:q('#taxFilingStatus').value||null,eligible_children:Number(q('#taxChildren').value||0),no_pension_or_3a:q('#taxNoPension').checked,premium_reductions:Number(q('#taxPremiumReductions').value||0),manual_other_deductions:Number(q('#taxOtherDeductions').value||0),notes:q('#taxYearNotes').value.trim()||null};const existing=taxYears.find(x=>Number(x.tax_year)===y);try{if(existing)await api('/rest/v1/tax_years?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify(body)});else await api('/rest/v1/tax_years',{method:'POST',body:JSON.stringify(body)});await reloadAll()}catch(e){alert(e.message)}});
@@ -3094,6 +3288,21 @@ q('#startImportBtn').addEventListener('click',async()=>{
   }catch(e){showMsg(q('#importStatus'),e.message,true)}finally{q('#startImportBtn').disabled=false;q('#csvAnalyzeBtn').disabled=!csvSelectedFiles.length}
 });
 
+
+function sanitizeDiagText(v){return String(v||'').replace(/[A-Z]{2}\d{2}[A-Z0-9 ]{10,}/gi,'[IBAN entfernt]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[E-Mail entfernt]').replace(/(?:CHF|EUR|USD)\s*[\d'.,-]+/gi,'[Betrag entfernt]').replace(/\b\d{1,3}(?:[.,']\d{3})+(?:[.,]\d{2})?\b/g,'[Zahl entfernt]').slice(0,500)}
+function makeErrorCode(){const d=new Date(),p=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join(''),r=Math.random().toString(36).slice(2,6).toUpperCase();return'BC-'+p+'-'+r}
+async function renderSupport(){if(!session||!session.user||!featureReadable('support'))return;try{const uid=session.user.id,[grants,audit,diags]=await Promise.all([_api('/rest/v1/support_grants?select=*&owner_user_id=eq.'+uid+'&order=created_at.desc&limit=20'),_api('/rest/v1/support_audit_log?select=action,entity_type,entity_id,details,created_at&target_user_id=eq.'+uid+'&order=created_at.desc&limit=30'),_api('/rest/v1/app_diagnostics?select=error_code,status,created_at,context&user_id=eq.'+uid+'&order=created_at.desc&limit=10')]);const active=(grants||[]).filter(g=>!g.revoked_at&&(!g.expires_at||new Date(g.expires_at)>new Date()));q('#supportAppVersion').textContent=APP_VERSION;q('#supportWorkspace').textContent=accessCtl.workspace||'—';q('#supportGrantCount').textContent=String(active.length);q('#supportDiagLast').textContent=diags&&diags[0]?diags[0].error_code:'—';q('#mySupportGrants').innerHTML=(grants||[]).map(g=>{const on=!g.revoked_at&&(!g.expires_at||new Date(g.expires_at)>new Date());return'<div class="admin-user-card"><div><strong>'+esc(g.access_level==='write'?'Ansehen + korrigieren':g.access_level==='read'?'Nur lesen':'Diagnose')+'</strong> '+(on?'<span class="admin-badge ok">aktiv</span>':'<span class="admin-badge">beendet</span>')+'<div class="admin-user-meta">Scopes: '+esc((g.scopes||[]).join(', '))+' · '+(g.expires_at?'bis '+new Date(g.expires_at).toLocaleString():'bis Widerruf')+'</div></div>'+(on?'<button class="btn secondary" data-revoke-support="'+g.id+'">Zugriff jetzt beenden</button>':'')+'</div>'}).join('')||'<div class="small">Noch keine Supportfreigabe.</div>';q('#mySupportAudit').innerHTML=(audit||[]).map(a=>'<div class="admin-user-card"><strong>'+esc(a.action)+'</strong><div class="admin-user-meta">'+new Date(a.created_at).toLocaleString()+(a.entity_type?' · '+esc(a.entity_type):'')+'</div></div>').join('')||'<div class="small">Noch keine Einträge.</div>'}catch(e){console.warn('Support render',e)}}
+async function sendDiagnostic(){hideMsg(q('#diagnosticMsg'));try{const code=makeErrorCode(),platform=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||'unknown',ua=navigator.userAgent||'',browser=/CriOS|Chrome/.test(ua)?'Chrome':/Safari/.test(ua)?'Safari':/Firefox/.test(ua)?'Firefox':'Browser',details={note:sanitizeDiagText(q('#diagNote').value),online:navigator.onLine,pwa:matchMedia('(display-mode: standalone)').matches,language:navigator.language,screen:Math.round(innerWidth)+'x'+Math.round(innerHeight)};await _api('/rest/v1/app_diagnostics',{method:'POST',body:JSON.stringify({user_id:session.user.id,error_code:code,app_version:APP_VERSION,platform,browser,context:q('#diagContext').value,sanitized_details:details})});showMsg(q('#diagnosticMsg'),'Diagnose gesendet. Fehler-ID: '+code,false);q('#diagNote').value='';await renderSupport()}catch(e){showMsg(q('#diagnosticMsg'),e.message,true)}}
+async function grantSupport(){hideMsg(q('#supportGrantMsg'));try{const level=q('#supportAccessLevel').value,minutes=Number(q('#supportDuration').value),scopes=[];if(q('#scopeFinance').checked)scopes.push('finance');if(q('#scopeImports').checked)scopes.push('imports');if(q('#scopeDocuments').checked)scopes.push('documents');if(level!=='diagnosis'&&!scopes.length)throw new Error('Bitte mindestens einen Bereich freigeben.');const used=level==='diagnosis'?['diagnostics']:scopes;await _api('/rest/v1/rpc/grant_support_to_superadmin',{method:'POST',body:JSON.stringify({p_access_level:level,p_minutes:minutes,p_scopes:used})});showMsg(q('#supportGrantMsg'),'Supportzugriff wurde zeitlich begrenzt freigegeben.',false);await renderSupport()}catch(e){showMsg(q('#supportGrantMsg'),e.message,true)}}
+async function renderAdmin(){if(!accessCtl.isSuperAdminRole)return;q('#adminMfaBadge').textContent=currentAal()==='aal2'?'MFA aktiv':'MFA erforderlich';q('#adminMfaBadge').className='admin-badge '+(currentAal()==='aal2'?'ok':'warn');q('#adminMfaNotice').classList.toggle('hidden',currentAal()==='aal2');q('#adminInvitePlan').innerHTML=(accessCtl.plans||[]).map(p=>'<option value="'+esc(p.plan_key)+'">'+esc(p.name)+'</option>').join('');q('#adminPlanCount').textContent=String((accessCtl.plans||[]).length);q('#adminPlanSummary').innerHTML=(accessCtl.plans||[]).map(p=>'<span class="admin-badge" style="margin:3px">'+esc(p.name)+(p.is_paid?' · paid':'')+'</span>').join('');if(currentAal()!=='aal2'){q('#adminUsers').innerHTML='<div class="security-note">MFA bestätigen, um Benutzer und Berechtigungen zu verwalten.</div>';return}try{const [users,diags,audit,grants]=await Promise.all([adminEdge({action:'list_users'}).then(x=>x.users||[]),_api('/rest/v1/app_diagnostics?select=*&order=created_at.desc&limit=30'),_api('/rest/v1/support_audit_log?select=*&order=created_at.desc&limit=40'),_api('/rest/v1/support_grants?select=*&order=created_at.desc&limit=50')]);q('#adminUserCount').textContent=String((users||[]).length);q('#adminDiagnosticCount').textContent=String((diags||[]).filter(d=>['open','investigating'].includes(d.status)).length);const active=(grants||[]).filter(g=>!g.revoked_at&&(!g.expires_at||new Date(g.expires_at)>new Date()));q('#adminSupportCount').textContent=String(active.length);q('#adminUsers').innerHTML=(users||[]).map(u=>{const banned=u.banned_until&&new Date(u.banned_until)>new Date(),isSelf=session.user.id===u.user_id,hasSupport=Number(u.active_support_grants||0)>0;return'<div class="admin-user-card" data-admin-user="'+u.user_id+'"><div class="admin-user-head"><div><strong>'+esc(u.display_name||u.email||u.user_id)+'</strong> '+(u.admin_role?'<span class="admin-badge">'+esc(u.admin_role)+'</span>':'')+(banned?'<span class="admin-badge warn">gesperrt</span>':'')+'<div class="admin-user-meta">'+esc(u.email||'')+' · Workspace '+esc(u.workspace_code||'—')+' · Plan '+esc(u.plan_key||'—')+'<br>'+u.account_count+' Konten · '+u.transaction_count+' Buchungen · '+u.import_count+' Importe · App '+esc(u.last_app_version||'—')+'</div></div><div class="field" style="margin:0;min-width:120px"><select data-plan-user="'+u.user_id+'">'+(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'" '+(p.plan_key===u.plan_key?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></div></div><div class="admin-user-actions"><button class="btn secondary" data-features-user="'+u.user_id+'" data-label="'+esc(u.email||u.display_name||'Benutzer')+'">Features</button><button class="btn secondary" data-preview-user="'+u.user_id+'" data-label="'+esc(u.email||u.display_name||'Benutzer')+'">UI-Vorschau</button>'+(hasSupport?'<button class="btn" data-support-user="'+u.user_id+'" data-label="'+esc(u.email||u.display_name||'Benutzer')+'">Daten-Support</button>':'')+'<button class="btn secondary" data-reset-email="'+esc(u.email||'')+'">Reset-Mail</button>'+(!isSelf?'<button class="btn secondary" data-ban-user="'+u.user_id+'" data-banned="'+(banned?'1':'0')+'">'+(banned?'Entsperren':'Sperren')+'</button>':'')+(!isSelf&&!u.admin_role?'<button class="btn ghost" data-delete-user="'+u.user_id+'" data-label="'+esc(u.email||u.display_name||'Benutzer')+'">Endgültig löschen</button>':'')+'</div></div>'}).join('');q('#adminDiagnostics').innerHTML=(diags||[]).map(d=>'<div class="admin-user-card"><strong>'+esc(d.error_code)+' · '+esc(d.context||'')+'</strong><div class="admin-user-meta">'+new Date(d.created_at).toLocaleString()+' · '+esc(d.app_version||'')+' · '+esc(d.platform||'')+' / '+esc(d.browser||'')+' · '+esc(d.status)+'</div><div class="small">'+esc(d.sanitized_details&&d.sanitized_details.note||'')+'</div></div>').join('')||'<div class="small">Keine Diagnosen.</div>';q('#adminAudit').innerHTML=(audit||[]).map(a=>'<div class="admin-user-card"><strong>'+esc(a.action)+'</strong><div class="admin-user-meta">'+new Date(a.created_at).toLocaleString()+' · '+esc(a.entity_type||'')+(a.entity_id?' · '+esc(a.entity_id):'')+'</div></div>').join('')||'<div class="small">Keine Audit-Einträge.</div>'}catch(e){q('#adminUsers').innerHTML='<div class="msg error">'+esc(e.message)+'</div>'}}
+
+async function openPlanEditor(){if(currentAal()!=='aal2')return openMfaSetup();q('#adminPlanSelect').innerHTML=(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'">'+esc(p.name)+'</option>').join('');await renderPlanEditor();q('#adminPlanDialog').showModal()}
+async function renderPlanEditor(){const plan=q('#adminPlanSelect').value||(accessCtl.plans[0]&&accessCtl.plans[0].plan_key);if(!plan)return;const rows=await _api('/rest/v1/plan_features?select=feature_key,state&plan_key=eq.'+encodeURIComponent(plan)),by={};(rows||[]).forEach(x=>by[x.feature_key]=x.state);q('#adminPlanFeatureList').innerHTML=(accessCtl.featureDefs||[]).filter(f=>f.feature_key!=='admin').map(f=>'<div class="feature-row"><div><strong>'+esc(f.name)+'</strong><div class="feature-source">'+esc(f.feature_key)+' · '+esc(f.category)+'</div></div><select data-plan-feature="'+f.feature_key+'"><option value="enabled" '+(by[f.feature_key]==='enabled'?'selected':'')+'>enabled</option><option value="read_only" '+(by[f.feature_key]==='read_only'?'selected':'')+'>read_only</option><option value="hidden" '+((by[f.feature_key]||'hidden')==='hidden'?'selected':'')+'>hidden</option><option value="disabled" '+(by[f.feature_key]==='disabled'?'selected':'')+'>disabled</option></select><span></span></div>').join('')}
+
+async function openFeatureAdmin(userId,label){hideMsg(q('#adminFeatureMsg'));q('#adminFeatureUser').textContent=label;q('#adminFeatureDialog').dataset.userId=userId;const [rows,up]=await Promise.all([_api('/rest/v1/rpc/admin_effective_features',{method:'POST',body:JSON.stringify({p_user_id:userId})}),_api('/rest/v1/user_plans?select=plan_key&user_id=eq.'+userId)]);q('#adminFeaturePlan').innerHTML=(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'" '+(up&&up[0]&&up[0].plan_key===p.plan_key?'selected':'')+'>'+esc(p.name)+'</option>').join('');q('#adminFeatureList').innerHTML=(rows||[]).filter(r=>r.feature_key!=='admin').map(r=>'<div class="feature-row"><div><strong>'+esc(r.feature_name)+'</strong><div class="feature-source">'+esc(r.feature_key)+' · Quelle: '+esc(r.source)+'</div></div><select data-feature-key="'+r.feature_key+'"><option value="enabled" '+(r.effective_state==='enabled'?'selected':'')+'>enabled</option><option value="read_only" '+(r.effective_state==='read_only'?'selected':'')+'>read_only</option><option value="hidden" '+(r.effective_state==='hidden'?'selected':'')+'>hidden</option><option value="disabled" '+(r.effective_state==='disabled'?'selected':'')+'>disabled</option></select><button class="btn ghost" data-clear-feature="'+r.feature_key+'">Override löschen</button></div>').join('');q('#adminFeatureDialog').showModal()}
+async function startUiPreview(userId,label){const rows=await _api('/rest/v1/rpc/admin_effective_features',{method:'POST',body:JSON.stringify({p_user_id:userId})}),f={};(rows||[]).forEach(r=>f[r.feature_key]=r.effective_state);f.admin='enabled';previewCtx={userId,label,features:f};applyFeatureVisibility();view('dashboard')}
+async function openSupportViewer(userId,label){try{const grants=await _api('/rest/v1/support_grants?select=*&owner_user_id=eq.'+userId+'&supporter_user_id=eq.'+session.user.id+'&order=granted_at.desc');const g=(grants||[]).find(x=>!x.revoked_at&&(!x.expires_at||new Date(x.expires_at)>new Date()));if(!g)throw new Error('Keine aktive Supportfreigabe.');const [acc,tx,pl]=await Promise.all([_api('/rest/v1/account_balances?select=id,user_id,name,institution,currency,balance&user_id=eq.'+userId+'&order=sort_order.asc,name.asc'),_api('/rest/v1/transactions?select=id,user_id,occurred_on,booked_on,transaction_type,amount,currency,description,counterparty&user_id=eq.'+userId+'&order=occurred_on.desc,created_at.desc&limit=100'),_api('/rest/v1/planned_transactions?select=id,user_id,due_on,status,direction,amount,currency,description,paid_transaction_id&user_id=eq.'+userId+'&order=due_on.asc&limit=200')]);adminSupportContext={userId,label,grant:g,accounts:acc,transactions:tx,planned:pl};q('#adminSupportViewer').classList.remove('hidden');q('#adminSupportTitle').textContent='Support · '+label;q('#adminSupportMeta').textContent='Freigabe: '+g.access_level+' · Scopes '+(g.scopes||[]).join(', ')+' · '+(g.expires_at?'bis '+new Date(g.expires_at).toLocaleString():'bis Widerruf');const moneyCell=(v,c)=>privacyMode?'••••':money(v,c),canWrite=g.access_level==='write',linked=new Set((pl||[]).map(x=>x.paid_transaction_id).filter(Boolean));q('#adminSupportData').innerHTML='<div class="admin-grid"><div class="admin-kpi"><div class="k">Konten</div><div class="v">'+acc.length+'</div></div><div class="admin-kpi"><div class="k">Buchungen</div><div class="v">'+tx.length+'</div></div><div class="admin-kpi"><div class="k">Geplant</div><div class="v">'+pl.filter(x=>['planned','pending'].includes(x.status)).length+'</div></div><div class="admin-kpi"><div class="k">Modus</div><div class="v" style="font-size:16px">'+esc(g.access_level)+'</div></div></div>'+(canWrite?'<div class="security-note" style="margin-top:12px"><strong>Schreib-Support aktiv:</strong> Normale Einnahmen/Ausgaben können sicher korrigiert werden. Transfers und komplexe FX-Buchungen werden nicht über die Schnellkorrektur verändert.</div>':'')+'<h3 style="margin-top:18px">Konten</h3><div class="support-data-table"><table><tr><th>Konto</th><th>Institut</th><th>Saldo</th></tr>'+acc.map(a=>'<tr><td>'+esc(a.name)+'</td><td>'+esc(a.institution||'')+'</td><td>'+moneyCell(a.balance,a.currency)+'</td></tr>').join('')+'</table></div><h3 style="margin-top:18px">Letzte Buchungen</h3><div class="support-data-table"><table><tr><th>Datum</th><th>Text</th><th>Art</th><th>Betrag</th>'+(canWrite?'<th>Support</th>':'')+'</tr>'+tx.map(t=>'<tr><td>'+esc(t.occurred_on)+'</td><td>'+esc(t.description||t.counterparty||'')+'</td><td>'+esc(t.transaction_type)+'</td><td>'+moneyCell(t.amount,t.currency)+'</td>'+(canWrite?'<td><div class="actions">'+(['expense','income'].includes(t.transaction_type)?'<button class="btn ghost" data-support-correct="'+t.id+'">Korrigieren</button>':'')+(!linked.has(t.id)?'<button class="btn ghost" data-support-delete="'+t.id+'">Löschen</button>':'')+'</div></td>':'')+'</tr>').join('')+'</table></div>'}catch(e){alert(e.message)}}
+
 function csvCell(v){v=String(v==null?'':v);return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function downloadCSV(name,rows){const text='\ufeff'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');const u=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 q('#exportAccountsBtn').addEventListener('click',()=>downloadCSV('budget-kontostaende.csv',[['Name','Institut','Typ','Klasse','Verfügbarkeit','Saldo','Währung']].concat(accounts.map(a=>[a.name,a.institution||'',typeLabel(a.account_type),a.asset_class,a.liquidity_class,Number(a.balance).toFixed(2),a.currency]))));
@@ -3105,6 +3314,22 @@ q('#exportTxBtn').addEventListener('click',async()=>{
   }catch(e){alert(e.message)}
 });
 
+
+
+q('#adminPlanEditBtn').addEventListener('click',openPlanEditor);q('#adminPlanClose').addEventListener('click',()=>q('#adminPlanDialog').close());q('#adminPlanSelect').addEventListener('change',renderPlanEditor);q('#adminPlanFeatureList').addEventListener('change',async e=>{const x=e.target.closest('[data-plan-feature]');if(!x)return;try{const plan=q('#adminPlanSelect').value;await _api('/rest/v1/plan_features?plan_key=eq.'+encodeURIComponent(plan)+'&feature_key=eq.'+encodeURIComponent(x.dataset.planFeature),{method:'PATCH',body:JSON.stringify({state:x.value})});showMsg(q('#adminPlanMsg'),'Tarif aktualisiert.',false)}catch(er){showMsg(q('#adminPlanMsg'),er.message,true)}});
+q('#mfaVerifyBtn').addEventListener('click',verifyMfa);q('#adminSetupMfaBtn').addEventListener('click',async()=>{await refreshAuthUser();const vf=verifiedFactors();if(vf.length)openMfaLogin(vf[0].id,false);else openMfaSetup()});
+q('#exitContextBtn').addEventListener('click',()=>{previewCtx=null;applyFeatureVisibility();view('admin')});
+q('#sendDiagnosticBtn').addEventListener('click',sendDiagnostic);q('#grantSupportBtn').addEventListener('click',grantSupport);
+q('#mySupportGrants').addEventListener('click',async e=>{const b=e.target.closest('[data-revoke-support]');if(!b)return;try{await _api('/rest/v1/rpc/revoke_my_support',{method:'POST',body:JSON.stringify({p_grant_id:b.dataset.revokeSupport})});await renderSupport()}catch(er){alert(er.message)}});
+q('#adminRefreshBtn').addEventListener('click',renderAdmin);q('#adminCloseSupportBtn').addEventListener('click',()=>q('#adminSupportViewer').classList.add('hidden'));
+q('#adminSupportData').addEventListener('click',async e=>{if(!adminSupportContext)return;const c=e.target.closest('[data-support-correct]'),d=e.target.closest('[data-support-delete]');try{if(c){const t=adminSupportContext.transactions.find(x=>x.id===c.dataset.supportCorrect);if(!t)return;const raw=prompt('Neuer Betrag ('+t.currency+'):',String(t.amount));if(raw===null)return;const amount=Number(String(raw).replace(',','.'));if(!(amount>0))throw new Error('Ungültiger Betrag.');const desc=prompt('Beschreibung:',t.description||'');if(desc===null)return;const date=prompt('Buchungs-/Transaktionsdatum (YYYY-MM-DD):',t.occurred_on||t.booked_on||'');if(date===null)return;await _api('/rest/v1/rpc/support_correct_simple_transaction',{method:'POST',body:JSON.stringify({p_target_user_id:adminSupportContext.userId,p_transaction_id:t.id,p_amount:amount,p_occurred_on:date||null,p_booked_on:date||null,p_description:desc||null})});showToast('Support-Korrektur gespeichert.');await openSupportViewer(adminSupportContext.userId,adminSupportContext.label);return}if(d){const t=adminSupportContext.transactions.find(x=>x.id===d.dataset.supportDelete);if(!t)return;if(!confirm('Buchung „'+(t.description||t.id)+'“ wirklich löschen? Diese Aktion wird im Audit protokolliert.'))return;await _api('/rest/v1/transactions?id=eq.'+encodeURIComponent(t.id)+'&user_id=eq.'+encodeURIComponent(adminSupportContext.userId),{method:'DELETE'});showToast('Buchung gelöscht.');await openSupportViewer(adminSupportContext.userId,adminSupportContext.label)}}catch(er){alert(er.message)}});
+q('#adminInviteBtn').addEventListener('click',async()=>{hideMsg(q('#adminInviteMsg'));try{const email=q('#adminInviteEmail').value.trim(),plan=q('#adminInvitePlan').value;await adminEdge({action:'invite_user',email,plan_key:plan,redirect_to:appRedirectUrl()});showMsg(q('#adminInviteMsg'),'Einladung wurde gesendet.',false);q('#adminInviteEmail').value='';await renderAdmin()}catch(e){showMsg(q('#adminInviteMsg'),e.message,true)}});
+q('#adminUsers').addEventListener('change',async e=>{const s=e.target.closest('[data-plan-user]');if(!s)return;try{await _api('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:s.dataset.planUser,p_plan_key:s.value})});showToast('Tarif aktualisiert.');await renderAdmin()}catch(er){alert(er.message)}});
+q('#adminUsers').addEventListener('click',async e=>{const f=e.target.closest('[data-features-user]'),p=e.target.closest('[data-preview-user]'),sup=e.target.closest('[data-support-user]'),reset=e.target.closest('[data-reset-email]'),ban=e.target.closest('[data-ban-user]'),del=e.target.closest('[data-delete-user]');try{if(f)return openFeatureAdmin(f.dataset.featuresUser,f.dataset.label);if(p)return startUiPreview(p.dataset.previewUser,p.dataset.label);if(sup)return openSupportViewer(sup.dataset.supportUser,sup.dataset.label);if(reset){if(!confirm('Passwort-Reset an '+reset.dataset.resetEmail+' senden?'))return;await adminEdge({action:'send_password_reset',email:reset.dataset.resetEmail,redirect_to:appRedirectUrl()});return showToast('Reset-Mail ausgelöst.')}if(ban){const willBan=ban.dataset.banned!=='1';if(!confirm(willBan?'Benutzer sperren? Daten bleiben erhalten.':'Benutzer wieder freigeben?'))return;await adminEdge({action:'set_banned',user_id:ban.dataset.banUser,banned:willBan});await renderAdmin();return}if(del){const phrase=prompt('ACHTUNG: Benutzer und alle App-Daten werden endgültig gelöscht. Tippe exakt LÖSCHEN, um '+del.dataset.label+' zu löschen.');if(phrase!=='LÖSCHEN')return;await adminEdge({action:'delete_user',user_id:del.dataset.deleteUser,confirm:phrase});await renderAdmin();showToast('Benutzer endgültig gelöscht.')}}catch(er){alert(er.message)}});
+q('#adminFeatureClose').addEventListener('click',()=>q('#adminFeatureDialog').close());q('#adminFeaturePlan').addEventListener('change',async()=>{try{await _api('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_plan_key:q('#adminFeaturePlan').value})});await openFeatureAdmin(q('#adminFeatureDialog').dataset.userId,q('#adminFeatureUser').textContent)}catch(e){showMsg(q('#adminFeatureMsg'),e.message,true)}});
+q('#adminFeatureList').addEventListener('change',async e=>{const s=e.target.closest('[data-feature-key]');if(!s)return;try{await _api('/rest/v1/rpc/admin_set_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_feature_key:s.dataset.featureKey,p_state:s.value,p_reason:'Sysadmin Override'})});showMsg(q('#adminFeatureMsg'),'Feature gespeichert.',false)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});
+q('#adminFeatureList').addEventListener('click',async e=>{const b=e.target.closest('[data-clear-feature]');if(!b)return;try{await _api('/rest/v1/rpc/admin_clear_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_feature_key:b.dataset.clearFeature})});await openFeatureAdmin(q('#adminFeatureDialog').dataset.userId,q('#adminFeatureUser').textContent)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});
+
 (async function init(){
   renderCsvSelectedFiles();renderPdfSelectedFiles();
   if(recoveryFromHash())return;
@@ -3115,7 +3340,7 @@ const uiObserver=new MutationObserver(ms=>{if(translatingUI)return;let needed=fa
 
 qa('[data-mobile-view]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.mobileView)));
 function closeMobileMore(){q('#mobileMoreSheet').classList.remove('open');q('#mobileMoreSheet').setAttribute('aria-hidden','true')}
-q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',()=>{closeMobileMore();view(b.dataset.mobileMoreView)}));
+q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',async()=>{closeMobileMore();view(b.dataset.mobileMoreView);if(b.dataset.mobileMoreView==='admin')await renderAdmin();if(b.dataset.mobileMoreView==='support')await renderSupport()}));
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaStatus()});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaStatus()});
 if('serviceWorker' in navigator&&(location.protocol==='https:'||['localhost','127.0.0.1'].includes(location.hostname))){
   const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw':'./sw.js',swScope=edgeApp?'/functions/v1/budget-app':'./';
