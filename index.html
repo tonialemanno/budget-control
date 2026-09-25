@@ -1434,9 +1434,15 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='v66.2.1-start-hotfix-1';
+const APP_VERSION='v66.2.2-runtime-hotfix-2';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
+let lastUiRenderErrors=[];
+function safeText(id,value){const el=document.getElementById(id);if(el)el.textContent=value==null?'':String(value);else console.warn('UI element missing: #'+id)}
+function safeHtml(id,value){const el=document.getElementById(id);if(el)el.innerHTML=value==null?'':String(value);else console.warn('UI element missing: #'+id)}
+function safeRenderStep(name,fn){try{return fn()}catch(e){lastUiRenderErrors.push({name,message:(e&&e.message)||String(e)});console.error('Render step failed:',name,e);return null}}
+async function optionalApi(path,fallback=[]){try{return await api(path)}catch(e){console.warn('Optional data source unavailable:',path,e);return fallback}}
+
 function localDateISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function localMonthISO(d){d=d||new Date();return String(d.getMonth()+1).padStart(2,'0')}
 function accountOptionText(a){return privacyMode?String(a&&a.name||''):String(a&&a.name||'')+' · '+money(a&&a.balance,a&&a.currency||'CHF')}
@@ -1680,7 +1686,9 @@ function resetUserRuntimeState(){
   const user=q('#userMail');if(user)user.textContent='';const an=q('#adminNavBtn');if(an)an.classList.add('hidden');const ma=q('#mobileAdminBtn');if(ma)ma.classList.add('hidden');const ai=q('#adminIdentityStrip');if(ai)ai.classList.add('hidden');const sab=q('#superAdminBanner');if(sab)sab.classList.add('hidden');const cb=q('#contextBanner');if(cb)cb.classList.remove('show');['adminUsers','adminDiagnostics','adminAudit','adminSupportData','mySupportGrants','mySupportAudit'].forEach(id=>{const el=q('#'+id);if(el)el.innerHTML=''})
 }
 async function enterApp(){
-  shell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();q('#userMail').textContent=(session.user&&session.user.email)||'';await loadAccessControl();q('#txDate').value=localDateISO();const cy=new Date().getFullYear();q('#dashboardPlanYear').innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');q('#dashboardPlanYear').value=String(cy);q('#dashboardPlanPeriod').value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');shell.classList.remove('hidden');const startView=(currentProfile&&currentProfile.default_start_view)||'dashboard';if(!accessCtl.isSuperAdminRole||startView!=='admin')view(startView);const ai=q('#adminIdentityStrip'),sab=q('#superAdminBanner'),ver=q('#clientVersionLabel'),ms=q('#superAdminMfaState');if(ver)ver.textContent=APP_VERSION;if(accessCtl.isSuperAdminRole){if(ai)ai.classList.remove('hidden');if(sab)sab.classList.remove('hidden');if(ms)ms.textContent=currentAal()==='aal2'?'MFA bestätigt · Admin-Aktionen freigeschaltet':'MFA noch nicht bestätigt · Administration sichtbar, Änderungen gesperrt';if(currentAal()!=='aal2'){const promptKey='budget_mfa_prompted_'+session.user.id;if(!sessionStorage.getItem(promptKey)){sessionStorage.setItem(promptKey,'1');setTimeout(()=>{const vf=verifiedFactors();if(vf.length)openMfaLogin(vf[0].id,false);else openMfaSetup()},350)}}}}else{shell.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,'Daten konnten nicht sicher geladen werden. Bitte erneut anmelden.',true)}
+  shell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();safeText('userMail',(session.user&&session.user.email)||'');
+  try{await loadAccessControl()}catch(e){console.error('Access control load failed',e);window.__budgetStartupWarning='Berechtigungen konnten nicht vollständig geladen werden: '+((e&&e.message)||String(e))}
+  const txDateEl=q('#txDate');if(txDateEl)txDateEl.value=localDateISO();const cy=new Date().getFullYear(),planYear=q('#dashboardPlanYear'),planPeriod=q('#dashboardPlanPeriod');if(planYear){planYear.innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');planYear.value=String(cy)}if(planPeriod)planPeriod.value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');shell.classList.remove('hidden');const startView=(currentProfile&&currentProfile.default_start_view)||'dashboard';try{if(!accessCtl.isSuperAdminRole||startView!=='admin')view(startView)}catch(e){console.error('Start view failed',e);view('dashboard')}const ai=q('#adminIdentityStrip'),sab=q('#superAdminBanner'),ver=q('#clientVersionLabel'),ms=q('#superAdminMfaState');if(ver)ver.textContent=APP_VERSION;if(accessCtl.isSuperAdminRole){if(ai)ai.classList.remove('hidden');if(sab)sab.classList.remove('hidden');if(ms)ms.textContent=currentAal()==='aal2'?'MFA bestätigt · Admin-Aktionen freigeschaltet':'MFA noch nicht bestätigt · Administration sichtbar, Änderungen gesperrt';if(currentAal()!=='aal2'){const promptKey='budget_mfa_prompted_'+session.user.id;if(!sessionStorage.getItem(promptKey)){sessionStorage.setItem(promptKey,'1');setTimeout(()=>{const vf=verifiedFactors();if(vf.length)openMfaLogin(vf[0].id,false);else openMfaSetup()},350)}}}if(window.__budgetStartupWarning){setTimeout(()=>{try{showToast(window.__budgetStartupWarning)}catch(e){console.warn(window.__budgetStartupWarning)}window.__budgetStartupWarning=null},250)}}else{shell.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,window.__budgetStartupWarning||'Daten konnten nicht geladen werden. Deine Anmeldung bleibt erhalten; bitte erneut versuchen.',true)}
 }
 async function logout(){
   const token=session&&session.access_token;resetUserRuntimeState();try{localStorage.removeItem('budget_session')}catch(e){}try{sessionStorage.removeItem('budget_session')}catch(e){}session=null;shell.classList.add('hidden');authScreen.classList.remove('hidden');
@@ -1703,10 +1711,11 @@ function view(name){
 qa('.nav button').forEach(b=>b.addEventListener('click',async()=>{view(b.dataset.view);if(b.dataset.view==='admin')await renderAdmin();if(b.dataset.view==='support')await renderSupport()}));qa('[data-go]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.go)));
 
 async function reloadAll(){
+  let res;
   try{
     const first=new Date();first.setDate(1);const firstDay=localDateISO(first),year=new Date().getFullYear();
-    await api('/rest/v1/rpc/ensure_recurring_instances',{method:'POST',body:JSON.stringify({p_year:year})});
-    const res=await Promise.all([
+    try{await api('/rest/v1/rpc/ensure_recurring_instances',{method:'POST',body:JSON.stringify({p_year:year})})}catch(e){console.warn('Recurring instances could not be prepared',e)}
+    res=await Promise.all([
       api('/rest/v1/account_balances?select=*&order=sort_order.asc,name.asc'),
       api('/rest/v1/wealth_summary?select=*'),
       api('/rest/v1/categories?select=*&active=eq.true&order=sort_order.asc,name.asc'),
@@ -1719,18 +1728,41 @@ async function reloadAll(){
       api('/rest/v1/year_archives?select=id,year,version,closed_at,notes&order=year.desc,version.desc'),
       api('/rest/v1/saved_filters?select=*&order=name.asc'),
       api('/rest/v1/profiles?select=*&limit=1'),
-      api('/rest/v1/saved_tags?select=*&active=eq.true&order=name.asc'),
-      api('/rest/v1/classification_rules?select=*&order=priority.asc,created_at.asc'),
-      api('/rest/v1/documents?select=*&order=created_at.desc'),
-      api('/rest/v1/invoices?select=*,invoice_items(*)&order=invoice_date.desc,created_at.desc'),
-      api('/rest/v1/tax_reserve_rules?select=*&order=effective_from.asc,created_at.asc'),
-      api('/rest/v1/annual_bills?select=*&order=next_due_on.asc,name.asc'),
-      api('/rest/v1/tax_assessments?select=*&order=tax_year.desc,invoice_date.desc,created_at.desc'),
-      api('/rest/v1/tax_payment_allocations?select=*&order=paid_on.desc,created_at.desc')
+      optionalApi('/rest/v1/saved_tags?select=*&active=eq.true&order=name.asc'),
+      optionalApi('/rest/v1/classification_rules?select=*&order=priority.asc,created_at.asc'),
+      optionalApi('/rest/v1/documents?select=*&order=created_at.desc'),
+      optionalApi('/rest/v1/invoices?select=*,invoice_items(*)&order=invoice_date.desc,created_at.desc'),
+      optionalApi('/rest/v1/tax_reserve_rules?select=*&order=effective_from.asc,created_at.asc'),
+      optionalApi('/rest/v1/annual_bills?select=*&order=next_due_on.asc,name.asc'),
+      optionalApi('/rest/v1/tax_assessments?select=*&order=tax_year.desc,invoice_date.desc,created_at.desc'),
+      optionalApi('/rest/v1/tax_payment_allocations?select=*&order=paid_on.desc,created_at.desc')
     ]);
-    accounts=res[0]||[];currentWealth=(res[1]&&res[1][0])||{};categories=res[2]||[];transactions=res[3]||[];planned=res[5]||[];taxYears=res[6]||[];recurringRules=res[7]||[];financialYears=res[8]||[];yearArchives=res[9]||[];savedFilters=res[10]||[];currentProfile=(res[11]&&res[11][0])||{};savedTags=res[12]||[];classificationRules=res[13]||[];documents=res[14]||[];invoices=res[15]||[];taxReserveRules=res[16]||[];annualBills=res[17]||[];taxAssessments=res[18]||[];taxPaymentAllocations=res[19]||[];if(!privacyInitialized){privacyMode=!!currentProfile.privacy_blur_default;privacyInitialized=true}await refreshLiveFx(true);await loadFinanceCloud();await captureTodaySnapshot(true);applyAppearance();applyPrivacyMode();renderAll(currentWealth,res[4]||[]);renderSupport().catch(()=>{});if(accessCtl.isSuperAdminRole)renderAdmin().catch(()=>{});applyFeatureVisibility();updatePwaStatus();return true
-  }catch(e){console.error('Secure reload failed',e);resetUserRuntimeState();alert('Daten konnten nicht geladen werden: '+e.message);return false}
+  }catch(e){
+    console.error('Core data reload failed',e);
+    window.__budgetStartupWarning='Daten konnten nicht geladen werden: '+((e&&e.message)||String(e));
+    return false
+  }
+  try{
+    accounts=res[0]||[];currentWealth=(res[1]&&res[1][0])||{};categories=res[2]||[];transactions=res[3]||[];planned=res[5]||[];taxYears=res[6]||[];recurringRules=res[7]||[];financialYears=res[8]||[];yearArchives=res[9]||[];savedFilters=res[10]||[];currentProfile=(res[11]&&res[11][0])||{};savedTags=res[12]||[];classificationRules=res[13]||[];documents=res[14]||[];invoices=res[15]||[];taxReserveRules=res[16]||[];annualBills=res[17]||[];taxAssessments=res[18]||[];taxPaymentAllocations=res[19]||[];
+    if(!privacyInitialized){privacyMode=!!currentProfile.privacy_blur_default;privacyInitialized=true}
+    try{await refreshLiveFx(true)}catch(e){console.warn('FX refresh skipped',e)}
+    try{await loadFinanceCloud()}catch(e){console.warn('Finance cloud skipped',e)}
+    try{await captureTodaySnapshot(true)}catch(e){console.warn('Snapshot skipped',e)}
+    try{applyAppearance()}catch(e){console.warn('Appearance apply failed',e)}
+    try{applyPrivacyMode()}catch(e){console.warn('Privacy mode apply failed',e)}
+    renderAll(currentWealth,res[4]||[]);
+    renderSupport().catch(()=>{});if(accessCtl.isSuperAdminRole)renderAdmin().catch(()=>{});
+    try{applyFeatureVisibility()}catch(e){console.warn('Feature visibility failed',e)}
+    try{updatePwaStatus()}catch(e){console.warn('PWA status failed',e)}
+    if(lastUiRenderErrors.length){window.__budgetStartupWarning='Daten wurden geladen. '+lastUiRenderErrors.length+' Anzeige-Bereich(e) konnten nicht vollständig aufgebaut werden.'}
+    return true
+  }catch(e){
+    console.error('Post-load processing failed',e);
+    window.__budgetStartupWarning='Daten wurden geladen, aber die Anzeige hatte einen Fehler: '+((e&&e.message)||String(e));
+    return true
+  }
 }
+
 function typeLabel(t){return tr(({bank:'Bankkonto',savings:'Sparkonto / Topf',cash:'Bargeld',fixed_deposit:'Festgeld',rental_deposit:'Mietkaution',receivable:'Forderung',investment:'Anlage',credit_card:'Kreditkarte / Schuld',other:'Sonstiges'})[t]||t)}
 function txLabel(t){return tr(({expense:'Ausgabe',income:'Einnahme',transfer:'Umbuchung',loan_out:'Verliehen',loan_repayment:'Rückzahlung',adjustment:'Korrektur'})[t]||t)}
 function accountHtml(a){
@@ -2107,14 +2139,24 @@ function applyUserPersonalization(){if(!currentProfile)return;document.body.data
 async function familyEdge(body){if(!(await ensureSession()))throw new Error('Sitzung abgelaufen');const r=await fetch(SUPA+'/functions/v1/budget-family',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok||d.error)throw new Error(d.error||('Family HTTP '+r.status));return d}
 async function renderFamilyCenter(){if(!q('#familyMembers')||!session)return;try{const d=await familyEdge({action:'list'}),members=d.members||[],acts=d.activity||[];q('#familyHouseholdSummary').innerHTML='<strong>'+esc(d.household&&d.household.name||'Mein Haushalt')+'</strong><div class="small">'+members.length+' Mitglied'+(members.length===1?'':'er')+' · jeder mit eigenem Login.</div>';q('#familyMembers').innerHTML=members.map(m=>'<div class="v66-family-row"><div><strong>'+esc(m.display_name||m.email||'Mitglied')+'</strong><div class="meta">'+esc(m.email||'')+' · '+esc(m.role)+' · '+esc(m.status)+(m.last_activity?' · letzte Aktivität '+fmtDateTime(m.last_activity.created_at):'')+'</div></div>'+(m.role!=='owner'?'<button class="btn ghost" data-family-remove="'+m.user_id+'">Entfernen</button>':'<span class="admin-badge ok">Owner</span>')+'</div>').join('')||'<div class="empty">Noch keine Mitglieder.</div>';q('#familyActivity').innerHTML=acts.slice(0,30).map(a=>{const m=members.find(x=>x.user_id===a.actor_user_id),entity=({transactions:'Buchung',planned_transactions:'geplante Zahlung',accounts:'Konto / Topf',documents:'Dokument',invoices:'Rechnung'})[a.entity_type]||a.entity_type,act=({insert:'erstellt',update:'geändert',delete:'gelöscht'})[a.action]||a.action;return '<div class="v66-family-row"><div><strong>'+esc(m&&m.display_name||m&&m.email||'Mitglied')+'</strong><div class="meta">'+esc(entity)+' '+esc(act)+' · '+fmtDateTime(a.created_at)+'</div></div></div>'}).join('')||'<div class="small">Noch keine Haushaltsaktivität.</div>'}catch(e){q('#familyHouseholdSummary').textContent='Haushalt konnte nicht geladen werden.';q('#familyMembers').innerHTML='<div class="msg error">'+esc(e.message)+'</div>'}}
 function renderAll(w,month){
-  w=w||{};const area=assetAreaTotals();q('#welcomeText').textContent=greetingText();q('#netWorth').textContent=CHF.format(localNetWorthCHF());
-  const mainAcc=accounts.find(a=>a.id===preferredAccountId())||accounts.find(a=>a.active);const legacyMainLabel=q('.now-main .label');if(legacyMainLabel)legacyMainLabel.textContent=mainAcc?(mainAcc.name+' – aktuell'):'Standardkonto';q('#nowSalaryAccount').textContent=mainAcc?money(mainAcc.balance,mainAcc.currency):'—';q('#mainAccountMeta').textContent=mainAcc?((mainAcc.institution||typeLabel(mainAcc.account_type))+' · '+tr('bereits verbuchter Stand')):tr('Noch kein Hauptkonto gewählt');q('#nowCash').textContent=CHF.format(area.cashTotal);q('#nowLiquidMoney').textContent=CHF.format(area.spendableTotal);q('#nowLocked').textContent=CHF.format(area.lockedTotal);q('#nowReceivables').textContent=CHF.format(area.receivableTotal);renderDashboardPlan();
-  const currentMonth=new Date().toISOString().slice(0,7),monthRows=transactions.filter(x=>String(txDateValue(x)).slice(0,7)===currentMonth),inc=monthRows.reduce((s,x)=>s+transactionIncomeEffect(x),0),exp=Math.max(0,monthRows.reduce((s,x)=>s+transactionExpenseEffect(x),0));q('#monthIncome').textContent=CHF.format(inc);q('#monthExpense').textContent=CHF.format(exp);q('#monthResult').textContent=CHF.format(inc-exp);
-  const dashAccs=dashboardAccountRows();q('#dashAccounts').innerHTML=dashAccs.length?dashAccs.map(a=>'<div class="account-row click-row" data-dash-account="'+a.id+'"><div><div class="name">'+esc(a.name)+(a.account_type==='cash'?'<span class="standard-pill">Bargeld</span>':'')+'</div><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+'</div></div><div style="text-align:right"><div class="amount">'+money(a.balance,a.currency)+'</div></div></div>').join(''):'<div class="empty">Noch keine Konten.</div>';
-  q('#dashTransactions').innerHTML=transactions.length?transactions.slice(0,5).map(t=>'<div class="tx-row click-row" data-dash-tx="'+t.id+'"><div><div class="name">'+esc(t.description||txLabel(t.transaction_type))+'</div><div class="meta">'+esc(txDateValue(t))+(t.counterparty?' · '+esc(t.counterparty):'')+'</div></div><div class="amount '+(t.transaction_type==='expense'?'neg':t.transaction_type==='income'?'pos':'')+'">'+(t.transaction_type==='expense'?'− ':t.transaction_type==='income'?'+ ':'')+money(t.amount,t.currency||'CHF')+'</div></div>').join(''):'<div class="empty">Noch keine Buchungen.</div>';
-  fillYearSelect('accForecastYear',2);fillPeriodValue('accForecastKind','accForecastValue',true);fillYearSelect('txPeriodYear',1);fillPeriodValue('txPeriodKind','txPeriodValue',true);fillYearSelect('checkPeriodYear',2);fillPeriodValue('checkPeriodKind','checkPeriodValue',true);
-  q('#onboardingBox').classList.toggle('hidden',accounts.length>0);renderDashboardWhereMoney();renderFinanceOS();renderWealth();renderAccounts();fillSelectors();if(!restoreTxFilters())syncTxPeriod(false);renderTransactions();renderReceivables();renderCategoryDashboard();renderPlanned();renderRecurringRules();renderCategories();renderDocuments();if(bankReconCandidates.length)renderBankReconcile();renderAnalysis();renderTax();renderSettings();renderV66Overview();renderV66AccountTotals();renderV66TransactionContext();renderV66FinanceSimple();renderExportControls();applyUserPersonalization();renderFamilyCenter().catch(()=>{});applyLanguage()
+  w=w||{};lastUiRenderErrors=[];const area=assetAreaTotals();
+  safeText('welcomeText',greetingText());safeText('netWorth',CHF.format(localNetWorthCHF()));
+  const mainAcc=accounts.find(a=>a.id===preferredAccountId())||accounts.find(a=>a.active);const legacyMainLabel=q('.now-main .label');if(legacyMainLabel)legacyMainLabel.textContent=mainAcc?(mainAcc.name+' – aktuell'):'Standardkonto';
+  safeText('nowSalaryAccount',mainAcc?money(mainAcc.balance,mainAcc.currency):'—');safeText('mainAccountMeta',mainAcc?((mainAcc.institution||typeLabel(mainAcc.account_type))+' · '+tr('bereits verbuchter Stand')):tr('Noch kein Hauptkonto gewählt'));safeText('nowCash',CHF.format(area.cashTotal));safeText('nowLiquidMoney',CHF.format(area.spendableTotal));safeText('nowLocked',CHF.format(area.lockedTotal));safeText('nowReceivables',CHF.format(area.receivableTotal));
+  safeRenderStep('Dashboard Planung',renderDashboardPlan);
+  const currentMonth=new Date().toISOString().slice(0,7),monthRows=transactions.filter(x=>String(txDateValue(x)).slice(0,7)===currentMonth),inc=monthRows.reduce((s,x)=>s+transactionIncomeEffect(x),0),exp=Math.max(0,monthRows.reduce((s,x)=>s+transactionExpenseEffect(x),0));safeText('monthIncome',CHF.format(inc));safeText('monthExpense',CHF.format(exp));safeText('monthResult',CHF.format(inc-exp));
+  const dashAccs=dashboardAccountRows();safeHtml('dashAccounts',dashAccs.length?dashAccs.map(a=>'<div class="account-row click-row" data-dash-account="'+a.id+'"><div><div class="name">'+esc(a.name)+(a.account_type==='cash'?'<span class="standard-pill">Bargeld</span>':'')+'</div><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+'</div></div><div style="text-align:right"><div class="amount">'+money(a.balance,a.currency)+'</div></div></div>').join(''):'<div class="empty">Noch keine Konten.</div>');
+  safeHtml('dashTransactions',transactions.length?transactions.slice(0,5).map(t=>'<div class="tx-row click-row" data-dash-tx="'+t.id+'"><div><div class="name">'+esc(t.description||txLabel(t.transaction_type))+'</div><div class="meta">'+esc(txDateValue(t))+(t.counterparty?' · '+esc(t.counterparty):'')+'</div></div><div class="amount '+(t.transaction_type==='expense'?'neg':t.transaction_type==='income'?'pos':'')+'">'+(t.transaction_type==='expense'?'− ':t.transaction_type==='income'?'+ ':'')+money(t.amount,t.currency||'CHF')+'</div></div>').join(''):'<div class="empty">Noch keine Buchungen.</div>');
+  safeRenderStep('Zeitraum-Filter',()=>{fillYearSelect('accForecastYear',2);fillPeriodValue('accForecastKind','accForecastValue',true);fillYearSelect('txPeriodYear',1);fillPeriodValue('txPeriodKind','txPeriodValue',true);fillYearSelect('checkPeriodYear',2);fillPeriodValue('checkPeriodKind','checkPeriodValue',true)});
+  const onboarding=q('#onboardingBox');if(onboarding)onboarding.classList.toggle('hidden',accounts.length>0);
+  const steps=[
+    ['Wo ist mein Geld',renderDashboardWhereMoney],['Finanz-Cockpit',renderFinanceOS],['Vermögen',renderWealth],['Konten',renderAccounts],['Auswahllisten',fillSelectors],['Buchungsfilter',()=>{if(!restoreTxFilters())syncTxPeriod(false)}],['Buchungen',renderTransactions],['Forderungen',renderReceivables],['Kategorien-Dashboard',renderCategoryDashboard],['Zahlungscheck',renderPlanned],['Wiederkehrende Regeln',renderRecurringRules],['Kategorien',renderCategories],['Dokumente',renderDocuments],['Bankabgleich',()=>{if(bankReconCandidates.length)renderBankReconcile()}],['Analyse',renderAnalysis],['Steuern',renderTax],['Einstellungen',renderSettings],['Übersicht v66',renderV66Overview],['Kontosummen v66',renderV66AccountTotals],['Buchungskontext v66',renderV66TransactionContext],['Finanzübersicht v66',renderV66FinanceSimple],['Export',renderExportControls],['Personalisierung',applyUserPersonalization],['Sprache',applyLanguage]
+  ];
+  steps.forEach(([name,fn])=>safeRenderStep(name,fn));
+  renderFamilyCenter().catch(e=>console.warn('Family center render failed',e));
+  if(lastUiRenderErrors.length)console.warn('UI rendered with recoverable errors',lastUiRenderErrors)
 }
+
 
 
 /* ===== Finance OS logic ===== */
@@ -3576,7 +3618,7 @@ function closeMobileMore(){q('#mobileMoreSheet').classList.remove('open');q('#mo
 q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',async()=>{closeMobileMore();view(b.dataset.mobileMoreView);if(b.dataset.mobileMoreView==='admin')await renderAdmin();if(b.dataset.mobileMoreView==='support')await renderSupport()}));
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaStatus()});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaStatus()});
 if('serviceWorker' in navigator&&(location.protocol==='https:'||['localhost','127.0.0.1'].includes(location.hostname))){
-  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=66201':'./sw.js?v=66201',swScope=edgeApp?'/functions/v1/budget-app':'./';
+  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=66202':'./sw.js?v=66202',swScope=edgeApp?'/functions/v1/budget-app':'./';
   navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return edgeApp&&/\/functions\/v1\/$/.test(new URL(r.scope).pathname)?r.unregister():Promise.resolve(false)}))}).catch(function(){}).then(function(){return navigator.serviceWorker.register(swUrl,{scope:swScope,updateViaCache:'none'})}).then(function(r){return r.update().catch(function(){})}).catch(function(e){console.warn('Service Worker',e)})
 }
 updatePwaStatus();
