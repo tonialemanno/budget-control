@@ -1,12 +1,12 @@
 {
-  "name": "Mein Alltag",
-  "short_name": "Mein Alltag",
-  "description": "Budget und Planer in einer verbundenen Alltags-App",
+  "name": "alo-agazone",
+  "short_name": "alo-agazone",
+  "description": "All in one: Budget und Planer in einer verbundenen Alltags-App",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f8fd",
-  "theme_color": "#192846",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
   "icons": [
     {
       "src": "./icon-192.png",
