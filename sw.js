@@ -1,4 +1,4 @@
-const CACHE = 'budget-control-v65-2-admin-ux-1';
+const CACHE = 'budget-control-v65-3-admin-control-center-1';
 const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(
