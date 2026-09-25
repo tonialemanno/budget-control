@@ -1,4 +1,4 @@
-const CACHE = 'budget-control-v66-2-simplify-explain-1';
+const CACHE = 'budget-control-v66-2-1-start-hotfix-1';
 const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
