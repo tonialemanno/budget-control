@@ -1,4 +1,4 @@
-const CACHE = 'alo-agazone-v67-2-0-luxury-clean';
+const CACHE = 'alo-agazone-v67-3-1-verified';
 const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
