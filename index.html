@@ -241,6 +241,43 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
 .admin-control-nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 2px}.admin-control-nav button{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 12px;font-weight:850;cursor:pointer}.admin-control-nav button.active{background:var(--accent);border-color:var(--accent);color:#fff}.admin-workspace{scroll-margin-top:16px}.admin-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.admin-quick-card{border:1px solid var(--line);border-radius:16px;padding:13px;background:var(--panel2)}.admin-quick-card strong{display:block;margin-bottom:3px}.admin-quick-card .small{min-height:34px}.admin-quick-card button{margin-top:9px}.diagnostic-card{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:14px;display:grid;gap:10px}.diagnostic-card.open{box-shadow:inset 4px 0 0 #b7791f}.diagnostic-card.resolved{opacity:.72}.diagnostic-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.diagnostic-who{font-weight:900;font-size:15px}.diagnostic-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted)}.diagnostic-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.diagnostic-fact{border:1px solid var(--line);border-radius:11px;padding:9px;background:var(--panel2)}.diagnostic-fact .k{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:850}.diagnostic-fact .v{font-size:12px;font-weight:800;margin-top:3px;overflow-wrap:anywhere}.diagnostic-actions{display:flex;gap:7px;flex-wrap:wrap}.diagnostic-note{padding:10px 12px;border-radius:11px;background:var(--panel2);white-space:pre-wrap}.feature-admin-shell{width:min(900px,94vw)!important;max-width:94vw;overflow-x:hidden}.feature-admin-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}.feature-summary-box{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2)}.feature-summary-box .k{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:850}.feature-summary-box .v{font-size:18px;font-weight:900;margin-top:2px}.feature-groups{overflow-x:hidden!important}.feature-group-list{padding:6px 12px 10px}.feature-toggle-row{grid-template-columns:minmax(0,1fr) 170px auto!important;padding:12px 0!important}.feature-module-title{font-weight:900;font-size:14px}.feature-module-desc{font-size:11px;color:var(--muted);line-height:1.35;margin-top:3px}.feature-state-select{width:100%;min-width:0}.feature-current-line{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}.feature-reset-btn{font-size:11px!important}.admin-user-table td:last-child{min-width:330px}.admin-primary-actions{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:6px}.admin-primary-actions .btn{width:100%;white-space:nowrap}.admin-user-sim-lock{font-size:10px;color:var(--muted);margin-top:4px}.admin-section-hidden{display:none!important}
 @media(max-width:900px){.admin-quick-grid{grid-template-columns:1fr 1fr}.diagnostic-grid{grid-template-columns:1fr 1fr}.feature-admin-summary{grid-template-columns:1fr 1fr}.feature-toggle-row{grid-template-columns:1fr!important}.admin-primary-actions{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.admin-quick-grid,.diagnostic-grid,.feature-admin-summary{grid-template-columns:1fr}.admin-primary-actions{grid-template-columns:1fr}}
+
+/* v65.4 Admin Module Page */
+#adminView.feature-page-open > *:not(#adminFeaturePage){display:none!important}
+.admin-feature-page{width:100%;min-width:0;overflow:visible}
+.admin-feature-page:not(.hidden){display:block!important}
+.admin-feature-page-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:16px}
+.admin-feature-version{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.admin-feature-topgrid{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:14px;align-items:stretch}
+.admin-feature-plan-card{margin:0}
+.admin-feature-filterbar{display:grid;grid-template-columns:minmax(260px,1fr) minmax(180px,260px) auto;gap:12px;align-items:end;margin-top:14px}
+.admin-feature-check{display:flex;gap:8px;align-items:center;min-height:44px;font-weight:800;white-space:nowrap}
+.admin-feature-check input{width:auto}
+.admin-feature-legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 2px}
+.admin-feature-legend>span{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800}
+.feature-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--muted)}
+.feature-dot.enabled{background:#2f855a}.feature-dot.read_only{background:#3182ce}.feature-dot.hidden{background:#718096}.feature-dot.disabled{background:#b7791f}
+.admin-feature-list{display:grid;gap:18px;min-width:0}
+.admin-feature-category{display:grid;gap:9px;min-width:0}
+.admin-feature-category-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 2px}
+.admin-feature-category-head h3{margin:0;font-size:17px}
+.admin-feature-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,280px);gap:18px;align-items:center;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:16px;min-width:0}
+.admin-feature-card.override{box-shadow:inset 4px 0 0 #3182ce}
+.admin-feature-card.state-disabled{box-shadow:inset 4px 0 0 #b7791f}
+.admin-feature-card.state-hidden{opacity:.88}
+.admin-feature-main{min-width:0}
+.admin-feature-name{font-size:15px;font-weight:900;overflow-wrap:anywhere}
+.admin-feature-desc{margin-top:4px;font-size:12px;color:var(--muted);line-height:1.45;max-width:760px}
+.admin-feature-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:9px}
+.admin-feature-key{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--muted)}
+.admin-feature-control{display:grid;gap:8px;min-width:0}
+.admin-feature-control label{font-size:11px;font-weight:850;color:var(--muted)}
+.admin-feature-control select{width:100%;min-width:0}
+.admin-feature-reset{justify-self:start}
+.feature-admin-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0}
+.feature-summary-box{min-height:82px;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:1000px){.admin-feature-topgrid{grid-template-columns:1fr}.admin-feature-filterbar{grid-template-columns:1fr 1fr}.admin-feature-check{grid-column:1/-1}.admin-feature-card{grid-template-columns:1fr}.admin-feature-control{max-width:420px}.feature-admin-summary{grid-template-columns:repeat(4,minmax(120px,1fr));overflow-x:auto;padding-bottom:3px}}
+@media(max-width:700px){.admin-feature-page-head{flex-direction:column}.admin-feature-filterbar{grid-template-columns:1fr}.admin-feature-check{grid-column:auto}.feature-admin-summary{grid-template-columns:1fr 1fr;overflow:visible}.admin-feature-card{padding:14px}.admin-feature-version{align-self:flex-start}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -916,6 +953,43 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
   </div>
   <div id="adminDiagnosticsWorkspace" class="panel section-gap admin-workspace" data-admin-workspace="diagnostics"><div class="panel-head"><div><h2>Diagnosen</h2><div class="small">Jeder Fall zeigt Benutzer, Gerät, Problem, Status und mögliche nächste Aktion.</div></div></div><div id="adminDiagnostics" class="admin-list"></div></div>
   <div class="panel section-gap admin-workspace" data-admin-workspace="support"><div class="panel-head"><div><h2>Support & Audit</h2><div class="small">Aktive Freigaben und letzte administrative Ereignisse.</div></div></div><div id="adminAudit" class="admin-list"></div></div>
+
+  <div id="adminFeaturePage" class="admin-feature-page hidden">
+    <div class="admin-feature-page-head">
+      <div>
+        <button id="adminFeatureBack" type="button" class="btn secondary">← Zur Benutzerübersicht</button>
+        <div class="eyebrow" style="margin-top:16px">Benutzerkonfiguration</div>
+        <h2 style="margin:4px 0">Module & Sichtbarkeit</h2>
+        <div id="adminFeatureUser" class="small"></div>
+      </div>
+      <div class="admin-feature-version"><span class="admin-badge ok">ADMIN</span><span class="small">v65.4</span></div>
+    </div>
+
+    <div class="admin-feature-topgrid">
+      <div class="panel admin-feature-plan-card">
+        <div class="field" style="margin:0"><label>Tarif / Grundpaket</label><select id="adminFeaturePlan"></select></div>
+        <div class="small" style="margin-top:8px">Der Tarif ist der Standard. Individuelle Abweichungen gelten nur für diesen Benutzer.</div>
+      </div>
+      <div id="adminFeatureSummary" class="feature-admin-summary"></div>
+    </div>
+
+    <div class="panel admin-feature-filterbar">
+      <div class="field" style="margin:0"><label>Module suchen</label><input id="adminFeatureSearch" placeholder="z. B. Steuern, Import, FIRE"></div>
+      <div class="field" style="margin:0"><label>Bereich</label><select id="adminFeatureCategoryFilter"><option value="">Alle Bereiche</option></select></div>
+      <label class="admin-feature-check"><input id="adminFeatureOnlyOverrides" type="checkbox"> Nur individuelle Abweichungen</label>
+    </div>
+
+    <div class="admin-feature-legend">
+      <span><i class="feature-dot enabled"></i> Ein</span>
+      <span><i class="feature-dot read_only"></i> Nur lesen</span>
+      <span><i class="feature-dot hidden"></i> Ausgeblendet</span>
+      <span><i class="feature-dot disabled"></i> Gesperrt</span>
+      <span class="small">Änderungen werden sofort gespeichert. „Tarifstandard“ entfernt nur die individuelle Abweichung.</span>
+    </div>
+
+    <div id="adminFeatureList" class="admin-feature-list"></div>
+    <div id="adminFeatureMsg" class="msg hidden"></div>
+  </div>
 </section>
 
 <section id="settingsView" class="view">
@@ -1381,19 +1455,8 @@ html{scroll-behavior:smooth}body{-webkit-tap-highlight-color:transparent}.btn,.a
   </div>
 </dialog>
 
-<dialog id="adminFeatureDialog">
-  <div class="dialog-in feature-admin-shell">
-    <div class="dialog-head"><div><h2>Module & Sichtbarkeit</h2><div id="adminFeatureUser" class="small"></div></div><button id="adminFeatureClose" class="x" type="button">×</button></div>
-    <div class="grid2">
-      <div class="field"><label>Tarif / Grundpaket</label><select id="adminFeaturePlan"></select><div class="small">Der Tarif ist der Standard. Individuelle Änderungen werden separat markiert.</div></div>
-      <div class="field"><label>Module suchen</label><input id="adminFeatureSearch" placeholder="z. B. Steuern, Import, FIRE"></div>
-    </div>
-    <div id="adminFeatureSummary" class="feature-admin-summary"></div>
-    <div class="feature-admin-toolbar"><label style="display:flex;gap:8px;align-items:center"><input id="adminFeatureOnlyOverrides" type="checkbox" style="width:auto"> Nur individuelle Abweichungen</label><div class="small">Pro Modul nur einen Zustand wählen. <strong>Tarifstandard</strong> entfernt eine individuelle Änderung.</div></div>
-    <div id="adminFeatureList" class="feature-groups"></div>
-    <div id="adminFeatureMsg" class="msg hidden"></div>
-  </div>
-</dialog>
+
+
 
 <dialog id="adminSimulationDialog" class="simulation-dialog">
   <div class="simulation-shell">
@@ -1424,7 +1487,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='v65.3-admin-control-center-1';
+const APP_VERSION='v65.4-admin-modules-page-1';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function localDateISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
@@ -1682,6 +1745,7 @@ q('#resetPasswordForm').addEventListener('submit',async e=>{e.preventDefault();h
 q('#authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 
 function view(name){
+  if(name!=='admin'){const av=q('#adminView');if(av)av.classList.remove('feature-page-open');const fp=q('#adminFeaturePage');if(fp)fp.classList.add('hidden')}
   const req=VIEW_FEATURES[name];if(req&&name!=='admin'&&!featureReadable(req)){showToast('Dieser Bereich ist für deinen Benutzer nicht freigeschaltet.');name='dashboard'}if(name==='admin'&&!accessCtl.isSuperAdminRole){showToast('Nur für Administratoren.');name='dashboard'}
   qa('.view').forEach(v=>v.classList.remove('active'));q('#'+name+'View').classList.add('active');qa('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));qa('[data-mobile-view]').forEach(b=>b.classList.toggle('active',b.dataset.mobileView===name));const mobileMoreBtn=q('#mobileMoreBtn');if(mobileMoreBtn)mobileMoreBtn.classList.toggle('more-active',!['dashboard','financeOS','transactions','wealth'].includes(name));
   const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Töpfe',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Kategorien-Dashboard',planned:'Zahlungscheck',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=tr(titles[name]);setTimeout(()=>applyLanguage(),0)
@@ -3360,15 +3424,33 @@ async function openPlanEditor(){if(currentAal()!=='aal2')return openMfaSetup();q
 async function renderPlanEditor(){const plan=q('#adminPlanSelect').value||(accessCtl.plans[0]&&accessCtl.plans[0].plan_key);if(!plan)return;const rows=await _api('/rest/v1/plan_features?select=feature_key,state&plan_key=eq.'+encodeURIComponent(plan)),by={};(rows||[]).forEach(x=>by[x.feature_key]=x.state);q('#adminPlanFeatureList').innerHTML=(accessCtl.featureDefs||[]).filter(f=>f.feature_key!=='admin').map(f=>'<div class="feature-row"><div><strong>'+esc(f.name)+'</strong><div class="feature-source">'+esc(f.feature_key)+' · '+esc(f.category)+'</div></div><select data-plan-feature="'+f.feature_key+'"><option value="enabled" '+(by[f.feature_key]==='enabled'?'selected':'')+'>enabled</option><option value="read_only" '+(by[f.feature_key]==='read_only'?'selected':'')+'>read_only</option><option value="hidden" '+((by[f.feature_key]||'hidden')==='hidden'?'selected':'')+'>hidden</option><option value="disabled" '+(by[f.feature_key]==='disabled'?'selected':'')+'>disabled</option></select><span></span></div>').join('')}
 
 function stateLabel(v){return ({enabled:'Ein',read_only:'Nur lesen',hidden:'Ausgeblendet',disabled:'Gesperrt'})[v]||v}
+function moduleStateLabel(s){return ({enabled:'Ein – vollständig',read_only:'Nur lesen',hidden:'Ausgeblendet',disabled:'Gesperrt'})[s]||s}
+function featureStateBadgeClass(s){return s==='enabled'?'ok':s==='disabled'?'warn':''}
+function closeFeatureAdmin(){const av=q('#adminView');if(av)av.classList.remove('feature-page-open');const page=q('#adminFeaturePage');if(page)page.classList.add('hidden');showAdminSection('users',false);setTimeout(()=>q('#adminUsersWorkspace')&&q('#adminUsersWorkspace').scrollIntoView({block:'start'}),0)}
 function renderFeatureAdminRows(){
-  const term=String(q('#adminFeatureSearch')&&q('#adminFeatureSearch').value||'').trim().toLowerCase(),only=q('#adminFeatureOnlyOverrides')&&q('#adminFeatureOnlyOverrides').checked,defs={};(accessCtl.featureDefs||[]).forEach(f=>defs[f.feature_key]=f);
-  const all=(featureAdminRows||[]).filter(r=>r.feature_key!=='admin'),shown=all.filter(r=>{if(only&&r.source!=='override')return false;const d=defs[r.feature_key]||{};const hay=(r.feature_name+' '+r.feature_key+' '+r.category+' '+(d.description||'')).toLowerCase();return !term||hay.includes(term)}),groups={};shown.forEach(r=>(groups[r.category]||(groups[r.category]=[])).push(r));
+  const search=String(q('#adminFeatureSearch')&&q('#adminFeatureSearch').value||'').trim().toLowerCase();
+  const category=String(q('#adminFeatureCategoryFilter')&&q('#adminFeatureCategoryFilter').value||'');
+  const only=q('#adminFeatureOnlyOverrides')&&q('#adminFeatureOnlyOverrides').checked;
+  const defs={};(accessCtl.featureDefs||[]).forEach(f=>defs[f.feature_key]=f);
+  const all=(featureAdminRows||[]).filter(r=>r.feature_key!=='admin');
+  const shown=all.filter(r=>{if(only&&r.source!=='override')return false;if(category&&r.category!==category)return false;const d=defs[r.feature_key]||{};const hay=(r.feature_name+' '+r.feature_key+' '+r.category+' '+(d.description||'')).toLowerCase();return !search||hay.includes(search)});
   const visible=all.filter(r=>['enabled','read_only'].includes(r.effective_state)).length,hidden=all.filter(r=>r.effective_state==='hidden').length,locked=all.filter(r=>r.effective_state==='disabled').length,overrides=all.filter(r=>r.source==='override').length;
   q('#adminFeatureSummary').innerHTML='<div class="feature-summary-box"><div class="k">Sichtbar</div><div class="v">'+visible+'</div></div><div class="feature-summary-box"><div class="k">Ausgeblendet</div><div class="v">'+hidden+'</div></div><div class="feature-summary-box"><div class="k">Gesperrt</div><div class="v">'+locked+'</div></div><div class="feature-summary-box"><div class="k">Individuell</div><div class="v">'+overrides+'</div></div>';
-  const cats=Object.keys(groups);if(!cats.length){q('#adminFeatureList').innerHTML='<div class="admin-empty">Keine Module passen zu diesem Filter.</div>';return}
-  q('#adminFeatureList').innerHTML=cats.map(cat=>'<details class="feature-group" open><summary><span>'+esc(cat)+'</span><span class="small">'+groups[cat].length+' Module</span></summary><div class="feature-group-list">'+groups[cat].map(r=>{const d=defs[r.feature_key]||{},state=r.effective_state||'hidden';return '<div class="feature-toggle-row '+(r.source==='override'?'override':'')+'"><div><div class="feature-module-title">'+esc(r.feature_name)+'</div><div class="feature-module-desc">'+esc(d.description||r.feature_key)+'</div><div class="feature-current-line"><span class="admin-badge '+(state==='enabled'?'ok':state==='disabled'?'warn':'')+'">'+esc(stateLabel(state))+'</span><span class="feature-source">'+(r.source==='override'?'Individuelle Einstellung':'Tarifstandard')+' · Tarif: '+esc(stateLabel(r.plan_state||state))+'</span></div></div><div><label class="small" style="display:block;margin-bottom:4px">Sichtbarkeit / Zugriff</label><select class="feature-state-select" data-feature-select="'+r.feature_key+'"><option value="enabled" '+(state==='enabled'?'selected':'')+'>Ein – vollständig</option><option value="read_only" '+(state==='read_only'?'selected':'')+'>Nur lesen</option><option value="hidden" '+(state==='hidden'?'selected':'')+'>Ausblenden</option><option value="disabled" '+(state==='disabled'?'selected':'')+'>Sperren</option></select></div><div>'+(r.source==='override'?'<button type="button" class="btn ghost feature-reset-btn" data-clear-feature="'+r.feature_key+'">Tarifstandard</button>':'<span class="admin-badge">Standard</span>')+'</div></div>'}).join('')+'</div></details>').join('');
+  const groups={};shown.forEach(r=>(groups[r.category]||(groups[r.category]=[])).push(r));const cats=Object.keys(groups);
+  if(!cats.length){q('#adminFeatureList').innerHTML='<div class="admin-empty">Keine Module passen zu diesem Filter.</div>';return}
+  q('#adminFeatureList').innerHTML=cats.map(cat=>'<section class="admin-feature-category"><div class="admin-feature-category-head"><h3>'+esc(cat)+'</h3><span class="small">'+groups[cat].length+' Modul'+(groups[cat].length===1?'':'e')+'</span></div>'+groups[cat].map(r=>{const d=defs[r.feature_key]||{},state=r.effective_state||'hidden',override=r.source==='override';return '<article class="admin-feature-card state-'+state+' '+(override?'override':'')+'"><div class="admin-feature-main"><div class="admin-feature-name">'+esc(r.feature_name)+'</div><div class="admin-feature-desc">'+esc(d.description||'Keine Beschreibung hinterlegt.')+'</div><div class="admin-feature-meta"><span class="admin-badge '+featureStateBadgeClass(state)+'">'+esc(moduleStateLabel(state))+'</span><span class="admin-badge">'+(override?'Individuelle Abweichung':'Tarifstandard')+'</span><span class="small">Tarif: '+esc(moduleStateLabel(r.plan_state||'hidden'))+'</span><span class="admin-feature-key">'+esc(r.feature_key)+'</span></div></div><div class="admin-feature-control"><label>Zugriff für diesen Benutzer</label><select data-feature-select="'+r.feature_key+'"><option value="enabled" '+(state==='enabled'?'selected':'')+'>Ein – vollständig</option><option value="read_only" '+(state==='read_only'?'selected':'')+'>Nur lesen</option><option value="hidden" '+(state==='hidden'?'selected':'')+'>Ausblenden</option><option value="disabled" '+(state==='disabled'?'selected':'')+'>Sperren</option></select>'+(override?'<button type="button" class="btn ghost admin-feature-reset" data-clear-feature="'+r.feature_key+'">Tarifstandard wiederherstellen</button>':'<div class="small">Keine individuelle Abweichung.</div>')+'</div></article>'}).join('')+'</section>').join('');
 }
-async function openFeatureAdmin(userId,label){hideMsg(q('#adminFeatureMsg'));q('#adminFeatureUser').textContent=label;q('#adminFeatureDialog').dataset.userId=userId;const [rows,up,ents]=await Promise.all([_api('/rest/v1/rpc/admin_effective_features',{method:'POST',body:JSON.stringify({p_user_id:userId})}),_api('/rest/v1/user_plans?select=plan_key&user_id=eq.'+userId),_api('/rest/v1/user_entitlements?select=feature_key,state&user_id=eq.'+userId)]);const plan=up&&up[0]&&up[0].plan_key||null,planRows=plan?await _api('/rest/v1/plan_features?select=feature_key,state&plan_key=eq.'+encodeURIComponent(plan)):[],planBy={},entBy={};(planRows||[]).forEach(x=>planBy[x.feature_key]=x.state);(ents||[]).forEach(x=>entBy[x.feature_key]=x.state);featureAdminRows=(rows||[]).map(r=>Object.assign({},r,{plan_state:planBy[r.feature_key]||'hidden',source:entBy[r.feature_key]!==undefined?'override':r.source}));q('#adminFeaturePlan').innerHTML=(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'" '+(plan===p.plan_key?'selected':'')+'>'+esc(p.name)+'</option>').join('');q('#adminFeatureSearch').value='';q('#adminFeatureOnlyOverrides').checked=false;renderFeatureAdminRows();q('#adminFeatureDialog').showModal()}
+async function openFeatureAdmin(userId,label){
+  hideMsg(q('#adminFeatureMsg'));q('#adminFeatureUser').textContent=label;q('#adminFeaturePage').dataset.userId=userId;
+  const [rows,up,ents]=await Promise.all([_api('/rest/v1/rpc/admin_effective_features',{method:'POST',body:JSON.stringify({p_user_id:userId})}),_api('/rest/v1/user_plans?select=plan_key&user_id=eq.'+userId),_api('/rest/v1/user_entitlements?select=feature_key,state&user_id=eq.'+userId)]);
+  const plan=up&&up[0]&&up[0].plan_key||null,planRows=plan?await _api('/rest/v1/plan_features?select=feature_key,state&plan_key=eq.'+encodeURIComponent(plan)):[],planBy={},entBy={};(planRows||[]).forEach(x=>planBy[x.feature_key]=x.state);(ents||[]).forEach(x=>entBy[x.feature_key]=x.state);
+  featureAdminRows=(rows||[]).map(r=>Object.assign({},r,{plan_state:planBy[r.feature_key]||'hidden',source:entBy[r.feature_key]!==undefined?'override':r.source}));
+  q('#adminFeaturePlan').innerHTML=(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'" '+(plan===p.plan_key?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const cats=[...new Set(featureAdminRows.filter(r=>r.feature_key!=='admin').map(r=>r.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+  q('#adminFeatureCategoryFilter').innerHTML='<option value="">Alle Bereiche</option>'+cats.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+  q('#adminFeatureSearch').value='';q('#adminFeatureOnlyOverrides').checked=false;q('#adminFeatureCategoryFilter').value='';renderFeatureAdminRows();
+  q('#adminFeaturePage').classList.remove('hidden');q('#adminView').classList.add('feature-page-open');window.scrollTo({top:0,behavior:'smooth'});
+}
 async function startUiPreview(userId,label){const rows=await _api('/rest/v1/rpc/admin_effective_features',{method:'POST',body:JSON.stringify({p_user_id:userId})}),f={};(rows||[]).forEach(r=>f[r.feature_key]=r.effective_state);f.admin='hidden';previewCtx={userId,label,features:f};adminEdge({action:'log_support_event',target_user_id:userId,event:'ui_preview_started',app_version:APP_VERSION}).catch(()=>{});applyFeatureVisibility();view('dashboard')}
 async function getActiveSupportGrant(userId){const grants=await _api('/rest/v1/support_grants?select=*&owner_user_id=eq.'+userId+'&supporter_user_id=eq.'+session.user.id+'&order=granted_at.desc');return (grants||[]).find(x=>!x.revoked_at&&(!x.expires_at||new Date(x.expires_at)>new Date()))||null}
 async function loadSupportData(userId,label,g){const [acc,tx,pl,diags,audit]=await Promise.all([_api('/rest/v1/account_balances?select=id,user_id,name,institution,currency,balance&user_id=eq.'+userId+'&order=sort_order.asc,name.asc'),_api('/rest/v1/transactions?select=id,user_id,occurred_on,booked_on,transaction_type,amount,currency,description,counterparty&user_id=eq.'+userId+'&order=occurred_on.desc,created_at.desc&limit=150'),_api('/rest/v1/planned_transactions?select=id,user_id,due_on,status,direction,amount,currency,description,paid_transaction_id&user_id=eq.'+userId+'&order=due_on.asc&limit=250'),_api('/rest/v1/app_diagnostics?select=*&user_id=eq.'+userId+'&order=created_at.desc&limit=20'),_api('/rest/v1/support_audit_log?select=*&target_user_id=eq.'+userId+'&order=created_at.desc&limit=30')]);return{userId,label,grant:g,accounts:acc||[],transactions:tx||[],planned:pl||[],diagnostics:diags||[],audit:audit||[]}}
@@ -3405,8 +3487,8 @@ q('#adminDiagnostics').addEventListener('click',async e=>{const bu=e.target.clos
 q('#adminUsers').addEventListener('change',async e=>{const x=e.target.closest('[data-plan-user]');if(!x)return;try{await _api('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:x.dataset.planUser,p_plan_key:x.value})});showToast('Tarif aktualisiert.');await renderAdmin()}catch(er){alert(er.message)}});
 q('#adminUsers').addEventListener('click',async e=>{const f=e.target.closest('[data-features-user]'),p=e.target.closest('[data-preview-user]'),sup=e.target.closest('[data-support-user]'),sim=e.target.closest('[data-sim-user]'),reset=e.target.closest('[data-reset-email]'),ban=e.target.closest('[data-ban-user]'),del=e.target.closest('[data-delete-user]');try{if(f)return openFeatureAdmin(f.dataset.featuresUser,f.dataset.label);if(p)return startUiPreview(p.dataset.previewUser,p.dataset.label);if(sup)return openSupportViewer(sup.dataset.supportUser,sup.dataset.label);if(sim)return startUserSimulation(sim.dataset.simUser,sim.dataset.label);if(reset){if(!confirm('Passwort-Reset an '+reset.dataset.resetEmail+' senden?'))return;await adminEdge({action:'send_password_reset',email:reset.dataset.resetEmail,redirect_to:appRedirectUrl()});return showToast('Reset-Mail ausgelöst.')}if(ban){const willBan=ban.dataset.banned!=='1';if(!confirm(willBan?'Benutzer sperren? Daten bleiben erhalten.':'Benutzer wieder freigeben?'))return;await adminEdge({action:'set_banned',user_id:ban.dataset.banUser,banned:willBan});await renderAdmin();return}if(del){const phrase=prompt('ACHTUNG: Benutzer und alle App-Daten werden endgültig gelöscht. Tippe exakt LÖSCHEN, um '+del.dataset.label+' zu löschen.');if(phrase!=='LÖSCHEN')return;await adminEdge({action:'delete_user',user_id:del.dataset.deleteUser,confirm:phrase});await renderAdmin();showToast('Benutzer endgültig gelöscht.')}}catch(er){alert(er.message)}});
 q('#adminUserSearch').addEventListener('input',renderAdminUserDirectory);q('#adminUserPlanFilter').addEventListener('change',renderAdminUserDirectory);q('#adminUserStateFilter').addEventListener('change',renderAdminUserDirectory);
-q('#adminFeatureClose').addEventListener('click',()=>q('#adminFeatureDialog').close());q('#adminFeaturePlan').addEventListener('change',async()=>{try{await _api('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_plan_key:q('#adminFeaturePlan').value})});await openFeatureAdmin(q('#adminFeatureDialog').dataset.userId,q('#adminFeatureUser').textContent)}catch(e){showMsg(q('#adminFeatureMsg'),e.message,true)}});q('#adminFeatureSearch').addEventListener('input',renderFeatureAdminRows);q('#adminFeatureOnlyOverrides').addEventListener('change',renderFeatureAdminRows);
-q('#adminFeatureList').addEventListener('change',async e=>{const sel=e.target.closest('[data-feature-select]');if(!sel)return;try{await _api('/rest/v1/rpc/admin_set_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_feature_key:sel.dataset.featureSelect,p_state:sel.value,p_reason:'Sysadmin Override'})});await openFeatureAdmin(q('#adminFeatureDialog').dataset.userId,q('#adminFeatureUser').textContent);showMsg(q('#adminFeatureMsg'),'Modul aktualisiert.',false)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});q('#adminFeatureList').addEventListener('click',async e=>{const clear=e.target.closest('[data-clear-feature]');if(!clear)return;try{await _api('/rest/v1/rpc/admin_clear_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeatureDialog').dataset.userId,p_feature_key:clear.dataset.clearFeature})});await openFeatureAdmin(q('#adminFeatureDialog').dataset.userId,q('#adminFeatureUser').textContent);showMsg(q('#adminFeatureMsg'),'Tarifstandard wiederhergestellt.',false)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});
+q('#adminFeatureBack').addEventListener('click',closeFeatureAdmin);q('#adminFeaturePlan').addEventListener('change',async()=>{try{await _api('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeaturePage').dataset.userId,p_plan_key:q('#adminFeaturePlan').value})});await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent)}catch(e){showMsg(q('#adminFeatureMsg'),e.message,true)}});q('#adminFeatureSearch').addEventListener('input',renderFeatureAdminRows);q('#adminFeatureCategoryFilter').addEventListener('change',renderFeatureAdminRows);q('#adminFeatureOnlyOverrides').addEventListener('change',renderFeatureAdminRows);
+q('#adminFeatureList').addEventListener('change',async e=>{const sel=e.target.closest('[data-feature-select]');if(!sel)return;try{await _api('/rest/v1/rpc/admin_set_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeaturePage').dataset.userId,p_feature_key:sel.dataset.featureSelect,p_state:sel.value,p_reason:'Sysadmin Override'})});await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent);showMsg(q('#adminFeatureMsg'),'Modul aktualisiert.',false)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});q('#adminFeatureList').addEventListener('click',async e=>{const clear=e.target.closest('[data-clear-feature]');if(!clear)return;try{await _api('/rest/v1/rpc/admin_clear_feature_override',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeaturePage').dataset.userId,p_feature_key:clear.dataset.clearFeature})});await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent);showMsg(q('#adminFeatureMsg'),'Tarifstandard wiederhergestellt.',false)}catch(er){showMsg(q('#adminFeatureMsg'),er.message,true)}});
 q('#simulationTabs').addEventListener('click',e=>{const b=e.target.closest('[data-sim-tab]');if(b)renderSimulationTab(b.dataset.simTab)});q('#simulationCloseBtn').addEventListener('click',closeSimulation);q('#simulationSupportBtn').addEventListener('click',async()=>{if(!simulationContext)return;const c=simulationContext;await closeSimulation();view('admin');await openSupportViewer(c.userId,c.label)});q('#adminSimulationDialog').addEventListener('cancel',e=>{e.preventDefault();closeSimulation()});
 q('#adminSupportData').addEventListener('click',async e=>{const b=e.target.closest('[data-start-simulation]');if(b){return startUserSimulation(b.dataset.startSimulation,b.dataset.label)}});
 
@@ -3423,7 +3505,7 @@ function closeMobileMore(){q('#mobileMoreSheet').classList.remove('open');q('#mo
 q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',async()=>{closeMobileMore();view(b.dataset.mobileMoreView);if(b.dataset.mobileMoreView==='admin')await renderAdmin();if(b.dataset.mobileMoreView==='support')await renderSupport()}));
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaStatus()});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaStatus()});
 if('serviceWorker' in navigator&&(location.protocol==='https:'||['localhost','127.0.0.1'].includes(location.hostname))){
-  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=652':'./sw.js?v=652',swScope=edgeApp?'/functions/v1/budget-app':'./';
+  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=654':'./sw.js?v=654',swScope=edgeApp?'/functions/v1/budget-app':'./';
   navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return edgeApp&&/\/functions\/v1\/$/.test(new URL(r.scope).pathname)?r.unregister():Promise.resolve(false)}))}).catch(function(){}).then(function(){return navigator.serviceWorker.register(swUrl,{scope:swScope,updateViaCache:'none'})}).then(function(r){return r.update().catch(function(){})}).catch(function(e){console.warn('Service Worker',e)})
 }
 updatePwaStatus();
