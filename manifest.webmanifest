@@ -1,12 +1,12 @@
 {
-  "name": "Budget Control",
-  "short_name": "Budget",
-  "description": "Persönliches Finanz-Cockpit",
+  "name": "Mein Alltag",
+  "short_name": "Mein Alltag",
+  "description": "Budget und Planer in einer verbundenen Alltags-App",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f6f8",
-  "theme_color": "#192c47",
+  "background_color": "#f6f8fd",
+  "theme_color": "#192846",
   "icons": [
     {
       "src": "./icon-192.png",

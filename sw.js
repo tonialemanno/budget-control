@@ -1,4 +1,4 @@
-const CACHE = 'budget-control-v67-0-0-unified-core';
+const CACHE = 'mein-alltag-v67-1-0-modern-flow';
 const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
