@@ -1,7 +1,7 @@
 {
   "name": "alo-agazone",
   "short_name": "alo-agazone",
-  "description": "alo-agazone – Alltag, Budget und Planer in einer App",
+  "description": "alo-agazone – Budget, Planung und Alltag in einer verbundenen App",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
