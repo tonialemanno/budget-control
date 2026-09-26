@@ -1,4 +1,4 @@
-const CACHE = 'aione-v68-0-0-intelligence';
+const CACHE = 'aione-v68-0-1-manual-users';
 const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
