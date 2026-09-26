@@ -428,6 +428,9 @@ body[data-density="compact"] .panel{padding:13px}body[data-density="compact"] .s
 .qr-capture-edit{grid-column:1/-1;margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--panel2)}
 .qr-dialog-actions{grid-template-columns:auto auto 1fr 1fr!important}
 @media(max-width:760px){.smart-category-grid{grid-template-columns:1fr}.smart-category-panel .panel-head{align-items:stretch}.smart-category-panel .panel-head .btn{width:100%}.qr-dialog-actions{grid-template-columns:1fr!important}}
+
+/* v68.0.2 interaction reliability */
+button.is-working{opacity:.72;cursor:wait} .msg.success-persist{border-color:rgba(45,128,82,.35)}
 </style>
 <style id="aloLuxuryLayer">
 /* aione 67.2 · luxury interface layer */
@@ -1488,7 +1491,7 @@ body.privacy-on .planner-card{cursor:default}
       <div class="field"><label>Tarif</label><select id="adminCreatePlan"></select></div>
       <div class="field"><label>Hauptwährung</label><select id="adminCreateCurrency"><option value="CHF">CHF</option><option value="EUR">EUR</option></select></div>
       <div class="field"><label>Land</label><select id="adminCreateCountry"><option value="Schweiz">Schweiz</option><option value="Deutschland">Deutschland</option><option value="Österreich">Österreich</option><option value="Italien">Italien</option><option value="Rumänien">Rumänien</option></select></div>
-      <div class="field"><label>Erster Login</label><label class="checkline"><input id="adminCreateRequireChange" type="checkbox" checked> Neues Passwort beim ersten Login verlangen</label></div>
+      <div class="field"><label>Erster Login</label><div class="security-note"><strong>Pflicht:</strong> Das Startpasswort muss beim ersten Login geändert werden.</div><input id="adminCreateRequireChange" type="checkbox" checked hidden></div>
       <div class="actions span2"><button id="adminCreateUserBtn" type="button" class="btn">Benutzer anlegen</button><button id="adminCreateClearBtn" type="button" class="btn secondary">Felder leeren</button></div>
     </div>
     <div id="adminCreateUserMsg" class="msg hidden"></div>
@@ -2133,7 +2136,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='68.0.1-manual-users';
+const APP_VERSION='68.0.2-interaction-fix';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -2447,7 +2450,7 @@ async function reloadAll(){
       api('/rest/v1/financial_years?select=*&order=year.desc'),
       api('/rest/v1/year_archives?select=id,year,version,closed_at,notes&order=year.desc,version.desc'),
       api('/rest/v1/saved_filters?select=*&order=name.asc'),
-      api('/rest/v1/profiles?select=*&limit=1'),
+      api('/rest/v1/profiles?select=*&user_id=eq.'+session.user.id+'&limit=1'),
       api('/rest/v1/saved_tags?select=*&active=eq.true&order=name.asc'),
       api('/rest/v1/classification_rules?select=*&order=priority.asc,created_at.asc'),
       api('/rest/v1/documents?select=*&order=created_at.desc'),
@@ -3039,14 +3042,13 @@ async function saveBankSettings(){
   hideMsg(q('#bankSettingsMsg'));try{const id=q('#settingsBankAccount').value;if(!id)throw new Error('Bitte zuerst ein Bankkonto wählen.');const iban=q('#settingsBankIban').value.replace(/\s+/g,'').toUpperCase()||null,body={institution:q('#settingsBankInstitution').value.trim()||null,account_holder:q('#settingsBankHolder').value.trim()||null,iban:iban,iban_last4:iban?iban.slice(-4):null,bic_swift:q('#settingsBankBic').value.trim().toUpperCase()||null,bank_clearing:q('#settingsBankClearing').value.trim()||null,account_number:q('#settingsBankAccountNumber').value.trim()||null,bank_address:q('#settingsBankAddress').value.trim()||null};await api('/rest/v1/accounts?id=eq.'+id,{method:'PATCH',body:JSON.stringify(body)});showMsg(q('#bankSettingsMsg'),'Bankdaten gespeichert.',false);await reloadAll();view('settings')}catch(e){showMsg(q('#bankSettingsMsg'),e.message,true)}
 }
 async function saveAppearance(){
-  hideMsg(q('#appearanceSettingsMsg'));try{const body={theme_mode:q('#settingsTheme').value,accent_color:validAccent(q('#settingsAccent').value),theme_background_color:validAccent(q('#settingsBackground').value),theme_panel_color:validAccent(q('#settingsPanelColor').value),theme_sidebar_color:validAccent(q('#settingsSidebarColor').value),theme_text_color:validAccent(q('#settingsTextColor').value),compact_mode:q('#settingsCompact').checked};await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});Object.assign(currentProfile,body);applyAppearance();renderSettings();showMsg(q('#appearanceSettingsMsg'),tr('Darstellung gespeichert.'),false)}catch(e){showMsg(q('#appearanceSettingsMsg'),e.message,true)}
+  hideMsg(q('#appearanceSettingsMsg'));try{const body={theme_mode:q('#settingsTheme').value,accent_color:validAccent(q('#settingsAccent').value),theme_background_color:validAccent(q('#settingsBackground').value),theme_panel_color:validAccent(q('#settingsPanelColor').value),theme_sidebar_color:validAccent(q('#settingsSidebarColor').value),theme_text_color:validAccent(q('#settingsTextColor').value),compact_mode:q('#settingsCompact').checked};await patchProfileVerified(body);applyAppearance();renderSettings();renderAioneAiSettings();showMsg(q('#appearanceSettingsMsg'),tr('Darstellung gespeichert.'),false)}catch(e){showMsg(q('#appearanceSettingsMsg'),e.message,true)}
 }
 async function savePersonalization(){
   hideMsg(q('#personalizationMsg'));
   try{
     const body={default_start_view:q('#settingsStartView').value||'dashboard',dashboard_density:q('#settingsDashboardDensity').value||'calm',show_advanced_finance:!!q('#settingsAdvancedFinance').checked,dashboard_spotlight_account_id:q('#settingsDashboardSpotlight').value||null};
-    await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});
-    Object.assign(currentProfile,body);applyUserPersonalization();renderV66Overview();showMsg(q('#personalizationMsg'),'Bedienung gespeichert.',false)
+    await patchProfileVerified(body);applyUserPersonalization();renderSettings();renderAioneAiSettings();renderV66Overview();showMsg(q('#personalizationMsg'),'Bedienung gespeichert und bestätigt.',false)
   }catch(e){showMsg(q('#personalizationMsg'),e.message,true)}
 }
 async function saveLogoFile(file){
@@ -3324,7 +3326,7 @@ function taxRows(){const y=taxYear();return transactions.filter(t=>t.tax_treatme
 
 function pillar3aPaidForYear(y){return fosPostedTransactions().filter(t=>yearOf(txDateValue(t))===Number(y)).filter(t=>{const x=String(t.tax_category||'').toLowerCase().replace('ä','a');return x.includes('saule 3a')||(t.tags||[]).some(z=>String(z).toLowerCase().replace('ä','a').includes('saule 3a'))}).reduce((sum,t)=>sum+(Number(t.tax_deductible_amount)>0?Number(t.tax_deductible_amount):txAmountCHF(t)),0)}
 function renderPillar3a(){if(!q('#pillar3aPaid'))return;const y=taxYear()||new Date().getFullYear(),ref=taxReferenceLimits.find(x=>Number(x.tax_year)===Number(y)),mode=currentProfile.pillar3a_mode||'small',income=Number(currentProfile.pillar3a_annual_income||0),paid=pillar3aPaidForYear(y);q('#pillar3aMode').value=mode;q('#pillar3aIncome').value=income||'';q('#pillar3aIncome').disabled=mode!=='large';q('#pillar3aPaid').textContent=CHF.format(paid);if(!ref){q('#pillar3aLimit').textContent='Keine Referenz';q('#pillar3aRemaining').textContent='—';q('#pillar3aBadge').textContent='Keine Daten';q('#pillar3aBadge').className='finance-os-badge warn';q('#pillar3aNote').textContent='Für '+y+' ist noch kein gesetzlicher Referenzwert hinterlegt.';q('#pillar3aProgress').style.width='0%';return}let limit=Number(ref.pillar3a_small_chf);let exact=true;if(mode==='large'){const cap=Number(ref.pillar3a_large_chf),pct=Number(ref.pillar3a_large_income_pct||20)/100;if(income>0)limit=Math.min(cap,income*pct);else{limit=cap;exact=false}}const remaining=limit-paid,pct=Math.min(100,Math.max(0,paid/Math.max(1,limit)*100));q('#pillar3aLimit').textContent=CHF.format(limit);q('#pillar3aRemaining').textContent=remaining>=0?CHF.format(remaining):'Über '+CHF.format(Math.abs(remaining));q('#pillar3aProgress').style.width=pct+'%';q('#pillar3aProgress').classList.toggle('over',remaining<0);q('#pillar3aBadge').textContent=remaining<0?'über Limit':remaining===0?'ausgeschöpft':'im Rahmen';q('#pillar3aBadge').className='finance-os-badge '+(remaining<0?'warn':'good');q('#pillar3aNote').textContent=(exact?'Berechnung':'Ohne Erwerbseinkommen wird nur der gesetzliche Maximaldeckel gezeigt')+' · Referenz '+y+' · Quelle '+(ref.source||'hinterlegte Referenz')+'. Nur Buchungen mit Steuer-Kategorie/Tag „Säule 3a“ werden gezählt.'}
-async function savePillar3aPrefs(){if(!session)return;const mode=q('#pillar3aMode').value,income=Number(q('#pillar3aIncome').value||0)||null;try{await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({pillar3a_mode:mode,pillar3a_annual_income:income})});currentProfile.pillar3a_mode=mode;currentProfile.pillar3a_annual_income=income;renderPillar3a()}catch(e){alert('3a-Einstellung konnte nicht gespeichert werden: '+e.message)}}
+async function savePillar3aPrefs(){if(!session)return;const mode=q('#pillar3aMode').value,income=Number(q('#pillar3aIncome').value||0)||null;try{await patchProfileVerified({pillar3a_mode:mode,pillar3a_annual_income:income});renderPillar3a();showToast('3a-Einstellung gespeichert.')}catch(e){alert('3a-Einstellung konnte nicht gespeichert werden: '+e.message)}}
 
 
 function taxAssessmentsForYear(y){return (taxAssessments||[]).filter(x=>Number(x.tax_year)===Number(y)&&x.status!=='cancelled')}
@@ -3342,7 +3344,7 @@ async function saveTaxAssessment(){const id=q('#taxAssessmentId').value,body={ta
 function openTaxAllocation(txId){const t=transactions.find(x=>x.id===txId);if(!t)return;const selected=taxYear(),rows=(taxAssessments||[]).filter(x=>x.status!=='cancelled'&&taxAssessmentOpen(x)>.005).slice().sort((a,b)=>Math.abs(Number(a.tax_year)-Number(selected))-Math.abs(Number(b.tax_year)-Number(selected))||Number(b.tax_year)-Number(a.tax_year));q('#taxAllocationTransactionId').value=t.id;q('#taxAllocationTxInfo').innerHTML='<strong>'+esc(txDateValue(t))+' · '+esc(t.description||t.counterparty||'Steuerzahlung')+'</strong><div>'+CHF.format(txAmountCHF(t))+' bezahlt</div>';q('#taxAllocationAssessment').innerHTML=rows.map(x=>'<option value="'+x.id+'">'+(x.assessment_type==='definitive'?'Definitiv':'Provisorisch')+' '+x.tax_year+' · '+CHF.format(x.amount)+' · offen '+CHF.format(taxAssessmentOpen(x))+'</option>').join('');q('#taxAllocationAmount').value=Math.max(0,txAmountCHF(t)-allocatedToTransaction(t.id)).toFixed(2);q('#taxAllocationDialog').showModal()}
 async function saveTaxAllocation(){const t=transactions.find(x=>x.id===q('#taxAllocationTransactionId').value),amount=Number(q('#taxAllocationAmount').value||0),assessment=q('#taxAllocationAssessment').value;if(!t||!assessment||!(amount>0))throw new Error('Bitte Rechnung und Betrag wählen.');await api('/rest/v1/tax_payment_allocations',{method:'POST',body:JSON.stringify({assessment_id:assessment,transaction_id:t.id,amount,paid_on:txDateValue(t)})});q('#taxAllocationDialog').close();await reloadAll();view('tax')}
 function renderTaxPaymentMode(){if(!q('#taxModeDirect'))return;const mode=currentProfile.tax_payment_mode||'direct';q('#taxModeDirect').checked=mode==='direct';q('#taxModeReserve').checked=mode==='reserve_account';const sel=q('#taxReserveAccountSelect'),rows=accounts.filter(a=>a.active&&a.asset_class==='asset'&&a.liquidity_class==='available');sel.innerHTML='<option value="">— Konto wählen —</option>'+rows.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+money(a.balance,a.currency)+'</option>').join('');sel.value=currentProfile.tax_reserve_account_id||'';sel.disabled=mode!=='reserve_account'}
-async function saveTaxPaymentMode(){hideMsg(q('#taxModeMsg'));try{const mode=q('#taxModeReserve').checked?'reserve_account':'direct',body={tax_payment_mode:mode,tax_reserve_account_id:mode==='reserve_account'?(q('#taxReserveAccountSelect').value||null):null};await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});Object.assign(currentProfile,body);renderTaxPaymentMode();renderV66FinanceSimple();showMsg(q('#taxModeMsg'),'Steuer-Zahlungsart gespeichert.',false)}catch(e){showMsg(q('#taxModeMsg'),e.message,true)}}
+async function saveTaxPaymentMode(){hideMsg(q('#taxModeMsg'));try{const mode=q('#taxModeReserve').checked?'reserve_account':'direct',body={tax_payment_mode:mode,tax_reserve_account_id:mode==='reserve_account'?(q('#taxReserveAccountSelect').value||null):null};await patchProfileVerified(body);renderTaxPaymentMode();renderV66FinanceSimple();showMsg(q('#taxModeMsg'),'Steuer-Zahlungsart gespeichert und bestätigt.',false)}catch(e){showMsg(q('#taxModeMsg'),e.message,true)}}
 function renderTax(){
   const nowYear=new Date().getFullYear(),current=taxYear()||nowYear;const years=new Set([nowYear,nowYear+1,current]);transactions.forEach(t=>years.add(yearOf(txDateValue(t))));taxYears.forEach(t=>years.add(Number(t.tax_year)));taxAssessments.forEach(t=>years.add(Number(t.tax_year)));
   const sel=q('#taxYearSelect'),prev=sel.value||String(current);sel.innerHTML=Array.from(years).filter(Boolean).sort((a,b)=>b-a).map(y=>'<option value="'+y+'">'+y+(y===nowYear?' · aktuell':y===nowYear+1?' · Folgejahr':'')+'</option>').join('');if(Array.from(sel.options).some(o=>o.value===prev))sel.value=prev;else sel.value=String(nowYear);
@@ -3775,9 +3777,9 @@ q('#privacyToggle').addEventListener('click',()=>{privacyMode=!privacyMode;apply
 q('#fxEurInput').addEventListener('input',()=>{const r=eurRate();if(r)q('#fxChfInput').value=(Number(q('#fxEurInput').value||0)*r).toFixed(2)});
 q('#fxChfInput').addEventListener('input',()=>{const r=eurRate();if(r)q('#fxEurInput').value=(Number(q('#fxChfInput').value||0)/r).toFixed(2)});
 q('#fxRefreshBtn').addEventListener('click',async()=>{if(await refreshLiveFx(false)){renderAll(currentWealth,transactions.filter(t=>String(t.booked_on||'').slice(0,7)===new Date().toISOString().slice(0,7)))}});
-q('#settingsPrivacyDefault').addEventListener('change',async()=>{try{const v=q('#settingsPrivacyDefault').checked;await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({privacy_blur_default:v})});currentProfile.privacy_blur_default=v}catch(e){showMsg(q('#securitySettingsMsg'),e.message,true)}});
+q('#settingsPrivacyDefault').addEventListener('change',async()=>{try{const v=q('#settingsPrivacyDefault').checked;await patchProfileVerified({privacy_blur_default:v});renderSettings();renderAioneAiSettings();showMsg(q('#securitySettingsMsg'),'Datenschutz-Standard gespeichert.',false)}catch(e){renderSettings();showMsg(q('#securitySettingsMsg'),e.message,true)}});
 q('#profileSettingsForm').addEventListener('submit',async e=>{e.preventDefault();await saveProfileSettings()});
-q('#settingsPrimaryAccount').addEventListener('change',async()=>{hideMsg(q('#bankSettingsMsg'));const id=q('#settingsPrimaryAccount').value||null;try{await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({primary_account_id:id})});currentProfile.primary_account_id=id;fillSelectors();showMsg(q('#bankSettingsMsg'),id?'Standardkonto geändert. Neue Buchungen und Importe verwenden dieses Konto.':'Automatische Kontowahl aktiviert.',false)}catch(e){showMsg(q('#bankSettingsMsg'),e.message,true)}});
+q('#settingsPrimaryAccount').addEventListener('change',async()=>{hideMsg(q('#bankSettingsMsg'));const id=q('#settingsPrimaryAccount').value||null;try{await patchProfileVerified({primary_account_id:id});fillSelectors();renderSettings();renderAioneAiSettings();showMsg(q('#bankSettingsMsg'),id?'Standardkonto gespeichert. Neue Buchungen und Importe verwenden dieses Konto.':'Automatische Kontowahl gespeichert.',false)}catch(e){renderSettings();showMsg(q('#bankSettingsMsg'),e.message,true)}});
 q('#settingsBankAccount').addEventListener('change',renderSettingsBank);
 q('#saveBankSettingsBtn').addEventListener('click',saveBankSettings);
 q('#saveAppearanceBtn').addEventListener('click',saveAppearance);
@@ -4357,8 +4359,8 @@ q('#exportAccountsPdfBtn').addEventListener('click',()=>exportRowsPdf('accounts'
 
 
 
-q('#dashboardPrimaryAccount').addEventListener('change',async()=>{const id=q('#dashboardPrimaryAccount').value;currentProfile.primary_account_id=id;renderV66Overview();try{await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({primary_account_id:id})});showToast('Hauptkonto gespeichert.')}catch(e){showToast('Hauptkonto konnte nicht gespeichert werden.')}});
-q('#dashboardSpotlightAccount').addEventListener('change',async()=>{const id=q('#dashboardSpotlightAccount').value;currentProfile.dashboard_spotlight_account_id=id;renderV66Overview();try{await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({dashboard_spotlight_account_id:id})});showToast('Startkonto gespeichert.')}catch(e){showToast('Startkonto konnte nicht gespeichert werden.')}});
+q('#dashboardPrimaryAccount').addEventListener('change',async()=>{const id=q('#dashboardPrimaryAccount').value;try{await patchProfileVerified({primary_account_id:id||null});renderV66Overview();showToast('Hauptkonto gespeichert.')}catch(e){renderV66Overview();showToast('Hauptkonto konnte nicht gespeichert werden: '+e.message)}});
+q('#dashboardSpotlightAccount').addEventListener('change',async()=>{const id=q('#dashboardSpotlightAccount').value;try{await patchProfileVerified({dashboard_spotlight_account_id:id||null});renderV66Overview();showToast('Startkonto gespeichert.')}catch(e){renderV66Overview();showToast('Startkonto konnte nicht gespeichert werden: '+e.message)}});
 q('#dashboardCalculationDetails').addEventListener('click',e=>{const b=e.target.closest('[data-add-debt]');if(b){openAccount();q('#accType').value='credit_card';q('#accClass').value='liability';q('#accLiquidity').value='available';q('#accName').value='Neue Schuld';}});
 q('#wealthMovements').addEventListener('click',e=>{const b=e.target.closest('[data-wealth-tx]');if(b)openTx(b.dataset.wealthTx)});
 q('#wealthBankCards').addEventListener('click',e=>{const acc=e.target.closest('[data-account-scope]');if(acc){q('#wealthScope').value=acc.dataset.accountScope;q('#wealthMovementDetails').open=true;renderWealthSelection();setTimeout(()=>q('#wealthMovementDetails').scrollIntoView({behavior:'smooth',block:'start'}),30)}});
@@ -4378,12 +4380,27 @@ q('#adminSupportData').addEventListener('click',async e=>{if(!adminSupportContex
 q('#adminInviteBtn').addEventListener('click',async()=>{hideMsg(q('#adminInviteMsg'));try{const email=q('#adminInviteEmail').value.trim(),plan=q('#adminInvitePlan').value;await adminEdge({action:'invite_user',email,plan_key:plan,redirect_to:appRedirectUrl()});showMsg(q('#adminInviteMsg'),'Einladung wurde gesendet.',false);q('#adminInviteEmail').value='';await renderAdmin()}catch(e){showMsg(q('#adminInviteMsg'),e.message,true)}});
 function clearAdminCreateUserForm(){['adminCreateFirstName','adminCreateLastName','adminCreateEmail','adminCreatePassword'].forEach(id=>{const el=q('#'+id);if(el)el.value=''});if(q('#adminCreateCurrency'))q('#adminCreateCurrency').value='CHF';if(q('#adminCreateCountry'))q('#adminCreateCountry').value='Schweiz';if(q('#adminCreateRequireChange'))q('#adminCreateRequireChange').checked=true;hideMsg(q('#adminCreateUserMsg'))}
 async function createStandaloneUser(){
-  hideMsg(q('#adminCreateUserMsg'));const btn=q('#adminCreateUserBtn'),email=q('#adminCreateEmail').value.trim().toLowerCase(),password=q('#adminCreatePassword').value,first=q('#adminCreateFirstName').value.trim(),last=q('#adminCreateLastName').value.trim(),plan=q('#adminCreatePlan').value||'free',currency=q('#adminCreateCurrency').value||'CHF',country=q('#adminCreateCountry').value||'Schweiz',requireChange=!!q('#adminCreateRequireChange').checked;
-  if(!email||!email.includes('@'))return showMsg(q('#adminCreateUserMsg'),'Bitte eine gültige Login-E-Mail eingeben.',true);if(password.length<10)return showMsg(q('#adminCreateUserMsg'),'Das Startpasswort muss mindestens 10 Zeichen haben.',true);btn.disabled=true;
-  let invitationError=null;try{try{await adminEdge({action:'invite_user',email,plan_key:plan,redirect_to:appRedirectUrl()})}catch(e){invitationError=e}
-    try{await _api('/rest/v1/rpc/admin_activate_user_with_password',{method:'POST',body:JSON.stringify({p_email:email,p_password:password,p_display_name:[first,last].filter(Boolean).join(' ')||email.split('@')[0],p_first_name:first||null,p_last_name:last||null,p_plan_key:plan,p_base_currency:currency,p_country:country,p_require_password_change:requireChange})})}catch(e){if(invitationError)throw new Error((invitationError.message||'Zugang konnte nicht vorbereitet werden.')+' · '+e.message);throw e}
-    q('#adminCreatePassword').value='';showMsg(q('#adminCreateUserMsg'),'Benutzer wurde angelegt. Login: '+email+(requireChange?' · Beim ersten Login muss ein persönliches Passwort gesetzt werden.':''),false);await renderAdmin();showAdminSection('users',false)
-  }catch(e){showMsg(q('#adminCreateUserMsg'),e.message,true)}finally{btn.disabled=false}
+  const msg=q('#adminCreateUserMsg');hideMsg(msg);
+  const btn=q('#adminCreateUserBtn'),email=q('#adminCreateEmail').value.trim().toLowerCase(),password=q('#adminCreatePassword').value,first=q('#adminCreateFirstName').value.trim(),last=q('#adminCreateLastName').value.trim(),plan=q('#adminCreatePlan').value||'free',currency=q('#adminCreateCurrency').value||'CHF',country=q('#adminCreateCountry').value||'Schweiz';
+  if(!accessCtl.isSuperAdminRole)return showMsg(msg,'Nur die Administration kann Benutzer anlegen.',true);
+  if(currentAal()!=='aal2'){showMsg(msg,'Bitte zuerst MFA bestätigen. Danach kannst du den Benutzer direkt anlegen.',true);openMfaSetup();return}
+  if(!first)return showMsg(msg,'Bitte den Vornamen eingeben.',true);
+  if(!last)return showMsg(msg,'Bitte den Nachnamen eingeben.',true);
+  if(!email||!email.includes('@'))return showMsg(msg,'Bitte eine gültige Login-E-Mail eingeben.',true);
+  if(password.length<10)return showMsg(msg,'Das Startpasswort muss mindestens 10 Zeichen haben.',true);
+  btn.disabled=true;btn.textContent='Benutzer wird angelegt …';let preparedId=null;
+  try{
+    const display=[first,last].filter(Boolean).join(' ');
+    preparedId=await _api('/rest/v1/rpc/admin_prepare_aione_user',{method:'POST',body:JSON.stringify({p_email:email,p_display_name:display})});
+    await _api('/rest/v1/rpc/admin_activate_user_with_password',{method:'POST',body:JSON.stringify({p_email:email,p_password:password,p_display_name:display,p_first_name:first,p_last_name:last,p_plan_key:plan,p_base_currency:currency,p_country:country,p_require_password_change:true})});
+    q('#adminCreatePassword').value='';
+    showMsg(msg,'Benutzer angelegt. Login: '+email+' · Beim ersten Login muss ein neues persönliches Passwort gesetzt werden.',false);
+    showToast('Benutzer erfolgreich angelegt.');
+    await renderAdmin();showAdminSection('users',false)
+  }catch(e){
+    if(preparedId){try{await _api('/rest/v1/rpc/admin_abort_prepared_aione_user',{method:'POST',body:JSON.stringify({p_user_id:preparedId})})}catch(_){} }
+    showMsg(msg,e.message||String(e),true)
+  }finally{btn.disabled=false;btn.textContent='Benutzer anlegen'}
 }
 q('#adminCreateUserBtn').addEventListener('click',createStandaloneUser);q('#adminCreateClearBtn').addEventListener('click',clearAdminCreateUserForm);
 q('#adminInvitationSearch').addEventListener('input',renderAdminInvitations);q('#adminInvitationFilter').addEventListener('change',renderAdminInvitations);q('#adminInvitationRefresh').addEventListener('click',renderAdmin);q('#adminInvitations').addEventListener('click',async e=>{const resend=e.target.closest('[data-invite-resend]'),revoke=e.target.closest('[data-invite-revoke]'),del=e.target.closest('[data-invite-delete]'),usr=e.target.closest('[data-invite-user]');try{if(resend){resend.disabled=true;const d=await adminEdge({action:'resend_invitation',invitation_id:resend.dataset.inviteResend,redirect_to:appRedirectUrl()});showToast(d.mode==='password_reset'?'Passwort-Link als Reminder gesendet.':'Einladung erneut gesendet.');await renderAdmin();showAdminSection('invitations',false);return}if(revoke){if(!confirm('Diese offene Einladung wirklich widerrufen? Der bisherige Einladungslink wird unbrauchbar.'))return;await adminEdge({action:'revoke_invitation',invitation_id:revoke.dataset.inviteRevoke});showToast('Einladung widerrufen.');await renderAdmin();showAdminSection('invitations',false);return}if(del){if(!confirm('Einladung für '+del.dataset.email+' aus der Liste löschen? Ein Audit-Eintrag bleibt erhalten.'))return;await adminEdge({action:'delete_invitation',invitation_id:del.dataset.inviteDelete});showToast('Einladung gelöscht.');await renderAdmin();showAdminSection('invitations',false);return}if(usr){q('#adminUserSearch').value=usr.dataset.email||'';showAdminSection('users',false);renderAdminUserDirectory();return}}catch(er){alert(er.message)}finally{if(resend)resend.disabled=false}});
@@ -4526,17 +4543,16 @@ function closeMobileMore(){q('#mobileMoreSheet').classList.remove('open');q('#mo
 q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',async()=>{closeMobileMore();view(b.dataset.mobileMoreView);if(b.dataset.mobileMoreView==='admin')await renderAdmin();if(b.dataset.mobileMoreView==='support')await renderSupport()}));
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaStatus()});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaStatus()});
 if('serviceWorker' in navigator&&(location.protocol==='https:'||['localhost','127.0.0.1'].includes(location.hostname))){
-  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=67400verified':'./sw.js?v=68001manualusers',swScope=edgeApp?'/functions/v1/budget-app':'./';
+  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=67400verified':'./sw.js?v=68002interaction',swScope=edgeApp?'/functions/v1/budget-app':'./';
   navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return edgeApp&&/\/functions\/v1\/$/.test(new URL(r.scope).pathname)?r.unregister():Promise.resolve(false)}))}).catch(function(){}).then(function(){return navigator.serviceWorker.register(swUrl,{scope:swScope,updateViaCache:'none'})}).then(function(r){return r.update().catch(function(){})}).catch(function(e){console.warn('Service Worker',e)})
 }
 updatePwaStatus();
 
-})();
-
 
 /* ===== aione 68 · intelligence, release notes, feedback and live chat ===== */
-const AIONE_RELEASE={version:'68.0.1-manual-users',title:'aione · Benutzerzugänge jetzt auch manuell',items:[
-  ['Eigenständige Benutzer','Der SuperAdmin kann jetzt einen vollständigen aione-Zugang mit Login-E-Mail und Startpasswort anlegen – unabhängig von Familie & Haushalt.'],
+const AIONE_RELEASE={version:'68.0.2-interaction-fix',title:'aione · Bedienung & Benutzeranlage stabilisiert',items:[
+  ['Eigenständige Benutzer','Benutzer werden jetzt direkt mit Vorname, Nachname, Login-E-Mail und Startpasswort angelegt – ohne Einladungs-E-Mail. Beim ersten Login ist ein Passwortwechsel Pflicht.'],
+  ['Bedienung stabilisiert','Der neue aione-Funktionsblock läuft jetzt innerhalb derselben App-Logik. KI, Chat, Feedback und neue Admin-Aktionen reagieren zuverlässig auf ihre Buttons.'],
   ['Neuer Name & Marke','alo-agazone wird zu aione. „by agazone“ ist als feste Markenlinie unter dem Namen integriert.'],
   ['Intelligente Kategorisierung','aione kombiniert deine Historie, Regeln, Händler-Muster und semantische Hinweise. Unsichere Vorschläge werden nie blind übernommen.'],
   ['Optionale KI-Unterstützung','Wenn du KI aktivierst, kann aione unklare Buchungen zusätzlich prüfen. KI-Vorschläge sind sichtbar als KI gekennzeichnet.'],
@@ -4600,7 +4616,21 @@ function applyTxIntelligence(){if(!aioneSuggestion)return;q('#txCategory').value
 async function applyQrSmartCategory(){if(!parsedQrBill)return;const merchant=q('#qrMerchantInput').value.trim(),text=merchant+' '+(parsedQrBill.raw||''),local=aioneLocalSuggestion(text,'expense');if(local&&!q('#qrCategorySelect').value)q('#qrCategorySelect').value=local.category_id;if(currentProfile&&currentProfile.ai_enabled&&(!local||local.confidence<.88)){try{const ai=await aioneAiCategorize(text,'expense',q('#qrAmountInput').value,parsedQrBill.currency||'EUR');if(ai&&!q('#qrCategorySelect').value)q('#qrCategorySelect').value=ai.category_id}catch(e){}}}
 
 function renderAioneAiSettings(){const el=q('#settingsAiEnabled');if(el)el.checked=!!(currentProfile&&currentProfile.ai_enabled)}
-async function saveAioneAiSettings(){hideMsg(q('#aiSettingsMsg'));try{const enabled=!!q('#settingsAiEnabled').checked;await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({ai_enabled:enabled,updated_at:new Date().toISOString()})});currentProfile.ai_enabled=enabled;showMsg(q('#aiSettingsMsg'),enabled?'KI-Unterstützung aktiviert. Jeder KI-Vorschlag wird sichtbar gekennzeichnet.':'KI-Unterstützung deaktiviert. Lokale intelligente Erkennung bleibt aktiv.',false)}catch(e){showMsg(q('#aiSettingsMsg'),e.message,true)}}
+async function refreshCurrentProfile(){if(!session||!session.user)return currentProfile;const rows=await api('/rest/v1/profiles?select=*&user_id=eq.'+session.user.id+'&limit=1');if(rows&&rows[0])currentProfile=rows[0];return currentProfile}
+async function patchProfileVerified(body){
+  await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});
+  await refreshCurrentProfile();
+  return currentProfile;
+}
+async function saveAioneAiSettings(){
+  const msg=q('#aiSettingsMsg'),btn=q('#saveAiSettingsBtn');hideMsg(msg);const enabled=!!q('#settingsAiEnabled').checked;btn.disabled=true;btn.textContent='Speichert …';
+  try{
+    await patchProfileVerified({ai_enabled:enabled,ai_assistance_enabled:true,ai_cloud_enabled:enabled});
+    renderAioneAiSettings();
+    if(!!currentProfile.ai_enabled!==enabled)throw new Error('Die KI-Einstellung konnte nicht bestätigt werden.');
+    showMsg(msg,enabled?'KI-Unterstützung ist gespeichert und aktiviert. KI-Vorschläge werden sichtbar gekennzeichnet.':'KI-Unterstützung ist gespeichert und deaktiviert. Lokale intelligente Erkennung bleibt aktiv.',false);showToast('KI-Einstellung gespeichert.')
+  }catch(e){q('#settingsAiEnabled').checked=!!(currentProfile&&currentProfile.ai_enabled);showMsg(msg,e.message||String(e),true)}finally{btn.disabled=false;btn.textContent='KI-Einstellung speichern'}
+}
 async function checkAioneAiStatus(){hideMsg(q('#aiSettingsMsg'));try{const d=await aioneAiStatus();showMsg(q('#aiSettingsMsg'),d.configured?'KI-Dienst ist serverseitig bereit.':'KI ist in der App vorbereitet, aber der serverseitige API-Schlüssel ist noch nicht hinterlegt. Die lokale intelligente Erkennung funktioniert trotzdem.',!d.configured)}catch(e){showMsg(q('#aiSettingsMsg'),e.message,true)}}
 
 function releaseHtml(){return AIONE_RELEASE.items.map(x=>'<div class="aione-release-item"><strong>'+esc(x[0])+'</strong><div class="small">'+esc(x[1])+'</div></div>').join('')}
@@ -4637,7 +4667,15 @@ const _aioneOpenSupportViewer=openSupportViewer;openSupportViewer=async function
 
 // Extend core render/view lifecycle without changing existing finance logic.
 const _aioneRenderAll=renderAll;renderAll=function(w,month){_aioneRenderAll(w,month);renderAioneAiSettings();renderHelpCenter();loadFamilyChat().catch(()=>{});loadSupportChat().catch(()=>{})};
-const _aioneView=view;view=function(name){_aioneView(name);if(name==='help')renderHelpCenter();if(name==='support')loadSupportChat().catch(()=>{});if(name==='settings')loadFamilyChat().catch(()=>{})};
+const _aioneView=view;view=function(name){
+  _aioneView(name);
+  if(name==='help')renderHelpCenter();
+  if(name==='support')loadSupportChat().catch(()=>{});
+  if(name==='settings'){
+    renderSettings();renderAioneAiSettings();loadFamilyChat().catch(()=>{});
+    refreshCurrentProfile().then(()=>{renderSettings();renderAioneAiSettings()}).catch(e=>console.warn('Einstellungen konnten nicht neu geladen werden',e));
+  }
+};
 const _aioneShowModuleHome=showModuleHome;showModuleHome=function(){_aioneShowModuleHome();maybeShowWhatsNew()};
 
 /* aione 68.0.1 · administrator-created standalone users */
@@ -4646,6 +4684,14 @@ function openFirstLoginPasswordChange(){authScreen.classList.add('hidden');shell
 const _aioneCoreEnterAppManualUsers=enterApp;enterApp=async function(){if(session){try{await refreshAuthUser()}catch(e){}if(aioneNeedsFirstPasswordChange()){openFirstLoginPasswordChange();return}}return _aioneCoreEnterAppManualUsers()};
 q('#firstLoginPasswordDialog').addEventListener('cancel',e=>e.preventDefault());
 q('#firstLoginPasswordForm').addEventListener('submit',async e=>{e.preventDefault();hideMsg(q('#firstLoginPasswordMsg'));const p=q('#firstLoginPassword1').value,p2=q('#firstLoginPassword2').value,btn=q('#firstLoginPasswordBtn');if(p.length<10)return showMsg(q('#firstLoginPasswordMsg'),'Bitte mindestens 10 Zeichen verwenden.',true);if(p!==p2)return showMsg(q('#firstLoginPasswordMsg'),'Die beiden Passwörter stimmen nicht überein.',true);btn.disabled=true;try{const r=await fetch(SUPA+'/auth/v1/user',{method:'PUT',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({password:p,data:{must_change_password:false}}),cache:'no-store'}),txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(_){}if(!r.ok)throw new Error(d.msg||d.message||d.error_description||'Passwort konnte nicht gespeichert werden.');await refreshAuthUser();saveSessionSafe(session);q('#firstLoginPasswordDialog').close();await _aioneCoreEnterAppManualUsers();showToast('Persönliches Passwort gespeichert.')}catch(er){showMsg(q('#firstLoginPasswordMsg'),er.message,true)}finally{btn.disabled=false}});
+
+// v68.0.2: Fehler bei Aktionen nach dem Login nicht mehr lautlos verschlucken.
+window.addEventListener('unhandledrejection',function(e){
+  if(!session)return;const reason=e&&e.reason&&e.reason.message?e.reason.message:String((e&&e.reason)||'Unbekannter Fehler');
+  console.error('Nicht behandelter App-Fehler',e&&e.reason);showToast('Aktion fehlgeschlagen: '+reason.slice(0,180));
+});
+
+})();
 </script>
 </body>
 </html>
