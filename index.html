@@ -2077,7 +2077,7 @@ body.privacy-on .planner-card{cursor:default}
 
 <dialog id="mfaDialog">
   <form method="dialog" class="dialog-in" style="width:min(520px,94vw)">
-    <div class="dialog-head"><div><h2>Admin-MFA</h2><div class="small">Der SuperAdmin wird mit einem zweiten Faktor geschützt.</div></div><button class="x" value="cancel" type="submit">×</button></div>
+    <div class="dialog-head"><div><h2 id="mfaDialogTitle">Admin bestätigen</h2><div id="mfaDialogSub" class="small">Gib den Code aus deiner Authenticator-App ein.</div></div><button class="x" value="cancel" type="submit">×</button></div>
     <div id="mfaSetupBlock" class="hidden">
       <div class="security-note">Scanne den QR-Code mit einer Authenticator-App. Falls Scannen nicht möglich ist, kannst du den geheimen Schlüssel manuell eintragen.</div>
       <div style="text-align:center;margin:14px 0"><img id="mfaQr" class="mfa-qr" alt="MFA QR Code"></div>
@@ -2136,7 +2136,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='68.0.2-interaction-fix';
+const APP_VERSION='68.0.3-mfa-flow-fix';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -2358,8 +2358,28 @@ async function registerDevice(){if(!session||!session.user)return;const platform
 async function refreshAuthUser(){const r=await fetch(SUPA+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},cache:'no-store'});if(r.ok){const u=await r.json();session.user=u;saveSessionSafe(session);return u}return session.user}
 function verifiedFactors(){return ((session&&session.user&&session.user.factors)||[]).filter(f=>(f.status||'verified')==='verified'&&((f.factor_type||f.type)==='totp'))}
 async function mfaFetch(path,opt={}){if(!(await ensureSession()))throw new Error('Sitzung abgelaufen');opt.headers=Object.assign({apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},opt.headers||{});const r=await fetch(SUPA+'/auth/v1/'+path,opt),txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(e){d={raw:txt}}if(!r.ok)throw new Error(d.msg||d.message||d.error_description||('MFA HTTP '+r.status));return d}
-async function openMfaSetup(){hideMsg(q('#mfaMsg'));mfaMode='setup';q('#mfaSetupBlock').classList.remove('hidden');q('#mfaLoginBlock').classList.add('hidden');q('#mfaCode').value='';q('#mfaDialog').showModal();try{const d=await mfaFetch('factors',{method:'POST',body:JSON.stringify({factor_type:'totp',friendly_name:'aione SuperAdmin'})});mfaFactorId=d.id;const qr=d.totp&&d.totp.qr_code||'',secret=d.totp&&d.totp.secret||'';q('#mfaSecret').value=secret;const src=String(qr).startsWith('data:')?qr:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr);q('#mfaQr').src=src}catch(e){showMsg(q('#mfaMsg'),e.message,true)}}
-function openMfaLogin(factorId,afterLogin=false){hideMsg(q('#mfaMsg'));mfaMode='login';mfaFactorId=factorId;pendingLoginAfterMfa=afterLogin;q('#mfaSetupBlock').classList.add('hidden');q('#mfaLoginBlock').classList.remove('hidden');q('#mfaCode').value='';q('#mfaDialog').showModal();setTimeout(()=>q('#mfaCode').focus(),100)}
+async function openMfaSetup(){
+  hideMsg(q('#mfaMsg'));
+  try{
+    await refreshAuthUser();
+    const vf=verifiedFactors();
+    if(vf.length){openMfaLogin(vf[0].id,false);return}
+  }catch(_){ }
+  mfaMode='setup';
+  if(q('#mfaDialogTitle'))q('#mfaDialogTitle').textContent='Admin-MFA einrichten';
+  if(q('#mfaDialogSub'))q('#mfaDialogSub').textContent='Einmalig den QR-Code mit einer Authenticator-App scannen.';
+  q('#mfaSetupBlock').classList.remove('hidden');q('#mfaLoginBlock').classList.add('hidden');q('#mfaCode').value='';q('#mfaSecret').value='';q('#mfaQr').removeAttribute('src');q('#mfaDialog').showModal();
+  try{
+    const d=await mfaFetch('factors',{method:'POST',body:JSON.stringify({factor_type:'totp',friendly_name:'aione SuperAdmin'})});
+    mfaFactorId=d.id;const qr=d.totp&&d.totp.qr_code||'',secret=d.totp&&d.totp.secret||'';
+    if(!qr||!secret)throw new Error('MFA konnte nicht vorbereitet werden.');
+    q('#mfaSecret').value=secret;const src=String(qr).startsWith('data:')?qr:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(qr);q('#mfaQr').src=src
+  }catch(e){
+    try{await refreshAuthUser();const vf=verifiedFactors();if(vf.length){try{q('#mfaDialog').close()}catch(_){ }openMfaLogin(vf[0].id,false);return}}catch(_){ }
+    showMsg(q('#mfaMsg'),e.message,true)
+  }
+}
+function openMfaLogin(factorId,afterLogin=false){hideMsg(q('#mfaMsg'));mfaMode='login';mfaFactorId=factorId;pendingLoginAfterMfa=afterLogin;if(q('#mfaDialogTitle'))q('#mfaDialogTitle').textContent='Admin bestätigen';if(q('#mfaDialogSub'))q('#mfaDialogSub').textContent='Kein geheimer Schlüssel nötig – nur der aktuelle Code aus deiner Authenticator-App.';q('#mfaSetupBlock').classList.add('hidden');q('#mfaLoginBlock').classList.remove('hidden');q('#mfaCode').value='';q('#mfaDialog').showModal();setTimeout(()=>q('#mfaCode').focus(),100)}
 async function verifyMfa(){const code=q('#mfaCode').value.trim();if(!mfaFactorId||code.length<6)return showMsg(q('#mfaMsg'),'Bitte den aktuellen Authenticator-Code eingeben.',true);try{const c=await mfaFetch('factors/'+mfaFactorId+'/challenge',{method:'POST',body:'{}'});const v=await mfaFetch('factors/'+mfaFactorId+'/verify',{method:'POST',body:JSON.stringify({challenge_id:c.id,code})});if(v.access_token){session=Object.assign({},session,v);if(v.user)session.user=v.user;saveSessionSafe(session)}else await refreshSession();await refreshAuthUser();q('#mfaDialog').close();await loadAccessControl();if(pendingLoginAfterMfa){pendingLoginAfterMfa=false;await enterApp()}else{showToast('MFA bestätigt.');if(accessCtl.isSuperAdminRole){await renderAdmin();view('admin')}}}catch(e){showMsg(q('#mfaMsg'),e.message,true)}}
 async function adminEdge(body){if(currentAal()!=='aal2')throw new Error('MFA erforderlich. Bitte zuerst den zweiten Faktor bestätigen.');const r=await fetch(SUPA+'/functions/v1/budget-admin',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'}),txt=await r.text();let d={};try{d=txt?JSON.parse(txt):{}}catch(e){}if(!r.ok)throw new Error(d.error||d.message||('Admin HTTP '+r.status));return d}
 
