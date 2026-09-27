@@ -1,5 +1,13 @@
 # Changelog
 
+## 69.0.0-beta.10 — Current-balance anchor fix
+
+- Fixes onboarding semantics: the entered value is an authoritative current balance, not a historical opening balance.
+- New onboarding accounts and newly created accounts from the normal account dialog persist `balance_anchor_date` and `balance_anchor_amount`.
+- Historical CSV/PDF imports no longer reduce/increase the same current balance a second time; the imported history is used to reconstruct earlier balances backwards from the current anchor.
+- Existing onboarding accounts without an anchor are repaired by a narrowly scoped additive data migration; no transactions are changed.
+- `accountBalanceAsOf()` now reconstructs past balances backwards from the authoritative current account balance and ignores pending entries.
+
 ## 69.0.0-beta.9 — Code cleanup & Admin fix
 
 - removed remaining top-level function reassignment chains and duplicate function declarations

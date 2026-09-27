@@ -10,7 +10,7 @@
   function defaultDraft(ctx){
     const p=(window.AioneLegacyBridge&&window.AioneLegacyBridge.getContext&&window.AioneLegacyBridge.getContext().profile)||{};
     const country=ctx.country||'CH',meta=window.AioneRegions.country(country),accounts=ctx.accounts||[];
-    return {country,region:ctx.region||'',municipality:ctx.municipality||'',currency:ctx.baseCurrency||meta.defaultCurrency,locale:ctx.language||'de-CH',accountMode:accounts.length?'existing':'new',primaryAccountId:ctx.primaryAccountId||(accounts[0]&&accounts[0].id)||'',accountName:'',institution:'',openingBalance:'0'};
+    return {country,region:ctx.region||'',municipality:ctx.municipality||'',currency:ctx.baseCurrency||meta.defaultCurrency,locale:ctx.language||'de-CH',accountMode:accounts.length?'existing':'new',primaryAccountId:ctx.primaryAccountId||(accounts[0]&&accounts[0].id)||'',accountName:'',institution:'',currentBalance:'0'};
   }
   function shouldShow(ctx){return !!(ctx&&ctx.email)&&ctx.profileReady===true&&Number(ctx.onboardingVersion||0)<TARGET_VERSION}
   function countryName(code){return window.AioneRegions.country(code).name}
@@ -28,7 +28,7 @@
     const accounts=(lastCtx&&lastCtx.accounts)||[],has=accounts.length>0;
     let existing=has?'<label>'+tr('onboarding.mainAccount')+'<select data-w="primaryAccountId">'+accounts.map(a=>'<option value="'+a.id+'"'+(a.id===draft.primaryAccountId?' selected':'')+'>'+esc(a.name)+(a.institution?' · '+esc(a.institution):'')+' · '+esc(a.currency)+'</option>').join('')+'</select></label>':'';
     let mode=has?'<div class="a69-wizard-choice"><button type="button" data-account-mode="existing" class="'+(draft.accountMode==='existing'?'active':'')+'">'+tr('onboarding.useExisting')+'</button><button type="button" data-account-mode="new" class="'+(draft.accountMode==='new'?'active':'')+'">'+tr('onboarding.createNew')+'</button></div>':'';
-    const newForm='<div class="a69-wizard-new '+(draft.accountMode==='new'?'':'hidden')+'"><label>'+tr('onboarding.accountName')+'<input data-w="accountName" value="'+esc(draft.accountName)+'" placeholder="'+tr('onboarding.accountName.placeholder')+'"></label><label>'+tr('onboarding.bank')+'<input data-w="institution" value="'+esc(draft.institution)+'" placeholder="UBS, Raiffeisen, Sparkasse …"></label><label>'+tr('onboarding.currentBalance')+'<div class="a69-balance-input"><span>'+esc(draft.currency)+'</span><input data-w="openingBalance" inputmode="decimal" type="number" step="0.01" value="'+esc(draft.openingBalance)+'"></div></label><div class="a69-wizard-note">'+tr('onboarding.balance.help')+'</div></div>';
+    const newForm='<div class="a69-wizard-new '+(draft.accountMode==='new'?'':'hidden')+'"><label>'+tr('onboarding.accountName')+'<input data-w="accountName" value="'+esc(draft.accountName)+'" placeholder="'+tr('onboarding.accountName.placeholder')+'"></label><label>'+tr('onboarding.bank')+'<input data-w="institution" value="'+esc(draft.institution)+'" placeholder="UBS, Raiffeisen, Sparkasse …"></label><label>'+tr('onboarding.currentBalance')+'<div class="a69-balance-input"><span>'+esc(draft.currency)+'</span><input data-w="currentBalance" inputmode="decimal" type="number" step="0.01" value="'+esc(draft.currentBalance)+'"></div></label><div class="a69-wizard-note">'+tr('onboarding.balance.help')+'</div></div>';
     return '<div class="a69-wizard-copy"><span class="a69-wizard-kicker">'+tr('onboarding.step3.kicker')+'</span><h1>'+tr('onboarding.step3.title')+'</h1><p>'+tr('onboarding.step3.text')+'</p></div><div class="a69-wizard-form">'+mode+(draft.accountMode==='existing'?existing:'')+newForm+'</div>';
   }
   function review(){
@@ -38,7 +38,7 @@
   function body(){return [jurisdiction,preferences,account,review][step]()}
   function validate(){
     if(step===0){if(!draft.country)throw new Error(tr('onboarding.error.country'));if(!draft.region)throw new Error(tr('onboarding.error.region'));if(!String(draft.municipality||'').trim())throw new Error(tr('onboarding.error.municipality'))}
-    if(step===2){const accounts=(lastCtx&&lastCtx.accounts)||[];if(draft.accountMode==='existing'&&accounts.length&&!draft.primaryAccountId)throw new Error(tr('onboarding.error.account'));if(draft.accountMode==='new'&&!String(draft.accountName||'').trim())throw new Error(tr('onboarding.error.accountName'));const n=Number(draft.openingBalance);if(draft.accountMode==='new'&&!Number.isFinite(n))throw new Error(tr('onboarding.error.balance'))}
+    if(step===2){const accounts=(lastCtx&&lastCtx.accounts)||[];if(draft.accountMode==='existing'&&accounts.length&&!draft.primaryAccountId)throw new Error(tr('onboarding.error.account'));if(draft.accountMode==='new'&&!String(draft.accountName||'').trim())throw new Error(tr('onboarding.error.accountName'));const n=Number(draft.currentBalance);if(draft.accountMode==='new'&&!Number.isFinite(n))throw new Error(tr('onboarding.error.balance'))}
   }
   function read(){if(!root)return;root.querySelectorAll('[data-w]').forEach(el=>{draft[el.dataset.w]=el.value})}
   async function next(){if(busy)return;read();try{validate()}catch(e){showError(e.message);return}if(step<steps.length-1){step++;render();return}await finish()}
@@ -48,7 +48,7 @@
     const b=window.AioneLegacyBridge;if(!b)return;busy=true;render();try{
       const profile={country_code:draft.country,region_code:draft.region,municipality:draft.municipality,base_currency:draft.currency,language_code:legacyLang(draft.locale),primary_account_id:draft.accountMode==='existing'?draft.primaryAccountId:null};
       await b.saveOnboardingProfile(profile);let primary=profile.primary_account_id;
-      if(draft.accountMode==='new'){const created=await b.createInitialAccount({name:draft.accountName,institution:draft.institution,opening_balance:Number(draft.openingBalance||0),currency:draft.currency});primary=created.id}
+      if(draft.accountMode==='new'){const created=await b.createInitialAccount({name:draft.accountName,institution:draft.institution,current_balance:Number(draft.currentBalance||0),currency:draft.currency});primary=created.id}
       await b.completeOnboarding(primary);root.classList.add('is-done');setTimeout(()=>{root.remove();root=null;document.body.classList.remove('a69-onboarding-open')},180);window.dispatchEvent(new CustomEvent('aione69:onboarding-complete'));
     }catch(e){busy=false;render();showError(e.message||String(e))}
   }

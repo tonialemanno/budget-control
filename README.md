@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta: `69.0.0-beta.9`.
+Current Beta: `69.0.0-beta.10`.
 
 ## Beta 69 direction
 
@@ -52,3 +52,7 @@ Beta 8 starts the controlled cleanup phase. The `renderAll()` and `view()` lifec
 ## Beta 69.0.0-beta.9
 
 Beta 9 completes the cleanup pass required for code review: top-level function monkey-patching and duplicate declarations are removed, the guarded/raw API boundary is explicit, Admin module changes use one batch-save path, DOM listener clone/rebind hacks are removed, and regression tests prevent those patterns from returning. Financial runtime behavior remains protected by source hashes and targeted cleanup checks. The historical version-specific override stylesheet is also exposed under the neutral `legacy-overrides.css` asset name; its protected CSS bytes are unchanged. See `docs/BETA69_BETA9_CLEANUP_TEST_REPORT.md` for the review scope, automated validation and manual Beta smoke checklist.
+
+## Beta 69.0.0-beta.10
+
+The balance entered when creating an existing account is treated as a current balance snapshot. It is stored with the existing account balance-anchor fields so historical bank imports remain available for analytics/reconciliation without being applied a second time to the displayed current balance. Historical balances are reconstructed backwards from that authoritative current snapshot.

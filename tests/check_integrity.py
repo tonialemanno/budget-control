@@ -8,6 +8,7 @@ critical_expected=json.loads((ROOT/'tests/critical-function-hashes-beta2.json').
 critical_beta7=json.loads((ROOT/'tests/critical-function-hashes-beta7.json').read_text()) if (ROOT/'tests/critical-function-hashes-beta7.json').exists() else {}
 critical_overrides=dict(critical_beta7)
 if (ROOT/'tests/critical-function-hashes-beta9.json').exists(): critical_overrides.update(json.loads((ROOT/'tests/critical-function-hashes-beta9.json').read_text()))
+if (ROOT/'tests/critical-function-hashes-beta10.json').exists(): critical_overrides.update(json.loads((ROOT/'tests/critical-function-hashes-beta10.json').read_text()))
 errors=[]
 def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 def check(ok,msg):
@@ -70,7 +71,7 @@ base_tax=extract_named_sources(app,'taxCalcBase')
 normalized_tax=[v.replace('function taxCalcBase','function taxCalc',1) for v in base_tax]
 normalized_tax_hashes=[hashlib.sha256(v.encode()).hexdigest() for v in normalized_tax]
 check(normalized_tax_hashes==critical_beta7.get('taxCalc',[]),'taxCalcBase changed from the protected Beta 7 regional calculation')
-check("const APP_VERSION='69.0.0-beta.9';" in app,'Beta 69.0.0-beta.9 app version missing')
+check("const APP_VERSION='69.0.0-beta.10';" in app,'Beta 69.0.0-beta.10 app version missing')
 check('window.AioneLegacyBridge' in app,'Beta 69 bridge missing')
 check('country_code:countryCode' in app and 'region_code:' in app and "canton_code:countryCode==='CH'" in app and "municipality:q('#settingsMunicipality')" in app,'Foundation C profile context bridge missing')
 
@@ -80,7 +81,7 @@ required=[
 ]
 for asset in required: check(asset in html,f'index missing {asset}')
 sw=(ROOT/'sw.js').read_text()
-check('aione-v69-0-0-beta-9' in sw,'Beta 69.0.0-beta.9 cache name missing')
+check('aione-v69-0-0-beta-10' in sw,'Beta 69.0.0-beta.10 cache name missing')
 for asset in required: check(asset in sw,f'service worker missing {asset}')
 
 if errors:
