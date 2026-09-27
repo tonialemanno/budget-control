@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "locale": "en",
+    "name": "English",
+    "foundation": "69.0.0-beta.1"
+  },
+  "app.name": "aione",
+  "nav.home": "Overview",
+  "nav.money": "Money",
+  "nav.obligations": "Obligations",
+  "nav.documents": "Documents",
+  "nav.planner": "Planner",
+  "nav.insights": "Insights & AI",
+  "nav.settings": "Settings",
+  "nav.admin": "Administration",
+  "action.save": "Save",
+  "action.cancel": "Cancel",
+  "action.review": "Review",
+  "action.apply": "Apply",
+  "debtEnforcement.title": "Debt enforcement",
+  "debtEnforcement.remaining": "Remaining",
+  "debtEnforcement.paid": "Already paid",
+  "estimate.warning": "Planning estimate only. Verify against official documents or with the competent authority."
+}

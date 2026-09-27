@@ -2,27 +2,30 @@
 
 One repository, two release states:
 
-- branch `stable` + Git tag `stable-68.1.0`: protected baseline before refactoring.
-- branch `beta`: all refactoring and future development.
+- branch `stable`: protected production/test baseline used by Ana.
+- branch `beta`: all active development and Beta testing.
 
-Current Beta package: `68.1.1-beta.1`.
+Current Beta foundation: `69.0.0-beta.1`.
 
-Phase 1 externalizes CSS and JavaScript only. The extracted application JavaScript and CSS blocks are byte-identical to the Stable baseline. Business logic is not rewritten.
+## Beta 69 direction
 
-Run over HTTP(S), not `file://`:
+Beta 69 is the new desktop generation of aione. It is not a rewrite of the financial core. Existing authentication, Supabase data, transactions, balances, permissions and financial calculations remain the reference until each area is deliberately migrated and regression-tested.
 
-```bash
-python3 -m http.server 8765
-```
+Foundation priorities:
 
-Checks:
+1. Desktop shell and simpler top navigation.
+2. Central user context: country, canton/state, municipality, base currency and language.
+3. Translation files outside application logic.
+4. Country/region modules with Switzerland first and SG/TG as the first cantons.
+5. Clear separation of system availability, licensed modules, user permissions and personal visibility.
+6. Existing button/action audit before adding broad new features.
+7. Swiss debt-enforcement module as an early functional Beta feature.
+8. Traceable official-data sources and explicit warnings for estimates.
 
-```bash
-python3 tests/check_integrity.py
-node --check src/js/bootstrap-errors.js
-node --check src/js/app.js
-```
+The mobile version must remain usable but is not the current design priority.
 
-Read `docs/REFACTORING_PLAN.md` before the next code movement.
+Run over HTTP(S), not `file://`.
 
-See `docs/AUDIT.md` for the source audit and `docs/TEST_REPORT_PHASE1.md` for the exact verification status.
+Current integrity checks remain in `tests/`. The legacy runtime stays in place until a migrated area has been tested against the current behavior.
+
+Read `docs/BETA69_FOUNDATION.md` before implementing Beta 69 runtime changes.

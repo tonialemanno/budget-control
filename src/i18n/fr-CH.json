@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "locale": "fr-CH",
+    "name": "Français (Suisse)",
+    "foundation": "69.0.0-beta.1"
+  },
+  "app.name": "aione",
+  "nav.home": "Aperçu",
+  "nav.money": "Finances",
+  "nav.obligations": "Engagements",
+  "nav.documents": "Documents",
+  "nav.planner": "Planificateur",
+  "nav.insights": "Analyses & IA",
+  "nav.settings": "Paramètres",
+  "nav.admin": "Administration",
+  "action.save": "Enregistrer",
+  "action.cancel": "Annuler",
+  "action.review": "Contrôler",
+  "action.apply": "Appliquer",
+  "debtEnforcement.title": "Poursuites",
+  "debtEnforcement.remaining": "Solde ouvert",
+  "debtEnforcement.paid": "Déjà payé",
+  "estimate.warning": "Estimation à des fins de planification. Veuillez la vérifier à l’aide des documents officiels ou auprès de l’autorité compétente."
+}

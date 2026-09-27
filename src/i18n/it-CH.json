@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "locale": "it-CH",
+    "name": "Italiano (Svizzera)",
+    "foundation": "69.0.0-beta.1"
+  },
+  "app.name": "aione",
+  "nav.home": "Panoramica",
+  "nav.money": "Finanze",
+  "nav.obligations": "Impegni",
+  "nav.documents": "Documenti",
+  "nav.planner": "Pianificatore",
+  "nav.insights": "Analisi & IA",
+  "nav.settings": "Impostazioni",
+  "nav.admin": "Amministrazione",
+  "action.save": "Salva",
+  "action.cancel": "Annulla",
+  "action.review": "Controlla",
+  "action.apply": "Applica",
+  "debtEnforcement.title": "Esecuzioni",
+  "debtEnforcement.remaining": "Ancora aperto",
+  "debtEnforcement.paid": "Già pagato",
+  "estimate.warning": "Stima a fini di pianificazione. Verificare con i documenti ufficiali o con l’autorità competente."
+}
