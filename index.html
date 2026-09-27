@@ -802,14 +802,17 @@
               <div class="field"><label>Nachname</label><input id="settingsLastName" autocomplete="family-name"></div>
               <div class="field span2"><label>Anzeigename</label><input id="settingsDisplayName"></div>
               <div class="field"><label>Telefon</label><input id="settingsPhone" autocomplete="tel"></div>
-              <div class="field"><label>Sprache</label><select id="settingsLanguage"><option value="de">Deutsch</option><option value="it">Italiano</option><option value="en">English</option><option value="ro">Română</option></select></div>
+              <div class="field"><label>Sprache</label><select id="settingsLanguage"><option value="de">Deutsch</option><option value="it">Italiano</option><option value="en">English</option></select><div class="small">Français wird mit der vollständigen neuen Übersetzungsstruktur freigeschaltet. Rumänisch wird in Beta 69 nicht weitergeführt.</div></div>
               <div class="field"><label>Hauptwährung</label><select id="settingsCurrency"><option value="CHF">CHF</option><option value="EUR">EUR</option></select></div>
               <div class="field"><label>EUR → CHF Kurs</label><input id="settingsEurRate" type="number" readonly><div id="settingsEurRateInfo" class="small">Wird automatisch aktualisiert.</div></div>
               <div class="field span2"><div id="settingsCurrencyPreview" class="currency-preview"></div><div class="small">Zusammenfassungen werden nur in deiner Hauptwährung angezeigt. Einzelne Konten und Buchungen bleiben in ihrer Originalwährung.</div></div>
               <div class="field span2"><label>Adresse</label><input id="settingsAddress" autocomplete="street-address"></div>
               <div class="field"><label>PLZ</label><input id="settingsPostal" autocomplete="postal-code"></div>
-              <div class="field"><label>Ort</label><input id="settingsCity" autocomplete="address-level2"></div>
-              <div class="field span2"><label>Land</label><input id="settingsCountry" autocomplete="country-name" value="Schweiz"></div>
+              <div class="field"><label>Ort (Postadresse)</label><input id="settingsCity" autocomplete="address-level2"></div>
+              <div class="field"><label>Land</label><select id="settingsCountry"><option value="CH">Schweiz</option><option value="DE">Deutschland</option></select></div>
+              <div class="field"><label id="settingsRegionLabel">Kanton</label><select id="settingsRegion"></select><div id="settingsRegionHelp" class="small"></div></div>
+              <div class="field span2"><label id="settingsMunicipalityLabel">Wohngemeinde</label><input id="settingsMunicipality" autocomplete="address-level2"><div class="small">Für Steuern und regionale Funktionen. Diese Angabe kann von der reinen Postadresse abweichen.</div></div>
+              <div id="settingsJurisdictionNote" class="security-note span2">Regionale Berechnungen in aione dienen der Planung. Verbindlich sind die Angaben der zuständigen Behörde; bitte immer gegenprüfen.</div>
             </div>
             <div id="profileSettingsMsg" class="msg hidden"></div>
             <div class="actions"><button class="btn">Persönliche Daten speichern</button></div>
@@ -1352,8 +1355,10 @@
 <div id="printTaxArea"></div><div id="printAnalysisArea"></div>
 
 <script src="./src/js/bootstrap-errors.js"></script>
+<script src="./src/core/region-registry.js"></script>
 <script src="./src/js/app.js"></script>
 <script src="./src/core/app-context.js"></script>
+<script src="./src/core/money.js"></script>
 <script src="./src/core/i18n.js"></script>
 <script src="./src/core/module-registry.js"></script>
 <script src="./src/components/desktop-shell.js"></script>

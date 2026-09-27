@@ -20,7 +20,7 @@ for locale in ['de-CH','fr-CH','it-CH','en']:
             errors.append(f'{locale}: invalid JSON: {e}')
 for d in ['src/regions/ch/common','src/regions/ch/sg','src/regions/ch/tg','src/regions/de/common']:
     check((ROOT/d/'README.md').exists(),f'missing region boundary {d}')
-check((ROOT/'VERSION').read_text().strip()=='69.0.0-beta.1','VERSION is not 69.0.0-beta.1')
+check((ROOT/'VERSION').read_text().strip().startswith('69.0.0-beta.'),'VERSION is not a Beta 69 prerelease')
 if errors:
     print('FAIL')
     for e in errors: print(' -',e)

@@ -18,10 +18,10 @@ for rel in ['./src/styles/beta69-shell.css','./src/core/app-context.js','./src/c
 ids=re.findall(r'\bid="([^"]+)"',html)
 assert len(ids)==len(set(ids)), 'duplicate ids introduced'
 app=(ROOT/'src/js/app.js').read_text()
-assert "const APP_VERSION='69.0.0-beta.2';" in app
+assert re.search(r"const APP_VERSION='69\.0\.0-beta\.\d+';",app)
 assert 'window.AioneLegacyBridge' in app
 sw=(ROOT/'sw.js').read_text()
-assert "aione-v69-0-0-beta-2" in sw
+assert re.search(r"aione-v69-0-0-beta-\d+",sw)
 for rel in required:
     if rel.endswith(('.js','.css','.json')): assert './'+rel in sw or rel.startswith('src/i18n/') and './'+rel in sw
 print('Beta 69 Foundation B checks: OK')

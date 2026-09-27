@@ -1,5 +1,15 @@
 # Changelog
 
+## 69.0.0-beta.3 — Foundation C: country, region and money context
+
+- Added CH/DE region registry with all Swiss cantons and German Bundesländer.
+- Added explicit profile fields for country code, generic region code, Swiss canton code and municipality.
+- Marked SG and TG as the first canton data modules.
+- Removed Romanian from the active Beta language selector while retaining database compatibility for existing legacy values.
+- Prepared the database constraint for French.
+- Added a central money formatter/converter for new Beta components.
+- Added an additive shared-database migration; no financial data was deleted or rewritten.
+
 ## 69.0.0-beta.2 — Foundation B / desktop shell
 
 - Added central normalized app context for country, region, municipality, base currency and language.

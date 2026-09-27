@@ -3,7 +3,7 @@
   const listeners=new Set();
   const state={
     country:'CH',countryRaw:'Schweiz',region:null,municipality:null,municipalityId:null,
-    baseCurrency:'CHF',language:'de-CH',email:null,role:null,features:{},version:'69.0.0-beta.2'
+    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},version:'69.0.0-beta.3'
   };
   function normalizeCountry(raw){
     const v=String(raw||'').trim().toLowerCase();
@@ -25,10 +25,11 @@
     payload=payload||{};const p=payload.profile||payload;
     const country=normalizeCountry(p.country_code||p.country||state.countryRaw);
     state.country=country;state.countryRaw=p.country||state.countryRaw;
-    state.region=p.canton_code||p.canton||p.region_code||p.region||state.region||null;
+    state.region=p.region_code||p.canton_code||p.canton||p.region||state.region||null;
     state.municipality=p.municipality||p.city||state.municipality||null;
     state.municipalityId=p.municipality_bfs||p.municipality_id||state.municipalityId||null;
     state.baseCurrency=String(p.base_currency||state.baseCurrency||'CHF').toUpperCase();
+    state.eurToChf=Number(p.eur_to_chf||state.eurToChf||0)||null;
     state.language=normalizeLanguage(p.language_code||state.language,country);
     state.email=payload.email||p.email||state.email||null;
     state.role=payload.role||state.role||null;

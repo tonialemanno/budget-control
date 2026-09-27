@@ -6,7 +6,7 @@
   function bridge(){return window.AioneLegacyBridge||null}
   function allowedGroup(g){if(g.special==='planner')return true;if(g.feature)return window.AioneModules?['enabled','read_only'].includes(window.AioneModules.featureState(g.feature)):false;return window.AioneModules?window.AioneModules.groupModules(g.key).length>0:true}
   function statusText(ctx){
-    const parts=[ctx.country];if(ctx.region)parts.push(ctx.region);parts.push(ctx.baseCurrency);parts.push(String(ctx.language||'de-CH').toUpperCase());return parts.filter(Boolean).join(' · ')
+    const parts=[ctx.country];if(ctx.region)parts.push(ctx.region);if(ctx.municipality)parts.push(ctx.municipality);parts.push(ctx.baseCurrency);parts.push(String(ctx.language||'de-CH').toUpperCase());return parts.filter(Boolean).join(' · ')
   }
   function navigateModule(m){const b=bridge();if(!b)return;if(m&&m.view)b.navigate(m.view)}
   function navigateGroup(g){
@@ -26,7 +26,7 @@
   function renderPrimary(){if(!root)return;const primary=root.querySelector('.aione69-primary');const groups=(window.AioneModules&&window.AioneModules.groups||[]).filter(allowedGroup);primary.innerHTML=groups.map(g=>'<button type="button" data-a69-group="'+g.key+'" class="'+(g.key===currentGroup?'active':'')+'">'+tr(g.label)+'</button>').join('')}
   function build(){
     const shell=document.querySelector('#appShell');if(!shell||root)return;
-    root=document.createElement('div');root.id='aione69DesktopShell';root.className='aione69-desktop-shell';root.innerHTML='<div class="aione69-topline"><button type="button" class="aione69-brand" data-a69-group="overview" aria-label="aione Übersicht"><span class="aione69-brand-main">aione</span><span class="aione69-brand-by">by agazone</span></button><nav class="aione69-primary" aria-label="Hauptnavigation"></nav><div class="aione69-meta"><span class="aione69-beta">BETA 69</span><span class="aione69-context"></span></div></div><div class="aione69-bottomline"><div class="aione69-location">Übersicht</div><nav class="aione69-subnav" aria-label="Bereichsnavigation"></nav></div>';
+    root=document.createElement('div');root.id='aione69DesktopShell';root.className='aione69-desktop-shell';root.innerHTML='<div class="aione69-topline"><button type="button" class="aione69-brand" data-a69-group="overview" aria-label="aione Übersicht"><span class="aione69-brand-main">aione</span><span class="aione69-brand-by">by agazone</span></button><nav class="aione69-primary" aria-label="Hauptnavigation"></nav><div class="aione69-meta"><span class="aione69-beta">BETA 69.0</span><span class="aione69-context"></span></div></div><div class="aione69-bottomline"><div class="aione69-location">Übersicht</div><nav class="aione69-subnav" aria-label="Bereichsnavigation"></nav></div>';
     shell.insertBefore(root,shell.firstChild);document.body.classList.add('beta69-shell-ready');
     renderPrimary();
     root.addEventListener('click',e=>{const gb=e.target.closest('[data-a69-group]'),vb=e.target.closest('[data-a69-view]');if(vb){const m=(window.AioneModules.modules||[]).find(x=>x.view===vb.dataset.a69View);if(m)navigateModule(m);return}if(gb){const g=(window.AioneModules.groups||[]).find(x=>x.key===gb.dataset.a69Group);if(g)navigateGroup(g)}});

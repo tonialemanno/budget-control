@@ -30,3 +30,7 @@
 @media(min-width:1051px) and (max-width:1260px){
   .aione69-topline{gap:16px;padding-left:22px;padding-right:22px}.aione69-bottomline{padding-left:22px;padding-right:22px}.aione69-primary button{padding:9px 8px;font-size:12px}.aione69-context{display:none}
 }
+
+/* Foundation C: jurisdiction/profile context */
+#settingsJurisdictionNote{grid-column:1/-1;margin:0;padding:12px 14px;border-radius:12px}
+#settingsRegionHelp{margin-top:5px}
