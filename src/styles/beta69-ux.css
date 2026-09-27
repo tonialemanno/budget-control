@@ -1,0 +1,128 @@
+/* Beta 69.0.0-beta.7 · UX consolidation */
+
+/* All dialogs: fit the viewport, keep controls visible, never require horizontal scrolling. */
+dialog:not(.simulation-dialog){
+  width:min(680px,calc(100vw - 28px))!important;
+  max-width:calc(100vw - 28px)!important;
+  max-height:calc(100vh - 28px)!important;
+  margin:auto!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:1px solid color-mix(in srgb,var(--line) 88%,transparent)!important;
+  border-radius:24px!important;
+  box-shadow:0 28px 90px rgba(15,18,24,.24)!important;
+}
+dialog:not(.simulation-dialog) .dialog-in{
+  width:100%!important;
+  max-width:100%!important;
+  max-height:calc(100vh - 28px)!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  padding:22px 24px 20px!important;
+}
+dialog:not(.simulation-dialog) .dialog-head{
+  position:sticky;top:-22px;z-index:8;
+  margin:-22px -24px 18px!important;padding:20px 24px 14px!important;
+  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  backdrop-filter:blur(18px);
+  border-bottom:1px solid color-mix(in srgb,var(--line) 78%,transparent)
+}
+dialog:not(.simulation-dialog) .dialog-actions{
+  position:sticky;bottom:-20px;z-index:8;
+  margin:20px -24px -20px!important;padding:14px 24px 18px!important;
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+  backdrop-filter:blur(18px);
+  border-top:1px solid color-mix(in srgb,var(--line) 78%,transparent)
+}
+dialog:not(.simulation-dialog) .form-grid,
+dialog:not(.simulation-dialog) .grid2{min-width:0!important}
+dialog:not(.simulation-dialog) input,
+dialog:not(.simulation-dialog) select,
+dialog:not(.simulation-dialog) textarea{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+#invoiceDialog,#categoryDetailDialog,#plannerItemDialog,#accountDetailDialog,#adminPlanDialog{width:min(860px,calc(100vw - 28px))!important}
+@media(max-width:720px){
+  dialog:not(.simulation-dialog){width:calc(100vw - 16px)!important;max-width:calc(100vw - 16px)!important;max-height:calc(100vh - 16px)!important;border-radius:18px!important}
+  dialog:not(.simulation-dialog) .dialog-in{max-height:calc(100vh - 16px)!important;padding:18px 16px 16px!important}
+  dialog:not(.simulation-dialog) .dialog-head{top:-18px;margin:-18px -16px 16px!important;padding:18px 16px 12px!important}
+  dialog:not(.simulation-dialog) .dialog-actions{bottom:-16px;margin:18px -16px -16px!important;padding:12px 16px 16px!important}
+  dialog:not(.simulation-dialog) .form-grid{grid-template-columns:1fr!important}
+  dialog:not(.simulation-dialog) .span2{grid-column:auto!important}
+}
+
+/* Desktop command bar */
+@media(min-width:1051px){
+  .aione69-topline{grid-template-columns:auto minmax(0,1fr) auto!important}
+  .aione69-meta{gap:7px!important}
+  .a69-utility{display:flex;align-items:center;gap:6px;margin-left:4px}
+  .a69-icon-btn{position:relative;width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,transparent);color:var(--text);cursor:pointer;font-size:15px;transition:.16s ease}
+  .a69-icon-btn:hover,.a69-icon-btn.active{transform:translateY(-1px);background:var(--panel);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+  .a69-user-btn{width:auto;min-width:36px;padding:0 10px;font-size:11px;font-weight:850}
+  .a69-badge{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;display:none;place-items:center;border-radius:999px;background:#b42318;color:#fff;font-size:9px;font-weight:900;border:2px solid var(--bg)}
+  .a69-badge.show{display:grid}
+  .a69-popover{position:fixed;z-index:160;top:70px;right:24px;width:min(390px,calc(100vw - 36px));max-height:calc(100vh - 92px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.18);padding:14px}
+  .a69-popover.hidden{display:none!important}
+  .a69-popover-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px 12px;border-bottom:1px solid var(--line)}
+  .a69-popover-head h3{margin:0;font-size:16px}.a69-popover-close{border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}
+  .a69-user-menu button{width:100%;text-align:left;border:0;background:transparent;padding:11px 10px;border-radius:12px;font-weight:760;cursor:pointer;color:var(--text)}
+  .a69-user-menu button:hover{background:var(--accent2)}
+  .a69-user-menu .danger{color:#b42318}
+  .a69-chat-list{display:flex;flex-direction:column;gap:8px;padding:12px 0;max-height:48vh;overflow:auto}
+  .a69-chat-msg{max-width:88%;padding:9px 11px;border-radius:14px;background:var(--bg);border:1px solid var(--line);font-size:12px;line-height:1.4}.a69-chat-msg.me{align-self:flex-end;background:var(--accent2);border-color:transparent}.a69-chat-meta{margin-top:4px;color:var(--muted);font-size:9px}
+  .a69-chat-compose{display:flex;gap:7px;padding-top:10px;border-top:1px solid var(--line)}.a69-chat-compose input{flex:1;min-width:0}
+}
+
+/* Dashboard quick account actions */
+.a69-dashboard-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}.a69-dashboard-actions .btn{min-height:38px}
+.a69-account-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px;padding:12px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel) 86%,var(--bg))}
+
+/* Transactions: one clear period control + optional advanced filters. */
+.a69-advanced-filters{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel) 92%,var(--bg));overflow:hidden}
+.a69-advanced-filters>summary{cursor:pointer;list-style:none;padding:12px 14px;font-weight:820;display:flex;align-items:center;justify-content:space-between}.a69-advanced-filters>summary::-webkit-details-marker{display:none}.a69-advanced-filters>summary:after{content:'＋';color:var(--muted)}.a69-advanced-filters[open]>summary:after{content:'−'}.a69-advanced-filters .filters{margin:0!important;padding:0 14px 14px}
+
+/* Payment planner */
+.a69-rule-shortcut{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.a69-until-revoked{display:flex;gap:9px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.a69-until-revoked input{width:auto!important}
+
+/* Categories: replace spreadsheet feel with quiet luxury cards. */
+#categoriesView .v662-category-compact{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px!important}
+#categoriesView .v662-category-row{border:1px solid color-mix(in srgb,var(--line) 84%,transparent)!important;border-radius:18px!important;padding:15px 16px!important;background:linear-gradient(145deg,var(--panel),color-mix(in srgb,var(--panel) 84%,var(--bg)))!important;box-shadow:0 8px 28px rgba(0,0,0,.035)!important;min-height:74px;align-items:center!important}
+#categoriesView .v662-category-row strong{font-size:14px}.a69-category-luxury-note{padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,#151515,#29251d);color:#f8f2e5;margin:12px 0}.a69-category-luxury-note strong{color:#e6c17b}
+
+/* Bank import/reconciliation */
+.a69-import-handoff{margin-top:12px;padding:13px 14px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--accent2) 44%,var(--panel));display:flex;align-items:center;justify-content:space-between;gap:14px}.a69-import-handoff strong{display:block;margin-bottom:3px}.a69-import-handoff .small{max-width:720px}
+
+/* Settings: customer oriented front door */
+.a69-settings-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}.a69-settings-card{border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--panel);cursor:pointer;text-align:left}.a69-settings-card strong{display:block;margin-bottom:4px}.a69-settings-card span{font-size:11px;color:var(--muted)}
+@media(max-width:850px){.a69-settings-actions{grid-template-columns:1fr}}
+
+/* Documents */
+.a69-doc-type-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:12px 0}.a69-doc-type-tile{border:1px solid var(--line);border-radius:16px;padding:13px;background:var(--panel);text-align:left;cursor:pointer}.a69-doc-type-tile strong{display:block}.a69-doc-type-tile span{font-size:10px;color:var(--muted)}
+
+/* Admin feature editing: explicit save */
+.a69-feature-savebar{position:sticky;bottom:12px;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 0;padding:12px 14px;border-radius:16px;background:#111113;color:#fff;box-shadow:0 16px 42px rgba(0,0,0,.18)}.a69-feature-savebar.hidden{display:none!important}.a69-feature-savebar .small{color:#d7d7d7}.a69-feature-savebar .btn{background:#e6c17b;color:#111113;border-color:#e6c17b}
+.a69-pending-feature{outline:2px solid #d6aa5c!important;outline-offset:2px}
+
+/* Tax onboarding */
+.a69-tax-start{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-radius:17px;border:1px solid var(--line);background:var(--panel);margin-bottom:14px}
+
+/* user-facing what's-new */
+.aione-release-item .small{line-height:1.5}
+
+/* Real notification popover */
+.a69-notice-list{display:flex;flex-direction:column;gap:6px;padding:12px 0;max-height:46vh;overflow:auto}
+.a69-notice-row{width:100%;display:grid;grid-template-columns:10px minmax(0,1fr);gap:9px;align-items:start;text-align:left;border:0;background:transparent;color:var(--text);padding:9px 6px;border-radius:11px}
+.a69-notice-row:hover{background:var(--bg)}
+.a69-notice-row strong,.a69-notice-row small{display:block}.a69-notice-row small{margin-top:2px;color:var(--muted)}
+.a69-notice-dot{width:8px;height:8px;border-radius:999px;background:#d6aa5c;margin-top:5px}.a69-notice-dot.overdue{background:#b42318}
+.a69-notice-actions{display:flex;gap:7px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line)}
+.a69-notice-empty{padding:12px 4px}
+.a69-appearance-advanced{margin:12px 0;border:1px solid var(--line);border-radius:15px;background:var(--bg);overflow:hidden}.a69-appearance-advanced>summary{cursor:pointer;padding:12px 14px;font-weight:800}.a69-appearance-advanced>summary .small{font-weight:500;margin-left:5px}.a69-appearance-advanced-body{padding:0 14px 14px}.a69-settings-chat-legacy{display:none!important}.a69-chat-settings-note{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--bg);margin-top:12px}.a69-chat-settings-note strong,.a69-chat-settings-note span{display:block}.a69-chat-settings-note span{font-size:11px;color:var(--muted);text-align:right}
+
+/* Category settings: card based instead of spreadsheet/table styling. */
+#categoriesView .aione-category-setting-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px}
+#categoriesView .aione-category-setting-card{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:76px;padding:15px 16px;border:1px solid color-mix(in srgb,var(--line) 84%,transparent);border-radius:18px;background:linear-gradient(145deg,var(--panel),color-mix(in srgb,var(--panel) 86%,var(--bg)));box-shadow:0 8px 26px rgba(0,0,0,.035)}
+#categoriesView .aione-category-setting-card strong{font-size:14px;letter-spacing:-.01em}
+#categoriesView .aione-category-setting-card .kind{margin-top:4px;color:var(--muted);font-size:10px}
+#categoriesView .aione-category-setting-card .pill{min-width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:color-mix(in srgb,var(--accent2) 72%,var(--panel));font-weight:900}

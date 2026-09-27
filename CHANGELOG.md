@@ -1,5 +1,23 @@
 # Changelog
 
+## 69.0.0-beta.7 — UX consolidation
+
+- Reduced login blocking work: secondary finance, tax, document, support and admin data now continue in the background.
+- Added one desktop command area for Planner/ToDo, family chat, due notifications, user menu and logout.
+- Made dialogs viewport-safe with compact widths, sticky headers/actions and no horizontal overflow.
+- Added direct account creation and useful account-detail actions from the overview.
+- Simplified transactions around the current month plus optional advanced filters.
+- Fixed AI category Review to show the exact suggested transactions instead of a generic text search.
+- Added a clearer standing-order entry flow including “until revoked”.
+- Enabled multi-PDF bank reconciliation and surfaced the existing multi-file CSV/PDF importer in navigation.
+- Restyled category configuration toward card-based presentation.
+- Added a clearer tax entry point and corrected 2026 SG/TG regional deduction thresholds; unsupported cantons no longer silently reuse another canton’s reference values.
+- Expanded the document centre with common document types and broader upload formats.
+- Added quote/Offerte support with draft/sent/accepted/rejected states and conversion to an invoice draft.
+- Added explicit Save/Discard behavior for per-user Admin module changes.
+- Fixed Swiss debt-enforcement dialogs so translation keys never remain as raw labels after locale loading.
+- “What’s new” now contains customer-facing changes instead of internal technical release notes.
+
 ## 69.0.0-beta.6 — onboarding persistence fix
 
 - Fixed a login race condition that could reopen onboarding before the saved profile had finished loading.

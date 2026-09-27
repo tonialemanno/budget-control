@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta foundation: `69.0.0-beta.6`.
+Current Beta: `69.0.0-beta.7`.
 
 ## Beta 69 direction
 
@@ -32,8 +32,13 @@ Read `docs/BETA69_FOUNDATION.md` and `docs/BETA69_FOUNDATION_B.md` before the ne
 
 ## Beta 69 onboarding
 
-Beta 69.0.0-beta.5 introduces onboarding version 2. Users confirm jurisdiction, base currency and a main account before continuing. Existing data is reused; the wizard does not duplicate an account unless the user explicitly chooses to create one.
+Beta 69.0.0-beta.4 introduced onboarding version 2. Users confirm jurisdiction, base currency and a main account before continuing. Existing data is reused; the wizard does not duplicate an account unless the user explicitly chooses to create one.
 
 ## Beta 69.0.0-beta.5
 
 Swiss debt enforcement is now an early functional Beta module. It is visible only for CH user context and stores per-user data behind Supabase RLS. Estimates are explicitly non-binding planning values.
+
+
+## Beta 69.0.0-beta.7
+
+Beta 7 is the first consolidated UX pass after live testing: viewport-safe dialogs, visible logout/chat/notifications, faster startup through deferred noncritical loads, explicit Admin module saving, clearer account/transaction/planning workflows, multi-file bank handling, quote/Offerte support, exact AI review rows, region-aware SG/TG 2026 tax references and a more customer-oriented document/settings experience. See `docs/BETA69_BETA7_TEST_REPORT.md`.

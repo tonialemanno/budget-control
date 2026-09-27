@@ -6,6 +6,7 @@
     {key:'transactions',label:'nav.transactions',view:'transactions',feature:'transactions',group:'money'},
     {key:'planned',label:'nav.planning',view:'planned',feature:'recurring',group:'money'},
     {key:'reconcile',label:'nav.reconciliation',view:'reconcile',feature:'bank_reconciliation',group:'money'},
+    {key:'bankImport',label:'nav.bankImport',view:'csv',feature:'csv_import',group:'money'},
     {key:'categories',label:'nav.categories',view:'categoryDashboard',feature:'categories',group:'money'},
     {key:'wealth',label:'nav.wealth',view:'wealth',feature:'net_worth',group:'money'},
     {key:'tax',label:'nav.taxes',view:'tax',feature:'taxes',group:'obligations'},

@@ -5,7 +5,7 @@ checks=[]
 def ok(name,cond):
     checks.append((name,bool(cond)))
 
-ok('version', (root/'VERSION').read_text().strip()=='69.0.0-beta.6')
+ok('version', (root/'VERSION').read_text().strip()=='69.0.0-beta.7')
 idx=(root/'index.html').read_text()
 app=(root/'src/js/app.js').read_text()
 sw=(root/'sw.js').read_text()
@@ -20,11 +20,11 @@ ok('region-core-loaded', './src/core/region-registry.js' in idx)
 ok('money-core-loaded', './src/core/money.js' in idx)
 ok('sg-tg-ready', "['SG','TG'].includes(code)" in reg)
 ok('all-ch-cantons', len(re.findall(r"\['[A-Z]{2}','[^']+'\]", reg.split('DE:[')[0]))>=26)
-ok('context-version', "69.0.0-beta.6" in ctx)
-ok('app-version', "const APP_VERSION='69.0.0-beta.6'" in app)
+ok('context-version', "69.0.0-beta.7" in ctx)
+ok('app-version', "const APP_VERSION='69.0.0-beta.7'" in app)
 ok('profile-context-save', all(x in app for x in ['country_code:countryCode','region_code:',"canton_code:countryCode==='CH'","municipality:q('#settingsMunicipality')"]))
 ok('money-format-base', 'formatBase' in money and 'baseCurrency' in money)
-ok('sw-cache', 'aione-v69-0-0-beta-6' in sw and 'region-registry.js' in sw and 'money.js' in sw)
+ok('sw-cache', 'aione-v69-0-0-beta-7' in sw and 'region-registry.js' in sw and 'money.js' in sw)
 ok('migration-file', (root/'supabase/migrations/20260927_aione_v690_profile_country_region_context.sql').exists() and (root/'supabase/migrations/20260927_aione_v690_generic_region_code.sql').exists())
 failed=[n for n,v in checks if not v]
 for n,v in checks: print(('PASS' if v else 'FAIL'), n)

@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="./src/styles/beta69-shell.css">
 <link rel="stylesheet" href="./src/styles/onboarding-wizard.css">
 <link rel="stylesheet" href="./src/styles/debt-enforcement.css">
+<link rel="stylesheet" href="./src/styles/beta69-ux.css">
 </head>
 <body>
 <div id="authScreen" class="auth">
@@ -452,7 +453,7 @@
     <div class="privacy-note"><strong>Datenschutz:</strong> Das ausgewählte PDF wird lokal in deinem Browser gelesen. Der PDF-Inhalt wird nicht als Dokument zu Supabase hochgeladen. Erst bestätigte Buchungen werden gespeichert.</div>
     <div class="form-grid" style="margin-top:12px">
       <div class="field"><label>Bankkonto</label><select id="reconcileAccount"></select></div>
-      <div class="field"><label>PDF-Kontoauszug</label><input id="reconcilePdf" type="file" accept=".pdf,application/pdf"></div>
+      <div class="field"><label>Bankdateien (PDF oder CSV)</label><input id="reconcilePdf" type="file" multiple accept=".pdf,application/pdf,.csv,text/csv"><div class="small">Mehrere Dateien gleichzeitig möglich. PDF wird direkt abgeglichen; CSV wechselt in den strukturierten Import.</div></div>
       <div class="field"><label>Auszug endet am</label><input id="reconcileEndDate" type="date"></div>
       <div class="field"><label>Endsaldo laut Bank (optional)</label><input id="reconcileEndBalance" type="number" step="0.01" placeholder="0.00"></div>
     </div>
@@ -602,20 +603,20 @@
     
     <section id="documentsView" class="view">
       <div class="panel">
-        <div class="panel-head"><div><h2>Dokumente & Rechnungen</h2><div class="small">Belege, RTF-Dateien, Vorlagen und Rechnungen in deinem privaten Benutzerbereich.</div></div><div class="actions"><button id="newDocumentBtn" class="btn secondary">+ Datei hochladen</button><button id="newInvoiceBtn" class="btn">+ Rechnung erstellen</button></div></div>
+        <div class="panel-head"><div><h2>Dokumente, Rechnungen & Offerten</h2><div class="small">Unterlagen ablegen, Rechnungen erstellen und Offerten professionell vorbereiten.</div></div><div class="actions"><button id="newDocumentBtn" class="btn secondary">+ Dokument hochladen</button><button id="newQuoteBtn" class="btn secondary">+ Offerte erstellen</button><button id="newInvoiceBtn" class="btn">+ Rechnung erstellen</button></div></div>
         <div class="doc-summary">
           <div class="mini-card"><div class="k">Dateien</div><div id="docCount" class="v">0</div></div>
           <div class="mini-card"><div class="k">Belege</div><div id="receiptCount" class="v">0</div></div>
           <div class="mini-card"><div class="k">RTF / Vorlagen</div><div id="rtfCount" class="v">0</div></div>
-          <div class="mini-card"><div class="k">Offene Rechnungen</div><div id="invoiceOpenCount" class="v">0</div></div>
+          <div class="mini-card"><div class="k">Offene Rechnungen</div><div id="invoiceOpenCount" class="v">0</div></div><div class="mini-card"><div class="k">Offene Offerten</div><div id="quoteOpenCount" class="v">0</div></div>
         </div>
       </div>
       <div class="panel section-gap">
-        <div class="panel-head"><div><h2>Dateiablage</h2><div class="small">PDF, Bilder, RTF, Text und DOCX. Belege können direkt mit einer Buchung verbunden werden.</div></div><div class="field" style="margin:0;min-width:180px"><label>Typ</label><select id="documentTypeFilter"><option value="">Alle</option><option value="receipt">Belege</option><option value="rtf">RTF</option><option value="template">Vorlagen</option><option value="invoice_pdf">Rechnungs-PDF</option><option value="document">Dokumente</option><option value="other">Sonstige</option></select></div></div>
+        <div class="panel-head"><div><h2>Dateiablage</h2><div class="small">PDF, Bilder, Office-Dateien, RTF, Text, CSV und E-Mail-Dateien. Dokumente können privat abgelegt und passend eingeordnet werden.</div></div><div class="field" style="margin:0;min-width:180px"><label>Typ</label><select id="documentTypeFilter"><option value="">Alle</option><option value="receipt">Belege</option><option value="invoice_received">Erhaltene Rechnungen</option><option value="contract">Verträge</option><option value="warranty">Garantien</option><option value="tax">Steuerdokumente</option><option value="rtf">RTF</option><option value="template">Vorlagen</option><option value="invoice_pdf">Rechnungs-/Offerten-PDF</option><option value="document">Dokumente</option><option value="other">Sonstige</option></select></div></div>
         <div id="documentList" class="doc-list"></div>
       </div>
       <div class="panel section-gap">
-        <div class="panel-head"><div><h2>Rechnungen</h2><div class="small">Mit eigenem Logo, freiem Text, Länder-MWST und PDF-/Druckausgabe.</div></div></div>
+        <div class="panel-head"><div><h2>Rechnungen & Offerten</h2><div class="small">Mit eigenem Logo, Positionen, Länder-MWST und PDF-/Druckausgabe.</div></div></div>
         <div id="invoiceList" class="invoice-list"></div>
       </div>
     </section>
@@ -1039,11 +1040,11 @@
   <form id="documentUploadForm" class="dialog-in">
     <div class="dialog-head"><h2>Datei hochladen</h2><button type="button" class="x" data-close="documentUploadDialog">×</button></div>
     <div class="file-drop">
-      <div class="field"><label>Datei(en)</label><input id="documentFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.rtf,.txt,.docx" required></div>
+      <div class="field"><label>Datei(en)</label><input id="documentFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.rtf,.txt,.doc,.docx,.odt,.csv,.xls,.xlsx,.eml" required></div>
       <div class="small">Maximal 15 MB pro Datei. Dateien sind privat und nur für deinen Login zugänglich.</div>
     </div>
     <div class="form-grid" style="margin-top:10px">
-      <div class="field"><label>Dokumenttyp</label><select id="documentType"><option value="receipt">Beleg</option><option value="rtf">RTF-Dokument</option><option value="template">Vorlage</option><option value="document">Dokument</option><option value="other">Sonstiges</option></select></div>
+      <div class="field"><label>Dokumenttyp</label><select id="documentType"><option value="receipt">Beleg</option><option value="invoice_received">Rechnung erhalten</option><option value="contract">Vertrag</option><option value="warranty">Garantie</option><option value="tax">Steuerdokument</option><option value="rtf">RTF-Dokument</option><option value="template">Vorlage</option><option value="document">Dokument</option><option value="other">Sonstiges</option></select></div>
       <div class="field"><label>Titel</label><input id="documentTitle" placeholder="Optional – sonst Dateiname"></div>
       <div class="field span2"><label>Mit Buchung verknüpfen</label><select id="documentTransaction"><option value="">— keine Buchung —</option></select></div>
       <div class="field span2"><label>Notiz</label><textarea id="documentNotes" rows="2"></textarea></div>
@@ -1056,10 +1057,11 @@
 <dialog id="invoiceDialog" style="width:min(960px,calc(100% - 24px))">
   <form id="invoiceForm" class="dialog-in">
     <input id="invoiceEditId" type="hidden">
+    <input id="invoiceDocumentKind" type="hidden" value="invoice">
     <div class="dialog-head"><h2 id="invoiceDialogTitle">Rechnung erstellen</h2><button type="button" class="x" data-close="invoiceDialog">×</button></div>
     <div class="form-grid">
       <div class="field"><label>Rechnungsnummer</label><input id="invoiceNumber" required></div>
-      <div class="field"><label>Status</label><select id="invoiceStatus"><option value="draft">Entwurf</option><option value="sent">Versendet</option><option value="paid">Bezahlt</option><option value="cancelled">Storniert</option></select></div>
+      <div class="field"><label>Status</label><select id="invoiceStatus"><option value="draft">Entwurf</option><option value="sent">Versendet</option><option value="paid">Bezahlt</option><option value="cancelled">Storniert</option><option value="accepted">Angenommen</option><option value="rejected">Abgelehnt</option></select></div>
       <div class="field"><label>Rechnungsdatum</label><input id="invoiceDate" type="date" required></div>
       <div class="field"><label>Fällig am</label><input id="invoiceDueDate" type="date"></div>
       <div class="field"><label>Währung</label><select id="invoiceCurrency"><option value="CHF">CHF</option><option value="EUR">EUR</option></select></div>
@@ -1371,5 +1373,6 @@
 <script src="./src/components/desktop-shell.js"></script>
 <script src="./src/components/onboarding-wizard.js"></script>
 <script src="./src/features/debt-enforcement-ch.js"></script>
+<script src="./src/components/beta69-ux.js"></script>
 </body>
 </html>

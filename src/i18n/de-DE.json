@@ -64,5 +64,6 @@
   "onboarding.error.account": "Bitte ein Hauptkonto auswählen.",
   "onboarding.error.accountName": "Bitte einen Kontonamen eingeben.",
   "onboarding.error.balance": "Bitte einen gültigen Kontostand eingeben.",
-  "nav.debtEnforcement": "Zwangsvollstreckung"
+  "nav.debtEnforcement": "Zwangsvollstreckung",
+  "nav.bankImport": "Bankdateien importieren"
 }
