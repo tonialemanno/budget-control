@@ -1,5 +1,14 @@
 # Changelog
 
+## 69.0.0-beta.8 — Refactoring & Cleanup 1
+
+- consolidated `renderAll()` into one lifecycle implementation
+- consolidated `view()` into one navigation lifecycle implementation
+- removed the `_aione*`, `_v681*` and `_beta69*` wrapper chains for those two core functions
+- preserved the previous lifecycle call/event order and protected financial calculation functions
+- added a regression guard against reintroducing `renderAll = function(...)` / `view = function(...)` patching
+- no Supabase schema change and no financial business-rule change
+
 ## 69.0.0-beta.7 — UX consolidation
 
 - Reduced login blocking work: secondary finance, tax, document, support and admin data now continue in the background.

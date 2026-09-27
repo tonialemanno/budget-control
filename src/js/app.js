@@ -11,7 +11,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='69.0.0-beta.7';
+const APP_VERSION='69.0.0-beta.8';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -322,10 +322,21 @@ q('#acceptInviteForm').addEventListener('submit',async e=>{e.preventDefault();hi
 q('#authPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 
 function view(name){
+  const requestedName=name;
   if(name!=='admin'){const av=q('#adminView');if(av)av.classList.remove('feature-page-open');const fp=q('#adminFeaturePage');if(fp)fp.classList.add('hidden')}
   const req=VIEW_FEATURES[name];if(req&&name!=='admin'&&!featureReadable(req)){showToast('Dieser Bereich ist für deinen Benutzer nicht freigeschaltet.');name='dashboard'}if(name==='admin'&&!accessCtl.isSuperAdminRole){showToast('Nur für Administratoren.');name='dashboard'}
   qa('.view').forEach(v=>v.classList.remove('active'));q('#'+name+'View').classList.add('active');qa('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));qa('[data-mobile-view]').forEach(b=>b.classList.toggle('active',b.dataset.mobileView===name));const mobileMoreBtn=q('#mobileMoreBtn');if(mobileMoreBtn)mobileMoreBtn.classList.toggle('more-active',!['dashboard','accounts','transactions','planned'].includes(name));
-  window.scrollTo({top:0,left:0,behavior:'auto'});const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Rücklagen',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Ausgaben & Kategorien',planned:'Zahlungen planen',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',help:'Hilfe & Updates',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=(name==='debtEnforcement'&&window.AioneI18n)?window.AioneI18n.t('nav.debtEnforcement'):tr(titles[name]);setTimeout(()=>applyLanguage(),0)
+  window.scrollTo({top:0,left:0,behavior:'auto'});const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Rücklagen',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Ausgaben & Kategorien',planned:'Zahlungen planen',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',help:'Hilfe & Updates',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=(name==='debtEnforcement'&&window.AioneI18n)?window.AioneI18n.t('nav.debtEnforcement'):tr(titles[name]);setTimeout(()=>applyLanguage(),0);
+
+  // Consolidated lifecycle: preserve the former wrapper order without replacing view().
+  if(requestedName==='help')renderHelpCenter();
+  if(requestedName==='support')loadSupportChat().catch(()=>{});
+  if(requestedName==='settings'){
+    renderSettings();renderAioneAiSettings();loadFamilyChat().catch(()=>{});
+    refreshCurrentProfile().then(()=>{renderSettings();renderAioneAiSettings()}).catch(e=>console.warn('Einstellungen konnten nicht neu geladen werden',e));
+  }
+  setTimeout(()=>{enhanceCollapsiblePanels(q('#'+requestedName+'View')||document);if(requestedName==='settings')enhanceSettingsSections();if(requestedName==='analysis')renderAffordability()},0);
+  setTimeout(()=>{beta69EmitContext();try{window.dispatchEvent(new CustomEvent('aione:viewchange',{detail:{name:requestedName}}))}catch(e){}},0)
 }
 qa('.nav button').forEach(b=>b.addEventListener('click',async()=>{view(b.dataset.view);if(b.dataset.view==='admin')await renderAdmin();if(b.dataset.view==='support')await renderSupport()}));qa('[data-go]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.go)));
 
@@ -802,6 +813,15 @@ function renderAll(w,month){
     ['Übersicht v66',renderV66Overview],['Kontosummen v66',renderV66AccountTotals],['Buchungskontext v66',renderV66TransactionContext],['Finanzübersicht v66',renderV66FinanceSimple],
     ['Export',renderExportControls],['Personalisierung',applyUserPersonalization],['Sprache',applyLanguage]
   ].forEach(x=>renderSafely(x[0],x[1]));
+
+  // Consolidated lifecycle: preserve former wrapper behavior in one implementation.
+  renderAioneAiSettings();
+  renderHelpCenter();
+  renderAioneFinancialRadar();
+  renderWealthStructure();
+  enhanceCollapsiblePanels();
+  enhanceSettingsSections();
+  setTimeout(beta69EmitContext,0)
 }
 
 
@@ -2617,17 +2637,7 @@ async function sendAdminSupportChat(){if(!adminSupportContext)return;const uid=a
 q('#adminSupportChatSend').addEventListener('click',sendAdminSupportChat);q('#adminSupportChatInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendAdminSupportChat()}});
 const _aioneOpenSupportViewer=openSupportViewer;openSupportViewer=async function(userId,label){await _aioneOpenSupportViewer(userId,label);if(adminSupportContext){adminSupportContext.userId=userId;loadAdminSupportChat().catch(()=>{})}};
 
-// Extend core render/view lifecycle without changing existing finance logic.
-const _aioneRenderAll=renderAll;renderAll=function(w,month){_aioneRenderAll(w,month);renderAioneAiSettings();renderHelpCenter()};
-const _aioneView=view;view=function(name){
-  _aioneView(name);
-  if(name==='help')renderHelpCenter();
-  if(name==='support')loadSupportChat().catch(()=>{});
-  if(name==='settings'){
-    renderSettings();renderAioneAiSettings();loadFamilyChat().catch(()=>{});
-    refreshCurrentProfile().then(()=>{renderSettings();renderAioneAiSettings()}).catch(e=>console.warn('Einstellungen konnten nicht neu geladen werden',e));
-  }
-};
+// Core render/view lifecycle is consolidated in the primary implementations above.
 const _aioneShowModuleHome=showModuleHome;showModuleHome=function(){_aioneShowModuleHome();maybeShowWhatsNew()};
 
 /* aione 68.0.1 · administrator-created standalone users */
@@ -2808,9 +2818,7 @@ calculateAffordability=function(){
 // Rebind calculate because the original direct listener captured the previous function.
 (function(){const old=q('#affordCalculateBtn');if(old&&!old.dataset.aioneRebound){const neo=old.cloneNode(true);neo.dataset.aioneRebound='1';old.parentNode.replaceChild(neo,old);neo.addEventListener('click',()=>calculateAffordability())}})();
 
-// General lifecycle additions.
-const _v681RenderAll=renderAll;renderAll=function(w,month){_v681RenderAll(w,month);renderAioneFinancialRadar();renderWealthStructure();enhanceCollapsiblePanels();enhanceSettingsSections()};
-const _v681View=view;view=function(name){_v681View(name);setTimeout(()=>{enhanceCollapsiblePanels(q('#'+name+'View')||document);if(name==='settings')enhanceSettingsSections();if(name==='analysis')renderAffordability()},0)};
+// General lifecycle additions are integrated into renderAll() and view().
 
 // Beta 69 compatibility bridge. It exposes only the minimum state/actions required by the new shell.
 function beta69AccountSnapshot(){return (accounts||[]).filter(a=>a.active!==false).map(a=>({id:a.id,name:a.name||'',institution:a.institution||'',account_type:a.account_type||'bank',currency:a.currency||'CHF',opening_balance:Number(a.opening_balance||0),balance:Number(a.balance||0),primary:a.id===(currentProfile&&currentProfile.primary_account_id)}))}
@@ -2861,8 +2869,7 @@ window.AioneLegacyBridge={
   showHome:()=>showModuleHome(),
   logout:()=>logout()
 };
-const _beta69RenderAll=renderAll;renderAll=function(w,month){const out=_beta69RenderAll(w,month);setTimeout(beta69EmitContext,0);return out};
-const _beta69View=view;view=function(name){const out=_beta69View(name);setTimeout(()=>{beta69EmitContext();try{window.dispatchEvent(new CustomEvent('aione:viewchange',{detail:{name}}))}catch(e){}},0);return out};
+// Beta 69 context/view events are emitted by the consolidated lifecycle functions.
 setTimeout(beta69EmitContext,0);
 
 })();

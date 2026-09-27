@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta: `69.0.0-beta.7`.
+Current Beta: `69.0.0-beta.8`.
 
 ## Beta 69 direction
 
@@ -42,3 +42,8 @@ Swiss debt enforcement is now an early functional Beta module. It is visible onl
 ## Beta 69.0.0-beta.7
 
 Beta 7 is the first consolidated UX pass after live testing: viewport-safe dialogs, visible logout/chat/notifications, faster startup through deferred noncritical loads, explicit Admin module saving, clearer account/transaction/planning workflows, multi-file bank handling, quote/Offerte support, exact AI review rows, region-aware SG/TG 2026 tax references and a more customer-oriented document/settings experience. See `docs/BETA69_BETA7_TEST_REPORT.md`.
+
+
+## Beta 69.0.0-beta.8
+
+Beta 8 starts the controlled cleanup phase. The `renderAll()` and `view()` lifecycle chains are consolidated into one implementation each; their previous aione/v68.1/Beta-69 wrapper assignments are removed without changing financial calculations or Supabase data structures. A regression test prevents these two lifecycle functions from returning to patch-on-patch overrides.

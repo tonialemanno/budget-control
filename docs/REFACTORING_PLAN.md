@@ -42,18 +42,16 @@ The first step deliberately does not reorganize CSS semantically or split busine
 4. Do not merge/simplify selectors just because they look redundant.
 5. Run visual comparison after each extraction commit.
 
-## Phase 3 — Beta/Stable Supabase separation
+## Phase 3 — shared-backend safety during Beta
 
-Prerequisite: a separate Supabase Beta project/test environment must exist.
+Current product decision: Beta and Stable use the same production Supabase project while the application is being consolidated.
 
-1. Introduce runtime environment configuration; no service-role secret may be shipped to the browser.
-2. Stable points only to production Supabase.
-3. Beta points only to Beta Supabase.
-4. Reproduce schema/RLS/RPC/functions in Beta through versioned migrations.
-5. Use dedicated Beta users and test data.
-6. Add a release check that blocks Beta-to-Stable promotion if Beta configuration points to production.
-
-No production database structure is changed merely for refactoring.
+1. Refactoring must not require a database change merely to move code.
+2. Any necessary schema/RLS/RPC/function change must be additive and backward-compatible with both Stable and Beta.
+3. Destructive or incompatible database changes require explicit approval before execution.
+4. No service-role secret may be shipped to the browser.
+5. Every approved database change remains versioned in `supabase/migrations/`.
+6. A separate Beta Supabase project can be introduced later as a deliberate infrastructure project, but it is not a prerequisite for the current cleanup work.
 
 ## Phase 4 — extract the core
 
