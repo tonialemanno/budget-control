@@ -11,7 +11,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='68.1.0-luxury-workflow';
+const APP_VERSION='69.0.0-beta.2';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -2755,5 +2755,20 @@ calculateAffordability=function(){
 // General lifecycle additions.
 const _v681RenderAll=renderAll;renderAll=function(w,month){_v681RenderAll(w,month);renderAioneFinancialRadar();renderWealthStructure();enhanceCollapsiblePanels();enhanceSettingsSections()};
 const _v681View=view;view=function(name){_v681View(name);setTimeout(()=>{enhanceCollapsiblePanels(q('#'+name+'View')||document);if(name==='settings')enhanceSettingsSections();if(name==='analysis')renderAffordability()},0)};
+
+// Beta 69 compatibility bridge. It exposes only the minimum state/actions required by the new shell.
+function beta69ContextSnapshot(){return{profile:Object.assign({},currentProfile||{}),email:session&&session.user&&session.user.email||null,role:accessCtl&&accessCtl.role&&accessCtl.role.role||null,features:Object.assign({},accessCtl&&accessCtl.features||{}),version:APP_VERSION}}
+function beta69EmitContext(){try{window.dispatchEvent(new CustomEvent('aione:legacy-context',{detail:beta69ContextSnapshot()}))}catch(e){}}
+window.AioneLegacyBridge={
+  getContext:beta69ContextSnapshot,
+  navigate:name=>view(name),
+  openPlanner:()=>openPlannerModule(),
+  openBudget:()=>openBudgetModule(),
+  showHome:()=>showModuleHome(),
+  logout:()=>logout()
+};
+const _beta69RenderAll=renderAll;renderAll=function(w,month){const out=_beta69RenderAll(w,month);setTimeout(beta69EmitContext,0);return out};
+const _beta69View=view;view=function(name){const out=_beta69View(name);setTimeout(()=>{beta69EmitContext();try{window.dispatchEvent(new CustomEvent('aione:viewchange',{detail:{name}}))}catch(e){}},0);return out};
+setTimeout(beta69EmitContext,0);
 
 })();

@@ -8,6 +8,7 @@ Maintained initial locales:
 - `fr-CH.json`
 - `it-CH.json`
 - `en.json`
+- `de-DE.json` (country-specific German foundation)
 
 Rules:
 
@@ -16,4 +17,4 @@ Rules:
 - no new large translation dictionaries inside feature JavaScript;
 - untranslated keys must fall back predictably instead of silently rendering a wrong language.
 
-These files are foundation-only until the Beta 69 i18n loader is connected.
+`src/core/i18n.js` now loads these files for Beta 69 shell/components. Legacy feature screens are migrated gradually and keep their existing translation path until replaced.

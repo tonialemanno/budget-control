@@ -2,7 +2,7 @@
   "_meta": {
     "locale": "en",
     "name": "English",
-    "foundation": "69.0.0-beta.1"
+    "foundation": "69.0.0-beta.2"
   },
   "app.name": "aione",
   "nav.home": "Overview",
@@ -20,5 +20,16 @@
   "debtEnforcement.title": "Debt enforcement",
   "debtEnforcement.remaining": "Remaining",
   "debtEnforcement.paid": "Already paid",
-  "estimate.warning": "Planning estimate only. Verify against official documents or with the competent authority."
+  "estimate.warning": "Planning estimate only. Verify against official documents or with the competent authority.",
+  "nav.accounts": "Accounts",
+  "nav.transactions": "Transactions",
+  "nav.planning": "Payment planning",
+  "nav.reconciliation": "Bank reconciliation",
+  "nav.categories": "Categories",
+  "nav.wealth": "Net worth",
+  "nav.taxes": "Taxes",
+  "nav.receivables": "Receivables",
+  "nav.analysis": "Analysis & archive",
+  "nav.cockpit": "Finance cockpit",
+  "nav.support": "Help & support"
 }

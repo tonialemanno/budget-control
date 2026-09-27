@@ -2,7 +2,7 @@
   "_meta": {
     "locale": "de-CH",
     "name": "Deutsch (Schweiz)",
-    "foundation": "69.0.0-beta.1"
+    "foundation": "69.0.0-beta.2"
   },
   "app.name": "aione",
   "nav.home": "Übersicht",
@@ -20,5 +20,16 @@
   "debtEnforcement.title": "Betreibungen",
   "debtEnforcement.remaining": "Noch offen",
   "debtEnforcement.paid": "Bereits bezahlt",
-  "estimate.warning": "Schätzung für die Planung. Bitte mit den offiziellen Unterlagen bzw. der zuständigen Stelle gegenprüfen."
+  "estimate.warning": "Schätzung für die Planung. Bitte mit den offiziellen Unterlagen bzw. der zuständigen Stelle gegenprüfen.",
+  "nav.accounts": "Konten",
+  "nav.transactions": "Buchungen",
+  "nav.planning": "Zahlungsplanung",
+  "nav.reconciliation": "Bankabgleich",
+  "nav.categories": "Kategorien",
+  "nav.wealth": "Vermögen",
+  "nav.taxes": "Steuern",
+  "nav.receivables": "Forderungen",
+  "nav.analysis": "Analyse & Archiv",
+  "nav.cockpit": "Finanz-Cockpit",
+  "nav.support": "Hilfe & Support"
 }

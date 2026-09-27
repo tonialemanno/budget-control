@@ -1,0 +1,32 @@
+/* aione Beta 69 desktop shell. Mobile layout intentionally remains legacy for now. */
+.aione69-desktop-shell{display:none}
+@media(min-width:1051px){
+  body.beta69-shell-ready #appShell.shell{display:block;min-height:100vh;background:var(--bg)}
+  body.beta69-shell-ready #appShell.hidden{display:none!important}
+  body.beta69-shell-ready #appShell>.sidebar{display:none!important}
+  body.beta69-shell-ready #appShell>.main{max-width:1600px;width:100%;margin:0 auto;padding:28px 34px 54px}
+  body.beta69-shell-ready #appShell>.main>.topbar{margin:0 0 24px!important;padding:18px 0!important;background:transparent!important;border-bottom:0!important;backdrop-filter:none!important}
+  body.beta69-shell-ready #budgetHomeBtn{display:none!important}
+  .aione69-desktop-shell{display:block;position:sticky;top:0;z-index:80;background:color-mix(in srgb,var(--bg) 91%,transparent);backdrop-filter:blur(26px) saturate(150%);border-bottom:1px solid color-mix(in srgb,var(--line) 74%,transparent);box-shadow:0 10px 28px rgba(0,0,0,.04)}
+  .aione69-topline{max-width:1600px;margin:0 auto;min-height:72px;padding:10px 34px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:28px;align-items:center}
+  .aione69-brand{border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:flex-start;cursor:pointer;min-width:126px}
+  .aione69-brand-main{font-size:29px;line-height:1;font-weight:560;letter-spacing:.08em;color:var(--text)}
+  .aione69-brand-by{margin-top:5px;font-size:7px;font-weight:800;letter-spacing:.31em;color:#b68a46;padding-left:.08em}
+  .aione69-primary{display:flex;align-items:center;justify-content:center;gap:4px;min-width:0}
+  .aione69-primary button,.aione69-subnav button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:720;cursor:pointer;transition:.18s ease}
+  .aione69-primary button{padding:10px 12px;border-radius:13px;white-space:nowrap}
+  .aione69-primary button:hover,.aione69-primary button.active{background:color-mix(in srgb,var(--panel) 82%,transparent);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+  .aione69-meta{display:flex;align-items:center;gap:10px;justify-content:flex-end;white-space:nowrap}
+  .aione69-beta{font-size:9px;font-weight:900;letter-spacing:.11em;padding:6px 8px;border-radius:999px;background:#111113;color:#e6c17b}
+  .aione69-context{font-size:10px;font-weight:760;color:var(--muted)}
+  .aione69-bottomline{max-width:1600px;margin:0 auto;padding:0 34px 9px;display:flex;align-items:center;gap:18px;min-height:38px}
+  .aione69-location{font-size:11px;font-weight:850;color:var(--text);min-width:max-content}
+  .aione69-subnav{display:flex;align-items:center;gap:3px;overflow:auto;scrollbar-width:none}
+  .aione69-subnav::-webkit-scrollbar{display:none}
+  .aione69-subnav button{font-size:11px;padding:7px 10px;border-radius:10px;white-space:nowrap}
+  .aione69-subnav button:hover,.aione69-subnav button.active{background:var(--accent2);color:var(--accent)}
+  .aione69-subnav.hidden{display:none!important}
+}
+@media(min-width:1051px) and (max-width:1260px){
+  .aione69-topline{gap:16px;padding-left:22px;padding-right:22px}.aione69-bottomline{padding-left:22px;padding-right:22px}.aione69-primary button{padding:9px 8px;font-size:12px}.aione69-context{display:none}
+}

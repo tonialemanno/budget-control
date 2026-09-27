@@ -2,7 +2,7 @@
   "_meta": {
     "locale": "fr-CH",
     "name": "Français (Suisse)",
-    "foundation": "69.0.0-beta.1"
+    "foundation": "69.0.0-beta.2"
   },
   "app.name": "aione",
   "nav.home": "Aperçu",
@@ -20,5 +20,16 @@
   "debtEnforcement.title": "Poursuites",
   "debtEnforcement.remaining": "Solde ouvert",
   "debtEnforcement.paid": "Déjà payé",
-  "estimate.warning": "Estimation à des fins de planification. Veuillez la vérifier à l’aide des documents officiels ou auprès de l’autorité compétente."
+  "estimate.warning": "Estimation à des fins de planification. Veuillez la vérifier à l’aide des documents officiels ou auprès de l’autorité compétente.",
+  "nav.accounts": "Comptes",
+  "nav.transactions": "Écritures",
+  "nav.planning": "Planification des paiements",
+  "nav.reconciliation": "Rapprochement bancaire",
+  "nav.categories": "Catégories",
+  "nav.wealth": "Patrimoine",
+  "nav.taxes": "Impôts",
+  "nav.receivables": "Créances",
+  "nav.analysis": "Analyse & archives",
+  "nav.cockpit": "Cockpit financier",
+  "nav.support": "Aide & support"
 }

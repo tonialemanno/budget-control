@@ -1,0 +1,23 @@
+{
+  "_meta": {"locale":"de-DE","name":"Deutsch (Deutschland)","foundation":"69.0.0-beta.2"},
+  "app.name":"aione",
+  "nav.home":"Übersicht",
+  "nav.money":"Finanzen",
+  "nav.obligations":"Verpflichtungen",
+  "nav.documents":"Dokumente",
+  "nav.planner":"Planer",
+  "nav.insights":"Analyse & KI",
+  "nav.settings":"Einstellungen",
+  "nav.admin":"Administration",
+  "nav.accounts":"Konten",
+  "nav.transactions":"Buchungen",
+  "nav.planning":"Zahlungsplanung",
+  "nav.reconciliation":"Bankabgleich",
+  "nav.categories":"Kategorien",
+  "nav.wealth":"Vermögen",
+  "nav.taxes":"Steuern",
+  "nav.receivables":"Forderungen",
+  "nav.analysis":"Analyse & Archiv",
+  "nav.cockpit":"Finanz-Cockpit",
+  "nav.support":"Hilfe & Support"
+}

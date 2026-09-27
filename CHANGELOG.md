@@ -1,5 +1,14 @@
 # Changelog
 
+## 69.0.0-beta.2 — Foundation B / desktop shell
+
+- Added central normalized app context for country, region, municipality, base currency and language.
+- Added runtime JSON i18n loader and de-DE locale foundation.
+- Added one permission-aware module registry for the new desktop navigation.
+- Added the first visible Beta 69 desktop top navigation while keeping mobile unchanged.
+- Added a minimal legacy bridge; existing routing and business logic remain the source of truth.
+- No Supabase schema or finance calculation changes.
+
 ## 69.0.0-beta.1 — Beta 69 foundation
 
 - Started the Beta 69 desktop architecture without changing existing business behavior.
