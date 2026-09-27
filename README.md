@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta foundation: `69.0.0-beta.5`.
+Current Beta foundation: `69.0.0-beta.6`.
 
 ## Beta 69 direction
 

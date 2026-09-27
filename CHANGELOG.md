@@ -1,5 +1,12 @@
 # Changelog
 
+## 69.0.0-beta.6 — onboarding persistence fix
+
+- Fixed a login race condition that could reopen onboarding before the saved profile had finished loading.
+- Onboarding now waits for a confirmed profile state before deciding whether it is required.
+- Completed onboarding closes automatically if a stale transient context was shown.
+- No financial calculations, accounts, transactions or debt-enforcement data were changed.
+
 ## 69.0.0-beta.5 — Swiss debt enforcement
 
 - Added the first functional Swiss debt-enforcement module.

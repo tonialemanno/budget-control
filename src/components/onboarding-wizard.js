@@ -12,7 +12,7 @@
     const country=ctx.country||'CH',meta=window.AioneRegions.country(country),accounts=ctx.accounts||[];
     return {country,region:ctx.region||'',municipality:ctx.municipality||'',currency:ctx.baseCurrency||meta.defaultCurrency,locale:ctx.language||'de-CH',accountMode:accounts.length?'existing':'new',primaryAccountId:ctx.primaryAccountId||(accounts[0]&&accounts[0].id)||'',accountName:'',institution:'',openingBalance:'0'};
   }
-  function shouldShow(ctx){return !!(ctx&&ctx.email)&&Number(ctx.onboardingVersion||0)<TARGET_VERSION}
+  function shouldShow(ctx){return !!(ctx&&ctx.email)&&ctx.profileReady===true&&Number(ctx.onboardingVersion||0)<TARGET_VERSION}
   function countryName(code){return window.AioneRegions.country(code).name}
   function regionName(country,code){const r=window.AioneRegions.get(country,code);return r?r.name:code||'—'}
   function progress(){return '<div class="a69-wizard-progress">'+steps.map((x,i)=>'<span class="'+(i===step?'active':i<step?'done':'')+'">'+(i+1)+'</span>').join('')+'</div>'}
@@ -59,7 +59,11 @@
   }
   function render(){if(!root)return;root.innerHTML='<div class="a69-wizard-card" role="dialog" aria-modal="true" aria-labelledby="a69WizardTitle">'+progress()+'<div class="a69-wizard-body">'+body()+'<div class="a69-wizard-error hidden"></div></div><div class="a69-wizard-actions">'+(step?'<button type="button" class="a69-wizard-secondary" data-w-back '+(busy?'disabled':'')+'>'+tr('onboarding.back')+'</button>':'<span></span>')+'<button type="button" class="a69-wizard-primary" data-w-next '+(busy?'disabled':'')+'>'+(busy?tr('onboarding.saving'):(step===steps.length-1?tr('onboarding.finish'):tr('onboarding.next')))+'</button></div></div>';}
   function open(ctx,force){lastCtx=ctx||window.AioneContext&&window.AioneContext.get();if(!lastCtx||(!force&&!shouldShow(lastCtx)))return;if(root)return;draft=defaultDraft(lastCtx);step=0;root=document.createElement('div');root.id='aione69Onboarding';root.className='a69-wizard-overlay';document.body.appendChild(root);document.body.classList.add('a69-onboarding-open');bind();render()}
-  function sync(ctx){lastCtx=ctx;if(!root&&shouldShow(ctx))setTimeout(()=>open(ctx,false),80)}
+  function closeIfCompleted(ctx){
+    if(!root||!ctx||ctx.profileReady!==true||shouldShow(ctx))return false;
+    root.remove();root=null;document.body.classList.remove('a69-onboarding-open');return true;
+  }
+  function sync(ctx){lastCtx=ctx;if(closeIfCompleted(ctx))return;if(!root&&shouldShow(ctx))setTimeout(()=>{if(!root&&shouldShow(lastCtx))open(lastCtx,false)},80)}
   window.AioneOnboarding={open:()=>open(window.AioneContext&&window.AioneContext.get(),true),version:TARGET_VERSION};
   if(window.AioneContext)window.AioneContext.onChange(sync);
   window.addEventListener('aione69:locale',()=>{if(root)render()});

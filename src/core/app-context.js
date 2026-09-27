@@ -3,7 +3,7 @@
   const listeners=new Set();
   const state={
     country:'CH',countryRaw:'Schweiz',region:null,municipality:null,municipalityId:null,
-    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},accounts:[],primaryAccountId:null,onboardingVersion:0,onboardingCompleted:false,version:'69.0.0-beta.5'
+    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},accounts:[],primaryAccountId:null,onboardingVersion:0,onboardingCompleted:false,profileReady:false,version:'69.0.0-beta.6'
   };
   function normalizeCountry(raw){
     const v=String(raw||'').trim().toLowerCase();
@@ -24,6 +24,8 @@
   function sync(payload){
     payload=payload||{};const p=payload.profile||payload;
     const country=normalizeCountry(p.country_code||p.country||state.countryRaw);
+    const hasLoadedProfile=!!(payload.profile&&typeof payload.profile==='object'&&Object.prototype.hasOwnProperty.call(payload.profile,'onboarding_version'));
+    if(hasLoadedProfile)state.profileReady=true;
     state.country=country;state.countryRaw=p.country||state.countryRaw;
     state.region=p.region_code||p.canton_code||p.canton||p.region||state.region||null;
     state.municipality=p.municipality||p.city||state.municipality||null;
