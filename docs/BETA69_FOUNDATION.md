@@ -204,3 +204,7 @@ For each existing feature:
 - remaining balance and clearly labelled planning estimate
 
 Only after these foundations are stable do we expand to loans, backup/restore, tax-package export, trial and trustee licensing.
+
+## Implemented in 69.0.0-beta.4
+
+The first-run wizard is now implemented as onboarding version 2. It collects country, region, municipality, base currency and the initial/main account. Existing users reuse their accounts; new users can create one with a positive or negative starting balance. Completion is stored only after all required steps succeed.

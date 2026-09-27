@@ -58,7 +58,7 @@ def extract_named_functions(src,name):
 app=(ROOT/'src/js/app.js').read_text(encoding='utf-8')
 for name,expected in critical_expected.items():
     check(extract_named_functions(app,name)==expected,f'critical function changed: {name}')
-check("const APP_VERSION='69.0.0-beta.3';" in app,'Beta 69.0.0-beta.3 app version missing')
+check("const APP_VERSION='69.0.0-beta.4';" in app,'Beta 69.0.0-beta.4 app version missing')
 check('window.AioneLegacyBridge' in app,'Beta 69 bridge missing')
 check('country_code:countryCode' in app and 'region_code:' in app and "canton_code:countryCode==='CH'" in app and "municipality:q('#settingsMunicipality')" in app,'Foundation C profile context bridge missing')
 
@@ -68,7 +68,7 @@ required=[
 ]
 for asset in required: check(asset in html,f'index missing {asset}')
 sw=(ROOT/'sw.js').read_text()
-check('aione-v69-0-0-beta-3' in sw,'Beta 69.0.0-beta.3 cache name missing')
+check('aione-v69-0-0-beta-4' in sw,'Beta 69.0.0-beta.4 cache name missing')
 for asset in required: check(asset in sw,f'service worker missing {asset}')
 
 if errors:

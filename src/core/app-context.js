@@ -3,7 +3,7 @@
   const listeners=new Set();
   const state={
     country:'CH',countryRaw:'Schweiz',region:null,municipality:null,municipalityId:null,
-    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},version:'69.0.0-beta.3'
+    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},accounts:[],primaryAccountId:null,onboardingVersion:0,onboardingCompleted:false,version:'69.0.0-beta.4'
   };
   function normalizeCountry(raw){
     const v=String(raw||'').trim().toLowerCase();
@@ -34,6 +34,10 @@
     state.email=payload.email||p.email||state.email||null;
     state.role=payload.role||state.role||null;
     state.features=Object.assign({},payload.features||state.features||{});
+    state.accounts=Array.isArray(payload.accounts)?payload.accounts.map(x=>Object.assign({},x)):state.accounts;
+    state.primaryAccountId=p.primary_account_id||state.primaryAccountId||null;
+    state.onboardingVersion=Number(p.onboarding_version||0);
+    state.onboardingCompleted=!!p.onboarding_completed_at;
     emit();return snapshot();
   }
   function onChange(fn){if(typeof fn==='function'){listeners.add(fn);fn(snapshot())}return()=>listeners.delete(fn)}

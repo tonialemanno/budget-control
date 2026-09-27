@@ -11,7 +11,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='69.0.0-beta.3';
+const APP_VERSION='69.0.0-beta.4';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -2779,10 +2779,31 @@ const _v681RenderAll=renderAll;renderAll=function(w,month){_v681RenderAll(w,mont
 const _v681View=view;view=function(name){_v681View(name);setTimeout(()=>{enhanceCollapsiblePanels(q('#'+name+'View')||document);if(name==='settings')enhanceSettingsSections();if(name==='analysis')renderAffordability()},0)};
 
 // Beta 69 compatibility bridge. It exposes only the minimum state/actions required by the new shell.
-function beta69ContextSnapshot(){return{profile:Object.assign({},currentProfile||{}),email:session&&session.user&&session.user.email||null,role:accessCtl&&accessCtl.role&&accessCtl.role.role||null,features:Object.assign({},accessCtl&&accessCtl.features||{}),version:APP_VERSION}}
+function beta69AccountSnapshot(){return (accounts||[]).filter(a=>a.active!==false).map(a=>({id:a.id,name:a.name||'',institution:a.institution||'',account_type:a.account_type||'bank',currency:a.currency||'CHF',opening_balance:Number(a.opening_balance||0),balance:Number(a.balance||0),primary:a.id===(currentProfile&&currentProfile.primary_account_id)}))}
+function beta69ContextSnapshot(){return{profile:Object.assign({},currentProfile||{}),accounts:beta69AccountSnapshot(),email:session&&session.user&&session.user.email||null,role:accessCtl&&accessCtl.role&&accessCtl.role.role||null,features:Object.assign({},accessCtl&&accessCtl.features||{}),version:APP_VERSION}}
 function beta69EmitContext(){try{window.dispatchEvent(new CustomEvent('aione:legacy-context',{detail:beta69ContextSnapshot()}))}catch(e){}}
+async function beta69SaveOnboardingProfile(input){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');input=input||{};
+  const countryCode=String(input.country_code||beta69CountryCode()||'CH').toUpperCase(),language=String(input.language_code||currentProfile.language_code||'de');
+  const body={country_code:countryCode,country:beta69CountryName(countryCode),region_code:input.region_code||null,canton_code:countryCode==='CH'?(input.region_code||null):null,municipality:String(input.municipality||'').trim()||null,base_currency:String(input.base_currency||currentProfile.base_currency||beta69DefaultCurrency(countryCode)).toUpperCase(),language_code:['de','it','en'].includes(language)?language:'de'};
+  if(Object.prototype.hasOwnProperty.call(input,'primary_account_id'))body.primary_account_id=input.primary_account_id||null;
+  await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});Object.assign(currentProfile,body);moneyFormatters={};beta69EmitContext();return beta69ContextSnapshot()
+}
+async function beta69CreateInitialAccount(input){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');input=input||{};const name=String(input.name||'').trim();if(!name)throw new Error('Bitte einen Kontonamen eingeben.');
+  const currency=String(input.currency||currentProfile.base_currency||'CHF').toUpperCase(),opening=Number(input.opening_balance||0);if(!Number.isFinite(opening))throw new Error('Ungültiger Kontostand.');
+  const body={name,institution:String(input.institution||'').trim()||null,account_type:'bank',asset_class:'asset',liquidity_class:'available',opening_balance:opening,currency,fx_rate_to_chf:currency==='CHF'?1:Number(eurRate()||1),notes:'Ersteinrichtung aione',active:true};
+  const rows=await api('/rest/v1/accounts?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});if(!rows||!rows[0])throw new Error('Konto konnte nicht angelegt werden.');await reloadAll();return rows[0]
+}
+async function beta69CompleteOnboarding(primaryAccountId){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');const body={onboarding_version:2,onboarding_completed_at:new Date().toISOString()};if(primaryAccountId)body.primary_account_id=primaryAccountId;
+  await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});Object.assign(currentProfile,body);await reloadAll();beta69EmitContext();return beta69ContextSnapshot()
+}
 window.AioneLegacyBridge={
   getContext:beta69ContextSnapshot,
+  saveOnboardingProfile:beta69SaveOnboardingProfile,
+  createInitialAccount:beta69CreateInitialAccount,
+  completeOnboarding:beta69CompleteOnboarding,
   navigate:name=>view(name),
   openPlanner:()=>openPlannerModule(),
   openBudget:()=>openBudgetModule(),

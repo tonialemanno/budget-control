@@ -1,5 +1,14 @@
 # Changelog
 
+## 69.0.0-beta.4 — guided onboarding
+
+- Added a blocking four-step first-run wizard for Beta 69 onboarding version 2.
+- Country/region/municipality, base currency and supported language are confirmed before the app is used.
+- Existing users can select an existing main account; new users can create the first bank account with a positive or negative opening balance.
+- Onboarding writes through the existing authenticated API/RLS path and only marks completion after all required steps succeed.
+- Added external translation keys for the new wizard in de-CH, fr-CH, it-CH, en and de-DE.
+- Existing financial calculation functions remain unchanged.
+
 ## 69.0.0-beta.3 — Foundation C: country, region and money context
 
 - Added CH/DE region registry with all Swiss cantons and German Bundesländer.

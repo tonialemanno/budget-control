@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta foundation: `69.0.0-beta.3`.
+Current Beta foundation: `69.0.0-beta.4`.
 
 ## Beta 69 direction
 
@@ -29,3 +29,7 @@ Run over HTTP(S), not `file://`.
 Current integrity checks remain in `tests/`. The legacy runtime stays in place until a migrated area has been tested against the current behavior.
 
 Read `docs/BETA69_FOUNDATION.md` and `docs/BETA69_FOUNDATION_B.md` before the next migration step.
+
+## Beta 69 onboarding
+
+Beta 69.0.0-beta.4 introduces onboarding version 2. Users confirm jurisdiction, base currency and a main account before continuing. Existing data is reused; the wizard does not duplicate an account unless the user explicitly chooses to create one.
