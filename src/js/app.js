@@ -11,7 +11,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='69.0.0-beta.4';
+const APP_VERSION='69.0.0-beta.5';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -325,7 +325,7 @@ function view(name){
   if(name!=='admin'){const av=q('#adminView');if(av)av.classList.remove('feature-page-open');const fp=q('#adminFeaturePage');if(fp)fp.classList.add('hidden')}
   const req=VIEW_FEATURES[name];if(req&&name!=='admin'&&!featureReadable(req)){showToast('Dieser Bereich ist für deinen Benutzer nicht freigeschaltet.');name='dashboard'}if(name==='admin'&&!accessCtl.isSuperAdminRole){showToast('Nur für Administratoren.');name='dashboard'}
   qa('.view').forEach(v=>v.classList.remove('active'));q('#'+name+'View').classList.add('active');qa('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));qa('[data-mobile-view]').forEach(b=>b.classList.toggle('active',b.dataset.mobileView===name));const mobileMoreBtn=q('#mobileMoreBtn');if(mobileMoreBtn)mobileMoreBtn.classList.toggle('more-active',!['dashboard','accounts','transactions','planned'].includes(name));
-  window.scrollTo({top:0,left:0,behavior:'auto'});const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Rücklagen',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Ausgaben & Kategorien',planned:'Zahlungen planen',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',help:'Hilfe & Updates',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=tr(titles[name]);setTimeout(()=>applyLanguage(),0)
+  window.scrollTo({top:0,left:0,behavior:'auto'});const titles={dashboard:'Übersicht',financeOS:'Finanz-Cockpit',wealth:'Vermögen',accounts:'Konten & Rücklagen',transactions:'Buchungen',receivables:'Forderungen',reconcile:'Bankabgleich',categoryDashboard:'Ausgaben & Kategorien',planned:'Zahlungen planen',analysis:'Analyse & Archiv',tax:'Steuern',csv:'Import / Export',documents:'Dokumente & Rechnungen',categories:'Kategorien',support:'Hilfe & Support',help:'Hilfe & Updates',admin:'Administration',settings:'Einstellungen'};q('#pageTitle').textContent=(name==='debtEnforcement'&&window.AioneI18n)?window.AioneI18n.t('nav.debtEnforcement'):tr(titles[name]);setTimeout(()=>applyLanguage(),0)
 }
 qa('.nav button').forEach(b=>b.addEventListener('click',async()=>{view(b.dataset.view);if(b.dataset.view==='admin')await renderAdmin();if(b.dataset.view==='support')await renderSupport()}));qa('[data-go]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.go)));
 
@@ -2804,6 +2804,8 @@ window.AioneLegacyBridge={
   saveOnboardingProfile:beta69SaveOnboardingProfile,
   createInitialAccount:beta69CreateInitialAccount,
   completeOnboarding:beta69CompleteOnboarding,
+  request:(path,options)=>api(path,options),
+  toast:text=>showToast(text),
   navigate:name=>view(name),
   openPlanner:()=>openPlannerModule(),
   openBudget:()=>openBudgetModule(),

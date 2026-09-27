@@ -15,6 +15,7 @@
 <link id="v681-final-overrides" rel="stylesheet" href="./src/styles/v681-final-overrides.css">
 <link rel="stylesheet" href="./src/styles/beta69-shell.css">
 <link rel="stylesheet" href="./src/styles/onboarding-wizard.css">
+<link rel="stylesheet" href="./src/styles/debt-enforcement.css">
 </head>
 <body>
 <div id="authScreen" class="auth">
@@ -792,6 +793,11 @@
   <div class="panel section-gap"><div class="panel-head"><div><h2>Feedback senden</h2><div class="small">Fehler, Idee, Lob oder Funktionswunsch. App-Version und Gerät werden technisch mitgesendet; keine Finanzinhalte.</div></div></div><div class="form-grid"><div class="field"><label>Art</label><select id="feedbackKind"><option value="problem">Problem</option><option value="idea">Idee</option><option value="feature">Funktionswunsch</option><option value="praise">Lob</option></select></div><div class="field"><label>Modul</label><select id="feedbackModule"><option>Allgemein</option><option>Übersicht</option><option>Buchungen</option><option>Planer</option><option>Steuern</option><option>Dokumente & Rechnungen</option><option>Scanner</option><option>Familie</option><option>Support</option></select></div><div class="field span2"><label>Deine Rückmeldung</label><textarea id="feedbackMessage" rows="5" maxlength="5000" placeholder="Was funktioniert gut oder was sollen wir verbessern?"></textarea></div></div><div class="actions"><button id="feedbackSendBtn" type="button" class="btn">Feedback senden</button></div><div id="feedbackMsg" class="msg hidden"></div><div id="feedbackHistory" class="aione-feedback-history section-gap"></div></div>
 </section>
 
+
+<section id="debtEnforcementView" class="view">
+  <div id="debtEnforcementHost"></div>
+</section>
+
 <section id="settingsView" class="view">
       <div class="lux-page-intro"><div><div class="section-kicker">Persönlich konfigurierbar</div><h2>Einstellungen</h2><p>Nur die Dinge, die dein aione wirklich verändern. Jeder Bereich lässt sich ein- und ausklappen; aione merkt sich deine Auswahl.</p></div><div class="lux-page-intro-mark">⚙</div></div><div id="settingsQuickNav" class="aione-settings-nav"></div>
       <div class="settings-grid">
@@ -1364,5 +1370,6 @@
 <script src="./src/core/module-registry.js"></script>
 <script src="./src/components/desktop-shell.js"></script>
 <script src="./src/components/onboarding-wizard.js"></script>
+<script src="./src/features/debt-enforcement-ch.js"></script>
 </body>
 </html>

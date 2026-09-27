@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const DESKTOP='(min-width: 1051px)';let currentView='dashboard',currentGroup='overview',root=null;
-  const viewGroup={dashboard:'overview',accounts:'money',transactions:'money',planned:'money',reconcile:'money',categoryDashboard:'money',wealth:'money',tax:'obligations',receivables:'obligations',documents:'documents',analysis:'insights',financeOS:'insights',support:'settings',help:'settings',settings:'settings',admin:'admin'};
+  const viewGroup={dashboard:'overview',accounts:'money',transactions:'money',planned:'money',reconcile:'money',categoryDashboard:'money',wealth:'money',tax:'obligations',debtEnforcement:'obligations',receivables:'obligations',documents:'documents',analysis:'insights',financeOS:'insights',support:'settings',help:'settings',settings:'settings',admin:'admin'};
   function tr(key){return window.AioneI18n?window.AioneI18n.t(key):key}
   function bridge(){return window.AioneLegacyBridge||null}
   function allowedGroup(g){if(g.special==='planner')return true;if(g.feature)return window.AioneModules?['enabled','read_only'].includes(window.AioneModules.featureState(g.feature)):false;return window.AioneModules?window.AioneModules.groupModules(g.key).length>0:true}

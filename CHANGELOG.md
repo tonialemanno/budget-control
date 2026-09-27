@@ -1,5 +1,16 @@
 # Changelog
 
+## 69.0.0-beta.5 — Swiss debt enforcement
+
+- Added the first functional Swiss debt-enforcement module.
+- Added creditor, case/reference, office, original claim, known interest/costs, status and monthly payment fields.
+- Added payment history with payroll/wage-garnishment, bank, manual and other documented payment sources.
+- Added calculated paid/outstanding balances and a clearly labelled remaining-duration estimate.
+- Added CH-only navigation gating; German legal logic remains separate.
+- Added RLS-protected Supabase tables for cases and payments.
+- Added de-CH, fr-CH, it-CH and English strings in external locale files.
+- Existing financial calculations remain unchanged; only the Beta bridge gained generic authenticated request/toast access for modular features.
+
 ## 69.0.0-beta.4 — guided onboarding
 
 - Added a blocking four-step first-run wizard for Beta 69 onboarding version 2.

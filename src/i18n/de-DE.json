@@ -2,7 +2,7 @@
   "_meta": {
     "locale": "de-DE",
     "name": "Deutsch (Deutschland)",
-    "foundation": "69.0.0-beta.4"
+    "foundation": "69.0.0-beta.5"
   },
   "app.name": "aione",
   "nav.home": "Übersicht",
@@ -63,5 +63,6 @@
   "onboarding.error.municipality": "Bitte deine Gemeinde bzw. deinen Wohnort eintragen.",
   "onboarding.error.account": "Bitte ein Hauptkonto auswählen.",
   "onboarding.error.accountName": "Bitte einen Kontonamen eingeben.",
-  "onboarding.error.balance": "Bitte einen gültigen Kontostand eingeben."
+  "onboarding.error.balance": "Bitte einen gültigen Kontostand eingeben.",
+  "nav.debtEnforcement": "Zwangsvollstreckung"
 }

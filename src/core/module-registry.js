@@ -9,6 +9,7 @@
     {key:'categories',label:'nav.categories',view:'categoryDashboard',feature:'categories',group:'money'},
     {key:'wealth',label:'nav.wealth',view:'wealth',feature:'net_worth',group:'money'},
     {key:'tax',label:'nav.taxes',view:'tax',feature:'taxes',group:'obligations'},
+    {key:'debtEnforcement',label:'nav.debtEnforcement',view:'debtEnforcement',feature:null,group:'obligations',country:'CH'},
     {key:'receivables',label:'nav.receivables',view:'receivables',feature:'claims',group:'obligations'},
     {key:'documents',label:'nav.documents',view:'documents',feature:'documents',group:'documents'},
     {key:'analysis',label:'nav.analysis',view:'analysis',feature:'year_archive',group:'insights'},
@@ -30,7 +31,7 @@
   function featureState(feature){
     if(!feature)return'enabled';const b=window.AioneLegacyBridge;const c=b&&b.getContext?b.getContext():{};return(c.features&&c.features[feature])||'hidden';
   }
-  function visible(item){const f=item.feature;if(!f)return true;return['enabled','read_only'].includes(featureState(f))}
+  function visible(item){const ctx=window.AioneContext?window.AioneContext.get():{};if(item.country&&ctx.country!==item.country)return false;const f=item.feature;if(!f)return true;return['enabled','read_only'].includes(featureState(f))}
   function groupModules(group){return modules.filter(m=>m.group===group&&visible(m))}
   window.AioneModules={modules,groups,visible,groupModules,featureState};
 })();
