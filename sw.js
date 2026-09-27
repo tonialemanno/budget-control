@@ -1,5 +1,5 @@
-const CACHE = 'aione-v68-1-0-luxury-workflow';
-const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE = 'aione-v68-1-1-beta-1';
+const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./src/styles/legacy-core.css','./src/styles/luxury-layer.css','./src/styles/v681-final-overrides.css','./src/js/bootstrap-errors.js','./src/js/app.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
 });

@@ -1,0 +1,5 @@
+
+(function(){
+  window.addEventListener('error',function(e){var src=String((e&&e.filename)||'');if(src&&/cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|unpkg\.com/i.test(src)){console.warn('Optionale Bibliothek konnte nicht geladen werden:',src,e&&e.message);return}var m=document.getElementById('authMsg'),a=document.getElementById('authScreen');if(m&&a&&!a.classList.contains('hidden')){var where=src?(' · '+src.split('/').pop()+((e&&e.lineno)?':'+e.lineno:'')):'';m.textContent='App-Startfehler auf diesem Gerät: '+((e&&e.message)||'JavaScript konnte nicht gestartet werden.')+where;m.classList.remove('hidden');m.classList.add('error')}});
+  window.addEventListener('unhandledrejection',function(e){var m=document.getElementById('authMsg'),a=document.getElementById('authScreen');if(m&&a&&!a.classList.contains('hidden')){var r=e.reason&&e.reason.message?e.reason.message:String(e.reason||'Unbekannter Fehler');m.textContent='App-Fehler: '+r;m.classList.remove('hidden');m.classList.add('error')}});
+})();
