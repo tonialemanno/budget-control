@@ -12,7 +12,7 @@
 <title>aione</title>
 <link rel="stylesheet" href="./src/styles/legacy-core.css">
 <link id="aloLuxuryLayer" rel="stylesheet" href="./src/styles/luxury-layer.css">
-<link id="v681-final-overrides" rel="stylesheet" href="./src/styles/v681-final-overrides.css">
+<link id="v681-final-overrides" rel="stylesheet" href="./src/styles/legacy-overrides.css">
 <link rel="stylesheet" href="./src/styles/beta69-shell.css">
 <link rel="stylesheet" href="./src/styles/onboarding-wizard.css">
 <link rel="stylesheet" href="./src/styles/debt-enforcement.css">
@@ -776,10 +776,11 @@
       <span><i class="feature-dot read_only"></i> Nur lesen</span>
       <span><i class="feature-dot hidden"></i> Ausgeblendet</span>
       <span><i class="feature-dot disabled"></i> Gesperrt</span>
-      <span class="small">Änderungen werden sofort gespeichert. „Tarifstandard“ entfernt nur die individuelle Abweichung.</span>
+      <span class="small">Änderungen werden gesammelt und erst mit „Änderungen speichern“ übernommen. „Tarifstandard“ entfernt die individuelle Abweichung beim Speichern.</span>
     </div>
 
     <div id="adminFeatureList" class="admin-feature-list"></div>
+    <div id="adminFeatureSaveBar" class="a69-feature-savebar hidden"><div><strong>Ungespeicherte Moduländerungen</strong><div id="adminFeaturePendingCount" class="small"></div></div><div class="actions"><button id="adminFeatureDiscard" type="button" class="btn secondary">Verwerfen</button><button id="adminFeatureSave" type="button" class="btn">Änderungen speichern</button></div></div>
     <div id="adminFeatureMsg" class="msg hidden"></div>
   </div>
 </section>

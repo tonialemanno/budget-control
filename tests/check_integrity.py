@@ -5,7 +5,9 @@ ROOT=Path(__file__).resolve().parents[1]
 base=json.loads((ROOT/'tests/baseline-hashes.json').read_text())
 old_ids=set(json.loads((ROOT/'tests/beta2-dom-ids.json').read_text()))
 critical_expected=json.loads((ROOT/'tests/critical-function-hashes-beta2.json').read_text())
-critical_overrides=json.loads((ROOT/'tests/critical-function-hashes-beta7.json').read_text()) if (ROOT/'tests/critical-function-hashes-beta7.json').exists() else {}
+critical_beta7=json.loads((ROOT/'tests/critical-function-hashes-beta7.json').read_text()) if (ROOT/'tests/critical-function-hashes-beta7.json').exists() else {}
+critical_overrides=dict(critical_beta7)
+if (ROOT/'tests/critical-function-hashes-beta9.json').exists(): critical_overrides.update(json.loads((ROOT/'tests/critical-function-hashes-beta9.json').read_text()))
 errors=[]
 def sha(p): return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 def check(ok,msg):
@@ -25,7 +27,7 @@ check(not missing,'legacy DOM IDs removed: '+', '.join(missing[:12]))
 required_new={'settingsRegionLabel','settingsRegion','settingsRegionHelp','settingsMunicipalityLabel','settingsMunicipality','settingsJurisdictionNote'}
 check(required_new.issubset(set(ids)),'Foundation C context IDs missing')
 
-def extract_named_functions(src,name):
+def extract_named_sources(src,name):
     vals=[]
     pattern=r'\bfunction\s+'+re.escape(name)+r'\s*\('
     for m in re.finditer(pattern,src):
@@ -54,23 +56,31 @@ def extract_named_functions(src,name):
                 if depth==0:
                     vals.append(src[start:i+1]); break
             i+=1
-    return [hashlib.sha256(v.encode()).hexdigest() for v in vals]
+    return vals
+
+def extract_named_functions(src,name):
+    return [hashlib.sha256(v.encode()).hexdigest() for v in extract_named_sources(src,name)]
 
 app=(ROOT/'src/js/app.js').read_text(encoding='utf-8')
 for name,expected in critical_expected.items():
     current_expected=critical_overrides.get(name,expected)
     check(extract_named_functions(app,name)==current_expected,f'critical function changed: {name}')
-check("const APP_VERSION='69.0.0-beta.8';" in app,'Beta 69.0.0-beta.8 app version missing')
+# taxCalcBase is the byte-equivalent Beta 7 regional calculation with only the function name changed.
+base_tax=extract_named_sources(app,'taxCalcBase')
+normalized_tax=[v.replace('function taxCalcBase','function taxCalc',1) for v in base_tax]
+normalized_tax_hashes=[hashlib.sha256(v.encode()).hexdigest() for v in normalized_tax]
+check(normalized_tax_hashes==critical_beta7.get('taxCalc',[]),'taxCalcBase changed from the protected Beta 7 regional calculation')
+check("const APP_VERSION='69.0.0-beta.9';" in app,'Beta 69.0.0-beta.9 app version missing')
 check('window.AioneLegacyBridge' in app,'Beta 69 bridge missing')
 check('country_code:countryCode' in app and 'region_code:' in app and "canton_code:countryCode==='CH'" in app and "municipality:q('#settingsMunicipality')" in app,'Foundation C profile context bridge missing')
 
 required=[
- './src/styles/legacy-core.css','./src/styles/luxury-layer.css','./src/styles/v681-final-overrides.css','./src/styles/beta69-shell.css',
+ './src/styles/legacy-core.css','./src/styles/luxury-layer.css','./src/styles/legacy-overrides.css','./src/styles/beta69-shell.css',
  './src/js/bootstrap-errors.js','./src/core/region-registry.js','./src/js/app.js','./src/core/app-context.js','./src/core/money.js','./src/core/i18n.js','./src/core/module-registry.js','./src/components/desktop-shell.js'
 ]
 for asset in required: check(asset in html,f'index missing {asset}')
 sw=(ROOT/'sw.js').read_text()
-check('aione-v69-0-0-beta-8' in sw,'Beta 69.0.0-beta.8 cache name missing')
+check('aione-v69-0-0-beta-9' in sw,'Beta 69.0.0-beta.9 cache name missing')
 for asset in required: check(asset in sw,f'service worker missing {asset}')
 
 if errors:
@@ -79,4 +89,4 @@ if errors:
     sys.exit(1)
 print('PASS: Beta 69 Foundation C integrity')
 print(f'Legacy DOM IDs preserved: {len(old_ids)}; current unique IDs: {len(ids)}')
-print('Critical calculations preserved; taxCalc uses the documented Beta 7 SG/TG regional correction')
+print('Critical calculations preserved; duplicate cleanup retains the effective account balance logic and protected SG/TG tax base')

@@ -2,7 +2,7 @@
   'use strict';
   const $=(s,b)=>(b||document).querySelector(s), $$=(s,b)=>Array.from((b||document).querySelectorAll(s));
   const bridge=()=>window.AioneLegacyBridge||null;
-  let transactionDefaultApplied=false,lastAccountId=null,pendingFeatures=new Map(),chatOpen=false,chatTimer=null;
+  let transactionDefaultApplied=false,lastAccountId=null,chatOpen=false,chatTimer=null;
 
   function toast(t){const b=bridge();if(b&&b.toast)b.toast(t)}
   function navigate(v){const b=bridge();if(b&&b.navigate)b.navigate(v)}
@@ -113,22 +113,6 @@
   }
 
 
-  function ensureFeatureSavebar(){
-    const page=$('#adminFeaturePage');if(!page||page.querySelector('.a69-feature-savebar'))return;
-    const bar=document.createElement('div');bar.className='a69-feature-savebar hidden';bar.innerHTML='<div><strong>Ungespeicherte Moduländerungen</strong><div class="small" data-a69-feature-count></div></div><div class="actions"><button type="button" class="btn secondary" data-a69-feature-cancel>Verwerfen</button><button type="button" class="btn" data-a69-feature-save>Änderungen speichern</button></div>';
-    page.appendChild(bar);
-    bar.addEventListener('click',async e=>{
-      if(e.target.closest('[data-a69-feature-cancel]')){pendingFeatures.clear();$$('#adminFeatureList [data-feature-select]').forEach(s=>{if(s.dataset.a69Original!=null)s.value=s.dataset.a69Original;s.classList.remove('a69-pending-feature')});updateFeatureBar();return}
-      const save=e.target.closest('[data-a69-feature-save]');if(!save||!pendingFeatures.size)return;save.disabled=true;const uid=page.dataset.userId,b=bridge();try{for(const [key,state] of pendingFeatures){await b.request('/rest/v1/rpc/admin_set_feature_override',{method:'POST',body:JSON.stringify({p_user_id:uid,p_feature_key:key,p_state:state,p_reason:'Sysadmin Override'})})}pendingFeatures.clear();$$('#adminFeatureList [data-feature-select]').forEach(s=>{s.dataset.a69Original=s.value;s.classList.remove('a69-pending-feature')});updateFeatureBar();toast('Moduländerungen gespeichert.')}catch(err){toast(err.message||String(err))}finally{save.disabled=false}
-    });
-  }
-  function updateFeatureBar(){const bar=$('.a69-feature-savebar');if(!bar)return;bar.classList.toggle('hidden',pendingFeatures.size===0);const c=bar.querySelector('[data-a69-feature-count]');if(c)c.textContent=pendingFeatures.size?(pendingFeatures.size+' Änderung'+(pendingFeatures.size===1?'':'en')+' bereit zum Speichern.'):''}
-  function bindFeatureBatching(){
-    const list=$('#adminFeatureList');if(!list||list.dataset.a69Batch)return;list.dataset.a69Batch='1';
-    list.addEventListener('change',e=>{const s=e.target.closest('[data-feature-select]');if(!s)return;e.stopImmediatePropagation();if(s.dataset.a69Original==null)s.dataset.a69Original=s.defaultValue||Array.from(s.options).find(o=>o.defaultSelected)?.value||s.value;const key=s.dataset.featureSelect,orig=s.dataset.a69Original;if(s.value===orig)pendingFeatures.delete(key);else pendingFeatures.set(key,s.value);s.classList.toggle('a69-pending-feature',s.value!==orig);updateFeatureBar()},true);
-    const observer=new MutationObserver(()=>{list.querySelectorAll('[data-feature-select]').forEach(s=>{if(s.dataset.a69Original==null)s.dataset.a69Original=s.value})});observer.observe(list,{childList:true,subtree:true});
-  }
-
   function ensureUtilityBar(){
     const meta=$('.aione69-meta');if(!meta||meta.querySelector('.a69-utility'))return;
     const u=document.createElement('div');u.className='a69-utility';u.innerHTML='<button class="a69-icon-btn" data-a69-util="todo" title="Aufgabe / Planer">✓</button><button class="a69-icon-btn" data-a69-util="chat" title="Familienchat">✉<span class="a69-badge" data-a69-chat-badge></span></button><button class="a69-icon-btn" data-a69-util="notice" title="Fällige Hinweise">●<span class="a69-badge" data-a69-notice-badge></span></button><button class="a69-icon-btn a69-user-btn" data-a69-util="user" title="Benutzermenü">Konto</button>';
@@ -148,7 +132,7 @@
   function refreshNotifications(){const b=bridge(),list=$('[data-a69-notice-list]'),badge=$('[data-a69-notice-badge]');if(!b||!b.getNotificationData)return;const d=b.getNotificationData()||{},rows=[...(d.payments||[]),...(d.tasks||[])].sort((a,z)=>String(a.date||'').localeCompare(String(z.date||'')));if(badge){const n=Number(d.count||rows.length||0);badge.textContent=n>9?'9+':String(n||'');badge.classList.toggle('show',n>0)}if(!list)return;list.innerHTML=rows.length?rows.map(x=>'<button type="button" class="a69-notice-row" data-a69-notice-kind="'+escapeHtml(x.kind)+'"><span class="a69-notice-dot '+(x.overdue?'overdue':'')+'"></span><span><strong>'+escapeHtml(x.title)+'</strong><small>'+escapeHtml(x.date)+(x.kind==='payment'&&x.amount!=null?' · '+escapeHtml(String(x.currency||''))+' '+Number(x.amount||0).toFixed(2):'')+'</small></span></button>').join(''):'<div class="small a69-notice-empty">Für die nächsten 7 Tage ist nichts fällig.</div>'}
   function escapeHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
-  function onView(name){setTimeout(()=>{enhanceDashboard();captureAccountId();enhanceAccountDialog();if(name==='transactions')enhanceTransactions();if(name==='planned')enhancePlanning();if(name==='reconcile')enhanceReconcile();if(name==='categories'||name==='categoryDashboard')enhanceCategories();if(name==='tax')enhanceTax();if(name==='documents')enhanceDocuments();if(name==='settings')enhanceSettings();if(name==='admin'){ensureFeatureSavebar();bindFeatureBatching()}ensureUtilityBar()},0)}
+  function onView(name){setTimeout(()=>{enhanceDashboard();captureAccountId();enhanceAccountDialog();if(name==='transactions')enhanceTransactions();if(name==='planned')enhancePlanning();if(name==='reconcile')enhanceReconcile();if(name==='categories'||name==='categoryDashboard')enhanceCategories();if(name==='tax')enhanceTax();if(name==='documents')enhanceDocuments();if(name==='settings')enhanceSettings();ensureUtilityBar()},0)}
   window.addEventListener('aione:viewchange',e=>onView(e.detail&&e.detail.name));
   window.addEventListener('aione69:context',()=>setTimeout(ensureUtilityBar,0));
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>onView('dashboard'));else onView('dashboard');

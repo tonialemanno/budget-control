@@ -36,4 +36,4 @@
 - all local startup assets return HTTP 200
 - Chromium loads the login screen with no authenticated session
 
-Authenticated domain testing is not marked complete until a separated Beta Supabase environment and test login are available.
+Authenticated domain testing uses the shared production Supabase project by current product decision. Automated static/regression checks must therefore be complemented by a manual Beta login and end-to-end smoke test on non-destructive workflows; database changes remain additive and backward-compatible.

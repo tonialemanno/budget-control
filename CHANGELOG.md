@@ -1,5 +1,17 @@
 # Changelog
 
+## 69.0.0-beta.9 — Code cleanup & Admin fix
+
+- removed remaining top-level function reassignment chains and duplicate function declarations
+- replaced the `_api` patch pattern with explicit `rawApi()` and guarded `api()` functions
+- removed DOM `cloneNode()` event-rebinding hacks and attached the intended handlers directly
+- consolidated smart-category, tax, settings, analysis, wealth, planning and support behavior into named function composition
+- removed the dead historical `accountBalanceAsOf()` implementation while retaining the previously effective calculation byte-for-byte
+- fixed Admin module editing so changes are collected once and saved explicitly instead of competing immediate-save and batch-save handlers
+- corrected stale release/service-worker version markers
+- renamed the version-specific CSS asset to `legacy-overrides.css` without changing its protected content
+- added cleanup regression checks; no destructive Supabase migration
+
 ## 69.0.0-beta.8 — Refactoring & Cleanup 1
 
 - consolidated `renderAll()` into one lifecycle implementation

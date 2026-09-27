@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta: `69.0.0-beta.8`.
+Current Beta: `69.0.0-beta.9`.
 
 ## Beta 69 direction
 
@@ -47,3 +47,8 @@ Beta 7 is the first consolidated UX pass after live testing: viewport-safe dialo
 ## Beta 69.0.0-beta.8
 
 Beta 8 starts the controlled cleanup phase. The `renderAll()` and `view()` lifecycle chains are consolidated into one implementation each; their previous aione/v68.1/Beta-69 wrapper assignments are removed without changing financial calculations or Supabase data structures. A regression test prevents these two lifecycle functions from returning to patch-on-patch overrides.
+
+
+## Beta 69.0.0-beta.9
+
+Beta 9 completes the cleanup pass required for code review: top-level function monkey-patching and duplicate declarations are removed, the guarded/raw API boundary is explicit, Admin module changes use one batch-save path, DOM listener clone/rebind hacks are removed, and regression tests prevent those patterns from returning. Financial runtime behavior remains protected by source hashes and targeted cleanup checks. The historical version-specific override stylesheet is also exposed under the neutral `legacy-overrides.css` asset name; its protected CSS bytes are unchanged. See `docs/BETA69_BETA9_CLEANUP_TEST_REPORT.md` for the review scope, automated validation and manual Beta smoke checklist.

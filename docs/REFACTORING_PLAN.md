@@ -107,9 +107,9 @@ A later behavior change requires an explicit product decision and a separate tes
 ## Phase 7 — migrations and release discipline
 
 1. Every schema/RLS/RPC/function change gets an ordered migration file.
-2. Apply migrations to Beta first.
-3. Run full regression/data checks.
-4. Promote the exact tested commit and migration set.
+2. While Beta and Stable share Supabase, apply only explicitly approved additive/backward-compatible migrations; both app versions must remain compatible with the resulting schema.
+3. Run full Beta regression/data checks against the shared backend after each approved migration.
+4. Promote the exact tested app commit and documented migration set.
 5. Tag a semantic version and align service-worker cache identity with it.
 6. Maintain the changelog.
 

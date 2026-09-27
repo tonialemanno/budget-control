@@ -16,3 +16,7 @@ Target owners:
 - shared form behavior
 
 Components do not decide finance, tax or legal outcomes.
+## Temporary compatibility adapter
+
+`beta69-ux.js` is a temporary UI adapter for legacy DOM that has not yet moved into owned components/features. It may enhance presentation and navigation only; it must not duplicate persistence or business rules from `app.js`. The former Admin persistence interception was removed in Beta 9. As each affected screen is migrated, its corresponding enhancer must be moved to the owning component/feature and deleted from this adapter.
+

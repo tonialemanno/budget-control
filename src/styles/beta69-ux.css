@@ -1,4 +1,4 @@
-/* Beta 69.0.0-beta.7 · UX consolidation */
+/* Beta 69 UX compatibility layer */
 
 /* All dialogs: fit the viewport, keep controls visible, never require horizontal scrolling. */
 dialog:not(.simulation-dialog){

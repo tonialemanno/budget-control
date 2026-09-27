@@ -14,7 +14,7 @@ aione/
     styles/
       legacy-core.css
       luxury-layer.css
-      v681-final-overrides.css
+      legacy-overrides.css
       # Phase 1 preserves the original three CSS blocks exactly.
       # Phase 2 moves them, in controlled order, toward:
       # tokens.css, base.css, layout.css, components.css,
