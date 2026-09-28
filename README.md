@@ -1,94 +1,74 @@
-# Finance App V1.2 – Finance Core
+# Finance V2 – Working Beta
 
-Deploybare Finance-Core-Version auf Basis des Projekt-Masterplans.
+Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
-## In dieser Version aktiv
+## Was jetzt produktiv im Beta-Umfang funktioniert
 
-- neuer, eigenständiger Supabase-Backend-Stack (`finance-v1`)
-- neue Benutzer über Supabase Auth
-- Benutzerprofil und einmalige Grundeinrichtung
-- Land Schweiz / Deutschland und Basiswährung
-- Haushaltsmodell mit Rollenbasis
-- Konten mit verbindlichem aktuellem Kontostand (`balance anchor`)
-- Kategorien direkt bei den Transaktionen erfassen
-- manuelle Einnahmen und Ausgaben
-- echte Übersicht aus Live-Daten
-- Row Level Security für Benutzer- und Haushaltsdaten
-- Apple/iOS-inspirierte, responsive Oberfläche
-- Light / Dark / System
-- Finance Core + modular vorbereitete Navigation
-
-## Noch nicht aktiv
-
-Die folgenden Module bleiben absichtlich ausgeblendet, bis ihre eigene saubere Implementierung steht:
-
-- Budget & Planung
-- Rechnungen & Verträge
+- Login mit administrativ angelegten Benutzern
+- Ersteinrichtung für Schweiz oder Deutschland
+- Haushalt, Rollen und Benutzerzuordnung
+- private und gemeinsame Konten
+- aktueller Kontostand als verbindlicher Balance-Anker
+- manuelle Einnahmen, Ausgaben und Umbuchungen
+- Kategorien und Kategorisierungsregeln
+- CSV-Import mit Mapping und Dubletten-Fingerprint
+- wiederkehrende Zahlungen
+- Budgets pro Kategorie und Monat
+- Rechnungen
+- Verträge und Abonnements
 - Sparziele
-- Schulden & Kredite
-- Vermögen
-- Investments
-- Finance Intelligence
-- CSV-/PDF-Import
-- Banking Provider
-- Dokumente
-- Admin-/Lizenzsystem
+- Schulden und Kredite
+- CH/DE-getrennte Mahn-/Betreibungs-/Inkasso-Fälle mit Ereignis-Timeline
+- Vermögenswerte
+- Immobilien
+- Fahrzeuge
+- Versicherungen
+- Investments (manuelle Bestände/Werte)
+- Vorsorge CH/DE (manuelle Werte)
+- private Dokumentablage in Supabase Storage
+- Finance Intelligence auf Basis vorhandener Daten
+- Admin-Bereich für Benutzer, Passwörter und Module
+- Light/Dark/System sowie UI-Tiefe Einfach/Standard/Experte
+
+## Wichtige Finanzregel
+
+Ein beim Anlegen eines Kontos eingetragener `Kontostand jetzt` wird als `balance_anchor_amount` und `balance_anchor_at` gespeichert. Historische Transaktionen vor diesem Zeitpunkt verändern diesen aktuellen Stand nicht. Transaktionen nach dem Anker verändern den berechneten aktuellen Kontostand.
 
 ## Architektur
 
-```text
-index.html
-_headers
-README.md
-VERSION.md
-assets/
-  css/
-    tokens.css
-    base.css
-    components.css
-    layout.css
-    forms.css
-    responsive.css
-  js/
-    main.js
-    app/
-      backend.js
-      finance-api.js
-      config.js
-      store.js
-      format.js
-      icons.js
-      components.js
-      demo-data.js
-    views/
-      overview.js
-      accounts.js
-      transactions.js
-      ...
-supabase/
-  README.md
-  migrations/
-docs/
-  FINANCE_APP_MASTERPLAN.md
-```
+- Frontend: statische ES-Module, kein Build-Schritt
+- Backend: Supabase Auth, REST/RPC, Edge Functions
+- Datenbank: PostgreSQL mit RLS, Constraints, Indizes und versionierten Migrationen
+- Dateien: privater Supabase-Storage-Bucket `finance-documents`
+- Länderlogik: getrennte Module unter `assets/js/country/`
+- Modulmodell: zentral über `product_modules` und `user_module_access`
 
-Die deaktivierten Modul-Views dürfen weiterhin als visuelle Vorarbeit im Repository liegen, sind aber nicht Teil der aktiven Navigation.
+## Bewusst noch nicht in dieser Working Beta
 
-## Sicherheit
+Diese Beta ist manual-first. Folgende externe Integrationen werden erst auf das getestete interne Finanzmodell gesetzt:
 
-- Finanzdaten werden nicht im Frontend als Quelle der Wahrheit gespeichert.
-- Die Datenbank erzwingt Row Level Security.
-- Der Browser enthält nur den öffentlichen Supabase Publishable Key.
-- Service-Role-/Secret-Keys gehören niemals ins Frontend oder Repository.
-- Der aktuelle Kontostand eines Kontos wird als zeitlicher Anker gespeichert. Historische Transaktionen vor diesem Anker verändern den eingegebenen aktuellen Stand nicht.
+- SIX bLink / PSD2-Banking
+- automatische Kurs- und Marktdaten
+- SNB/Bundesbank/ECB-Referenzdaten
+- Swiss-QR-Rechnungsparser
+- eSchKG / deutsche Mahnverfahrensschnittstellen
+- ELSTER / ERiC
+- direkte Bankzahlungen
+- automatische Dokumenterkennung
+
+Die Anwendung bleibt für die wesentlichen Finanzbereiche auch ohne externe API nutzbar.
+
+## Entwicklung
+
+Bestehende Implementierungen werden bei Änderungen refaktoriert oder ersetzt. Keine Wrapper-/Patch-Ketten und keine versteckten Legacy-Versionen.
 
 ## Deployment
 
-Kein Build-Schritt und keine npm-Abhängigkeiten.
-
 Cloudflare Pages:
+
 - Framework preset: None
 - Build command: leer
 - Build output directory: `.`
+- Production branch im aktuellen Testbetrieb: `beta`
 
-Die Content-Security-Policy in `_headers` erlaubt ausschließlich die eigene App und die neue Supabase-Instanz.
+Das alte Supabase-Projekt `budget` gehört nicht zu Finance V2 und bleibt davon getrennt.

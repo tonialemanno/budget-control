@@ -1,36 +1,34 @@
-# Version 1.2.0-core
+# Version 2.0.0-working-beta
 
 Stand: 28.09.2026
 
+## Status
+
+Erste durchgehend manuell nutzbare Beta des neuen Finance-Systems.
+
 ## Enthalten
 
-- neues Supabase-Projekt `finance-v1`
-- Authentifizierung für neue Finance-Benutzer
-- Profile
-- Haushalte und Mitgliedschaften
-- RLS-basierte Benutzertrennung
-- Konten
-- verbindlicher aktueller Kontostand als Balance Anchor
-- Kategorien
-- Transaktionen
-- Live-Übersicht
-- direkte Kategorieerfassung im Transaktionsbereich
-- Schweiz / Deutschland als zentrale Länderkonfiguration
-- öffentliche Module derzeit auf Finance Core + Mein Geld begrenzt
-- Sicherheitsprüfung des neuen Datenbankschemas ohne offene Security-Lints
-
-## Bewusst noch nicht enthalten
-
-- alte Aione-Benutzer oder Altdaten
-- Datenmigration aus `budget`
-- CSV-/PDF-Import
-- Bank-APIs
-- Rechnungen
+- neuer Finance Core mit Supabase Auth/RLS
+- Admin-Benutzerverwaltung und Modulfreischaltung
+- CH/DE-Onboarding
+- Haushalt und Rollen
+- private/gemeinsame Konten
+- Balance-Anker-Modell
+- Transaktionen und Umbuchungen
+- Kategorien und Regeln
+- CSV-Import
+- wiederkehrende Zahlungen
 - Budget
+- Rechnungen/Verträge/Abos
 - Sparziele
 - Schulden/Kredite
-- Vermögen
-- Dokumente
-- Admin-/Lizenzsystem
+- Mahnung/Betreibung/Inkasso mit Timeline
+- Vermögen, Immobilien, Fahrzeuge, Versicherungen
+- Investments und Vorsorge
+- Dokumentablage
+- Finance Intelligence
+- zentrale Länder- und Modularchitektur
 
-Diese Bereiche werden als reguläre Module ergänzt. Der alte Aione-Code wird nicht wieder eingebaut.
+## Noch nicht enthalten
+
+Externe Provider/API-Automatisierung, insbesondere Banking, Marktdaten, Swiss QR, Behörden-/Steuerintegrationen und direkte Zahlungen.
