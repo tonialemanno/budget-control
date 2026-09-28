@@ -3,6 +3,11 @@
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
+
+## V2.2 Beta 2
+
+Import Intelligence: Händlerobjekte, Gruppierung, Kategorien direkt beim CSV-Import, gemerkte Händlerkategorien, kompakte Import-Historie, Filter sowie direkte Übernahme von Transaktionen in Wiederkehrend.
+
 ## V2.2 Beta 1
 
 Dieser Stand fokussiert die UI-Grundlage: Login-/Scroll-Fix, sichtbare Identität und Rollen, persönliche Modul-Sichtbarkeit, Privacy-Modus, Kategorien unter Einstellungen sowie eine skalierbare Admin-Benutzerübersicht mit Suche und Pagination.

@@ -137,7 +137,7 @@ export const financeApi = Object.freeze({
 
   listTransactions(householdId, limit = 500) {
     return listByHousehold('transactions', householdId, {
-      select: 'id,household_id,account_id,category_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,accounts(name),categories(name,kind)',
+      select: 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)',
       order: 'occurred_at.desc,created_at.desc',
       limit,
     });
@@ -158,9 +158,23 @@ export const financeApi = Object.freeze({
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),
 
   listImportBatches(householdId) {
-    return listByHousehold('import_batches', householdId, { order: 'created_at.desc', limit: 100 });
+    return listByHousehold('import_batches', householdId, { select: '*,accounts(name,currency)', order: 'created_at.desc', limit: 100 });
   },
   createImportBatch: (payload) => insert('import_batches', payload),
+  updateImportBatch: (id, patch) => update('import_batches', id, patch),
+
+  listMerchants(householdId) {
+    return listByHousehold('merchants', householdId, { select: '*', order: 'name.asc', limit: 1000 });
+  },
+  async upsertMerchant(payload) {
+    const rows = await backend.rest(buildQuery('merchants', { on_conflict: 'household_id,normalized_key' }), {
+      method: 'POST',
+      body: payload,
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    });
+    return rows?.[0] || null;
+  },
+  updateMerchant: (id, patch) => update('merchants', id, { ...patch, updated_at: new Date().toISOString() }),
 
   listRecurringRules(householdId) {
     return listByHousehold('recurring_rules', householdId, {

@@ -4,7 +4,7 @@ import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
 import { escapeHtml, dateTimeLocalValue } from './app/format.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint } from './app/csv-import.js';
+import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction } from './app/csv-import.js';
 import { countryConfig } from './country/index.js';
 
 import { renderOverview } from './views/overview.js';
@@ -12,6 +12,7 @@ import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
 import { renderCategories } from './views/categories.js';
 import { renderImports } from './views/imports.js';
+import { renderImportHistory } from './views/import-history.js';
 import { renderRecurring } from './views/recurring.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
@@ -36,6 +37,7 @@ const views = {
   transactions: renderTransactions,
   categories: renderCategories,
   imports: renderImports,
+  'import-history': renderImportHistory,
   recurring: renderRecurring,
   documents: renderDocuments,
   budget: renderBudget,
@@ -71,6 +73,7 @@ const runtime = {
   categorizationRules: [],
   transactions: [],
   importBatches: [],
+  merchants: [],
   recurringRules: [],
   budgets: [],
   bills: [],
@@ -89,7 +92,7 @@ const runtime = {
 };
 
 const csvState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all' };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -186,7 +189,7 @@ function renderNavigation() {
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
-  if (moduleEntitled('money')) allowed.add('categories');
+  if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('import-history'); }
   return allowed.has(requested) ? requested : 'overview';
 }
 
@@ -312,14 +315,14 @@ async function loadFinanceData() {
   const h = runtime.household.id;
   const results = await Promise.all([
     financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
-    financeApi.listImportBatches(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
+    financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
     financeApi.listGoals(h), financeApi.listDebts(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
-    runtime.importBatches, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
+    runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
     runtime.goals, runtime.debts, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.pensions,
     runtime.documents, runtime.householdMembers,
@@ -390,6 +393,8 @@ function render() {
     adminQuery: uiState.adminQuery,
     adminPage: uiState.adminPage,
     adminExpandedUserId: uiState.adminExpandedUserId,
+    importQuery: uiState.importQuery,
+    importCategory: uiState.importCategory,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
@@ -426,6 +431,70 @@ async function refresh(message = '') {
 function formValue(data, key) { return String(data.get(key) ?? '').trim(); }
 function numberValue(data, key, fallback = 0) { const n = Number(data.get(key)); return Number.isFinite(n) ? n : fallback; }
 function nullValue(data, key) { const v = formValue(data,key); return v || null; }
+
+function addMonthsToDate(isoDate, months = 1) {
+  const date = new Date(isoDate || Date.now());
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0,10);
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0,10);
+}
+
+function csvMappingFromForm(form) {
+  const data = new FormData(form);
+  return {
+    date:formValue(data,'mapDate'), description:formValue(data,'mapDescription'), counterparty:formValue(data,'mapCounterparty'),
+    amount:formValue(data,'mapAmount'), debit:formValue(data,'mapDebit'), credit:formValue(data,'mapCredit'),
+  };
+}
+
+function renderCsvReview() {
+  const form = document.querySelector('#csv-import');
+  const host = document.querySelector('#csvReview');
+  if (!form || !host || !csvState.parsed) return;
+  const mapping = csvMappingFromForm(form);
+  if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) {
+    host.innerHTML = '<div class="inline-alert"><strong>Zuordnung unvollständig.</strong><span>Wähle Datum, Beschreibung und eine Betragsspalte.</span></div>';
+    return;
+  }
+  const groups = new Map();
+  for (const row of csvState.parsed.rows) {
+    const tx = rowToTransaction(row,mapping);
+    if (!tx) continue;
+    const merchant = merchantFromTransaction(tx);
+    const existing = runtime.merchants.find((m)=>m.normalized_key===merchant.key);
+    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || '';
+    const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
+    group.rows.push(tx); group.total += Number(tx.amount);
+    if (!group.categoryId && categoryId) group.categoryId = categoryId;
+    groups.set(merchant.key,group);
+  }
+  const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
+    const kind = group.total < 0 ? 'expense' : 'income';
+    const options = runtime.categories.filter((c)=>c.kind===kind).map((c)=>`<option value="${c.id}" ${c.id===group.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}</span></div><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select></div>`;
+  }).join('');
+  host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${groups.size} erkannte Händler · Kategorien können vor dem Import gesetzt werden.</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
+}
+
+function openTransactionEditor(tx, { recurring = false } = {}) {
+  if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
+  document.querySelector('#transactionEditId').value=tx.id;
+  document.querySelector('#transactionEditDirection').value=Number(tx.amount)<0?'expense':'income';
+  document.querySelector('#transactionEditAmount').value=Math.abs(Number(tx.amount));
+  document.querySelector('#transactionEditAccount').value=tx.account_id;
+  document.querySelector('#transactionEditDate').value=dateTimeLocalValue(new Date(tx.occurred_at));
+  document.querySelector('#transactionEditDescription').value=tx.description||'';
+  document.querySelector('#transactionEditCategory').value=tx.category_id||'';
+  document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
+  document.querySelector('#transactionEditNote').value=tx.note||'';
+  const toggle=document.querySelector('#transactionMakeRecurring');
+  const fields=document.querySelector('#transactionRecurringFields');
+  if (toggle) toggle.checked=recurring;
+  if (fields) fields.hidden=!recurring;
+  const next=document.querySelector('#transactionRecurringNextDate');
+  if (next) next.value=addMonthsToDate(tx.occurred_at,1);
+  const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
+}
 
 async function handleForm(form) {
   const data = new FormData(form);
@@ -484,8 +553,18 @@ async function handleForm(form) {
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
-    await financeApi.updateTransaction(transactionId,{ account_id:account.account_id, category_id:nullValue(data,'categoryId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') });
-    await refresh('Transaktion korrigiert.'); return;
+    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    await financeApi.updateTransaction(transactionId,patch);
+    let recurringSaved = false;
+    if (data.get('makeRecurring') === 'on') {
+      const direction = amount < 0 ? 'expense' : 'income';
+      const recurringPayload = { household_id:h, account_id:account.account_id, category_id:patch.category_id, direction, description:patch.description, counterparty:patch.counterparty, amount:Math.abs(amount), currency:account.currency, cadence:formValue(data,'recurringCadence')||'monthly', next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1), active:true };
+      const existing = runtime.recurringRules.find((r)=>r.account_id===account.account_id && r.direction===direction && r.description.trim().toLowerCase()===patch.description.trim().toLowerCase() && Math.abs(Number(r.amount)-Math.abs(amount))<0.01);
+      if (existing) await financeApi.updateRecurringRule(existing.id, recurringPayload);
+      else await financeApi.createRecurringRule(recurringPayload);
+      recurringSaved = true;
+    }
+    await refresh(recurringSaved ? 'Transaktion korrigiert und unter Wiederkehrend übernommen.' : 'Transaktion korrigiert.'); return;
   }
 
   if (id === 'transfer-create') {
@@ -588,20 +667,44 @@ async function handleForm(form) {
     if (!csvState.parsed || !csvState.file) throw new Error('Bitte zuerst eine CSV-Datei auswählen.');
     const accountId = formValue(data,'accountId');
     const account = runtime.accounts.find((a)=>a.account_id===accountId);
-    const mapping = { date:formValue(data,'mapDate'), description:formValue(data,'mapDescription'), counterparty:formValue(data,'mapCounterparty'), amount:formValue(data,'mapAmount'), debit:formValue(data,'mapDebit'), credit:formValue(data,'mapCredit') };
+    if (!account) throw new Error('Zielkonto wurde nicht gefunden.');
+    const mapping = csvMappingFromForm(form);
     if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) throw new Error('Datum, Beschreibung und Betragsspalten müssen zugeordnet sein.');
-    const payload = [];
-    for (const row of csvState.parsed.rows) {
-      const tx = rowToTransaction(row,mapping);
-      if (!tx) continue;
-      const categoryId = applyCategoryRules(tx,runtime.categorizationRules);
-      const externalReference = await transactionFingerprint(accountId,tx);
-      payload.push({ household_id:h, account_id:accountId, category_id:categoryId, occurred_at:tx.occurred_at, amount:tx.amount, currency:account?.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+    const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
+    const remember = data.get('rememberMerchants') === 'on';
+    const batch = await financeApi.createImportBatch({ household_id:h, account_id:accountId, file_name:csvState.file.name, row_count:csvState.parsed.rows.length, imported_count:0, skipped_count:0, status:'processing' });
+    try {
+      const prepared = [];
+      const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
+      for (const row of csvState.parsed.rows) {
+        const tx = rowToTransaction(row,mapping);
+        if (!tx) continue;
+        const merchantInfo = merchantFromTransaction(tx);
+        const existingMerchant = merchantCache.get(merchantInfo.key);
+        const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
+        const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || null;
+        const categoryId = selectedCategory || fallbackCategory;
+        let merchant = existingMerchant;
+        if (!merchant) {
+          merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
+          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+        } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
+          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId, name:merchantInfo.name });
+          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+        }
+        const externalReference = await transactionFingerprint(accountId,tx);
+        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+      }
+      const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
+      const skippedCount=Math.max(0,csvState.parsed.rows.length-inserted.length);
+      await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
+      csvState.file=null; csvState.parsed=null;
+      uiState.importQuery=''; uiState.importCategory='all';
+      await refresh(`${inserted.length} Transaktionen importiert. ${skippedCount} Dubletten oder ungültige Zeilen wurden übersprungen.`); return;
+    } catch (error) {
+      await financeApi.updateImportBatch(batch.id,{ status:'failed' }).catch(()=>{});
+      throw error;
     }
-    const inserted = payload.length ? await financeApi.importTransactions(payload) : [];
-    await financeApi.createImportBatch({ household_id:h, account_id:accountId, file_name:csvState.file.name, row_count:csvState.parsed.rows.length, imported_count:inserted.length, skipped_count:Math.max(0,payload.length-inserted.length), status:'completed' });
-    csvState.file=null; csvState.parsed=null;
-    await refresh(`${inserted.length} Transaktionen importiert.`); return;
   }
 }
 
@@ -612,7 +715,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','account-edit','transaction-edit','transaction-delete','delete','bill-paid','goal-progress','debt-balance','legal-event']);
+  const writeActions = new Set(['starter-categories','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','delete','bill-paid','goal-progress','debt-balance','legal-event','import-group-assign']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -655,21 +758,21 @@ async function handleAction(target) {
     const form=document.querySelector('#account-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
     return;
   }
-  if (action === 'transaction-edit') {
+  if (action === 'transaction-edit' || action === 'transaction-make-recurring') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
-    if (!tx || tx.transfer_group_id) throw new Error('Umbuchungen werden als zusammengehöriges Paar behandelt und können nicht einzeln bearbeitet werden.');
-    document.querySelector('#transactionEditId').value=tx.id;
-    document.querySelector('#transactionEditDirection').value=Number(tx.amount)<0?'expense':'income';
-    document.querySelector('#transactionEditAmount').value=Math.abs(Number(tx.amount));
-    document.querySelector('#transactionEditAccount').value=tx.account_id;
-    document.querySelector('#transactionEditDate').value=dateTimeLocalValue(new Date(tx.occurred_at));
-    document.querySelector('#transactionEditDescription').value=tx.description||'';
-    document.querySelector('#transactionEditCategory').value=tx.category_id||'';
-    document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
-    document.querySelector('#transactionEditNote').value=tx.note||'';
-    const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
+    openTransactionEditor(tx,{ recurring:action==='transaction-make-recurring' });
     return;
+  }
+  if (action === 'import-group-assign') {
+    if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
+    const row=target.closest('.import-group-row');
+    const categoryId=row?.querySelector('[data-import-group-category]')?.value || null;
+    if (!categoryId) throw new Error('Bitte zuerst eine Kategorie auswählen.');
+    const ids=String(row?.dataset.txIds||'').split(',').filter(Boolean);
+    for (const id of ids) await financeApi.updateTransaction(id,{category_id:categoryId});
+    if (row?.dataset.merchantId) await financeApi.updateMerchant(row.dataset.merchantId,{default_category_id:categoryId});
+    await refresh(`${ids.length} Buchung${ids.length===1?'':'en'} kategorisiert und Händler-Zuordnung gespeichert.`); return;
   }
   if (action === 'transaction-delete') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
@@ -744,6 +847,9 @@ pageContent.addEventListener('change', async (event) => {
   try {
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
+    if (target.id === 'transactionMakeRecurring') { const fields=document.querySelector('#transactionRecurringFields'); if (fields) fields.hidden=!target.checked; return; }
+    if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
+    if (target.closest('#csvMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderCsvReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
       const parent = target.closest('form')?.querySelector('[name="parentId"]');
       if (parent) {
@@ -765,6 +871,7 @@ pageContent.addEventListener('change', async (event) => {
       fillSelect(document.querySelector('#mapCredit'),parsed.headers,guess.credit,true);
       document.querySelector('#csvPreviewMeta').textContent=`${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
       document.querySelector('#csvMapping').hidden=false;
+      renderCsvReview();
       return;
     }
     if (target.dataset.action === 'user-toggle-module-visibility') {
@@ -793,15 +900,14 @@ pageContent.addEventListener('change', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target = event.target;
-  if (target.id !== 'adminUserSearch') return;
-  uiState.adminQuery = target.value;
-  uiState.adminPage = 1;
-  uiState.adminExpandedUserId = null;
-  render();
-  const next = document.querySelector('#adminUserSearch');
-  if (next) {
-    next.focus();
-    next.setSelectionRange(next.value.length, next.value.length);
+  if (target.id === 'adminUserSearch') {
+    uiState.adminQuery = target.value; uiState.adminPage = 1; uiState.adminExpandedUserId = null; render();
+    const next = document.querySelector('#adminUserSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if (target.id === 'importMerchantSearch') {
+    uiState.importQuery = target.value; render();
+    const next = document.querySelector('#importMerchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
   }
 });
 

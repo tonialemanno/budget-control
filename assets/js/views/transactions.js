@@ -33,7 +33,12 @@ export function renderTransactions({ accounts = [], categories = [], transaction
     <label class="field form-grid-span"><span>Beschreibung</span><input class="text-control" name="description" id="transactionEditDescription" required></label>
     <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" id="transactionEditCategory"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
     <label class="field"><span>Gegenpartei</span><input class="text-control" name="counterparty" id="transactionEditCounterparty"></label>
-    <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="note" id="transactionEditNote" rows="3"></textarea></label>`;
+    <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="note" id="transactionEditNote" rows="3"></textarea></label>
+    <label class="module-toggle form-grid-span"><input type="checkbox" name="makeRecurring" id="transactionMakeRecurring"><span><strong>Als wiederkehrende Zahlung übernehmen</strong><small>Erstellt oder aktualisiert eine passende Regel unter „Wiederkehrend“.</small></span></label>
+    <div class="form-grid form-grid--2 form-grid-span" id="transactionRecurringFields" hidden>
+      <label class="field"><span>Rhythmus</span><select class="text-control" name="recurringCadence"><option value="weekly">Wöchentlich</option><option value="monthly" selected>Monatlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label>
+      <label class="field"><span>Nächster Termin</span><input class="text-control" name="recurringNextDate" id="transactionRecurringNextDate" type="date"></label>
+    </div>`;
 
   const transferFields = `
     <label class="field"><span>Von Konto</span><select class="text-control" name="fromAccountId" required>${accountOptions}</select></label>

@@ -1,6 +1,6 @@
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.2.0-beta-1',
+  version: '2.2.0-beta-2',
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
   defaultLocale: 'de-CH',
@@ -59,6 +59,7 @@ export const PAGE_META = Object.freeze({
   transactions: { title: 'Transaktionen', eyebrow: 'Mein Geld' },
   categories: { title: 'Kategorien & Regeln', eyebrow: 'Einstellungen' },
   imports: { title: 'Datenimport', eyebrow: 'Mein Geld' },
+  'import-history': { title: 'Import-Historie', eyebrow: 'Mein Geld' },
   recurring: { title: 'Wiederkehrende Zahlungen', eyebrow: 'Mein Geld' },
   documents: { title: 'Dokumente', eyebrow: 'Finance Core' },
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },

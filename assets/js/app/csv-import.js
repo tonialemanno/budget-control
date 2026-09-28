@@ -130,3 +130,32 @@ export async function transactionFingerprint(accountId, tx) {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+
+export function normalizeMerchantKey(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' und ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+export function merchantFromTransaction(tx) {
+  const raw = String(tx?.counterparty || tx?.description || '').trim();
+  let name = raw
+    .replace(/^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce)\s*[:\-–]?\s*/i, '')
+    .replace(/\b(?:terminal|term|beleg|referenz|reference|ref|transaktion|transaction|auth|karte|card)\s*[:#]?\s*[A-Z0-9*\-]{5,}\b/gi, ' ')
+    .replace(/\b\d{8,}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!name) name = raw || 'Unbekannter Händler';
+  if (name.length > 80) name = name.slice(0, 80).trim();
+  return {
+    name,
+    key: normalizeMerchantKey(name) || normalizeMerchantKey(raw) || 'unbekannt',
+    sourceField: tx?.counterparty ? 'counterparty' : 'description',
+  };
+}

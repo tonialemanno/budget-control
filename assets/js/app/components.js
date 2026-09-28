@@ -88,7 +88,7 @@ export function transactionRow(tx, { locale = 'de-CH', canWrite = false } = {}) 
       </div>
       <div class="list-row-trailing">
         <div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${money(tx.amount, { sign: positive, currency: tx.currency, locale })}</div>
-        ${canWrite ? `<div class="row-actions">${transfer ? '' : `<button class="table-action" type="button" data-action="transaction-edit" data-id="${escapeHtml(tx.id)}">Bearbeiten</button>`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${escapeHtml(tx.id)}">${transfer ? 'Umbuchung löschen' : 'Löschen'}</button></div>` : ''}
+        ${canWrite ? `<div class="row-actions">${transfer ? '' : `<button class="table-action" type="button" data-action="transaction-edit" data-id="${escapeHtml(tx.id)}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${escapeHtml(tx.id)}">Wiederkehrend</button>`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${escapeHtml(tx.id)}">${transfer ? 'Umbuchung löschen' : 'Löschen'}</button></div>` : ''}
       </div>
     </div>`;
 }
