@@ -1,11 +1,8 @@
-FINANCE V1.2 UPDATE
+Finance V1.3 Admin Update
 
-Dieses Paket enthält nur neue/ersetzte Dateien für den bestehenden beta-Branch.
-
-Wichtig:
-- Supabase `finance-v1` ist bereits angelegt.
-- Die Datenbankmigrationen sind bereits ausgeführt.
-- Dieses Paket bringt das Frontend auf denselben Stand.
-- Das alte Supabase-Projekt `budget` wird nicht berührt.
-
-Dateien aus diesem Paket müssen in den Root des beta-Branches übernommen werden.
+1. Inhalt dieses Ordners auf Branch beta hochladen/überschreiben.
+2. Committen.
+3. Cloudflare Deployment abwarten.
+4. In Supabase öffentliche E-Mail-Signups deaktivieren.
+5. Mit dem initialen Owner-Benutzer einloggen.
+6. Weitere Benutzer in Finance > Admin anlegen.
