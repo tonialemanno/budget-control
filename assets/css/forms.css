@@ -454,3 +454,50 @@ textarea.text-control { resize: vertical; min-height: 88px; }
   .transaction-summary-grid, .explain-grid { grid-template-columns: 1fr; }
   .suggestion-card { align-items: flex-start; flex-direction: column; }
 }
+
+/* V2.3 Beta 2: transaction explorer and goal funding */
+.transaction-filter-card { margin-bottom: 16px; }
+.transaction-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px,1.4fr) repeat(3,minmax(150px,.8fr));
+  gap: 11px;
+  align-items: end;
+}
+.transaction-filter-actions { display: flex; align-items: end; min-height: 44px; }
+.transaction-filter-actions .table-action { min-height: 40px; }
+.transaction-filter-card .toolbar-note { margin-top: 11px; }
+.transaction-history-card { margin-top: 16px; }
+.transaction-month-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(135px,1fr));
+  gap: 9px;
+}
+.transaction-month-item {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.transaction-month-item span,
+.transaction-month-item strong,
+.transaction-month-item small { display: block; }
+.transaction-month-item span { color: var(--text-3); font-size: 10px; }
+.transaction-month-item strong { margin-top: 4px; font-size: 14px; }
+.transaction-month-item small { margin-top: 3px; color: var(--text-3); font-size: 9px; }
+.transaction-summary-card .card-footer-actions { margin-top: 12px; padding-top: 10px; }
+.goal-source-list { display: grid; gap: 7px; margin-top: 14px; }
+.goal-source-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.goal-source-row strong, .goal-source-row span { display:block; }
+.goal-source-row strong { font-size:10px; }
+.goal-source-row span { margin-top:2px; color:var(--text-3); font-size:9px; }
+@media (max-width: 1000px) {
+  .transaction-filter-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 660px) {
+  .transaction-filter-grid { grid-template-columns: 1fr; }
+  .transaction-filter-actions .table-action { width: 100%; }
+  .goal-source-row { align-items:flex-start; flex-direction:column; }
+}

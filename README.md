@@ -1,9 +1,14 @@
-# Finance V2.3 – Integrated Beta
+# Finance V2.3 – Beta 2
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
 
+
+
+## V2.3 Beta 2
+
+Historischer Transaktions-Explorer mit Vollbestand, Suche/Filtern/Pagination, Monatsverlauf und klickbaren Kategoriekacheln. Sparziele lassen sich vollständig bearbeiten und aus eigenem Monatsbetrag, zusätzlichen Fixbeträgen, verknüpften wiederkehrenden Zahlungen und optionalem durchschnittlichem Monatsüberschuss zusammensetzen. Die Import-Vorschau nutzt zusätzlich eine konservative Bibliothek eindeutig erkennbarer Händler.
 
 ## V2.3 Integrated Beta
 

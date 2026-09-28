@@ -1,6 +1,6 @@
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.3.0-beta-1',
+  version: '2.3.0-beta-2',
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
   defaultLocale: 'de-CH',

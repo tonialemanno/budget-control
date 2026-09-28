@@ -4,7 +4,7 @@ import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
 import { escapeHtml, dateTimeLocalValue } from './app/format.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction } from './app/csv-import.js';
+import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, suggestKnownCategoryName } from './app/csv-import.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 
@@ -82,6 +82,7 @@ const runtime = {
   bills: [],
   contracts: [],
   goals: [],
+  goalSources: [],
   debts: [],
   legalCases: [],
   legalEvents: [],
@@ -97,7 +98,7 @@ const runtime = {
 };
 
 const csvState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -321,14 +322,14 @@ async function loadFinanceData() {
   const results = await Promise.all([
     financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
     financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
-    financeApi.listGoals(h), financeApi.listDebts(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
+    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
-    runtime.goals, runtime.debts, runtime.legalCases, runtime.legalEvents, runtime.assets,
+    runtime.goals, runtime.goalSources, runtime.debts, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
   ] = results.map((value) => value || (value === null ? null : []));
@@ -401,6 +402,12 @@ function render() {
     importCategory: uiState.importCategory,
     transactionView: uiState.transactionView,
     transactionPeriod: uiState.transactionPeriod,
+    transactionQuery: uiState.transactionQuery,
+    transactionCategory: uiState.transactionCategory,
+    transactionAccount: uiState.transactionAccount,
+    transactionFrom: uiState.transactionFrom,
+    transactionTo: uiState.transactionTo,
+    transactionPage: uiState.transactionPage,
     taxYear: uiState.taxYear,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -469,7 +476,7 @@ function renderCsvReview() {
     if (!tx) continue;
     const merchant = merchantFromTransaction(tx);
     const existing = runtime.merchants.find((m)=>m.normalized_key===merchant.key);
-    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || '';
+    const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
     const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
     group.rows.push(tx); group.total += Number(tx.amount);
     if (!group.categoryId && categoryId) group.categoryId = categoryId;
@@ -625,6 +632,21 @@ async function handleForm(form) {
     await financeApi.createGoal({ household_id:h, name:formValue(data,'name'), target_amount:numberValue(data,'targetAmount'), current_amount:numberValue(data,'currentAmount'), monthly_amount:numberValue(data,'monthlyAmount'), currency, target_date:nullValue(data,'targetDate'), goal_type:formValue(data,'goalType'), status:'active' });
     await refresh('Sparziel gespeichert.'); return;
   }
+  if (id === 'goal-edit') {
+    const goalId=formValue(data,'goalId');
+    const targetAmount=numberValue(data,'targetAmount'); const currentAmount=numberValue(data,'currentAmount');
+    await financeApi.updateGoal(goalId,{ name:formValue(data,'name'), goal_type:formValue(data,'goalType'), target_amount:targetAmount, current_amount:currentAmount, monthly_amount:numberValue(data,'monthlyAmount'), target_date:nullValue(data,'targetDate'), status:currentAmount>=targetAmount?'completed':'active' });
+    await refresh('Sparziel aktualisiert.'); return;
+  }
+  if (id === 'goal-source-create') {
+    const goalId=formValue(data,'goalId'); const sourceType=formValue(data,'sourceType');
+    const payload={ household_id:h, goal_id:goalId, source_type:sourceType, label:nullValue(data,'label'), active:true };
+    if(sourceType==='fixed'){ const amount=numberValue(data,'amount',-1); if(amount<0) throw new Error('Bitte einen gültigen Monatsbetrag eingeben.'); payload.amount=amount; payload.recurring_rule_id=null; }
+    else if(sourceType==='recurring_rule'){ const recurringRuleId=formValue(data,'recurringRuleId'); if(!recurringRuleId) throw new Error('Bitte eine wiederkehrende Zahlung wählen.'); payload.amount=null; payload.recurring_rule_id=recurringRuleId; }
+    else if(sourceType==='surplus'){ payload.amount=null; payload.recurring_rule_id=null; payload.label='Monatsüberschuss'; }
+    else throw new Error('Unbekannte Finanzierungsquelle.');
+    await financeApi.createGoalSource(payload); await refresh('Finanzierungsquelle hinzugefügt.'); return;
+  }
   if (id === 'debt-create') {
     await financeApi.createDebt({ household_id:h, debt_type:formValue(data,'debtType'), creditor:formValue(data,'creditor'), name:formValue(data,'name'), original_amount:numberValue(data,'originalAmount'), outstanding_amount:numberValue(data,'outstandingAmount'), currency, interest_rate:numberValue(data,'interestRate'), installment_amount:numberValue(data,'installmentAmount'), payment_cadence:'monthly', next_payment_date:nullValue(data,'nextPaymentDate'), status:'active' });
     await refresh('Schuld / Kredit gespeichert.'); return;
@@ -726,7 +748,7 @@ async function handleForm(form) {
         const merchantInfo = merchantFromTransaction(tx);
         const existingMerchant = merchantCache.get(merchantInfo.key);
         const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
-        const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || null;
+        const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
         let merchant = existingMerchant;
         if (!merchant) {
@@ -759,7 +781,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-paid','goal-progress','goal-apply-suggestion','debt-balance','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-paid','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-balance','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -875,6 +897,25 @@ async function handleAction(target) {
     const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=convertAmount(tx.amount,tx.currency,runtime.household.base_currency,runtime.fxRates); return [String(tx.occurred_at).slice(0,10),tx.description,tx.categories?.name||'',tx.tax_category||'',tx.amount,tx.currency,base==null?'':base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
     const blob=new Blob(['\ufeff'+lines],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`steuerberater-${year}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast(`Steuerexport ${year} erstellt.`); return;
   }
+  if (action === 'goal-edit') {
+    const g=runtime.goals.find((row)=>row.id===target.dataset.id); if(!g) throw new Error('Sparziel wurde nicht gefunden.');
+    document.querySelector('#goalEditId').value=g.id; document.querySelector('#goalEditName').value=g.name||''; document.querySelector('#goalEditType').value=g.goal_type||'custom'; document.querySelector('#goalEditTarget').value=g.target_amount||0; document.querySelector('#goalEditCurrent').value=g.current_amount||0; document.querySelector('#goalEditMonthly').value=g.monthly_amount||0; document.querySelector('#goalEditDate').value=g.target_date||'';
+    const form=document.querySelector('#goal-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'goal-source-open') {
+    const input=document.querySelector('#goalSourceGoalId'); if(input) input.value=target.dataset.id;
+    const form=document.querySelector('#goal-source-create'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'goal-source-delete') {
+    await financeApi.deleteGoalSource(target.dataset.id); await refresh('Finanzierungsquelle entfernt.'); return;
+  }
+  if (action === 'transaction-filter-category') {
+    uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
+  }
+  if (action === 'transaction-filter-reset') {
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+  }
+  if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
     const amount=Number(target.dataset.amount); if(!Number.isFinite(amount)||amount<0) throw new Error('Ungültiger Vorschlag.'); await financeApi.updateGoal(target.dataset.id,{monthly_amount:amount}); await refresh('Vorgeschlagenen Monatsbetrag übernommen.'); return;
   }
@@ -967,8 +1008,16 @@ pageContent.addEventListener('change', async (event) => {
   try {
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
-    if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; render(); return; }
-    if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; render(); return; }
+    if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'goalSourceType') {
+      const type=target.value; const amount=document.querySelector('#goalSourceAmountField'); const recurring=document.querySelector('#goalSourceRecurringField'); const label=document.querySelector('#goalSourceLabelField'); const info=document.querySelector('#goalSourceSurplusInfo');
+      if(amount) amount.hidden=type!=='fixed'; if(recurring) recurring.hidden=type!=='recurring_rule'; if(label) label.hidden=type==='surplus'; if(info) info.hidden=type!=='surplus'; return;
+    }
     if (target.id === 'taxYearSelect') { uiState.taxYear=Number(target.value)||new Date().getFullYear(); render(); return; }
     if (target.id === 'budgetScopeType') { const merchant=document.querySelector('#budgetMerchantField'); const category=document.querySelector('#budgetCategoryField'); if(merchant) merchant.hidden=target.value!=='merchant'; if(category) category.hidden=target.value==='merchant'; return; }
     if (target.id === 'taxReceiptInput') {
@@ -1040,6 +1089,11 @@ pageContent.addEventListener('input', (event) => {
   if (target.id === 'importMerchantSearch') {
     uiState.importQuery = target.value; render();
     const next = document.querySelector('#importMerchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if (target.id === 'transactionSearch') {
+    uiState.transactionQuery=target.value; uiState.transactionPage=1; render();
+    const next=document.querySelector('#transactionSearch'); if(next){ next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
   }
 });
 

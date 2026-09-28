@@ -137,12 +137,18 @@ export const financeApi = Object.freeze({
   createCategorizationRule: (payload) => insert('categorization_rules', payload),
   deleteCategorizationRule: (id) => remove('categorization_rules', id),
 
-  listTransactions(householdId, limit = 500) {
-    return listByHousehold('transactions', householdId, {
-      select: 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)',
-      order: 'occurred_at.desc,created_at.desc',
-      limit,
-    });
+  async listTransactions(householdId) {
+    const select = 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)';
+    const pageSize = 1000;
+    const rows = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await listByHousehold('transactions', householdId, {
+        select, order: 'occurred_at.desc,created_at.desc', limit: pageSize, extra: { offset: String(offset) },
+      });
+      rows.push(...(page || []));
+      if (!page || page.length < pageSize) break;
+    }
+    return rows;
   },
   createTransaction: (payload) => insert('transactions', payload),
   createTransactions: (payload) => insertMany('transactions', payload),
@@ -231,6 +237,11 @@ export const financeApi = Object.freeze({
   createGoal: (payload) => insert('savings_goals', payload),
   updateGoal: (id, patch) => update('savings_goals', id, patch),
   deleteGoal: (id) => remove('savings_goals', id),
+  listGoalSources(householdId) {
+    return listByHousehold('savings_goal_sources', householdId, { order: 'created_at.asc', limit: 1000 });
+  },
+  createGoalSource: (payload) => insert('savings_goal_sources', payload),
+  deleteGoalSource: (id) => remove('savings_goal_sources', id),
 
   listDebts(householdId) { return listByHousehold('debts', householdId, { order: 'status.asc,next_payment_date.asc.nullslast,created_at.desc' }); },
   createDebt: (payload) => insert('debts', payload),

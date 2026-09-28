@@ -145,6 +145,8 @@ export function normalizeMerchantKey(value) {
 
 export function merchantFromTransaction(tx) {
   const raw = String(tx?.counterparty || tx?.description || '').trim();
+  const known = knownMerchantSuggestion(tx);
+  if (known) return { name: known.name, key: known.key, sourceField: tx?.counterparty ? 'counterparty' : 'description', known: true };
   let name = raw
     .replace(/^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce)\s*[:\-–]?\s*/i, '')
     .replace(/\b(?:terminal|term|beleg|referenz|reference|ref|transaktion|transaction|auth|karte|card)\s*[:#]?\s*[A-Z0-9*\-]{5,}\b/gi, ' ')
@@ -158,4 +160,33 @@ export function merchantFromTransaction(tx) {
     key: normalizeMerchantKey(name) || normalizeMerchantKey(raw) || 'unbekannt',
     sourceField: tx?.counterparty ? 'counterparty' : 'description',
   };
+}
+
+const KNOWN_MERCHANT_LIBRARY = Object.freeze([
+  { pattern:/\bmigros\b/i, name:'Migros', key:'migros', category:'Lebensmittel' },
+  { pattern:/\bcoop\b/i, name:'Coop', key:'coop', category:'Lebensmittel' },
+  { pattern:/\bdenner\b/i, name:'Denner', key:'denner', category:'Lebensmittel' },
+  { pattern:/\baldi\b/i, name:'Aldi Suisse', key:'aldi suisse', category:'Lebensmittel' },
+  { pattern:/\blidl\b/i, name:'Lidl', key:'lidl', category:'Lebensmittel' },
+  { pattern:/media\s*markt|mediamarkt/i, name:'MediaMarkt', key:'mediamarkt', category:'Shopping' },
+  { pattern:/\bdigitec\b/i, name:'Digitec', key:'digitec', category:'Shopping' },
+  { pattern:/\bgalaxus\b/i, name:'Galaxus', key:'galaxus', category:'Shopping' },
+  { pattern:/\bsanitas\b/i, name:'Sanitas', key:'sanitas', category:'Krankenkasse' },
+  { pattern:/groupe\s+mutuel|avenir\s+assurance\s+maladie/i, name:'Groupe Mutuel / Avenir', key:'groupe mutuel avenir', category:'Krankenkasse' },
+  { pattern:/\bhelsana\b/i, name:'Helsana', key:'helsana', category:'Krankenkasse' },
+  { pattern:/\bswica\b/i, name:'Swica', key:'swica', category:'Krankenkasse' },
+  { pattern:/\bsbb\b|\bcff\b|\bffs\b/i, name:'SBB', key:'sbb', category:'Mobilität' },
+  { pattern:/\bvbsg\b|verkehrsbetriebe\s+st\.?\s*gall/i, name:'VBSG / Verkehrsbetriebe', key:'vbsg', category:'Mobilität' },
+  { pattern:/parkingpay/i, name:'ParkingPay', key:'parkingpay', category:'Mobilität' },
+  { pattern:/\bnetflix\b/i, name:'Netflix', key:'netflix', category:'Abos & Verträge' },
+  { pattern:/\bsunrise\b|\byallo\b/i, name:'Sunrise / Yallo', key:'sunrise yallo', category:'Abos & Verträge' },
+]);
+
+export function knownMerchantSuggestion(tx) {
+  const raw=`${tx?.counterparty||''} ${tx?.description||''}`.trim();
+  return KNOWN_MERCHANT_LIBRARY.find((entry)=>entry.pattern.test(raw)) || null;
+}
+
+export function suggestKnownCategoryName(tx) {
+  return knownMerchantSuggestion(tx)?.category || null;
 }
