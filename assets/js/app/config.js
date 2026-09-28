@@ -1,6 +1,6 @@
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.2.0-beta-2',
+  version: '2.3.0-beta-1',
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
   defaultLocale: 'de-CH',
@@ -12,6 +12,7 @@ export const MODULES = Object.freeze({
   budget: { label: 'Budget & Planung' },
   bills: { label: 'Rechnungen & Verträge' },
   goals: { label: 'Sparen & Ziele' },
+  tax: { label: 'Steuern & Steuerberater' },
   debts: { label: 'Schulden & Kredite' },
   legal: { label: 'Mahnung / Betreibung / Inkasso' },
   family: { label: 'Familie & Haushalt' },
@@ -36,6 +37,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'budget', label: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
   { route: 'bills', label: 'Rechnungen & Verträge', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals' },
+  { route: 'tax-advisor', label: 'Steuerberater', icon: 'receipt', group: 'Planung', module: 'tax' },
 
   { route: 'debts', label: 'Schulden & Kredite', icon: 'credit-card', group: 'Verbindlichkeiten', module: 'debts' },
   { route: 'legal', label: 'Mahnung / Betreibung', icon: 'shield', group: 'Verbindlichkeiten', module: 'legal' },
@@ -65,6 +67,7 @@ export const PAGE_META = Object.freeze({
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },
   bills: { title: 'Rechnungen & Verträge', eyebrow: 'Rechnungen & Verträge' },
   goals: { title: 'Sparziele', eyebrow: 'Sparen & Ziele' },
+  'tax-advisor': { title: 'Steuerberater', eyebrow: 'Steuern & Export' },
   debts: { title: 'Schulden & Kredite', eyebrow: 'Schulden & Kredite' },
   legal: { title: 'Mahnung / Betreibung', eyebrow: 'Forderungen' },
   family: { title: 'Familie & Haushalt', eyebrow: 'Haushalt' },

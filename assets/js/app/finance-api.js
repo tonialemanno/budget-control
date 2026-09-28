@@ -93,6 +93,8 @@ export const financeApi = Object.freeze({
       base_currency: baseCurrency,
     });
   },
+  updateHousehold: (id, patch) => update('households', id, patch),
+  getFxRates: () => backend.fxRates(),
 
   async listHouseholdMembers(householdId) {
     const result = await backend.householdMembers({ action: 'list', householdId });
@@ -137,7 +139,7 @@ export const financeApi = Object.freeze({
 
   listTransactions(householdId, limit = 500) {
     return listByHousehold('transactions', householdId, {
-      select: 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)',
+      select: 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)',
       order: 'occurred_at.desc,created_at.desc',
       limit,
     });
@@ -156,6 +158,7 @@ export const financeApi = Object.freeze({
   deleteTransaction: (id) => remove('transactions', id),
   createTransfer: (payload) => backend.rpc('create_transfer_v2', payload),
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),
+  convertTransactionToTransfer: ({ householdId, transactionId, toAccountId, toAmount = null, description = null }) => backend.rpc('convert_transaction_to_transfer', { p_household_id: householdId, p_transaction_id: transactionId, p_to_account_id: toAccountId, p_to_amount: toAmount, p_description: description }),
 
   listImportBatches(householdId) {
     return listByHousehold('import_batches', householdId, { select: '*,accounts(name,currency)', order: 'created_at.desc', limit: 100 });
@@ -188,18 +191,19 @@ export const financeApi = Object.freeze({
 
   listBudgets(householdId) {
     return listByHousehold('budgets', householdId, {
-      select: '*,categories(name,kind)',
+      select: '*,categories(name,kind),merchants(name)',
       order: 'month_start.desc,created_at.asc',
     });
   },
   async upsertBudget(payload) {
-    const query = buildQuery('budgets', { on_conflict: 'household_id,category_id,month_start' });
-    const rows = await backend.rest(query, {
-      method: 'POST',
-      body: payload,
-      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    });
-    return rows?.[0] || null;
+    const scope = payload.merchant_id
+      ? { merchant_id: `eq.${payload.merchant_id}`, category_id: 'is.null' }
+      : { category_id: `eq.${payload.category_id}`, merchant_id: 'is.null' };
+    const existing = await backend.rest(buildQuery('budgets', {
+      select: 'id', household_id: `eq.${payload.household_id}`, month_start: `eq.${payload.month_start}`, ...scope, limit: '1',
+    }));
+    if (existing?.[0]?.id) return update('budgets', existing[0].id, payload);
+    return insert('budgets', payload);
   },
   deleteBudget: (id) => remove('budgets', id),
 
@@ -215,7 +219,7 @@ export const financeApi = Object.freeze({
 
   listContracts(householdId) {
     return listByHousehold('contracts', householdId, {
-      select: '*,categories(name,kind)',
+      select: '*,categories(name,kind),accounts(name,currency)',
       order: 'next_payment_date.asc.nullslast,created_at.desc',
     });
   },
@@ -256,7 +260,7 @@ export const financeApi = Object.freeze({
   updateVehicle: (id, patch) => update('vehicles', id, patch),
   deleteVehicle: (id) => remove('vehicles', id),
 
-  listInsurance(householdId) { return listByHousehold('insurance_policies', householdId, { order: 'status.asc,next_payment_date.asc.nullslast,created_at.desc' }); },
+  listInsurance(householdId) { return listByHousehold('insurance_policies', householdId, { select: '*,accounts(name,currency),categories(name,kind)', order: 'status.asc,next_payment_date.asc.nullslast,created_at.desc' }); },
   createInsurance: (payload) => insert('insurance_policies', payload),
   updateInsurance: (id, patch) => update('insurance_policies', id, patch),
   deleteInsurance: (id) => remove('insurance_policies', id),
@@ -265,6 +269,8 @@ export const financeApi = Object.freeze({
   createInvestment: (payload) => insert('investments', payload),
   updateInvestment: (id, patch) => update('investments', id, patch),
   deleteInvestment: (id) => remove('investments', id),
+  listInvestmentTransactions(householdId) { return listByHousehold('investment_transactions', householdId, { order: 'trade_date.desc,created_at.desc', limit: 1000 }); },
+  recordInvestmentTrade: (payload) => backend.rpc('record_investment_trade', payload),
 
   listPensions(householdId) { return listByHousehold('pension_accounts', householdId, { order: 'created_at.desc' }); },
   createPension: (payload) => insert('pension_accounts', payload),
@@ -273,6 +279,7 @@ export const financeApi = Object.freeze({
 
   listDocuments(householdId) { return listByHousehold('documents', householdId, { order: 'created_at.desc', limit: 200 }); },
   createDocument: (payload) => insert('documents', payload),
+  updateDocument: (id, patch) => update('documents', id, patch),
   deleteDocument: async (document) => {
     if (document?.storage_path) await backend.storageDelete('finance-documents', [document.storage_path]);
     return remove('documents', document.id);

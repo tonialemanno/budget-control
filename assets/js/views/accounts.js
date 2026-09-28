@@ -1,6 +1,7 @@
 import { accountCard, emptyState, formShell, metricCard, pageHeader } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
+import { convertAmount, fxLabel } from '../app/fx.js';
 
 const ACCOUNT_TYPES = [
   ['checking','Zahlungskonto'], ['savings','Sparkonto'], ['cash','Bargeld'], ['credit_card','Kreditkarte'],
@@ -16,16 +17,16 @@ function currencyOptions(selected = 'CHF') {
   return CURRENCIES.map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-export function renderAccounts({ accounts = [], household, profile, canWrite = false } = {}) {
+export function renderAccounts({ accounts = [], household, profile, canWrite = false, fxRates } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
   const baseLiquid = accounts
-    .filter((a) => liquidTypes.has(a.account_type) && a.currency === baseCurrency)
-    .reduce((s,a) => s + Number(a.current_balance || 0), 0);
+    .filter((a) => liquidTypes.has(a.account_type))
+    .reduce((s,a) => s + (convertAmount(a.current_balance,a.currency,baseCurrency,fxRates) ?? 0), 0);
   const baseCredit = accounts
-    .filter((a) => a.account_type === 'credit_card' && a.currency === baseCurrency)
-    .reduce((s,a) => s + Number(a.current_balance || 0), 0);
+    .filter((a) => a.account_type === 'credit_card')
+    .reduce((s,a) => s + (convertAmount(a.current_balance,a.currency,baseCurrency,fxRates) ?? 0), 0);
   const foreign = new Map();
   for (const account of accounts.filter((a)=>a.currency !== baseCurrency && liquidTypes.has(a.account_type))) {
     foreign.set(account.currency, (foreign.get(account.currency) || 0) + Number(account.current_balance || 0));
@@ -59,9 +60,9 @@ export function renderAccounts({ accounts = [], household, profile, canWrite = f
     })}
     ${canWrite ? formShell('account-create','Neues Konto','Aktuellen Stand erfassen',createFields,{hidden:accounts.length>0,submitLabel:'Konto speichern'}) : ''}
     ${canWrite ? formShell('account-edit','Konto bearbeiten','Stammdaten oder aktuellen Stand korrigieren',editFields,{hidden:true,submitLabel:'Änderungen speichern'}) : ''}
-    ${foreign.size ? `<div class="inline-alert"><strong>Fremdwährungen werden nicht erfunden umgerechnet.</strong><span>Gesamtsummen in ${escapeHtml(baseCurrency)} enthalten nur ${escapeHtml(baseCurrency)}-Konten. Fremdwährungen bleiben separat sichtbar, bis eine verlässliche FX-Logik aktiv ist.</span></div>` : ''}
+    ${foreign.size ? `<div class="inline-alert inline-alert--success"><strong>Fremdwährungen werden automatisch umgerechnet.</strong><span>${escapeHtml(fxLabel(fxRates,baseCurrency))}. Originalwährungen bleiben auf den Konten sichtbar.</span></div>` : ''}
     <div class="metric-grid" style="margin-bottom:16px">
-      ${metricCard(`Liquidität ${baseCurrency}`, money(baseLiquid,{currency:baseCurrency,locale}), `${accounts.length} Konten gesamt`)}
+      ${metricCard(`Liquidität ${baseCurrency}`, money(baseLiquid,{currency:baseCurrency,locale}), `${accounts.length} Konten gesamt · ${fxLabel(fxRates,baseCurrency)}`)}
       ${metricCard(`Kreditkarten ${baseCurrency}`, money(baseCredit,{currency:baseCurrency,locale}), 'nicht zur Liquidität gezählt')}
       ${metricCard('Fremdwährungen', foreignSummary, foreign.size ? `${foreign.size} Währung${foreign.size===1?'':'en'}` : 'keine Fremdwährungskonten')}
     </div>

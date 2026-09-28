@@ -185,6 +185,7 @@ export const backend = Object.freeze({
   adminSetModule(payload) { return invokeFunction('admin-users', { body: { action: 'set_module', ...payload } }); },
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },
   householdMembers(payload) { return invokeFunction('household-members', { body: payload }); },
+  fxRates() { return invokeFunction('fx-rates', { method: 'GET' }); },
 
   getSession() { return session ? { ...session } : null; },
   rest,

@@ -23,6 +23,17 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), { status, headers: cors(origin) });
 }
 
+
+async function listAllUsers(admin: any) {
+  const users: any[] = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    users.push(...data.users);
+    if (data.users.length < 1000) break;
+  }
+  return users;
+}
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
@@ -49,10 +60,11 @@ Deno.serve(async (req: Request) => {
   if (adminError || !adminRow) return json({ error: "Forbidden" }, 403, origin);
 
   if (req.method === "GET") {
-    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
-    if (error) return json({ error: error.message }, 400, origin);
+    let users;
+    try { users = await listAllUsers(admin); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : 'Benutzer konnten nicht geladen werden.' }, 400, origin); }
 
-    const userIds = data.users.map((u) => u.id);
+    const userIds = users.map((u) => u.id);
     const { data: accessRows, error: accessError } = userIds.length
       ? await admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
       : { data: [], error: null };
@@ -67,7 +79,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({
-      users: data.users.map((user) => ({
+      users: users.map((user) => ({
         id: user.id,
         email: user.email,
         display_name: user.user_metadata?.display_name || "",

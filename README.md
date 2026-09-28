@@ -1,8 +1,15 @@
-# Finance V2.2 – Functional Beta
+# Finance V2.3 – Integrated Beta
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
+
+
+## V2.3 Integrated Beta
+
+Ein gebündelter Gesamttest-Stand statt mehrerer Zwischen-Commits. Enthalten sind automatische SNB-Referenzwechselkurse, kompakte Transaktionsauswertung, TWINT-/Bargeld-/Spar-Hinweise, Budget-Intelligence, Sparziel-Machbarkeit, Steuerberater-Export mit Belegablage, maximal fünf Haushaltsmitglieder, editierbare Fahrzeuge und Versicherungen sowie ein Investment-Trade-Ledger für Teilkäufe und Teilverkäufe.
+
+Steuerliche Einzelfallentscheidungen und externe Börsen-/Kryptokurse werden bewusst nicht erfunden: dafür bleiben offizielle Referenz- bzw. Provider-Schnittstellen vorgesehen.
 
 ## V2.2 Beta 2
 
@@ -72,8 +79,8 @@ Ein beim Anlegen eines Kontos eingetragener `Kontostand jetzt` wird als `balance
 Diese Beta ist manual-first. Folgende externe Integrationen werden erst auf das getestete interne Finanzmodell gesetzt:
 
 - SIX bLink / PSD2-Banking
-- automatische Kurs- und Marktdaten
-- SNB/Bundesbank/ECB-Referenzdaten
+- automatische Live-/Intraday-Börsen- und Kryptokurse ohne konfigurierten Market-Data-Provider
+- weitere Bundesbank/ECB-Referenzdaten ausserhalb der bereits integrierten SNB-FX-Kurse
 - Swiss-QR-Rechnungsparser
 - eSchKG / deutsche Mahnverfahrensschnittstellen
 - ELSTER / ERiC

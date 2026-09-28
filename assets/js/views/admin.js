@@ -35,7 +35,7 @@ export function renderAdmin({
       </div>
       ${expanded ? `<div class="admin-user-details">
         <div class="card-heading"><div><h3 class="card-title">Module & Zugriff</h3><p class="card-subtitle">Freigabe durch den Administrator. Die persönliche Navigation verwaltet der Benutzer selbst.</p></div></div>
-        <div class="admin-module-grid">${moduleList.map((m)=>`<label class="module-toggle"><input type="checkbox" data-action="admin-toggle-module" data-user-id="${user.id}" data-module-key="${m.key}" ${user.modules?.[m.key]!==false?'checked':''}><span><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.group_name || '')}</small></span></label>`).join('')}</div>
+        <div class="admin-module-grid">${moduleList.map((m)=>`<label class="module-toggle"><input type="checkbox" data-action="admin-toggle-module" data-user-id="${user.id}" data-module-key="${m.key}" ${user.modules?.[m.key]===true?'checked':''}><span><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.group_name || '')}</small></span></label>`).join('')}</div>
         <div class="card-footer-actions"><button class="table-action" type="button" data-action="admin-password" data-user-id="${user.id}">Passwort setzen</button></div>
       </div>` : ''}
     </article>`;

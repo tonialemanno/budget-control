@@ -1,70 +1,59 @@
-import { emptyState, formShell, metricCard, pageHeader, transactionRow } from '../app/components.js';
-import { dateTimeLocalValue, escapeHtml, money } from '../app/format.js';
+import { emptyState, formShell, metricCard, pageHeader } from '../app/components.js';
+import { dateLabel, dateTimeLocalValue, escapeHtml, money } from '../app/format.js';
+import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 
-export function renderTransactions({ accounts = [], categories = [], transactions = [], household, profile, canWrite = false } = {}) {
+function periodStart(period) {
+  const now=new Date();
+  if(period==='year') return new Date(now.getFullYear(),0,1);
+  if(period==='quarter') return new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1);
+  return new Date(now.getFullYear(),now.getMonth(),1);
+}
+function periodLabel(period){ return period==='year'?'Dieses Jahr':period==='quarter'?'Dieses Quartal':'Dieser Monat'; }
+function cashSuggestion(tx,accounts){
+  if(Number(tx.amount)>=0||tx.transfer_group_id) return null;
+  const text=`${tx.description||''} ${tx.counterparty||''}`.toLowerCase();
+  const cash=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='cash');
+  const savings=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='savings');
+  if(cash && /(bancomat|atm|bargeld|cash|barbezug|withdraw|geldautomat)/i.test(text)) return {account:cash,label:`War das für ${cash.name}?`};
+  if(savings && /(spar|übertrag|uebertrag|transfer|umbuch|eigenes konto)/i.test(text)) return {account:savings,label:`War das Sparen auf ${savings.name}?`};
+  return null;
+}
+
+function txRow(tx,{locale,canWrite,accounts,canTax}){
+  const positive=Number(tx.amount)>=0; const transfer=Boolean(tx.transfer_group_id); const suggestion=cashSuggestion(tx,accounts);
+  const isTwint=/twint/i.test(`${tx.description||''} ${tx.counterparty||''}`);
+  return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(tx.categories?.name||(transfer?'Umbuchung':'Ohne Kategorie'))} · ${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}</div>${suggestion&&canWrite?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span><button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button></div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${canWrite?`<div class="row-actions">${transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">Wiederkehrend</button>${canTax?`<button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="${tx.tax_relevant?'false':'true'}">${tx.tax_relevant?'Steuer ✓':'Steuer'}</button>`:''}`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button></div>`:''}</div></div>`;
+}
+
+export function renderTransactions({ accounts = [], categories = [], transactions = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', moduleAccess = {}, hiddenModules = [] } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
+  const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax');
   const locale = profile?.locale || 'de-CH';
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthRows = transactions.filter((tx) => new Date(tx.occurred_at) >= monthStart && tx.status === 'booked' && !tx.transfer_group_id && tx.currency === baseCurrency);
-  const income = monthRows.filter((tx) => Number(tx.amount) > 0).reduce((s,tx)=>s+Number(tx.amount),0);
-  const expenses = Math.abs(monthRows.filter((tx) => Number(tx.amount) < 0).reduce((s,tx)=>s+Number(tx.amount),0));
-  const hasForeign = transactions.some((tx)=>tx.currency !== baseCurrency);
+  const start=periodStart(transactionPeriod);
+  const rows=transactions.filter((tx)=>new Date(tx.occurred_at)>=start&&tx.status==='booked');
+  const spendRows=rows.filter((tx)=>Number(tx.amount)<0&&!tx.transfer_group_id);
+  const income=rows.filter((tx)=>Number(tx.amount)>0&&!tx.transfer_group_id).reduce((s,tx)=>s+(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
+  const expenses=spendRows.reduce((s,tx)=>s+Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
+  const savingsIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
+  const savings=rows.filter((tx)=>tx.transfer_group_id&&Number(tx.amount)>0&&savingsIds.has(tx.account_id)).reduce((s,tx)=>s+(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
   const categoryOptions = categories.map((c)=>`<option value="${c.id}">${escapeHtml(c.name)} · ${c.kind==='income'?'Einnahme':'Ausgabe'}</option>`).join('');
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
 
-  const txFields = `
-    <label class="field"><span>Typ</span><select class="text-control" name="direction"><option value="expense">Ausgabe</option><option value="income">Einnahme</option></select></label>
-    <label class="field"><span>Betrag</span><input class="text-control" name="amount" type="number" step="0.01" min="0.01" required></label>
-    <label class="field"><span>Konto</span><select class="text-control" name="accountId" required>${accountOptions}</select></label>
-    <label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" type="datetime-local" required value="${dateTimeLocalValue()}"></label>
-    <label class="field form-grid-span"><span>Beschreibung</span><input class="text-control" name="description" required placeholder="z. B. Migros"></label>
-    <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
-    <label class="field"><span>Gegenpartei</span><input class="text-control" name="counterparty" placeholder="optional"></label>
-    <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="note" rows="3" placeholder="optional"></textarea></label>`;
+  const txFields = `<label class="field"><span>Typ</span><select class="text-control" name="direction"><option value="expense">Ausgabe</option><option value="income">Einnahme</option></select></label><label class="field"><span>Betrag</span><input class="text-control" name="amount" type="number" step="0.01" min="0.01" required></label><label class="field"><span>Konto</span><select class="text-control" name="accountId" required>${accountOptions}</select></label><label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" type="datetime-local" required value="${dateTimeLocalValue()}"></label><label class="field form-grid-span"><span>Beschreibung</span><input class="text-control" name="description" required placeholder="z. B. Migros"></label><label class="field"><span>Kategorie</span><select class="text-control" name="categoryId"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label><label class="field"><span>Gegenpartei</span><input class="text-control" name="counterparty" placeholder="optional"></label><label class="field form-grid-span"><span>Notiz / Zweck</span><textarea class="text-control" name="note" rows="3" placeholder="z. B. TWINT: Mittagessen"></textarea></label>${canTax?`<label class="field"><span>Steuerrelevant</span><select class="text-control" name="taxRelevant"><option value="false">Nein</option><option value="true">Ja</option></select></label><label class="field"><span>Steuerkategorie</span><input class="text-control" name="taxCategory" placeholder="z. B. Berufskosten"></label>`:''}`;
+  const editFields = `<input type="hidden" name="transactionId" id="transactionEditId"><label class="field"><span>Typ</span><select class="text-control" name="direction" id="transactionEditDirection"><option value="expense">Ausgabe</option><option value="income">Einnahme</option></select></label><label class="field"><span>Betrag</span><input class="text-control" name="amount" id="transactionEditAmount" type="number" step="0.01" min="0.01" required></label><label class="field"><span>Konto</span><select class="text-control" name="accountId" id="transactionEditAccount" required>${accountOptions}</select></label><label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" id="transactionEditDate" type="datetime-local" required></label><label class="field form-grid-span"><span>Beschreibung</span><input class="text-control" name="description" id="transactionEditDescription" required></label><label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" id="transactionEditCategory"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label><label class="field"><span>Gegenpartei</span><input class="text-control" name="counterparty" id="transactionEditCounterparty"></label><label class="field form-grid-span"><span>Notiz / Zweck</span><textarea class="text-control" name="note" id="transactionEditNote" rows="3"></textarea></label>${canTax?`<label class="field"><span>Steuerrelevant</span><select class="text-control" name="taxRelevant" id="transactionEditTaxRelevant"><option value="false">Nein</option><option value="true">Ja</option></select></label><label class="field"><span>Steuerkategorie</span><input class="text-control" name="taxCategory" id="transactionEditTaxCategory" placeholder="z. B. Berufskosten"></label>`:''}<label class="field form-grid-span checkbox-field"><input type="checkbox" name="makeRecurring" id="transactionMakeRecurring"><span>Als wiederkehrende Zahlung übernehmen</span></label><div class="form-grid form-grid--2 form-grid-span" id="transactionRecurringFields" hidden><label class="field"><span>Rhythmus</span><select class="text-control" name="recurringCadence"><option value="monthly">Monatlich</option><option value="weekly">Wöchentlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label><label class="field"><span>Nächster Termin</span><input class="text-control" name="recurringNextDate" id="transactionRecurringNextDate" type="date"></label></div>`;
+  const transferFields = `<label class="field"><span>Von Konto</span><select class="text-control" name="fromAccountId" required>${accountOptions}</select></label><label class="field"><span>Auf Konto</span><select class="text-control" name="toAccountId" required>${accountOptions}</select></label><label class="field"><span>Abgang vom Quellkonto</span><input class="text-control" name="amount" type="number" step="0.01" min="0.01" required></label><label class="field"><span>Eingang auf Zielkonto</span><input class="text-control" name="toAmount" type="number" step="0.01" min="0.01" placeholder="nur bei anderer Währung"></label><label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" type="datetime-local" required value="${dateTimeLocalValue()}"></label><label class="field"><span>Beschreibung</span><input class="text-control" name="description" value="Umbuchung" required></label>`;
 
-  const editFields = `
-    <input type="hidden" name="transactionId" id="transactionEditId">
-    <label class="field"><span>Typ</span><select class="text-control" name="direction" id="transactionEditDirection"><option value="expense">Ausgabe</option><option value="income">Einnahme</option></select></label>
-    <label class="field"><span>Betrag</span><input class="text-control" name="amount" id="transactionEditAmount" type="number" step="0.01" min="0.01" required></label>
-    <label class="field"><span>Konto</span><select class="text-control" name="accountId" id="transactionEditAccount" required>${accountOptions}</select></label>
-    <label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" id="transactionEditDate" type="datetime-local" required></label>
-    <label class="field form-grid-span"><span>Beschreibung</span><input class="text-control" name="description" id="transactionEditDescription" required></label>
-    <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" id="transactionEditCategory"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
-    <label class="field"><span>Gegenpartei</span><input class="text-control" name="counterparty" id="transactionEditCounterparty"></label>
-    <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="note" id="transactionEditNote" rows="3"></textarea></label>
-    <label class="module-toggle form-grid-span"><input type="checkbox" name="makeRecurring" id="transactionMakeRecurring"><span><strong>Als wiederkehrende Zahlung übernehmen</strong><small>Erstellt oder aktualisiert eine passende Regel unter „Wiederkehrend“.</small></span></label>
-    <div class="form-grid form-grid--2 form-grid-span" id="transactionRecurringFields" hidden>
-      <label class="field"><span>Rhythmus</span><select class="text-control" name="recurringCadence"><option value="weekly">Wöchentlich</option><option value="monthly" selected>Monatlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label>
-      <label class="field"><span>Nächster Termin</span><input class="text-control" name="recurringNextDate" id="transactionRecurringNextDate" type="date"></label>
-    </div>`;
-
-  const transferFields = `
-    <label class="field"><span>Von Konto</span><select class="text-control" name="fromAccountId" required>${accountOptions}</select></label>
-    <label class="field"><span>Auf Konto</span><select class="text-control" name="toAccountId" required>${accountOptions}</select></label>
-    <label class="field"><span>Abgang vom Quellkonto</span><input class="text-control" name="amount" type="number" step="0.01" min="0.01" required></label>
-    <label class="field"><span>Eingang auf Zielkonto</span><input class="text-control" name="toAmount" type="number" step="0.01" min="0.01" placeholder="nur bei anderer Währung"><small>Bei gleicher Währung leer lassen. Bei CHF → EUR den tatsächlich gutgeschriebenen EUR-Betrag eintragen.</small></label>
-    <label class="field"><span>Datum / Zeit</span><input class="text-control" name="occurredAt" type="datetime-local" required value="${dateTimeLocalValue()}"></label>
-    <label class="field"><span>Beschreibung</span><input class="text-control" name="description" value="Umbuchung" required></label>`;
+  const groups=new Map();
+  for(const tx of spendRows){ const key=tx.category_id||'uncategorized'; const g=groups.get(key)||{name:tx.categories?.name||'Ohne Kategorie',total:0,count:0,merchants:new Map()}; const value=Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0); g.total+=value; g.count++; const merchant=tx.merchants?.name||tx.counterparty||tx.description; g.merchants.set(merchant,(g.merchants.get(merchant)||0)+value); groups.set(key,g); }
+  const summary=[...groups.values()].sort((a,b)=>b.total-a.total).map((g)=>{ const top=[...g.merchants.entries()].sort((a,b)=>b[1]-a[1]).slice(0,2).map(([n])=>n).join(' · '); return `<article class="card transaction-summary-card"><div class="metric-label">${escapeHtml(g.name)}</div><div class="transaction-summary-value">${money(g.total,{currency:baseCurrency,locale})}</div><div class="metric-note">${g.count} Buchung${g.count===1?'':'en'}${top?` · ${escapeHtml(top)}`:''}</div></article>`; }).join('');
 
   return `
-    ${pageHeader({
-      title:'Transaktionen',
-      subtitle:'Einnahmen, Ausgaben und Umbuchungen. Fremdwährungen bleiben getrennt; es gibt keine automatische Fantasie-Umrechnung.',
-      actions: canWrite ? `<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="transaction-create" ${accounts.length?'':'disabled'}>${icon('plus')} Transaktion</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="transfer-create" ${accounts.length>1?'':'disabled'}>${icon('repeat')} Umbuchung</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="category-create-inline">${icon('plus')} Kategorie</button>` : '',
-    })}
-    ${accounts.length?'':`<div class="inline-alert"><strong>Zuerst ein Konto anlegen.</strong><span>Transaktionen benötigen ein Zielkonto.</span></div>`}
-    ${hasForeign ? `<div class="inline-alert"><strong>Monatskennzahlen nur in ${escapeHtml(baseCurrency)}.</strong><span>Transaktionen in anderen Währungen werden darunter einzeln korrekt angezeigt, aber ohne FX-Kurs nicht in die ${escapeHtml(baseCurrency)}-Summe gerechnet.</span></div>` : ''}
-    ${canWrite ? formShell('category-create-inline','Neue Kategorie','Direkt aus den Transaktionen anlegen',`<label class="field"><span>Name</span><input class="text-control" name="name" required></label><label class="field"><span>Typ</span><select class="text-control" name="kind"><option value="expense">Ausgabe</option><option value="income">Einnahme</option></select></label>`,{hidden:true,submitLabel:'Kategorie speichern'}) : ''}
-    ${canWrite ? formShell('transaction-create','Neue Transaktion','Manuelle Buchung',txFields,{hidden:true,submitLabel:'Transaktion speichern'}) : ''}
-    ${canWrite ? formShell('transaction-edit','Transaktion bearbeiten','Bestehende Buchung korrigieren',editFields,{hidden:true,submitLabel:'Änderungen speichern'}) : ''}
-    ${canWrite ? formShell('transfer-create','Umbuchung','Geld zwischen zwei eigenen Konten verschieben – auch mit Währungswechsel',transferFields,{hidden:true,submitLabel:'Umbuchung speichern'}) : ''}
-    <div class="metric-grid" style="margin-bottom:16px">
-      ${metricCard(`Einnahmen ${baseCurrency}`,money(income,{currency:baseCurrency,locale}),'aktueller Monat','positive')}
-      ${metricCard(`Ausgaben ${baseCurrency}`,money(expenses,{currency:baseCurrency,locale}),'aktueller Monat')}
-      ${metricCard(`Cashflow ${baseCurrency}`,money(income-expenses,{currency:baseCurrency,locale}),income-expenses>=0?'positiv':'negativ',income-expenses>=0?'positive':'warning')}
-    </div>
-    <article class="card card-padding">${transactions.length?`<div class="list">${transactions.slice(0,150).map((tx)=>transactionRow(tx,{locale,canWrite})).join('')}</div>`:emptyState('list','Noch keine Transaktionen','Erfasse eine Buchung oder importiere eine CSV-Datei.')}</article>
-  `;
+    ${pageHeader({title:'Transaktionen',subtitle:'Standardmässig kompakt nach Zeitraum und Ausgabenkategorie. Einzelbuchungen bleiben vollständig erhalten und jederzeit bearbeitbar.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="transaction-create">${icon('plus')} Transaktion</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="transfer-create" ${accounts.length>1?'':'disabled'}>${icon('repeat')} Umbuchung</button>`:''})}
+    ${canWrite?formShell('transaction-create','Neue Transaktion','Manuelle Buchung',txFields,{hidden:true,submitLabel:'Transaktion speichern'}):''}
+    ${canWrite?formShell('transaction-edit','Transaktion bearbeiten','Buchung, Zweck, Steuerstatus oder Wiederkehrend korrigieren',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('transfer-create','Umbuchung','Geld zwischen eigenen Konten verschieben',transferFields,{hidden:true,submitLabel:'Umbuchung speichern'}):''}
+    <div class="transaction-toolbar"><label class="field"><span>Zeitraum</span><select class="text-control" id="transactionPeriodSelect"><option value="month" ${transactionPeriod==='month'?'selected':''}>Monat</option><option value="quarter" ${transactionPeriod==='quarter'?'selected':''}>Quartal</option><option value="year" ${transactionPeriod==='year'?'selected':''}>Jahr</option></select></label><label class="field"><span>Ansicht</span><select class="text-control" id="transactionViewSelect"><option value="summary" ${transactionView==='summary'?'selected':''}>Kacheln</option><option value="details" ${transactionView==='details'?'selected':''}>Einzelbuchungen</option></select></label><div class="toolbar-note">${escapeHtml(periodLabel(transactionPeriod))} · ${escapeHtml(fxLabel(fxRates,baseCurrency))}</div></div>
+    <div class="metric-grid" style="margin-bottom:16px">${metricCard('Einnahmen',money(income,{currency:baseCurrency,locale}),periodLabel(transactionPeriod),'positive')}${metricCard('Ausgaben',money(expenses,{currency:baseCurrency,locale}),periodLabel(transactionPeriod))}${metricCard('Cashflow',money(income-expenses,{currency:baseCurrency,locale}),periodLabel(transactionPeriod),income-expenses>=0?'positive':'warning')}${metricCard('Sparen',money(savings,{currency:baseCurrency,locale}),'Umbuchungen auf Sparkonten','positive')}</div>
+    ${transactionView==='summary'?`<div class="transaction-summary-grid">${summary||emptyState('list','Noch keine Ausgaben','Für den gewählten Zeitraum liegen keine Ausgaben vor.')}</div>`:`<article class="card card-padding">${rows.length?`<div class="list transaction-detail-scroll">${rows.slice(0,200).map((tx)=>txRow(tx,{locale,canWrite,accounts,canTax})).join('')}</div>`:emptyState('list','Noch keine Transaktionen','Erfasse eine Buchung oder importiere eine CSV-Datei.')}</article>`}`;
 }

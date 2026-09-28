@@ -23,6 +23,17 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), { status, headers: cors(origin) });
 }
 
+
+async function listAllUsers(admin: any) {
+  const users: any[] = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    users.push(...data.users);
+    if (data.users.length < 1000) break;
+  }
+  return users;
+}
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
@@ -63,9 +74,10 @@ Deno.serve(async (req: Request) => {
       .order("created_at", { ascending: true });
     if (error) return json({ error: error.message }, 400, origin);
 
-    const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
-    if (usersError) return json({ error: usersError.message }, 400, origin);
-    const byId = new Map(usersData.users.map((u) => [u.id, u]));
+    let users;
+    try { users = await listAllUsers(admin); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : 'Benutzer konnten nicht geladen werden.' }, 400, origin); }
+    const byId = new Map(users.map((u) => [u.id, u]));
 
     return json({
       members: (members || []).map((m) => {
@@ -90,10 +102,28 @@ Deno.serve(async (req: Request) => {
     const role = String(body.role || "viewer");
     if (!["admin", "editor", "viewer"].includes(role)) return json({ error: "Ungültige Rolle." }, 400, origin);
 
-    const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
-    if (usersError) return json({ error: usersError.message }, 400, origin);
-    const user = usersData.users.find((u) => (u.email || "").toLowerCase() === email);
+    let users;
+    try { users = await listAllUsers(admin); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : 'Benutzer konnten nicht geladen werden.' }, 400, origin); }
+    const user = users.find((u) => (u.email || "").toLowerCase() === email);
     if (!user) return json({ error: "Benutzer wurde nicht gefunden. Bitte zuerst im Admin-Bereich anlegen." }, 404, origin);
+
+    const { data: existingMember, error: existingError } = await admin
+      .from("household_members")
+      .select("user_id")
+      .eq("household_id", householdId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existingError) return json({ error: existingError.message }, 400, origin);
+
+    if (!existingMember) {
+      const { count, error: countError } = await admin
+        .from("household_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("household_id", householdId);
+      if (countError) return json({ error: countError.message }, 400, origin);
+      if ((count || 0) >= 5) return json({ error: "Ein Haushalt kann maximal 5 Personen inklusive Owner enthalten." }, 400, origin);
+    }
 
     const { error } = await admin.from("household_members").upsert({
       household_id: householdId,

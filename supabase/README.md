@@ -1,4 +1,4 @@
-# Supabase · Finance V2.2 Beta
+# Supabase · Finance V2.3 Integrated Beta
 
 Projekt: `finance-v1`
 Region: `eu-central-1`
