@@ -8,7 +8,7 @@ sw=(ROOT/'sw.js').read_text(encoding='utf-8')
 errors=[]
 def check(ok,msg):
     if not ok: errors.append(msg)
-check(version=='69.0.0-beta.11','VERSION mismatch')
+check(version=='69.0.0-beta.12','VERSION mismatch')
 check(f"const APP_VERSION='{version}';" in app,'app.js version mismatch')
 check(f"version:'{version}'" in ctx,'app-context version mismatch')
 cache='aione-v'+version.replace('.','-')

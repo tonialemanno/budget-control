@@ -1,5 +1,19 @@
 # Changelog
 
+## 69.0.0-beta.12 — UX reset foundation
+
+- Replaces the normal desktop information architecture with five user-facing areas: Overview, My Money, Planning, Documents and More.
+- Bypasses the old module launcher after login and from Home/Back actions.
+- Introduces onboarding version 3, so every existing user must consciously re-confirm and save the new setup. Existing financial data is preserved.
+- Re-confirms the main account as an authoritative current-balance anchor; historical imports must not change the user-entered balance today.
+- Separates bank/cash assets from liabilities in onboarding, Overview and My Money. Debt is never stored as a negative bank account balance.
+- Adds distinct liability setup for mortgages, loans, credit-card debt, private debt and country-specific enforcement/collection cases. Optional monthly repayments are planned as transfers from an asset account to the liability.
+- Adds a country-finance registry for Switzerland and Germany. Merchants/providers are recognition hints, not categories.
+- Stops the live Supabase new-user trigger from assigning the same generic category list to every new account. Country starter categories are offered only after the user confirms the country and may also be skipped entirely.
+- Adds Beta-12 regression guards for asset/liability separation, country recognition, onboarding v3 and the simplified navigation.
+- Keeps Beta 10 current-balance anchor semantics and Beta 11 subscription lifecycle logic intact.
+
+
 ## 69.0.0-beta.11 — Subscription lifecycle completion
 
 - Server-derived feature and subscription lifecycle state.

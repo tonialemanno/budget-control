@@ -76,7 +76,7 @@
 <div id="plannerShell" class="planner-shell hidden" aria-label="Planer">
   <aside class="planner-sidebar">
     <div class="planner-brand"><div class="aione-wordmark compact"><span class="aione-main">aione</span><span class="aione-by">by agazone</span></div><span>Planer · verbunden mit Budget</span></div>
-    <button id="plannerHomeBtn" type="button" class="planner-home-btn">← Home</button>
+    <button id="plannerHomeBtn" type="button" class="planner-home-btn">← Übersicht</button>
     <nav id="plannerNav" class="planner-nav">
       <button type="button" data-planner-view="today"><span>Heute</span><span id="plannerCountToday" class="count">0</span></button>
       <button type="button" data-planner-view="overdue"><span>Überfällig</span><span id="plannerCountOverdue" class="count">0</span></button>
@@ -134,7 +134,7 @@
     <button type="button" data-planner-mobile-view="calendar"><span class="ico">▦</span><span>Kalender</span></button>
     <button type="button" data-planner-mobile-view="waiting"><span class="ico">⌛</span><span>Warten</span></button>
     <button type="button" class="active" data-planner-mobile-view="all"><span class="ico">≡</span><span>Alle</span></button>
-    <button type="button" id="plannerMobileHome"><span class="ico">⌂</span><span>Home</span></button>
+    <button type="button" id="plannerMobileHome"><span class="ico">⌂</span><span>Übersicht</span></button>
   </nav>
 </div>
 
@@ -219,7 +219,7 @@
 
   <main class="main">
     <div class="topbar">
-      <div><button id="budgetHomeBtn" type="button" class="module-home-back">← Home</button><div id="welcomeText" class="eyebrow">Hallo</div><div id="adminIdentityStrip" class="hidden" style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:4px 0"><span class="admin-badge ok">SUPERADMIN</span><span id="clientVersionLabel" class="small"></span></div><h1 id="pageTitle">Übersicht</h1></div>
+      <div><button id="budgetHomeBtn" type="button" class="module-home-back">← Übersicht</button><div id="welcomeText" class="eyebrow">Hallo</div><div id="adminIdentityStrip" class="hidden" style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:4px 0"><span class="admin-badge ok">SUPERADMIN</span><span id="clientVersionLabel" class="small"></span></div><h1 id="pageTitle">Übersicht</h1></div>
       <div class="actions">
         <button id="privacyToggle" type="button" class="btn secondary privacy-toggle" aria-pressed="false">◉ Sensible Daten verbergen</button>
         <button id="newAccountTop" class="btn secondary">+ Konto / Rücklage</button>
@@ -249,8 +249,12 @@
     <div class="hidden" aria-hidden="true"><div id="v66NetWorth"></div><div id="v66Available"></div><div id="v66Locked"></div><div id="v66Receivables"></div><div id="v66Liabilities"></div><div id="dashboardCalculationDetails"></div></div>
   </div>
   <div class="panel section-gap">
-    <div class="panel-head"><div><h2>Wo ist mein Geld?</h2><div class="small">Alle aktiven Konten – inklusive Karten, Bargeld, Revolut und gebundenen Konten. <span id="dashboardAccountCount" class="v662-account-count"></span></div></div><button class="btn secondary" data-go="accounts">Konten verwalten</button></div>
+    <div class="panel-head"><div><h2>Was du heute hast</h2><div class="small">Deine Konten, dein Bargeld und deine Rücklagen. Schulden werden hier bewusst nicht eingerechnet. <span id="dashboardAccountCount" class="v662-account-count"></span></div></div><button class="btn secondary" data-go="accounts">Mein Geld öffnen</button></div>
     <div id="dashboardAccountOverview" class="v66-account-overview"></div>
+  </div>
+  <div class="panel section-gap">
+    <div class="panel-head"><div><h2>Was du noch schuldest</h2><div class="small">Kredite, Hypotheken, Kreditkarten-Schulden und Betreibungen bleiben getrennt von deinen Kontoständen.</div></div><div style="text-align:right"><div class="small">Noch offen</div><strong id="dashboardDebtTotal">CHF 0.00</strong><br><button id="dashboardNewDebtBtn" type="button" class="btn secondary" style="margin-top:8px">+ Schuld / Kredit</button></div></div>
+    <div id="dashboardDebtOverview" class="v66-account-overview"></div>
   </div>
   <div class="v66-two-col section-gap">
     <div class="panel"><div class="panel-head"><div><h2>Diesen Monat</h2><div class="small">Geldfluss im aktuellen Monat – nicht dein Kontostand.</div></div><button class="btn ghost" data-go="transactions">Buchungen</button></div><div class="v66-flow-grid"><div><span>Eingegangen</span><strong id="v66MonthIncome">CHF 0.00</strong></div><div><span>Ausgegeben</span><strong id="v66MonthExpense">CHF 0.00</strong></div><div><span>Differenz</span><strong id="v66MonthNet">CHF 0.00</strong></div></div></div>
@@ -391,12 +395,19 @@
 
 <section id="accountsView" class="view">
   <div class="panel">
-    <div class="panel-head"><div><h2>Konten & Rücklagen</h2><div class="small">Aktuelle Bestände. Vorschauen sind bewusst separat.</div></div><button id="newAccountBtn" class="btn secondary">+ Anlegen</button></div>
-    <div class="v66-account-totals"><div><span>Gesamtvermögen</span><strong id="accountsNetWorth">CHF 0.00</strong></div><div><span>Konten + Bargeld</span><strong id="accountsTotal">CHF 0.00</strong></div><div><span>Gebunden</span><strong id="accountsLocked">CHF 0.00</strong></div><div><span>Aktive Konten</span><strong id="accountsCount">0</strong></div></div>
+    <div class="panel-head"><div><h2>Was du hast</h2><div class="small">Konten, Bargeld und Rücklagen. Diese Beträge bleiben unabhängig von deinen Schulden.</div></div><button id="newAccountBtn" class="btn secondary">+ Konto / Bargeld</button></div>
+    <div class="v66-account-totals"><div><span>Konten + Bargeld</span><strong id="accountsTotal">CHF 0.00</strong></div><div><span>Gebunden / Rücklagen</span><strong id="accountsLocked">CHF 0.00</strong></div><div><span>Konten & Guthaben</span><strong id="accountsCount">0</strong></div><div><span>Gesamtsituation</span><strong id="accountsNetWorth">CHF 0.00</strong><small style="display:block">Besitz minus Schulden</small></div></div>
     <div id="accountsTable" class="section-gap"></div>
-    <details id="archivedAccountsDetails" class="v66-details-clean section-gap"><summary>Archivierte Konten <span id="archivedAccountsCount"></span></summary><div class="inside"><div id="archivedAccountsList"></div></div></details>
   </div>
-  <details class="v66-details-clean section-gap" id="accountForecastDetails"><summary>Kontostand planen</summary><div class="inside"><div class="v681-explain"><strong>Was bedeutet das?</strong><span>Diese Vorschau verändert nichts. Sie zeigt, wie sich deine Konten entwickeln würden, wenn die bereits geplanten Ein- und Ausgänge im gewählten Zeitraum genau so eintreffen.</span></div><div class="period-controls"><select id="accForecastYear"></select><select id="accForecastKind"><option value="month">Monat</option><option value="quarter">Quartal</option><option value="half">Halbjahr</option><option value="year">Jahr</option></select><select id="accForecastValue"></select></div><div id="accountForecastLabel" class="small"></div><div id="accountForecastPreview"></div></div></details>
+  <div class="panel section-gap">
+    <div class="panel-head"><div><h2>Was du schuldest</h2><div class="small">Kredite, Hypotheken, Kreditkarten-Schulden und andere Verbindlichkeiten werden separat geführt.</div></div><button id="newDebtBtn" type="button" class="btn secondary">+ Schuld / Kredit</button></div>
+    <div class="v66-account-totals"><div><span>Noch offen</span><strong id="accountsLiabilities">CHF 0.00</strong></div><div><span>Erfasste Schulden</span><strong id="accountsLiabilityCount">0</strong></div></div>
+    <div id="accountsLiabilityTable" class="section-gap"></div>
+  </div>
+  <div class="panel section-gap">
+    <details id="archivedAccountsDetails" class="v66-details-clean"><summary>Archivierte Konten und Verbindlichkeiten <span id="archivedAccountsCount"></span></summary><div class="inside"><div id="archivedAccountsList"></div></div></details>
+  </div>
+  <details class="v66-details-clean section-gap" id="accountForecastDetails"><summary>Kontostände und Raten planen</summary><div class="inside"><div class="v681-explain"><strong>Was bedeutet das?</strong><span>Diese Vorschau verändert nichts. Sie zeigt Konten und Schulden weiterhin getrennt und berücksichtigt nur bereits geplante Ein-, Ausgänge und Raten.</span></div><div class="period-controls"><select id="accForecastYear"></select><select id="accForecastKind"><option value="month">Monat</option><option value="quarter">Quartal</option><option value="half">Halbjahr</option><option value="year">Jahr</option></select><select id="accForecastValue"></select></div><div id="accountForecastLabel" class="small"></div><div id="accountForecastPreview"></div></div></details>
 </section>
 
 <section id="transactionsView" class="view">
@@ -1367,6 +1378,7 @@
 
 <script src="./src/js/bootstrap-errors.js"></script>
 <script src="./src/core/region-registry.js"></script>
+<script src="./src/regions/country-finance.js"></script>
 <script src="./src/js/app.js"></script>
 <script src="./src/core/app-context.js"></script>
 <script src="./src/core/money.js"></script>

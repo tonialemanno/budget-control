@@ -2,37 +2,51 @@
   'use strict';
   const modules=[
     {key:'overview',label:'nav.home',view:'dashboard',feature:'dashboard',group:'overview'},
+
     {key:'accounts',label:'nav.accounts',view:'accounts',feature:'accounts',group:'money'},
     {key:'transactions',label:'nav.transactions',view:'transactions',feature:'transactions',group:'money'},
-    {key:'planned',label:'nav.planning',view:'planned',feature:'recurring',group:'money'},
-    {key:'reconcile',label:'nav.reconciliation',view:'reconcile',feature:'bank_reconciliation',group:'money'},
     {key:'bankImport',label:'nav.bankImport',view:'csv',feature:'csv_import',group:'money'},
-    {key:'categories',label:'nav.categories',view:'categoryDashboard',feature:'categories',group:'money'},
-    {key:'wealth',label:'nav.wealth',view:'wealth',feature:'net_worth',group:'money'},
-    {key:'tax',label:'nav.taxes',view:'tax',feature:'taxes',group:'obligations'},
-    {key:'debtEnforcement',label:'nav.debtEnforcement',view:'debtEnforcement',feature:null,group:'obligations',country:'CH'},
-    {key:'receivables',label:'nav.receivables',view:'receivables',feature:'claims',group:'obligations'},
+    {key:'reconcile',label:'nav.reconciliation',view:'reconcile',feature:'bank_reconciliation',group:'money',navVisible:false},
+    {key:'categories',label:'nav.categories',view:'categoryDashboard',feature:'categories',group:'money',navVisible:false},
+
+    {key:'planned',label:'nav.planning',view:'planned',feature:'recurring',group:'planning'},
+    {key:'planner',label:'nav.planner',special:'planner',group:'planning'},
+
     {key:'documents',label:'nav.documents',view:'documents',feature:'documents',group:'documents'},
-    {key:'analysis',label:'nav.analysis',view:'analysis',feature:'year_archive',group:'insights'},
-    {key:'cockpit',label:'nav.cockpit',view:'financeOS',feature:'cockpit',group:'insights'},
-    {key:'support',label:'nav.support',view:'support',feature:'support',group:'settings'},
-    {key:'settings',label:'nav.settings',view:'settings',feature:null,group:'settings'},
-    {key:'admin',label:'nav.admin',view:'admin',feature:'admin',group:'admin'}
+
+    {key:'wealth',label:'nav.wealth',view:'wealth',feature:'net_worth',group:'more'},
+    {key:'tax',label:'nav.taxes',view:'tax',feature:'taxes',group:'more'},
+    {key:'debtEnforcement',label:'nav.debtEnforcement',view:'debtEnforcement',feature:null,group:'more',country:'CH'},
+    {key:'receivables',label:'nav.receivables',view:'receivables',feature:'claims',group:'more'},
+    {key:'analysis',label:'nav.analysis',view:'analysis',feature:'year_archive',group:'more'},
+    {key:'cockpit',label:'nav.cockpit',view:'financeOS',feature:'cockpit',group:'more',navVisible:false},
+    {key:'support',label:'nav.support',view:'support',feature:'support',group:'more'},
+    {key:'settings',label:'nav.settings',view:'settings',feature:null,group:'more'},
+    {key:'admin',label:'nav.admin',view:'admin',feature:'admin',group:'more'}
   ];
+
   const groups=[
     {key:'overview',label:'nav.home',defaultModule:'overview'},
     {key:'money',label:'nav.money',defaultModule:'accounts'},
-    {key:'obligations',label:'nav.obligations',defaultModule:'tax'},
+    {key:'planning',label:'nav.plan',defaultModule:'planned'},
     {key:'documents',label:'nav.documents',defaultModule:'documents'},
-    {key:'planner',label:'nav.planner',special:'planner'},
-    {key:'insights',label:'nav.insights',defaultModule:'analysis'},
-    {key:'settings',label:'nav.settings',defaultModule:'settings'},
-    {key:'admin',label:'nav.admin',defaultModule:'admin',feature:'admin'}
+    {key:'more',label:'nav.more',defaultModule:'wealth'}
   ];
+
   function featureState(feature){
-    if(!feature)return'enabled';const b=window.AioneLegacyBridge;const c=b&&b.getContext?b.getContext():{};return(c.features&&c.features[feature])||'hidden';
+    if(!feature)return'enabled';
+    const b=window.AioneLegacyBridge,c=b&&b.getContext?b.getContext():{};
+    return(c.features&&c.features[feature])||'hidden';
   }
-  function visible(item){const ctx=window.AioneContext?window.AioneContext.get():{};if(item.country&&ctx.country!==item.country)return false;const f=item.feature;if(!f)return true;return['enabled','read_only'].includes(featureState(f))}
+  function visible(item){
+    const ctx=window.AioneContext?window.AioneContext.get():{};
+    if(item.country&&ctx.country!==item.country)return false;
+    if(item.special)return true;
+    if(!item.feature)return true;
+    return['enabled','read_only'].includes(featureState(item.feature));
+  }
   function groupModules(group){return modules.filter(m=>m.group===group&&visible(m))}
-  window.AioneModules={modules,groups,visible,groupModules,featureState};
+  function navModules(group){return groupModules(group).filter(m=>m.navVisible!==false)}
+
+  window.AioneModules={modules,groups,visible,groupModules,navModules,featureState};
 })();

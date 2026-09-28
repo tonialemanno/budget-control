@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta: `69.0.0-beta.11`.
+Current Beta: `69.0.0-beta.12`.
 
 ## Beta 69 direction
 
@@ -64,3 +64,8 @@ See `docs/BETA69_BETA11_SUBSCRIPTION_LIFECYCLE_TEST_REPORT.md` for regression ve
 
 
 Subscription lifecycle frontend completion, Admin plan + Family management, Trial extension and tax-year UUID fix.
+
+
+## Beta 69.0.0-beta.12 — UX reset foundation
+
+Beta 12 starts the usability rebuild without replacing the proven financial core. The first stage introduces a five-area navigation (`Übersicht`, `Mein Geld`, `Planen`, `Dokumente`, `Mehr`), onboarding version 3 for every user, explicit separation of assets and liabilities, and country-specific starter categories/merchant recognition for Switzerland and Germany. Existing accounts, transactions and documents remain in place; users confirm their current main-account balance again so the existing current-balance anchor remains authoritative. See `docs/BETA12_UX_RESET_FOUNDATION.md`.

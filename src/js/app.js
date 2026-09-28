@@ -11,7 +11,7 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='69.0.0-beta.11';
+const APP_VERSION='69.0.0-beta.12';
 let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,subscription:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],pendingFeatureChanges=new Map(),adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
@@ -371,7 +371,7 @@ function openPlannedModule(name){
 }
 
 async function enterAppBase(){
-  shell.classList.add('hidden');const home=q('#moduleHome'),plannerShell=q('#plannerShell');if(home)home.classList.add('hidden');if(plannerShell)plannerShell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();q('#userMail').textContent=(session.user&&session.user.email)||'';await loadAccessControl();q('#txDate').value=localDateISO();const cy=new Date().getFullYear();q('#dashboardPlanYear').innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');q('#dashboardPlanYear').value=String(cy);q('#dashboardPlanPeriod').value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');setTimeout(()=>loadPlannerData({silent:true}).then(()=>startPlannerReminderLoop()).catch(e=>console.warn('Planer konnte nicht vorgeladen werden',e)),60);budgetModuleStartView=(currentProfile&&currentProfile.default_start_view)||'dashboard';if(budgetModuleStartView==='admin')budgetModuleStartView='dashboard';view(budgetModuleStartView);const ai=q('#adminIdentityStrip'),sab=q('#superAdminBanner'),ver=q('#clientVersionLabel'),ms=q('#superAdminMfaState');if(ver)ver.textContent=APP_VERSION;if(accessCtl.isSuperAdminRole){if(ai)ai.classList.remove('hidden');if(sab)sab.classList.remove('hidden');if(ms)ms.textContent=currentAal()==='aal2'?'MFA bestätigt · Admin-Aktionen freigeschaltet':'MFA noch nicht bestätigt · Administration sichtbar, Änderungen gesperrt';if(currentAal()!=='aal2'){const promptKey='budget_mfa_prompted_'+session.user.id;if(!sessionStorage.getItem(promptKey)){sessionStorage.setItem(promptKey,'1');setTimeout(()=>{const vf=verifiedFactors();if(vf.length)openMfaLogin(vf[0].id,false);else openMfaSetup()},350)}}}showModuleHome()}else{shell.classList.add('hidden');if(home)home.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,'Daten konnten nicht sicher geladen werden. Bitte erneut anmelden.',true)}
+  shell.classList.add('hidden');const home=q('#moduleHome'),plannerShell=q('#plannerShell');if(home)home.classList.add('hidden');if(plannerShell)plannerShell.classList.add('hidden');authScreen.classList.add('hidden');resetUserRuntimeState();q('#userMail').textContent=(session.user&&session.user.email)||'';await loadAccessControl();q('#txDate').value=localDateISO();const cy=new Date().getFullYear();q('#dashboardPlanYear').innerHTML=Array.from({length:12},(_,i)=>cy-1+i).map(y=>'<option value="'+y+'">'+y+'</option>').join('');q('#dashboardPlanYear').value=String(cy);q('#dashboardPlanPeriod').value=localMonthISO();loadFinanceLocal();const ok=await reloadAll();if(ok){authScreen.classList.add('hidden');setTimeout(()=>loadPlannerData({silent:true}).then(()=>startPlannerReminderLoop()).catch(e=>console.warn('Planer konnte nicht vorgeladen werden',e)),60);budgetModuleStartView=(currentProfile&&currentProfile.default_start_view)||'dashboard';if(budgetModuleStartView==='admin')budgetModuleStartView='dashboard';view(budgetModuleStartView);const ai=q('#adminIdentityStrip'),sab=q('#superAdminBanner'),ver=q('#clientVersionLabel'),ms=q('#superAdminMfaState');if(ver)ver.textContent=APP_VERSION;if(accessCtl.isSuperAdminRole){if(ai)ai.classList.remove('hidden');if(sab)sab.classList.remove('hidden');if(ms)ms.textContent=currentAal()==='aal2'?'MFA bestätigt · Admin-Aktionen freigeschaltet':'MFA noch nicht bestätigt · Administration sichtbar, Änderungen gesperrt';if(currentAal()!=='aal2'){const promptKey='budget_mfa_prompted_'+session.user.id;if(!sessionStorage.getItem(promptKey)){sessionStorage.setItem(promptKey,'1');setTimeout(()=>{const vf=verifiedFactors();if(vf.length)openMfaLogin(vf[0].id,false);else openMfaSetup()},350)}}}openBudgetModule()}else{shell.classList.add('hidden');if(home)home.classList.add('hidden');authScreen.classList.remove('hidden');showMsg(authMsg,'Daten konnten nicht sicher geladen werden. Bitte erneut anmelden.',true)}
 }
 async function logout(){
   const token=session&&session.access_token;resetUserRuntimeState();try{localStorage.removeItem('budget_session')}catch(e){}try{sessionStorage.removeItem('budget_session')}catch(e){}session=null;shell.classList.add('hidden');const home=q('#moduleHome'),plannerShell=q('#plannerShell');if(home)home.classList.add('hidden');if(plannerShell)plannerShell.classList.add('hidden');authScreen.classList.remove('hidden');
@@ -379,7 +379,7 @@ async function logout(){
   location.replace(location.pathname+location.search)
 }
 q('#loginBtn').addEventListener('click',login);q('#signupBtn').addEventListener('click',signup);q('#logoutBtn').addEventListener('click',logout);
-q('#homeLogoutBtn').addEventListener('click',logout);q('#mobileLogoutBtn').addEventListener('click',logout);q('#budgetHomeBtn').addEventListener('click',showModuleHome);qa('[data-module]').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.module;if(m==='budget')openBudgetModule();else openPlannedModule(m)}));
+q('#homeLogoutBtn').addEventListener('click',logout);q('#mobileLogoutBtn').addEventListener('click',logout);q('#budgetHomeBtn').addEventListener('click',()=>view('dashboard'));qa('[data-module]').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.module;if(m==='budget')openBudgetModule();else openPlannedModule(m)}));
 q('#forgotPasswordBtn').addEventListener('click',()=>{hideMsg(q('#forgotPasswordMsg'));q('#forgotEmail').value=q('#authEmail').value.trim();q('#forgotPasswordDialog').showModal();applyLanguage(q('#forgotPasswordDialog'))});
 q('#forgotPasswordForm').addEventListener('submit',async e=>{e.preventDefault();hideMsg(q('#forgotPasswordMsg'));try{await sendPasswordReset(q('#forgotEmail').value.trim());showMsg(q('#forgotPasswordMsg'),'Wenn die Adresse registriert ist, wurde ein Reset-Link gesendet. Bitte E-Mail prüfen.',false)}catch(er){showMsg(q('#forgotPasswordMsg'),er.message,true)}});
 q('#resetPasswordForm').addEventListener('submit',async e=>{e.preventDefault();hideMsg(q('#resetPasswordMsg'));const a=q('#recoveryPassword1').value,b=q('#recoveryPassword2').value;if(a!==b)return showMsg(q('#resetPasswordMsg'),'Die Passwörter stimmen nicht überein.',true);if(a.length<10)return showMsg(q('#resetPasswordMsg'),'Bitte mindestens 10 Zeichen verwenden.',true);try{await updateRecoveredPassword(a);try{await fetch(SUPA+'/rest/v1/rpc/accept_my_invitation',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+recoveryAccessToken,'Content-Type':'application/json'},body:'{}',cache:'no-store'})}catch(e){}recoveryAccessToken=null;q('#resetPasswordDialog').close();showMsg(authMsg,'Passwort geändert. Du kannst dich jetzt anmelden.',false)}catch(er){showMsg(q('#resetPasswordMsg'),er.message,true)}});
@@ -457,7 +457,7 @@ async function reloadAll(){
   }catch(e){console.error('Secure reload failed',e);resetUserRuntimeState();alert('Daten konnten nicht geladen werden: '+e.message);return false}
 }
 
-function typeLabel(t){return tr(({bank:'Bankkonto',savings:'Sparkonto / Rücklage',cash:'Bargeld',fixed_deposit:'Festgeld',rental_deposit:'Mietkaution',receivable:'Forderung',investment:'Anlage',credit_card:'Kreditkarte / Schuld',other:'Sonstiges'})[t]||t)}
+function typeLabel(t){return tr(({bank:'Bankkonto',savings:'Sparkonto / Rücklage',cash:'Bargeld',fixed_deposit:'Festgeld',rental_deposit:'Mietkaution',receivable:'Forderung',investment:'Anlage',credit_card:'Kreditkarte / Teilzahlung',mortgage:'Hypothek / Immobilienkredit',loan:'Kredit / Darlehen',private_debt:'Private Schuld',debt_enforcement:'Betreibung',collection:'Inkasso / Vollstreckung',other_liability:'Andere Schuld',other:'Sonstiges'})[t]||t)}
 function txLabel(t){return tr(({expense:'Ausgabe',income:'Einnahme',transfer:'Umbuchung',loan_out:'Verliehen',loan_repayment:'Rückzahlung',adjustment:'Korrektur'})[t]||t)}
 function accountHtml(a){
   const pill=a.liquidity_class==='locked'?'<span class="pill locked">gebunden</span>':a.liquidity_class==='receivable'?'<span class="pill rec">Forderung</span>':'<span class="pill">verfügbar</span>';
@@ -726,10 +726,13 @@ function actualBankAndCashTotalCHF(){
   return actualBankTotalCHF()+actualCashTotalCHF()
 }
 function dashboardAccountRows(){
-  return accounts.filter(a=>a.active).slice().sort((x,z)=>{
+  return accounts.filter(a=>a.active&&a.asset_class==='asset').slice().sort((x,z)=>{
     const rank=a=>a.id===preferredAccountId()?0:a.account_type==='bank'?1:a.account_type==='savings'?2:a.account_type==='cash'?3:a.account_type==='rental_deposit'?5:4;
     return rank(x)-rank(z)||Number(x.sort_order||0)-Number(z.sort_order||0)||String(x.name).localeCompare(String(z.name),'de')
   })
+}
+function dashboardDebtRows(){
+  return accounts.filter(a=>a.active&&a.asset_class==='liability').slice().sort((x,z)=>Number(x.sort_order||0)-Number(z.sort_order||0)||String(x.name).localeCompare(String(z.name),'de'))
 }
 function pad2(n){return String(n).padStart(2,'0')}
 function periodRange(year,kind,value){
@@ -820,9 +823,12 @@ function renderV66Overview(){
   if(primary){const oldPrimary=primary.value||primaryDesired;primary.innerHTML=rows.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+money(a.balance,a.currency)+'</option>').join('');primary.value=rows.some(a=>a.id===oldPrimary)?oldPrimary:primaryDesired;const pa=accounts.find(x=>x.id===primary.value)||rows[0];if(pa){q('#dashboardPrimaryName').textContent=pa.name;q('#dashboardPrimaryBalance').textContent=money(pa.balance,pa.currency);q('#dashboardPrimaryMeta').textContent=(pa.institution||typeLabel(pa.account_type))+' · '+(pa.liquidity_class==='locked'?'gebunden':pa.asset_class==='liability'?'Schuld':'aktuell')+(pa.currency!=='CHF'?' · '+CHF.format(accountCurrentCHF(pa))+' in CHF':'')}}
   if(q('#dashboardAccountCount'))q('#dashboardAccountCount').textContent='· '+rows.length+' aktive Position'+(rows.length===1?'':'en');
   q('#dashboardAccountOverview').innerHTML=v66GroupAccounts(rows).map(([name,arr])=>{
-    const sum=arr.reduce((s,a)=>s+(a.asset_class==='liability'?-Math.abs(accountCurrentCHF(a)):accountCurrentCHF(a)),0);
-    return '<div class="v66-account-group"><div class="v66-account-group-head"><div><strong>'+esc(name)+'</strong><div class="small">'+arr.length+' Position'+(arr.length===1?'':'en')+'</div></div><div class="v66-account-group-total">'+CHF.format(sum)+'</div></div>'+arr.map(a=>'<div class="v66-account-item '+(a.liquidity_class==='locked'?'locked ':a.liquidity_class==='receivable'?'receivable ':'')+'click-row" data-dash-account="'+a.id+'"><div><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+' · '+esc(typeLabel(a.account_type))+(a.liquidity_class==='locked'?' · gebunden':a.account_type==='cash'?' · Bargeld':a.account_type==='receivable'?' · Forderung':a.asset_class==='liability'?' · Schuld':'')+'</div></div><div class="amount">'+money(a.balance,a.currency)+'</div></div>').join('')+'</div>'
-  }).join('')||'<div class="empty">Noch keine Konten.</div>';
+    const sum=arr.reduce((total,a)=>total+accountCurrentCHF(a),0);
+    return '<div class="v66-account-group"><div class="v66-account-group-head"><div><strong>'+esc(name)+'</strong><div class="small">'+arr.length+' Position'+(arr.length===1?'':'en')+'</div></div><div class="v66-account-group-total">'+CHF.format(sum)+'</div></div>'+arr.map(a=>'<div class="v66-account-item '+(a.liquidity_class==='locked'?'locked ':a.liquidity_class==='receivable'?'receivable ':'')+'click-row" data-dash-account="'+a.id+'"><div><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+' · '+esc(typeLabel(a.account_type))+(a.liquidity_class==='locked'?' · gebunden':a.account_type==='cash'?' · Bargeld':a.account_type==='receivable'?' · Forderung':'')+'</div></div><div class="amount">'+money(a.balance,a.currency)+'</div></div>').join('')+'</div>'
+  }).join('')||'<div class="empty">Noch keine Konten oder Guthaben erfasst.</div>';
+  const debtRows=dashboardDebtRows();
+  if(q('#dashboardDebtTotal'))q('#dashboardDebtTotal').textContent=CHF.format(liab);
+  if(q('#dashboardDebtOverview'))q('#dashboardDebtOverview').innerHTML=debtRows.length?debtRows.map(a=>'<div class="v66-account-item click-row" data-dash-debt="'+a.id+'"><div><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+' · '+esc(typeLabel(a.account_type))+'</div></div><div class="amount">'+money(Math.abs(Number(a.balance||0)),a.currency)+'</div></div>').join(''):'<div class="empty">Keine Kredite oder Schulden erfasst.</div>';
   const spot=q('#dashboardSpotlightAccount'),desired=currentProfile.dashboard_spotlight_account_id||preferredAccountId()||(rows[0]&&rows[0].id)||'';
   if(spot){const old=spot.value||desired;spot.innerHTML=rows.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' · '+money(a.balance,a.currency)+'</option>').join('');spot.value=rows.some(a=>a.id===old)?old:desired;const a=accounts.find(x=>x.id===spot.value)||rows[0];if(a){q('#dashboardSpotlightName').textContent=a.name;q('#dashboardSpotlightBalance').textContent=money(a.balance,a.currency);q('#dashboardSpotlightMeta').textContent=(a.institution||typeLabel(a.account_type))+' · '+(a.liquidity_class==='locked'?'gebunden':a.asset_class==='liability'?'Schuld':'aktuell')+(a.currency!=='CHF'?' · '+CHF.format(accountCurrentCHF(a))+' in CHF':'')}}
   const currentMonth=localDateISO().slice(0,7),monthRows=transactions.filter(t=>String(txDateValue(t)).slice(0,7)===currentMonth),inc=monthRows.reduce((s,t)=>s+transactionIncomeEffect(t),0),exp=Math.max(0,monthRows.reduce((s,t)=>s+transactionExpenseEffect(t),0));q('#v66MonthIncome').textContent=CHF.format(inc);q('#v66MonthExpense').textContent=CHF.format(exp);q('#v66MonthNet').textContent=CHF.format(inc-exp);
@@ -830,7 +836,7 @@ function renderV66Overview(){
   q('#dashboardNextPayments').innerHTML=upcoming.length?upcoming.map(p=>'<div class="v66-account-item"><div><strong>'+esc(p.description||p.counterparty||'Geplant')+'</strong><div class="meta">'+esc(planOccurrenceDate(p)||p.due_on)+' · '+esc(p.direction==='income'?'Eingang':p.direction==='transfer'?'Umbuchung':'Ausgabe')+'</div></div><div class="amount">'+(p.direction==='income'?'+ ':p.direction==='expense'?'− ':'')+money(p.amount,p.currency||'CHF')+'</div></div>').join(''):'<div class="empty">Keine offenen Zahlungen.</div>';
   q('#dashboardCalculationDetails').innerHTML='<div class="v66-account-totals"><div><span>Frei verfügbar</span><strong>'+CHF.format(area.availableTotal)+'</strong></div><div><span>Gebunden</span><strong>'+CHF.format(area.lockedTotal)+'</strong></div><div><span>Forderungen</span><strong>'+CHF.format(area.receivableTotal)+'</strong></div><div><span>Schulden</span><strong>− '+CHF.format(liab)+'</strong></div></div><div class="v66-plain-explain"><strong>Rechnung:</strong> '+CHF.format(area.availableTotal)+' + '+CHF.format(area.lockedTotal)+' + '+CHF.format(area.receivableTotal)+' − '+CHF.format(liab)+' = <strong>'+CHF.format(net)+'</strong>.</div>'+(liab<=0?'<div class="v662-debt-empty">Du hast aktuell keine Schuld-/Kreditkonten erfasst. Falls du eine Kreditkarte, ein Darlehen oder eine andere Schuld abbilden willst: <button type="button" class="action-link" data-add-debt>Schuld anlegen</button>.</div>':'');
 }
-function renderV66AccountTotals(){if(!q('#accountsTotal'))return;const rows=v66HoldingAccounts(),area=assetAreaTotals();if(q('#accountsNetWorth'))q('#accountsNetWorth').textContent=CHF.format(localNetWorthCHF());q('#accountsTotal').textContent=CHF.format(rows.reduce((s,a)=>s+accountCurrentCHF(a),0));if(q('#accountsAvailable'))q('#accountsAvailable').textContent=CHF.format(area.availableTotal);q('#accountsLocked').textContent=CHF.format(area.lockedTotal);q('#accountsCount').textContent=accounts.filter(a=>a.active).length}
+function renderV66AccountTotals(){if(!q('#accountsTotal'))return;const rows=v66HoldingAccounts(),area=assetAreaTotals(),assets=accounts.filter(a=>a.active&&a.asset_class==='asset'),liabilities=accounts.filter(a=>a.active&&a.asset_class==='liability'),liabilityTotal=liabilities.reduce((sum,a)=>sum+Math.abs(accountCurrentCHF(a)),0);if(q('#accountsNetWorth'))q('#accountsNetWorth').textContent=CHF.format(localNetWorthCHF());q('#accountsTotal').textContent=CHF.format(rows.reduce((sum,a)=>sum+accountCurrentCHF(a),0));if(q('#accountsAvailable'))q('#accountsAvailable').textContent=CHF.format(area.availableTotal);q('#accountsLocked').textContent=CHF.format(area.lockedTotal);q('#accountsCount').textContent=assets.length;if(q('#accountsLiabilities'))q('#accountsLiabilities').textContent=CHF.format(liabilityTotal);if(q('#accountsLiabilityCount'))q('#accountsLiabilityCount').textContent=liabilities.length}
 function renderV66TransactionContext(){if(!q('#txBalanceContext'))return;const rows=filteredTransactions(),inc=rows.reduce((s,t)=>s+transactionIncomeEffect(t),0),exp=Math.max(0,rows.reduce((s,t)=>s+transactionExpenseEffect(t),0)),flow=inc-exp,aid=q('#txFilterAccount').value,a=accounts.find(x=>x.id===aid);let html='<strong>Zeitraum-Ergebnis: '+CHF.format(flow)+'</strong> · Einnahmen minus Ausgaben im gewählten Filter. Umbuchungen verändern diesen Wert nicht.';if(a)html+='<br><strong>Aktueller Kontostand '+esc(a.name)+': '+money(a.balance,a.currency)+'</strong>. Dieser Kontostand ist ein Stand heute und ist deshalb nicht dasselbe wie der Geldfluss des gefilterten Zeitraums.';else html+='<br><strong>Aktuelle Bestände deiner Konten: '+CHF.format(v66HoldingTotalCHF())+'</strong>. Diese Summe ist ebenfalls ein heutiger Bestand, nicht der Zeitraum-Saldo.';q('#txBalanceContext').innerHTML=html}
 function renderV66FinanceSimple(){if(!q('#financeSimpleAvailable'))return;const area=assetAreaTotals(),today=localDateISO(),to=localDateISO(new Date(Date.now()+30*86400000));let delta=0;planned.filter(p=>['planned','pending'].includes(p.status)&&String(planOccurrenceDate(p)||p.due_on)>=today&&String(planOccurrenceDate(p)||p.due_on)<=to).forEach(p=>{if(p.direction==='income')delta+=planAmountCHF(p);else if(p.direction==='expense')delta-=planAmountCHF(p)});q('#financeSimpleAvailable').textContent=CHF.format(area.availableTotal);q('#financeSimple30').textContent=CHF.format(area.availableTotal+delta);if(q('#financeSimpleAnnual'))q('#financeSimpleAnnual').textContent=CHF.format(annualBillsMonthlyTotal());const taxText=currentProfile.tax_payment_mode==='reserve_account'?(accounts.find(a=>a.id===currentProfile.tax_reserve_account_id)?'Deine Steuer-Rücklage liegt auf '+accounts.find(a=>a.id===currentProfile.tax_reserve_account_id).name+'.':'Du hast „separates Rücklagenkonto“ gewählt, aber noch kein Konto ausgewählt.'):'Du bezahlst Steuern laut Einstellung direkt. aione zieht deshalb keine virtuelle Steuerreserve von deinem verfügbaren Geld ab.';q('#financeSimpleExplanation').innerHTML='<strong>Einfach gelesen:</strong> Heute sind '+CHF.format(area.availableTotal)+' tatsächlich frei verfügbar. Bekannte Zahlungen der nächsten 30 Tage verändern die Vorschau um '+CHF.format(delta)+'. Für deine hinterlegten Jahresrechnungen wären aktuell '+CHF.format(annualBillsMonthlyTotal())+' pro Monat sinnvoll. '+esc(taxText)}
 function applyUserPersonalization(){if(!currentProfile)return;document.body.dataset.density=currentProfile.dashboard_density||'calm';renderFinanceToolGrid()}
@@ -862,7 +868,7 @@ async function removeFamilyMember(userId){
 function renderAll(w,month){
   w=w||{};
   renderSafely('Übersicht Grundwerte',()=>{const area=assetAreaTotals();q('#welcomeText').textContent=greetingText();q('#netWorth').textContent=CHF.format(localNetWorthCHF());
-    const mainAcc=accounts.find(a=>a.id===preferredAccountId())||accounts.find(a=>a.active);const legacyMainLabel=q('.now-main .label');if(legacyMainLabel)legacyMainLabel.textContent=mainAcc?(mainAcc.name+' – aktuell'):'Standardkonto';q('#nowSalaryAccount').textContent=mainAcc?money(mainAcc.balance,mainAcc.currency):'—';q('#mainAccountMeta').textContent=mainAcc?((mainAcc.institution||typeLabel(mainAcc.account_type))+' · '+tr('bereits verbuchter Stand')):tr('Noch kein Hauptkonto gewählt');q('#nowCash').textContent=CHF.format(area.cashTotal);q('#nowLiquidMoney').textContent=CHF.format(area.spendableTotal);q('#nowLocked').textContent=CHF.format(area.lockedTotal);q('#nowReceivables').textContent=CHF.format(area.receivableTotal)});
+    const mainAcc=accounts.find(a=>a.id===preferredAccountId()&&a.active&&a.asset_class==='asset')||accounts.find(a=>a.active&&a.asset_class==='asset');const legacyMainLabel=q('.now-main .label');if(legacyMainLabel)legacyMainLabel.textContent=mainAcc?(mainAcc.name+' – aktuell'):'Standardkonto';q('#nowSalaryAccount').textContent=mainAcc?money(mainAcc.balance,mainAcc.currency):'—';q('#mainAccountMeta').textContent=mainAcc?((mainAcc.institution||typeLabel(mainAcc.account_type))+' · '+tr('bereits verbuchter Stand')):tr('Noch kein Hauptkonto gewählt');q('#nowCash').textContent=CHF.format(area.cashTotal);q('#nowLiquidMoney').textContent=CHF.format(area.spendableTotal);q('#nowLocked').textContent=CHF.format(area.lockedTotal);q('#nowReceivables').textContent=CHF.format(area.receivableTotal)});
   renderSafely('Dashboard Planung',renderDashboardPlan);
   renderSafely('Monatswerte',()=>{const currentMonth=new Date().toISOString().slice(0,7),monthRows=transactions.filter(x=>String(txDateValue(x)).slice(0,7)===currentMonth),inc=monthRows.reduce((s,x)=>s+transactionIncomeEffect(x),0),exp=Math.max(0,monthRows.reduce((s,x)=>s+transactionExpenseEffect(x),0));q('#monthIncome').textContent=CHF.format(inc);q('#monthExpense').textContent=CHF.format(exp);q('#monthResult').textContent=CHF.format(inc-exp)});
   renderSafely('Dashboard Konten',()=>{const dashAccs=dashboardAccountRows();q('#dashAccounts').innerHTML=dashAccs.length?dashAccs.map(a=>'<div class="account-row click-row" data-dash-account="'+a.id+'"><div><div class="name">'+esc(a.name)+(a.account_type==='cash'?'<span class="standard-pill">Bargeld</span>':'')+'</div><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+'</div></div><div style="text-align:right"><div class="amount">'+money(a.balance,a.currency)+'</div></div></div>').join(''):'<div class="empty">Noch keine Konten.</div>'});
@@ -1083,11 +1089,25 @@ async function changePassword(){
   try{const res=await fetch(SUPA+'/auth/v1/user',{method:'PUT',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({password:p})});const d=await res.json();if(!res.ok)throw new Error(d.msg||d.message||d.error_description||'Passwort konnte nicht geändert werden.');q('#settingsNewPassword').value='';q('#settingsNewPassword2').value='';showMsg(q('#securitySettingsMsg'),'Passwort wurde geändert.',false)}catch(e){showMsg(q('#securitySettingsMsg'),e.message,true)}
 }
 
+function renderAccountAssetRows(rows,plans){
+  if(!rows.length)return '<div class="empty">Noch keine Konten oder Guthaben erfasst.</div>';
+  return '<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Institut</th><th>Heute</th><th>Nach offenen Posten</th><th>Bis wann?</th><th></th></tr></thead><tbody>'+rows.map(a=>{const rel=plans.filter(p=>p.account_id===a.id||p.to_account_id===a.id),pv=Number(a.balance||0)+plannedDeltaForAccount(a,rel),last=rel.length?rel.map(p=>p.due_on).sort().slice(-1)[0]:'—';return '<tr class="click-row" data-account-detail="'+a.id+'"><td><strong>'+esc(a.name)+'</strong>'+(a.id===preferredAccountId()?'<span class="standard-pill">Hauptkonto</span>':'')+'<div class="meta">'+esc(typeLabel(a.account_type))+'</div></td><td>'+esc(a.institution||'—')+'</td><td><strong>'+money(a.balance,a.currency)+'</strong></td><td><strong>'+money(pv,a.currency)+'</strong><div class="meta">'+rel.length+' offene Posten</div></td><td>'+esc(last)+'</td><td><button class="action-link" data-edit-account="'+a.id+'">Bearbeiten</button></td></tr>'}).join('')+'</tbody></table></div>'
+}
+function renderAccountLiabilityRows(rows,plans){
+  if(!rows.length)return '<div class="empty">Keine Kredite oder Schulden erfasst.</div>';
+  return '<div class="table-wrap"><table class="table"><thead><tr><th>Schuld / Kredit</th><th>Gläubiger / Institut</th><th>Noch offen</th><th>Nach geplanten Raten</th><th>Nächste Planung</th><th></th></tr></thead><tbody>'+rows.map(a=>{const rel=plans.filter(p=>p.account_id===a.id||p.to_account_id===a.id),pv=Math.max(0,Number(a.balance||0)+plannedDeltaForAccount(a,rel)),next=rel.length?rel.map(p=>p.due_on).sort()[0]:'—';return '<tr class="click-row" data-account-detail="'+a.id+'"><td><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(typeLabel(a.account_type))+'</div></td><td>'+esc(a.institution||'—')+'</td><td><strong>'+money(Math.abs(Number(a.balance||0)),a.currency)+'</strong></td><td><strong>'+money(pv,a.currency)+'</strong><div class="meta">'+rel.length+' geplante Rate'+(rel.length===1?'':'n')+'</div></td><td>'+esc(next)+'</td><td><button class="action-link" data-edit-account="'+a.id+'">Bearbeiten</button></td></tr>'}).join('')+'</tbody></table></div>'
+}
 function renderAccounts(){
-  const activeAccounts=accounts.filter(a=>a.active),archived=accounts.filter(a=>!a.active);if(q('#archivedAccountsCount'))q('#archivedAccountsCount').textContent=archived.length?'('+archived.length+')':'';if(q('#archivedAccountsList'))q('#archivedAccountsList').innerHTML=archived.length?archived.map(a=>'<div class="v674-archived-row"><div><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+' · '+money(a.balance,a.currency)+'</div></div><button class="btn secondary" data-reactivate-account="'+a.id+'">Reaktivieren</button></div>').join(''):'<div class="empty">Keine archivierten Konten.</div>';
-  if(!activeAccounts.length){q('#accountsTable').innerHTML='<div class="empty">Keine aktiven Konten.</div>';return}
+  const activeAssets=accounts.filter(a=>a.active&&a.asset_class==='asset'),activeLiabilities=accounts.filter(a=>a.active&&a.asset_class==='liability'),archived=accounts.filter(a=>!a.active);
+  if(q('#archivedAccountsCount'))q('#archivedAccountsCount').textContent=archived.length?'('+archived.length+')':'';
+  if(q('#archivedAccountsList'))q('#archivedAccountsList').innerHTML=archived.length?archived.map(a=>'<div class="v674-archived-row"><div><strong>'+esc(a.name)+'</strong><div class="meta">'+esc(a.institution||typeLabel(a.account_type))+' · '+money(Math.abs(Number(a.balance||0)),a.currency)+'</div></div><button class="btn secondary" data-reactivate-account="'+a.id+'">Reaktivieren</button></div>').join(''):'<div class="empty">Keine archivierten Positionen.</div>';
   const r=selectedAccountRange(),plans=selectedAccountPlans();q('#accountForecastLabel').textContent='Vorschau: '+r.label+' · nur offene/geplante Posten in diesem Zeitraum';
-  q('#accountsTable').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Institut</th><th>Aktuell</th><th>Nach offenen Posten</th><th>Bis wann?</th><th></th></tr></thead><tbody>'+activeAccounts.map(a=>{const rel=plans.filter(p=>p.account_id===a.id||p.to_account_id===a.id),pv=Number(a.balance||0)+plannedDeltaForAccount(a,rel),last=rel.length?rel.map(p=>p.due_on).sort().slice(-1)[0]:'—';return '<tr class="click-row" data-account-detail="'+a.id+'"><td><strong>'+esc(a.name)+'</strong>'+(a.id===preferredAccountId()?'<span class="standard-pill">Standard</span>':'')+'<div class="meta">'+esc(typeLabel(a.account_type))+'</div></td><td>'+esc(a.institution||'—')+'</td><td><strong>'+money(a.balance,a.currency)+'</strong></td><td><strong>'+money(pv,a.currency)+'</strong><div class="meta">'+rel.length+' offene Posten</div></td><td>'+esc(last)+'</td><td><button class="action-link" data-edit-account="'+a.id+'">Konto bearbeiten</button></td></tr>'}).join('')+'</tbody></table></div>'
+  q('#accountsTable').innerHTML=renderAccountAssetRows(activeAssets,plans);
+  if(q('#accountsLiabilityTable'))q('#accountsLiabilityTable').innerHTML=renderAccountLiabilityRows(activeLiabilities,plans);
+  const liabilities=activeLiabilities.reduce((sum,a)=>sum+Math.abs(accountCurrentCHF(a)),0);
+  if(q('#accountsLiabilities'))q('#accountsLiabilities').textContent=CHF.format(liabilities);
+  if(q('#accountsCount'))q('#accountsCount').textContent=activeAssets.length;
+  if(q('#accountsLiabilityCount'))q('#accountsLiabilityCount').textContent=activeLiabilities.length;
 }
 
 function txFilterStorageKey(){return 'budget_tx_filters_'+((session&&session.user&&session.user.id)||'anonymous')}
@@ -1755,7 +1775,12 @@ function openRule(id){
   updateRuleForm();q('#ruleDialog').showModal()
 }
 q('#rulePaymentMode').addEventListener('change',()=>{if(!q('#ruleEditId').value)q('#ruleBusinessDayPolicy').value=q('#rulePaymentMode').value==='standing_order'?'previous':'exact'});
-q('#newAccountTop').addEventListener('click',()=>openAccount());q('#newAccountBtn').addEventListener('click',()=>openAccount());q('#newTxTop').addEventListener('click',()=>openTx());q('#newTxBtn').addEventListener('click',()=>openTx());q('#newPlanTop').addEventListener('click',()=>openPlan());q('#newPlanBtn').addEventListener('click',()=>openPlan());q('#newRuleBtn').addEventListener('click',()=>openRule());
+function openDebtAccount(){
+  openAccount();
+  q('#accountDialogTitle').textContent='Schuld / Kredit anlegen';
+  q('#accType').value='credit_card';q('#accClass').value='liability';q('#accLiquidity').value='available';q('#accName').value='';q('#accOpeningLabel').textContent='Noch offener Betrag heute';q('#accOpeningHelp').textContent='Diese Schuld wird getrennt von deinem Bankguthaben geführt.'
+}
+q('#newAccountTop').addEventListener('click',()=>openAccount());q('#newAccountBtn').addEventListener('click',()=>openAccount());q('#newDebtBtn')?.addEventListener('click',openDebtAccount);q('#dashboardNewDebtBtn')?.addEventListener('click',openDebtAccount);q('#newTxTop').addEventListener('click',()=>openTx());q('#newTxBtn').addEventListener('click',()=>openTx());q('#newPlanTop').addEventListener('click',()=>openPlan());q('#newPlanBtn').addEventListener('click',()=>openPlan());q('#newRuleBtn').addEventListener('click',()=>openRule());
 function showToast(text){const el=q('#appToast');if(!el)return;el.textContent=trMessage(text);el.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>el.classList.remove('show'),2600)}
 async function setUiLanguage(lang){if(!['de','it','en'].includes(lang))return;currentProfile.language_code=lang;moneyFormatters={};renderAll(currentWealth,[]);applyLanguage();try{if(session&&session.user)await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify({language_code:lang})});showToast('Gespeichert.')}catch(e){showToast(e.message)}}
 qa('[data-mobile-lang]').forEach(b=>b.addEventListener('click',()=>setUiLanguage(b.dataset.mobileLang)));
@@ -1990,7 +2015,7 @@ q('#dashboardPlanPeriod').addEventListener('change',renderDashboardPlan);q('#das
 
 q('#cashNowCard').addEventListener('click',()=>view('accounts'));q('#lockedNowCard').addEventListener('click',()=>view('accounts'));q('#receivablesNowCard').addEventListener('click',()=>view('receivables'));
 q('#dashboardWhereMoney').addEventListener('click',e=>{const row=e.target.closest('[data-wealth-scope]');if(!row)return;view('wealth');q('#wealthScope').value=row.dataset.wealthScope;renderWealthSelection()});
-q('#dashboardAccountOverview').addEventListener('click',e=>{const row=e.target.closest('[data-dash-account]');if(row)openAccountDetail(row.dataset.dashAccount)});
+q('#dashboardAccountOverview').addEventListener('click',e=>{const row=e.target.closest('[data-dash-account]');if(row)openAccountDetail(row.dataset.dashAccount)});q('#dashboardDebtOverview')?.addEventListener('click',e=>{const row=e.target.closest('[data-dash-debt]');if(row)openAccountDetail(row.dataset.dashDebt)});
 q('#wealthNewAccountBtn').addEventListener('click',()=>openAccount());q('#cashCountBtn').addEventListener('click',openCashCount);q('#cashCountAccount').addEventListener('change',updateCashCountCurrent);q('#cashCountForm').addEventListener('submit',async e=>{e.preventDefault();hideMsg(q('#cashCountMsg'));try{const a=accounts.find(x=>x.id===q('#cashCountAccount').value),actual=Number(q('#cashCountActual').value);if(!a||!Number.isFinite(actual))throw new Error('Bitte den gezählten Betrag eingeben.');await api('/rest/v1/rpc/reconcile_cash_balance',{method:'POST',body:JSON.stringify({p_account_id:a.id,p_counted_balance:actual,p_occurred_on:q('#cashCountDate').value,p_notes:q('#cashCountNotes').value.trim()||null})});q('#cashCountDialog').close();await reloadAll();view('wealth')}catch(er){showMsg(q('#cashCountMsg'),er.message,true)}});
 q('#wealthScope').addEventListener('change',renderWealthSelection);q('#wealthYear').addEventListener('change',renderWealthSelection);q('#wealthPeriod').addEventListener('change',renderWealthSelection);q('#wealthKind').addEventListener('change',()=>{fillPeriodValue('wealthKind','wealthPeriod',false);renderWealthSelection()});
 q('#wealthBankCards').addEventListener('click',e=>{const acc=e.target.closest('[data-account-scope]');if(acc){e.stopPropagation();q('#wealthScope').value=acc.dataset.accountScope;renderWealthSelection();return}const bank=e.target.closest('[data-bank-scope]');if(bank){q('#wealthScope').value=bank.dataset.bankScope;renderWealthSelection()}});
@@ -2477,7 +2502,7 @@ q('#exportAccountsPdfBtn').addEventListener('click',()=>exportRowsPdf('accounts'
 
 q('#dashboardPrimaryAccount').addEventListener('change',async()=>{const id=q('#dashboardPrimaryAccount').value;try{await patchProfileVerified({primary_account_id:id||null});renderV66Overview();showToast('Hauptkonto gespeichert.')}catch(e){renderV66Overview();showToast('Hauptkonto konnte nicht gespeichert werden: '+e.message)}});
 q('#dashboardSpotlightAccount').addEventListener('change',async()=>{const id=q('#dashboardSpotlightAccount').value;try{await patchProfileVerified({dashboard_spotlight_account_id:id||null});renderV66Overview();showToast('Startkonto gespeichert.')}catch(e){renderV66Overview();showToast('Startkonto konnte nicht gespeichert werden: '+e.message)}});
-q('#dashboardCalculationDetails').addEventListener('click',e=>{const b=e.target.closest('[data-add-debt]');if(b){openAccount();q('#accType').value='credit_card';q('#accClass').value='liability';q('#accLiquidity').value='available';q('#accName').value='Neue Schuld';}});
+q('#dashboardCalculationDetails').addEventListener('click',e=>{const b=e.target.closest('[data-add-debt]');if(b)openDebtAccount()});
 q('#wealthMovements').addEventListener('click',e=>{const b=e.target.closest('[data-wealth-tx]');if(b)openTx(b.dataset.wealthTx)});
 q('#wealthBankCards').addEventListener('click',e=>{const acc=e.target.closest('[data-account-scope]');if(acc){q('#wealthScope').value=acc.dataset.accountScope;q('#wealthMovementDetails').open=true;renderWealthSelection();setTimeout(()=>q('#wealthMovementDetails').scrollIntoView({behavior:'smooth',block:'start'}),30)}});
 q('#financeToolGrid').addEventListener('click',e=>{const b=e.target.closest('[data-finance-tool]');if(b)openFinanceTool(b.dataset.financeTool)});q('#financeToolClose').addEventListener('click',()=>closeFinanceTool());q('#financeToolDialog').addEventListener('cancel',e=>{e.preventDefault();closeFinanceTool()});
@@ -2636,7 +2661,7 @@ async function plannerExportExcel(){try{await ensureXLSX()}catch(e){showToast(e.
 function plannerImportDate(v){if(!v)return'';if(typeof v==='number'&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);if(d)return d.y+'-'+plannerPad(d.m)+'-'+plannerPad(d.d)}const s=String(v).trim();const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];const d=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);return d?d[3]+'-'+plannerPad(d[2])+'-'+plannerPad(d[1]):''}
 async function plannerImportExcel(file){try{await ensureXLSX()}catch(e){showToast(e.message);return}if(!window.XLSX)return showToast('Excel-Bibliothek konnte nicht geladen werden.');const buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:''});if(!rows.length)return showToast('Keine Zeilen gefunden.');if(!confirm(rows.length+' Planer-Zeilen importieren? Bestehende IDs werden aktualisiert, andere als neue Einträge angelegt.'))return;let ok=0,fail=0;for(const r of rows){try{const title=String(r.Titel||r.title||'').trim();if(!title){fail++;continue}const due=plannerImportDate(r['Fällig Datum']||r.due_on),dt=String(r['Fällig Uhrzeit']||'').trim().slice(0,5),follow=plannerImportDate(r['Follow-up Datum']||r.follow_up_on),ft=String(r['Follow-up Uhrzeit']||'').trim().slice(0,5),payload={area:String(r.Bereich||'Alltag').trim()||'Alltag',department:String(r.Unterbereich||'').trim()||null,item_type:String(r.Typ||'Aufgabe').trim()||'Aufgabe',reference:String(r.Referenz||'').trim()||null,title,description:String(r.Beschreibung||'').trim()||null,priority:['Hoch','Mittel','Niedrig'].includes(r.Priorität)?r.Priorität:'Mittel',status:['Offen','In Arbeit','Warten','Erledigt'].includes(r.Status)?r.Status:'Offen',due_on:due||null,due_has_time:!!(due&&dt),due_at:due&&dt?plannerIsoFromLocal(due,dt):null,follow_up_on:follow||null,follow_up_has_time:!!(follow&&ft),follow_up_at:follow&&ft?plannerIsoFromLocal(follow,ft):null,reminder_1_minutes:r['Erinnerung 1 Minuten']===''?null:Number(r['Erinnerung 1 Minuten']),reminder_2_minutes:r['Erinnerung 2 Minuten']===''?null:Number(r['Erinnerung 2 Minuten']),waiting_for:String(r['Warten auf']||'').trim()||null,next_step:String(r['Nächster Schritt']||'').trim()||null,notes:String(r.Notizen||'').trim()||null};const id=String(r.ID||'').trim(),existing=plannerItems.find(i=>i.id===id);if(existing)await api('/rest/v1/planner_items?id=eq.'+id,{method:'PATCH',body:JSON.stringify(payload)});else await api('/rest/v1/planner_items',{method:'POST',body:JSON.stringify(payload)});ok++}catch(e){fail++}}await loadPlannerData({silent:true});showToast(ok+' importiert'+(fail?' · '+fail+' übersprungen':''))}
 
-q('#plannerHomeBtn').addEventListener('click',showModuleHome);q('#plannerMobileHome').addEventListener('click',showModuleHome);q('#plannerBudgetBtn').addEventListener('click',openBudgetModule);q('#plannerNewBtn').addEventListener('click',()=>openPlannerItem());q('#plannerCalendarNew').addEventListener('click',()=>openPlannerItem(null,localDateISO()));q('#plannerNotifyBtn').addEventListener('click',requestPlannerNotifications);q('#plannerItemForm').addEventListener('submit',savePlannerItem);q('#plannerDeleteBtn').addEventListener('click',deletePlannerItem);q('#plannerBudgetLink').addEventListener('change',togglePlannerBudgetFields);q('#plannerItemDue').addEventListener('change',togglePlannerBudgetFields);q('#plannerAreasBtn').addEventListener('click',()=>{renderPlannerAreasDialog();q('#plannerAreasDialog').showModal()});
+q('#plannerHomeBtn').addEventListener('click',()=>{budgetModuleStartView='dashboard';openBudgetModule()});q('#plannerMobileHome').addEventListener('click',()=>{budgetModuleStartView='dashboard';openBudgetModule()});q('#plannerBudgetBtn').addEventListener('click',()=>{budgetModuleStartView='dashboard';openBudgetModule()});q('#plannerNewBtn').addEventListener('click',()=>openPlannerItem());q('#plannerCalendarNew').addEventListener('click',()=>openPlannerItem(null,localDateISO()));q('#plannerNotifyBtn').addEventListener('click',requestPlannerNotifications);q('#plannerItemForm').addEventListener('submit',savePlannerItem);q('#plannerDeleteBtn').addEventListener('click',deletePlannerItem);q('#plannerBudgetLink').addEventListener('change',togglePlannerBudgetFields);q('#plannerItemDue').addEventListener('change',togglePlannerBudgetFields);q('#plannerAreasBtn').addEventListener('click',()=>{renderPlannerAreasDialog();q('#plannerAreasDialog').showModal()});
 q('#plannerAddArea').addEventListener('click',async()=>{const name=q('#plannerNewArea').value.trim();if(!name)return;hideMsg(q('#plannerAreasMsg'));try{await api('/rest/v1/planner_areas',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({name,sort_order:plannerAreas.length*10,active:true})});q('#plannerNewArea').value='';plannerAreas=await api('/rest/v1/planner_areas?select=*&active=eq.true&order=sort_order.asc,name.asc')||[];renderPlannerAreaControls();showMsg(q('#plannerAreasMsg'),'Bereich gespeichert.',false)}catch(e){showMsg(q('#plannerAreasMsg'),e.message,true)}});
 q('#plannerAreaList').addEventListener('click',async e=>{const b=e.target.closest('[data-planner-area-delete]');if(!b)return;const a=plannerAreas.find(x=>x.id===b.dataset.plannerAreaDelete);if(!a||!confirm('Bereich „'+a.name+'“ aus der Auswahl entfernen? Bestehende Einträge bleiben erhalten.'))return;try{await api('/rest/v1/planner_areas?id=eq.'+a.id,{method:'DELETE'});plannerAreas=plannerAreas.filter(x=>x.id!==a.id);renderPlannerAreaControls()}catch(er){showMsg(q('#plannerAreasMsg'),er.message,true)}});
 q('#plannerNav').addEventListener('click',e=>{const b=e.target.closest('[data-planner-view]');if(b)setPlannerView(b.dataset.plannerView)});q('#plannerMobileNav').addEventListener('click',e=>{const b=e.target.closest('[data-planner-mobile-view]');if(b)setPlannerView(b.dataset.plannerMobileView)});qa('[data-planner-jump]').forEach(b=>b.addEventListener('click',()=>setPlannerView(b.dataset.plannerJump)));
@@ -2659,51 +2684,43 @@ function closeMobileMore(){q('#mobileMoreSheet').classList.remove('open');q('#mo
 q('#mobileMoreBtn').addEventListener('click',()=>{q('#mobileMoreSheet').classList.add('open');q('#mobileMoreSheet').setAttribute('aria-hidden','false')});q('#mobileMoreClose').addEventListener('click',closeMobileMore);q('#mobileMoreSheet').addEventListener('click',e=>{if(e.target===q('#mobileMoreSheet'))closeMobileMore()});qa('[data-mobile-more-view]').forEach(b=>b.addEventListener('click',async()=>{closeMobileMore();view(b.dataset.mobileMoreView);if(b.dataset.mobileMoreView==='admin')await renderAdmin();if(b.dataset.mobileMoreView==='support')await renderSupport()}));
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;updatePwaStatus()});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updatePwaStatus()});
 if('serviceWorker' in navigator&&(location.protocol==='https:'||['localhost','127.0.0.1'].includes(location.hostname))){
-  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=69010beta10':'./sw.js?v=69010beta10',swScope=edgeApp?'/functions/v1/budget-app':'./';
+  const edgeApp=location.pathname.indexOf('/functions/v1/budget-app')>=0,swUrl=edgeApp?'?asset=sw&v=69012beta12':'./sw.js?v=69012beta12',swScope=edgeApp?'/functions/v1/budget-app':'./';
   navigator.serviceWorker.getRegistrations().then(function(regs){return Promise.all(regs.map(function(r){return edgeApp&&/\/functions\/v1\/$/.test(new URL(r.scope).pathname)?r.unregister():Promise.resolve(false)}))}).catch(function(){}).then(function(){return navigator.serviceWorker.register(swUrl,{scope:swScope,updateViaCache:'none'})}).then(function(r){return r.update().catch(function(){})}).catch(function(e){console.warn('Service Worker',e)})
 }
 updatePwaStatus();
 
 
 /* ===== aione 68 · intelligence, release notes, feedback and live chat ===== */
-const AIONE_RELEASE={version:APP_VERSION,title:'aione · Stabilität & Bedienung',items:[
-  ['Schneller einsteigen','aione zeigt die Oberfläche früher an. Nicht notwendige Hintergrunddaten werden danach geladen.'],
-  ['Pop-ups passen auf den Bildschirm','Dialoge bleiben bei 100 % und 125 % Zoom vollständig bedienbar; Kopf und Aktionen bleiben erreichbar.'],
-  ['Konten direkt bedienen','Auf der Übersicht kannst du Konten oder Bargeld direkt anlegen. Kontodetails bieten Schnellaktionen für Buchungen, Planung und Bankabgleich.'],
-  ['Buchungen ruhiger filtern','Der aktuelle Monat ist der Standard. Weitere Filter sind nur sichtbar, wenn du sie brauchst.'],
-  ['Daueraufträge verständlicher','Ein neuer Dauerauftrag lässt sich direkt aus der Zahlungsplanung starten und kann ohne Enddatum bis auf Widerruf laufen.'],
-  ['Bankabgleich mit mehreren PDFs','Mehrere PDF-Kontoauszüge können gemeinsam analysiert werden. CSV und PDF-Stapel bleiben im vollständigen Bank-Import verfügbar.'],
-  ['Dokumente klarer einordnen','Belege, Rechnungen, Verträge, Garantien, Steuerdokumente und weitere Unterlagen werden verständlicher getrennt.'],
-  ['Familienchat in der Kopfleiste','Chat, Planer-Schnellzugriff, Benutzermenü und Abmelden sind auf Desktop direkt oben erreichbar.'],
-  ['Betreibungen verständlicher','Beschriftungen werden erst nach geladener Sprache aufgebaut; technische Übersetzungsschlüssel sollen nicht mehr sichtbar sein.']
+const AIONE_RELEASE={version:APP_VERSION,title:'aione · Einfacher starten',items:[
+  ['Neuer Start für alle','Auch bestehende Benutzer bestätigen Land, Hauptkonto und den heutigen Kontostand einmal neu. Vorhandene Buchungen und Dokumente bleiben erhalten.'],
+  ['Guthaben und Schulden getrennt','Konten und Bargeld zeigen, was du hast. Kredite, Hypotheken und andere Schulden werden separat geführt und verändern deinen Bankkontostand nicht.'],
+  ['Passend zu deinem Land','aione trennt Schweizer und deutsche Anbieter-Erkennung. Migros oder Swisscom gehören zur Schweiz; deutsche Anbieter werden separat erkannt.'],
+  ['Kategorien ohne Altlasten','Neue Benutzer erhalten nicht mehr automatisch dieselbe starre Kategorienliste. Nach der Länderauswahl kannst du passende Startkategorien übernehmen oder leer beginnen.'],
+  ['Weniger Navigation','Die Hauptbereiche sind jetzt Übersicht, Mein Geld, Planen, Dokumente und Mehr.'],
+  ['Historie bleibt Historie','Der von dir bestätigte Kontostand heute bleibt der Anker. Später geladene alte Bankbewegungen verändern diesen heutigen Stand nicht erneut.']
 ]};
 const AIONE_HELP=[
- ['Übersicht','Konten, verfügbare Mittel und die nächsten bekannten Zahlungen auf einen Blick.'],
- ['Buchungen','Einnahmen, Ausgaben, Umbuchungen, Tags, Kategorien und intelligente Zuordnung bearbeiten.'],
- ['Planer','Aufgaben, Termine, Follow-ups und Budget-Fälligkeiten gemeinsam planen.'],
- ['Zahlungen planen','Offene und wiederkehrende Zahlungen nach Monat vorbereiten, prüfen und übernehmen.'],
- ['Vermögen','Zeigt, wo Vermögen liegt und wie sich Konten, Rücklagen, Forderungen und Schulden zusammensetzen.'],
- ['Steuern','Provisorische und definitive Steuerrechnungen je Jahr erfassen und Zahlungen zuordnen.'],
- ['Dokumente & Rechnungen','Dokumente ablegen, Rechnungen erstellen und erwartete Einnahmen mit dem Budget verbinden.'],
- ['Import / Export','Bankdaten importieren, Dubletten prüfen sowie gefilterte Berichte exportieren.'],
- ['Familie','Eigene Logins, gemeinsamer Haushalt und ein geschützter Familienchat.'],
- ['Privatmodus','Verdeckt nur sensible Finanzdaten; Navigation und Bedienung bleiben lesbar.']
+ ['Übersicht','Zeigt zuerst, was du heute hast, was du noch schuldest und welche Zahlungen als Nächstes wichtig sind.'],
+ ['Mein Geld','Konten, Bargeld und Rücklagen bleiben von Krediten und Schulden getrennt. Buchungen und Bankdaten gehören zu deinem Geld-Alltag.'],
+ ['Planen','Zeigt kommende Einnahmen, Rechnungen, regelmässige Zahlungen und Raten.'],
+ ['Dokumente','Kontoauszüge, Rechnungen, Steuerunterlagen und weitere Belege an einem Ort.'],
+ ['Mehr','Steuern, Betreibungen, Vermögen, Analysen, Support und Einstellungen liegen hier, ohne die tägliche Ansicht zu überladen.'],
+ ['Kategorien','Kategorien beschreiben den Zweck einer Zahlung. Anbieter wie Migros, Coop, REWE oder Vodafone sind Erkennungshilfen und keine Kategorien.'],
+ ['Schulden','Eine Schuld wird als eigene Verbindlichkeit geführt. Nur die tatsächliche Rate beeinflusst den verfügbaren Betrag eines Monats; die gesamte Restschuld gehört in die Gesamtsituation.'],
+ ['Privatmodus','Verdeckt sensible Finanzdaten; Navigation und Bedienung bleiben lesbar.']
 ];
 let aioneSuggestion=null,aioneAiTimer=null,aioneAiCache=new Map(),aioneFamilyContext=null,aioneChatTimer=null;
 
 function aioneCategoryByHints(text,direction){
   text=normalizeRuleHay(text);if(!text||direction==='transfer')return null;
-  const maps=[
-    {words:['immobilien','hausverwaltung','liegenschaft','vermieter','mietzins','miete','wohnung','wohnen'],cats:['miete','wohnen','wohnung','haushalt'],conf:.82,reason:'Begriffe rund um Immobilie, Miete oder Wohnung erkannt.'},
-    {words:['sbb','cff','ffs','db bahn','deutsche bahn','bahn','flixbus','tram','bus ticket'],cats:['transport','mobilität','oev','öV','auto & transport'],conf:.88,reason:'Öffentlicher Verkehr oder Mobilitätsanbieter erkannt.'},
-    {words:['migros','coop','aldi','lidl','rewe','edeka','kaufland','denner','supermarkt'],cats:['lebensmittel','essen','haushalt'],conf:.86,reason:'Lebensmittel- oder Supermarkt-Händler erkannt.'},
-    {words:['axa','allianz','zurich','versicherung','helvetia','mobiliar'],cats:['versicherung','versicherungen'],conf:.82,reason:'Versicherungsbezug erkannt.'},
-    {words:['swisscom','salt','sunrise','telekom','vodafone','o2','internet','mobile'],cats:['telefon','telekom','internet','kommunikation'],conf:.80,reason:'Telekommunikationsanbieter erkannt.'},
-    {words:['netflix','spotify','disney','apple.com/bill','google play','youtube premium'],cats:['abo','abonnement','streaming','freizeit'],conf:.82,reason:'Digitales Abonnement erkannt.'},
-    {words:['shell','avia','esso','aral','bp ','tankstelle','tanken'],cats:['auto','transport','mobilität'],conf:.78,reason:'Tankstelle oder Fahrzeugkosten erkannt.'},
-    {words:['arzt','praxis','apotheke','spital','klinik','zahnarzt'],cats:['gesundheit','arzt','medizin'],conf:.80,reason:'Gesundheitsbezug erkannt.'}
-  ];
-  for(const m of maps){if(!m.words.some(w=>text.includes(normalizeRuleHay(w))))continue;const cat=categories.find(c=>m.cats.some(n=>normalizeRuleHay(c.name).includes(normalizeRuleHay(n))));if(cat)return{category_id:cat.id,confidence:m.conf,source:'semantic',reason:m.reason}}
+  const country=beta69CountryCode(),registry=window.AioneCountryFinance;
+  const maps=registry?registry.merchantHints(country):[];
+  for(const m of maps){
+    if(!m.words.some(w=>text.includes(normalizeRuleHay(w))))continue;
+    const aliases=m.categories||m.cats||[];
+    const cat=categories.find(c=>aliases.some(n=>normalizeRuleHay(c.name).includes(normalizeRuleHay(n))));
+    if(cat)return{category_id:cat.id,confidence:Number(m.confidence||m.conf||.8),source:'semantic',reason:m.reason||'Passender Anbieter erkannt.'}
+  }
   return null;
 }
 function aioneHistorySuggestion(text,direction){
@@ -2931,8 +2948,8 @@ function calculateAffordability(){
 // General lifecycle additions are integrated into renderAll() and view().
 
 // Beta 69 compatibility bridge. It exposes only the minimum state/actions required by the new shell.
-function beta69AccountSnapshot(){return (accounts||[]).filter(a=>a.active!==false).map(a=>({id:a.id,name:a.name||'',institution:a.institution||'',account_type:a.account_type||'bank',currency:a.currency||'CHF',opening_balance:Number(a.opening_balance||0),balance:Number(a.balance||0),primary:a.id===(currentProfile&&currentProfile.primary_account_id)}))}
-function beta69ContextSnapshot(){return{profile:Object.assign({},currentProfile||{}),accounts:beta69AccountSnapshot(),email:session&&session.user&&session.user.email||null,role:accessCtl&&accessCtl.role&&accessCtl.role.role||null,features:Object.assign({},accessCtl&&accessCtl.features||{}),version:APP_VERSION}}
+function beta69AccountSnapshot(){return (accounts||[]).filter(a=>a.active!==false).map(a=>({id:a.id,name:a.name||'',institution:a.institution||'',account_type:a.account_type||'bank',asset_class:a.asset_class||'asset',liquidity_class:a.liquidity_class||'available',currency:a.currency||'CHF',opening_balance:Number(a.opening_balance||0),balance:Number(a.balance||0),active:a.active!==false,primary:a.id===(currentProfile&&currentProfile.primary_account_id)}))}
+function beta69ContextSnapshot(){return{profile:Object.assign({},currentProfile||{}),accounts:beta69AccountSnapshot(),categories:(categories||[]).filter(c=>c.active!==false).map(c=>({id:c.id,name:c.name||'',direction:c.direction||'expense',active:c.active!==false})),email:session&&session.user&&session.user.email||null,role:accessCtl&&accessCtl.role&&accessCtl.role.role||null,features:Object.assign({},accessCtl&&accessCtl.features||{}),version:APP_VERSION}}
 function beta69EmitContext(){try{window.dispatchEvent(new CustomEvent('aione:legacy-context',{detail:beta69ContextSnapshot()}))}catch(e){}}
 async function beta69SaveOnboardingProfile(input){
   if(!session||!session.user)throw new Error('Keine aktive Sitzung.');input=input||{};
@@ -2947,8 +2964,53 @@ async function beta69CreateInitialAccount(input){
   const anchorDate=localDateISO(),body={name,institution:String(input.institution||'').trim()||null,account_type:'bank',asset_class:'asset',liquidity_class:'available',opening_balance:currentBalance,balance_anchor_date:anchorDate,balance_anchor_amount:currentBalance,currency,fx_rate_to_chf:currency==='CHF'?1:Number(eurRate()||1),notes:'Ersteinrichtung aione',active:true};
   const rows=await api('/rest/v1/accounts?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});if(!rows||!rows[0])throw new Error('Konto konnte nicht angelegt werden.');await reloadAll();return rows[0]
 }
+async function beta12ConfirmAccountCurrentBalance(accountId,currentBalance){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');
+  const a=(accounts||[]).find(x=>x.id===accountId);if(!a||a.asset_class!=='asset')throw new Error('Bitte ein normales Bank- oder Sparkonto wählen.');
+  const amount=Number(currentBalance);if(!Number.isFinite(amount))throw new Error('Ungültiger Kontostand.');
+  await api('/rest/v1/accounts?id=eq.'+accountId,{method:'PATCH',body:JSON.stringify({balance_anchor_date:localDateISO(),balance_anchor_amount:amount})});
+  return true
+}
+async function beta12ConfirmLiabilityCurrentBalance(accountId,currentBalance){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');
+  const a=(accounts||[]).find(x=>x.id===accountId);if(!a||a.asset_class!=='liability')throw new Error('Die ausgewählte Position ist keine Schuld.');
+  const amount=Math.abs(Number(currentBalance));if(!Number.isFinite(amount))throw new Error('Ungültiger Schuldbetrag.');
+  await api('/rest/v1/accounts?id=eq.'+accountId,{method:'PATCH',body:JSON.stringify({balance_anchor_date:localDateISO(),balance_anchor_amount:amount})});
+  return true
+}
+async function beta12CreateOnboardingLiability(input){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');input=input||{};
+  const name=String(input.name||'').trim();if(!name)throw new Error('Bitte einen Namen für die Schuld eingeben.');
+  const outstanding=Math.abs(Number(input.outstanding||0));if(!Number.isFinite(outstanding))throw new Error('Ungültiger Schuldbetrag.');
+  const currency=String(input.currency||currentProfile.base_currency||'CHF').toUpperCase(),type=String(input.type||'other_liability');
+  const body={name,institution:String(input.institution||'').trim()||null,account_type:type,asset_class:'liability',liquidity_class:'available',opening_balance:outstanding,balance_anchor_date:localDateISO(),balance_anchor_amount:outstanding,currency,fx_rate_to_chf:currency==='CHF'?1:Number(eurRate()||1),notes:'Im Beta-12-Setup als Verbindlichkeit erfasst',active:true};
+  const rows=await api('/rest/v1/accounts?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});const debt=rows&&rows[0];if(!debt)throw new Error('Schuld konnte nicht gespeichert werden.');
+  const monthly=Math.abs(Number(input.monthly_payment||0)),primary=String(input.primary_account_id||'');
+  if(monthly>0&&primary){const day=Math.max(1,Math.min(31,Number(input.due_day||1)));await api('/rest/v1/recurring_rules',{method:'POST',body:JSON.stringify({name:'Rate · '+name,direction:'transfer',amount:monthly,account_id:primary,to_account_id:debt.id,category_id:null,counterparty:name,description:'Rückzahlung · '+name,notes:'Im Beta-12-Setup erfasst',recurrence:'monthly',day_of_month:day,start_on:localDateISO(),payment_mode:'manual',active:true,currency})})}
+  return debt
+}
+async function beta12SaveLiabilityPayment(input){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');input=input||{};
+  const debtId=String(input.account_id||''),primary=String(input.primary_account_id||''),monthly=Math.abs(Number(input.monthly_payment||0));
+  if(!debtId||!primary||!(monthly>0))return true;
+  const day=Math.max(1,Math.min(31,Number(input.due_day||1))),currency=String(input.currency||currentProfile.base_currency||'CHF').toUpperCase(),name=String(input.name||'Schuld').trim()||'Schuld';
+  const existing=(recurringRules||[]).find(r=>r.active!==false&&r.direction==='transfer'&&r.to_account_id===debtId);
+  const body={name:'Rate · '+name,direction:'transfer',amount:monthly,account_id:primary,to_account_id:debtId,category_id:null,counterparty:name,description:'Rückzahlung · '+name,notes:'Im Beta-12-Setup erfasst',recurrence:'monthly',day_of_month:day,start_on:existing&&existing.start_on||localDateISO(),payment_mode:'manual',active:true,currency};
+  if(existing)await api('/rest/v1/recurring_rules?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify(body)});
+  else await api('/rest/v1/recurring_rules',{method:'POST',body:JSON.stringify(body)});
+  return true
+}
+async function beta12ApplyCountryCategories(country,mode){
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');
+  if(mode!=='recommended')return true;
+  const registry=window.AioneCountryFinance;if(!registry)return true;
+  const starter=registry.starterCategories(country),existing=new Set((categories||[]).filter(c=>c.active!==false).map(c=>normalizeRuleHay(c.name)));
+  const missing=starter.filter(c=>!existing.has(normalizeRuleHay(c.name))).map(c=>({name:c.name,direction:c.direction,sort_order:c.sort_order,active:true}));
+  if(missing.length)await api('/rest/v1/categories',{method:'POST',body:JSON.stringify(missing)});
+  return true
+}
 async function beta69CompleteOnboarding(primaryAccountId){
-  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');const body={onboarding_version:2,onboarding_completed_at:new Date().toISOString()};if(primaryAccountId)body.primary_account_id=primaryAccountId;
+  if(!session||!session.user)throw new Error('Keine aktive Sitzung.');const body={onboarding_version:3,onboarding_completed_at:new Date().toISOString()};if(primaryAccountId)body.primary_account_id=primaryAccountId;
   await api('/rest/v1/profiles?user_id=eq.'+session.user.id,{method:'PATCH',body:JSON.stringify(body)});Object.assign(currentProfile,body);await reloadAll();beta69EmitContext();return beta69ContextSnapshot()
 }
 async function beta69LoadFamilyChatData(){
@@ -2970,13 +3032,18 @@ window.AioneLegacyBridge={
   getNotificationData:beta69NotificationData,
   saveOnboardingProfile:beta69SaveOnboardingProfile,
   createInitialAccount:beta69CreateInitialAccount,
+  confirmAccountCurrentBalance:beta12ConfirmAccountCurrentBalance,
+  confirmLiabilityCurrentBalance:beta12ConfirmLiabilityCurrentBalance,
+  createOnboardingLiability:beta12CreateOnboardingLiability,
+  saveLiabilityPayment:beta12SaveLiabilityPayment,
+  applyCountryCategories:beta12ApplyCountryCategories,
   completeOnboarding:beta69CompleteOnboarding,
   request:(path,options)=>api(path,options),
   toast:text=>showToast(text),
   navigate:name=>view(name),
   openPlanner:()=>openPlannerModule(),
   openBudget:()=>openBudgetModule(),
-  showHome:()=>showModuleHome(),
+  showHome:()=>{budgetModuleStartView='dashboard';return openBudgetModule()},
   logout:()=>logout()
 };
 // Beta 69 context/view events are emitted by the consolidated lifecycle functions.
