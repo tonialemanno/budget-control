@@ -1,28 +1,21 @@
-# aione
+# Finance App V1.3 – Admin Foundation
 
-One repository, two release states:
+Finance Core mit produktiver Supabase-Basis und administrativ verwalteten Benutzerkonten.
 
-- branch `stable` + Git tag `stable-68.1.0`: protected baseline before refactoring.
-- branch `beta`: all refactoring and future development.
+## Enthalten
 
-Current Beta package: `68.1.1-beta.1`.
+- Login ohne öffentliche Registrierung in der Finance-Oberfläche
+- erster Finance-Benutzer als Owner/Admin
+- Admin-Navigation nur für Administratoren
+- Benutzerliste
+- Benutzer direkt im Admin-Bereich anlegen
+- neue Benutzer werden serverseitig automatisch bestätigt
+- Service-Role-Key bleibt ausschließlich in der Supabase Edge Function
+- Konten, Kategorien und Transaktionen aus Finance V1.2
+- RLS und getrennte Haushaltsdaten
 
-Phase 1 externalizes CSS and JavaScript only. The extracted application JavaScript and CSS blocks are byte-identical to the Stable baseline. Business logic is not rewritten.
+## Wichtig
 
-Run over HTTP(S), not `file://`:
+Öffentliche Sign-ups sollen zusätzlich in Supabase Auth deaktiviert werden. Benutzer werden danach nur noch über den Finance-Admin-Bereich angelegt.
 
-```bash
-python3 -m http.server 8765
-```
-
-Checks:
-
-```bash
-python3 tests/check_integrity.py
-node --check src/js/bootstrap-errors.js
-node --check src/js/app.js
-```
-
-Read `docs/REFACTORING_PLAN.md` before the next code movement.
-
-See `docs/AUDIT.md` for the source audit and `docs/TEST_REPORT_PHASE1.md` for the exact verification status.
+Das alte Projekt `budget` bleibt vom neuen Finance-V1-Projekt getrennt.
