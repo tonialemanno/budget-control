@@ -1,10 +1,10 @@
-# Version 2.0.0-working-beta
+# Version 2.1.0-functional-beta
 
 Stand: 28.09.2026
 
 ## Status
 
-Erste durchgehend manuell nutzbare Beta des neuen Finance-Systems.
+Funktional gehärtete Beta des neuen Finance-Systems mit editierbaren Konten/Buchungen, Mehrwährungskonten, Zugriffstransparenz und backendseitiger Modulprüfung.
 
 ## Enthalten
 

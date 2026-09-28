@@ -7,12 +7,12 @@ export function renderIntelligence({ transactions = [], accounts = [], bills = [
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const ninety = new Date(now); ninety.setDate(ninety.getDate()-90);
-  const booked = transactions.filter((t)=>t.status==='booked'&&!t.transfer_group_id);
+  const booked = transactions.filter((t)=>t.status==='booked'&&!t.transfer_group_id&&t.currency===currency);
   const monthRows = booked.filter((t)=>new Date(t.occurred_at)>=monthStart);
   const income = monthRows.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+Number(t.amount),0);
   const expenses = Math.abs(monthRows.filter((t)=>Number(t.amount)<0).reduce((s,t)=>s+Number(t.amount),0));
   const savingsRate = income>0 ? ((income-expenses)/income)*100 : 0;
-  const cash = accounts.filter((a)=>['checking','savings','cash'].includes(a.account_type)).reduce((s,a)=>s+Number(a.current_balance||0),0);
+  const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type)&&a.currency===currency).reduce((s,a)=>s+Number(a.current_balance||0),0);
   const trailingExpenses = Math.abs(booked.filter((t)=>new Date(t.occurred_at)>=ninety && Number(t.amount)<0).reduce((s,t)=>s+Number(t.amount),0));
   const avgMonthlyExpenses = trailingExpenses/3;
   const runway = avgMonthlyExpenses>0 ? cash/avgMonthlyExpenses : 0;
@@ -28,7 +28,7 @@ export function renderIntelligence({ transactions = [], accounts = [], bills = [
   const forecast = cash + income - expenses - openBills;
 
   return `
-    ${pageHeader({title:'Finance Intelligence',subtitle:'Analyse aus deinen eigenen Finance-Core-Daten. Keine externen Annahmen und keine versteckte Buchhaltungslogik.'})}
+    ${pageHeader({title:'Finance Intelligence',subtitle:'Analyse aus deinen eigenen Finance-Core-Daten. Fremdwährungen werden ohne FX-Kurs nicht in die Basiswährung eingerechnet.'})}
     <div class="grid-hero">
       <article class="card card--accent hero-card"><div><div class="hero-label">Runway</div><div class="hero-value">${runway.toFixed(1)} Monate</div><div class="hero-caption">Liquidität geteilt durch den Durchschnitt der letzten 90 Tage</div></div></article>
       <div class="metric-grid">${metricCard('Cashflow Monat',money(income-expenses,{currency,locale}),'Einnahmen minus Ausgaben',income-expenses>=0?'positive':'warning')}${metricCard('Sparquote',percent(savingsRate,1,locale),'aktueller Monat')}${metricCard('Fixkostenquote',percent(fixedRatio,1,locale),'Verträge + Versicherungen + Raten')}${metricCard('Schuldenquote',percent(debtRatio,1,locale),'Restschuld / Vermögen')}</div>

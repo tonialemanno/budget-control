@@ -1,6 +1,20 @@
-# Finance V2 – Working Beta
+# Finance V2.1 – Functional Beta
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
+
+
+## Korrekturen in V2.1
+
+- sichtbare Login-E-Mail, Haushaltsrolle, Systemrolle, aktive und weitere Module
+- Konten editierbar; aktueller Saldo kann als neuer Balance-Anker korrigiert werden, auch negativ
+- Kontowährung ist unabhängig vom Wohnland; CHF/EUR/USD/GBP und Onlinekonto/Wallet sind möglich
+- Fremdwährungen werden ohne Kursquelle nicht zu falschen Gesamtsummen vermischt
+- Fremdwährungs-Umbuchungen speichern Abgang und Eingang in ihren jeweiligen Originalwährungen
+- CSV-Dublettenprüfung auf belastbarem Unique-Constraint
+- Unterkategorien-RLS korrigiert
+- deaktivierte Module zusätzlich durch restriktive RLS geschützt
+- Viewer/Editor/Admin/Owner werden in UI und Aktionen klarer getrennt
+- kompakterer Seitenkopf und scrollbare Navigation, damit Inhalte früher sichtbar sind
 
 ## Was jetzt produktiv im Beta-Umfang funktioniert
 

@@ -4,7 +4,7 @@
 }
 
 @media (max-width: 900px) {
-  :root { --topbar-height: 80px; }
+  :root { --topbar-height: 70px; }
   .sidebar {
     width: min(310px, calc(100vw - 46px)); transform: translateX(-104%);
     transition: transform .26s var(--ease); box-shadow: var(--shadow-md);
@@ -27,7 +27,8 @@
 
 @media (max-width: 660px) {
   body { background: var(--bg); }
-  .topbar { height: 74px; padding: 12px 14px; }
+  :root { --topbar-height: 70px; }
+  .topbar { padding: 10px 14px; }
   .topbar-title { font-size: 18px; }
   .eyebrow { display: none; }
   .topbar-actions { gap: 7px; }
@@ -44,7 +45,6 @@
   .card { border-radius: 21px; }
   .card-padding { padding: 18px; }
   .account-card { min-height: 146px; }
-  .profile-button { display: none; }
   .section-heading { margin-top: 24px; }
   .data-table th:nth-child(2), .data-table td:nth-child(2) { display: none; }
   .settings-row { align-items: flex-start; flex-direction: column; padding: 14px 0; gap: 10px; }
@@ -67,4 +67,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+
+@media (max-width: 900px) {
+  .profile-popover { right: 14px; }
+}
+@media (max-width: 660px) {
+  .profile-button { display: flex; padding: 4px; min-height: 40px; }
+  .profile-button .profile-copy, .profile-button > svg { display: none; }
+  .profile-avatar { width: 32px; height: 32px; }
+  .profile-popover { top: 64px; right: 10px; width: calc(100vw - 20px); }
+  .profile-access-grid { grid-template-columns: 1fr; }
+  .page { padding-top: 12px; }
+  .page-header { margin-bottom: 14px; }
+  .page-heading { font-size: 29px; }
+  .page-subtitle { margin-top: 5px; }
 }

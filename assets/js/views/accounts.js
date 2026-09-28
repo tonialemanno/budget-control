@@ -1,107 +1,70 @@
-import { money, dateLabel, escapeHtml } from '../app/format.js';
+import { accountCard, emptyState, formShell, metricCard, pageHeader } from '../app/components.js';
+import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { emptyState, pageHeader } from '../app/components.js';
 
-function accountTypeLabel(type) {
-  return {
-    checking: 'Zahlungskonto',
-    savings: 'Sparkonto',
-    cash: 'Bargeld',
-    investment: 'Investment',
-    pension: 'Vorsorge',
-    other: 'Sonstiges',
-  }[type] || 'Konto';
+const ACCOUNT_TYPES = [
+  ['checking','Zahlungskonto'], ['savings','Sparkonto'], ['cash','Bargeld'], ['credit_card','Kreditkarte'],
+  ['wallet','Onlinekonto / Wallet'], ['investment','Investmentkonto'], ['pension','Vorsorgekonto'], ['other','Sonstiges'],
+];
+const CURRENCIES = ['CHF','EUR','USD','GBP'];
+
+function typeOptions() {
+  return ACCOUNT_TYPES.map(([value,label])=>`<option value="${value}">${label}</option>`).join('');
 }
 
-function renderAccount(account) {
-  return `
-    <article class="card account-card">
-      <div class="account-card-head">
-        <div>
-          <div class="account-name">${escapeHtml(account.name)}</div>
-          <div class="account-kind">${escapeHtml(account.institution_name || accountTypeLabel(account.account_type))}</div>
-        </div>
-        <span class="list-row-leading">${icon(account.account_type === 'cash' ? 'banknote' : 'wallet')}</span>
-      </div>
-      <div class="account-balance">${money(account.current_balance, { currency: account.currency })}</div>
-      <div class="account-change">Aktueller Anker · ${dateLabel(account.balance_anchor_at)}</div>
-    </article>`;
+function currencyOptions(selected = 'CHF') {
+  return CURRENCIES.map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-export function renderAccounts({ accounts = [], household } = {}) {
-  const currency = household?.base_currency || 'CHF';
-  const total = accounts
-    .filter((account) => ['checking', 'savings', 'cash'].includes(account.account_type))
-    .reduce((sum, account) => sum + Number(account.current_balance || 0), 0);
+export function renderAccounts({ accounts = [], household, profile, canWrite = false } = {}) {
+  const baseCurrency = household?.base_currency || 'CHF';
+  const locale = profile?.locale || 'de-CH';
+  const liquidTypes = new Set(['checking','savings','cash','wallet']);
+  const baseLiquid = accounts
+    .filter((a) => liquidTypes.has(a.account_type) && a.currency === baseCurrency)
+    .reduce((s,a) => s + Number(a.current_balance || 0), 0);
+  const baseCredit = accounts
+    .filter((a) => a.account_type === 'credit_card' && a.currency === baseCurrency)
+    .reduce((s,a) => s + Number(a.current_balance || 0), 0);
+  const foreign = new Map();
+  for (const account of accounts.filter((a)=>a.currency !== baseCurrency && liquidTypes.has(a.account_type))) {
+    foreign.set(account.currency, (foreign.get(account.currency) || 0) + Number(account.current_balance || 0));
+  }
+  const foreignSummary = [...foreign.entries()].map(([currency,value])=>money(value,{currency,locale})).join(' · ') || 'Keine';
+
+  const createFields = `
+    <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. UBS Lohnkonto oder Revolut EUR"></label>
+    <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" required>${typeOptions()}</select></label>
+    <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" placeholder="z. B. UBS, Revolut"></label>
+    <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" required>${currencyOptions(baseCurrency)}</select><small>Die Kontowährung ist unabhängig vom Wohnland und von der Basiswährung des Haushalts.</small></label>
+    <label class="field"><span>Kontostand jetzt</span><input class="text-control" name="balance" type="number" step="0.01" required value="0"><small>Negative Salden mit Minus eingeben, z. B. -1250.40.</small></label>
+    <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>
+    <div class="field form-grid-span"><small>Der eingegebene Betrag ist der verbindliche Stand jetzt. Historische Importe vor diesem Zeitpunkt verändern ihn nicht rückwirkend. Für ein Multiwährungs-Wallet wird pro Währung ein Konto geführt, z. B. Revolut CHF und Revolut EUR.</small></div>`;
+
+  const editFields = `
+    <input type="hidden" name="accountId" id="accountEditId">
+    <label class="field"><span>Name</span><input class="text-control" name="name" id="accountEditName" required></label>
+    <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" id="accountEditType" required>${typeOptions()}</select></label>
+    <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" id="accountEditInstitution"></label>
+    <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" id="accountEditCurrency" required>${currencyOptions(baseCurrency)}</select><small>Nach der ersten Buchung bleibt die Kontowährung aus Integritätsgründen fix.</small></label>
+    <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility" id="accountEditVisibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>
+    <label class="field"><span>Kontostand jetzt korrigieren</span><input class="text-control" name="balanceCorrection" id="accountEditBalance" type="number" step="0.01" placeholder="leer = nicht verändern"><small>Wenn du hier einen Betrag einträgst, wird er als neuer Stand jetzt verankert. Auch negative Werte sind erlaubt.</small></label>
+    <div class="field form-grid-span"><small>Eine Saldo-Korrektur löscht keine historischen Buchungen. Sie setzt lediglich einen neuen Balance-Anker zum jetzigen Zeitpunkt.</small></div>`;
 
   return `
     ${pageHeader({
       title: 'Konten',
-      subtitle: 'Der von dir eingetragene Kontostand gilt als verbindlicher aktueller Stand. Frühere Importe werden rückwärts davon rekonstruiert.',
+      subtitle: 'Konten, Bargeld, Kreditkarten und Multiwährungs-Wallets. Jeder Saldo bleibt in seiner Originalwährung.',
+      actions: canWrite ? `<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="account-create">${icon('plus')} Konto hinzufügen</button>` : '',
     })}
-
-    <div class="page-actions">
-      <button class="action-button action-button--primary" id="accountFormToggle" type="button">${icon('plus')} Konto hinzufügen</button>
+    ${canWrite ? formShell('account-create','Neues Konto','Aktuellen Stand erfassen',createFields,{hidden:accounts.length>0,submitLabel:'Konto speichern'}) : ''}
+    ${canWrite ? formShell('account-edit','Konto bearbeiten','Stammdaten oder aktuellen Stand korrigieren',editFields,{hidden:true,submitLabel:'Änderungen speichern'}) : ''}
+    ${foreign.size ? `<div class="inline-alert"><strong>Fremdwährungen werden nicht erfunden umgerechnet.</strong><span>Gesamtsummen in ${escapeHtml(baseCurrency)} enthalten nur ${escapeHtml(baseCurrency)}-Konten. Fremdwährungen bleiben separat sichtbar, bis eine verlässliche FX-Logik aktiv ist.</span></div>` : ''}
+    <div class="metric-grid" style="margin-bottom:16px">
+      ${metricCard(`Liquidität ${baseCurrency}`, money(baseLiquid,{currency:baseCurrency,locale}), `${accounts.length} Konten gesamt`)}
+      ${metricCard(`Kreditkarten ${baseCurrency}`, money(baseCredit,{currency:baseCurrency,locale}), 'nicht zur Liquidität gezählt')}
+      ${metricCard('Fremdwährungen', foreignSummary, foreign.size ? `${foreign.size} Währung${foreign.size===1?'':'en'}` : 'keine Fremdwährungskonten')}
     </div>
-
-    <form class="card card-padding form-card" id="accountForm" ${accounts.length ? 'hidden' : ''}>
-      <div class="card-heading">
-        <div><h3 class="card-title">Neues Konto</h3><p class="card-subtitle">Aktuellen Stand erfassen</p></div>
-      </div>
-
-      <div class="form-grid form-grid--2">
-        <label class="field">
-          <span>Name</span>
-          <input class="text-control" name="name" autocomplete="off" required placeholder="z. B. UBS Lohnkonto">
-        </label>
-
-        <label class="field">
-          <span>Kontotyp</span>
-          <select class="text-control" name="accountType" required>
-            <option value="checking">Zahlungskonto</option>
-            <option value="savings">Sparkonto</option>
-            <option value="cash">Bargeld</option>
-            <option value="other">Sonstiges</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Bank / Anbieter</span>
-          <input class="text-control" name="institutionName" autocomplete="off" placeholder="optional">
-        </label>
-
-        <label class="field">
-          <span>Währung</span>
-          <input class="text-control" value="${escapeHtml(currency)}" disabled>
-          <input name="currency" type="hidden" value="${escapeHtml(currency)}">
-          <small>Mehrwährung wird erst zusammen mit einer zentralen FX-Logik freigeschaltet.</small>
-        </label>
-
-        <label class="field form-grid-span">
-          <span>Kontostand jetzt</span>
-          <input class="text-control" name="balance" type="number" step="0.01" inputmode="decimal" required placeholder="0.00">
-          <small>Dieser Betrag wird nicht durch später importierte ältere Transaktionen verändert.</small>
-        </label>
-      </div>
-
-      <div class="form-actions">
-        <button class="action-button action-button--primary" type="submit">Konto speichern</button>
-        <button class="action-button action-button--secondary" id="accountFormCancel" type="button">Abbrechen</button>
-      </div>
-    </form>
-
-    ${accounts.length
-      ? `<div class="grid-3">${accounts.map(renderAccount).join('')}</div>
-         <div class="grid-2" style="margin-top:16px">
-           <article class="card card-padding">
-             <div class="card-heading"><div><h3 class="card-title">Liquidität gesamt</h3><p class="card-subtitle">Zahlungskonten, Sparen und Bargeld</p></div></div>
-             <div class="hero-value" style="font-size:36px">${money(total, { currency })}</div>
-           </article>
-           <article class="card card-padding">
-             <div class="card-heading"><div><h3 class="card-title">Datenbasis</h3><p class="card-subtitle">Finance Core V1.2</p></div></div>
-             <div class="chip-row"><span class="chip chip--active">Manuell</span><span class="chip">CSV später</span><span class="chip">Banking Provider später</span></div>
-           </article>
-         </div>`
-      : emptyState('wallet', 'Dein erstes Konto', 'Trage den Stand ein, den du heute tatsächlich auf dem Konto hast.')}
+    ${accounts.length ? `<div class="grid-3">${accounts.map((a)=>accountCard(a,{locale,canWrite})).join('')}</div>` : emptyState('wallet','Noch kein Konto','Erfasse zuerst ein Konto mit dem Stand, den du heute tatsächlich siehst.')}
   `;
 }

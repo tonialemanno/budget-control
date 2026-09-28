@@ -49,7 +49,7 @@
   --space-9: 48px;
 
   --sidebar-width: 256px;
-  --topbar-height: 92px;
+  --topbar-height: 76px;
   --content-max: 1480px;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }

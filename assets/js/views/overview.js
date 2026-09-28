@@ -1,112 +1,48 @@
-import { money, shortDate, dateLabel, escapeHtml } from '../app/format.js';
+import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
+import { cadenceMonthlyFactor, money, percent, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { emptyState, pageHeader, sectionHeading } from '../app/components.js';
 
-function accountTypeLabel(type) {
-  return {
-    checking: 'Zahlungskonto',
-    savings: 'Sparkonto',
-    cash: 'Bargeld',
-    investment: 'Investment',
-    pension: 'Vorsorge',
-    other: 'Konto',
-  }[type] || 'Konto';
-}
-
-function accountCard(account) {
-  return `
-    <article class="card account-card">
-      <div class="account-card-head">
-        <div>
-          <div class="account-name">${escapeHtml(account.name)}</div>
-          <div class="account-kind">${escapeHtml(account.institution_name || accountTypeLabel(account.account_type))}</div>
-        </div>
-        <span class="list-row-leading">${icon(account.account_type === 'cash' ? 'banknote' : 'wallet')}</span>
-      </div>
-      <div class="account-balance">${money(account.current_balance, { currency: account.currency })}</div>
-      <div class="account-change">Stand ab ${dateLabel(account.balance_anchor_at)}</div>
-    </article>`;
-}
-
-function transactionRow(tx) {
-  const positive = Number(tx.amount) >= 0;
-  return `
-    <div class="list-row">
-      <div class="list-row-main">
-        <span class="list-row-leading ${positive ? 'list-row-leading--green' : ''}">${icon(positive ? 'arrow-down-left' : 'arrow-up-right')}</span>
-        <div>
-          <div class="list-row-title">${escapeHtml(tx.description)}</div>
-          <div class="list-row-meta">${escapeHtml(tx.categories?.name || 'Ohne Kategorie')} · ${escapeHtml(tx.accounts?.name || '')} · ${dateLabel(tx.occurred_at)}</div>
-        </div>
-      </div>
-      <div class="list-row-trailing">
-        <div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${money(tx.amount, { sign: positive, currency: tx.currency })}</div>
-      </div>
-    </div>`;
-}
-
-export function renderOverview({ accounts = [], transactions = [], household } = {}) {
+export function renderOverview({ accounts = [], transactions = [], budgets = [], bills = [], contracts = [], goals = [], debts = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], insurance = [], household, profile, depth='standard' } = {}) {
   const currency = household?.base_currency || 'CHF';
+  const locale = profile?.locale || 'de-CH';
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const liquidAccounts = accounts.filter((account) => ['checking', 'savings', 'cash'].includes(account.account_type));
-  const liquidity = liquidAccounts.reduce((sum, account) => sum + Number(account.current_balance || 0), 0);
-
-  const monthTransactions = transactions.filter((tx) => new Date(tx.occurred_at) >= monthStart && tx.status === 'booked');
-  const income = monthTransactions.filter((tx) => Number(tx.amount) > 0).reduce((sum, tx) => sum + Number(tx.amount), 0);
-  const expenses = Math.abs(monthTransactions.filter((tx) => Number(tx.amount) < 0).reduce((sum, tx) => sum + Number(tx.amount), 0));
-  const cashflow = income - expenses;
+  const monthKey = now.toISOString().slice(0,7);
+  const monthTx = transactions.filter((t)=>String(t.occurred_at).slice(0,7)===monthKey && t.status==='booked' && !t.transfer_group_id && t.currency===currency);
+  const income = monthTx.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+Number(t.amount),0);
+  const expenses = Math.abs(monthTx.filter((t)=>Number(t.amount)<0).reduce((s,t)=>s+Number(t.amount),0));
+  const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type) && a.currency===currency).reduce((s,a)=>s+Number(a.current_balance||0),0);
+  const hasForeign = accounts.some((a)=>a.currency!==currency) || transactions.some((t)=>t.currency!==currency);
+  const openBills = bills.filter((b)=>['open','overdue'].includes(b.status)).reduce((s,b)=>s+Number(b.amount),0);
+  const fixedMonthly = contracts.filter((c)=>c.status==='active').reduce((s,c)=>s+Number(c.amount)*cadenceMonthlyFactor(c.billing_cadence),0)
+    + insurance.filter((p)=>p.status==='active').reduce((s,p)=>s+Number(p.premium_amount)*cadenceMonthlyFactor(p.billing_cadence),0)
+    + debts.filter((d)=>d.status==='active'&&d.payment_cadence==='monthly').reduce((s,d)=>s+Number(d.installment_amount),0);
+  const currentBudgets = budgets.filter((b)=>String(b.month_start).slice(0,7)===monthKey).reduce((s,b)=>s+Number(b.amount),0);
+  const available = cash - openBills;
+  const totalAssets = cash+assets.reduce((s,a)=>s+Number(a.current_value||0),0)+properties.reduce((s,a)=>s+Number(a.current_value||0),0)+vehicles.reduce((s,a)=>s+Number(a.current_value||0),0)+investments.reduce((s,a)=>s+Number(a.current_value||0),0)+pensions.reduce((s,a)=>s+Number(a.current_value||0),0);
+  const debtValue = debts.filter((d)=>d.status!=='paid').reduce((s,d)=>s+Number(d.outstanding_amount||0),0);
+  const netWorth = totalAssets-debtValue;
+  const savingsRate = income>0?(income-expenses)/income*100:0;
 
   return `
-    ${pageHeader({
-      kicker: shortDate(),
-      title: 'Deine Finanzen auf einen Blick',
-      subtitle: 'Live-Daten aus deinem Finance Core. Historische Importe verändern einen ausdrücklich gesetzten aktuellen Kontostand nicht rückwirkend.',
-    })}
-
+    ${pageHeader({kicker:shortDate(new Date(),locale),title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),subtitle:'Das ist dein aktueller Finance-Core-Stand. Gesamtsummen werden nur in der Basiswährung berechnet.'})}
+    ${hasForeign?`<div class="inline-alert"><strong>Fremdwährungen separat.</strong><span>EUR/USD/GBP-Konten und -Buchungen werden ohne verlässlichen FX-Kurs nicht in ${currency}-Gesamtsummen eingerechnet.</span></div>`:''}
     <div class="grid-hero">
-      <article class="card card--accent hero-card">
-        <div>
-          <div class="hero-label">Liquidität</div>
-          <div class="hero-value">${money(liquidity, { decimals: 0, currency })}</div>
-          <div class="hero-caption">${liquidAccounts.length} aktive ${liquidAccounts.length === 1 ? 'Geldquelle' : 'Geldquellen'}</div>
-        </div>
-        <div class="hero-actions">
-          <a class="action-button action-button--primary" href="#/accounts">${icon('plus')} Konto erfassen</a>
-          <a class="action-button action-button--secondary" href="#/transactions">${icon('list')} Transaktionen</a>
-        </div>
-      </article>
-
+      <article class="card card--accent hero-card"><div><div class="hero-label">Verfügbar nach offenen Rechnungen</div><div class="hero-value">${money(available,{currency,locale,decimals:0})}</div><div class="hero-caption">Liquidität ${money(cash,{currency,locale})} · offene Rechnungen ${money(openBills,{currency,locale})}</div></div><div class="hero-actions"><a class="action-button action-button--primary" href="#/transactions">${icon('plus')} Buchung erfassen</a><a class="action-button action-button--secondary" href="#/accounts">${icon('wallet')} Konten</a></div></article>
       <div class="metric-grid">
-        <article class="card metric-card">
-          <div class="metric-label">Einnahmen</div>
-          <div class="metric-value">${money(income, { decimals: 0, currency })}</div>
-          <div class="metric-note">aktueller Monat</div>
-        </article>
-        <article class="card metric-card">
-          <div class="metric-label">Ausgaben</div>
-          <div class="metric-value">${money(expenses, { decimals: 0, currency })}</div>
-          <div class="metric-note">aktueller Monat</div>
-        </article>
-        <article class="card metric-card">
-          <div class="metric-label">Cashflow</div>
-          <div class="metric-value">${money(cashflow, { decimals: 0, currency })}</div>
-          <div class="metric-note ${cashflow >= 0 ? 'metric-note--positive' : 'metric-note--warning'}">${cashflow >= 0 ? 'positiv' : 'negativ'}</div>
-        </article>
+        ${metricCard('Einnahmen Monat',money(income,{currency,locale}),'gebuchte Einnahmen')}
+        ${metricCard('Ausgaben Monat',money(expenses,{currency,locale}),'gebuchte Ausgaben')}
+        ${depth==='simple'?'':metricCard('Sparquote',percent(savingsRate,1,locale),'aktueller Monat')}
+        ${depth==='expert'?metricCard('Fixe Verpflichtungen',money(fixedMonthly,{currency,locale}),'pro Monat normalisiert'):''}
       </div>
     </div>
-
-    ${sectionHeading('Mein Geld', 'Konten und Bargeld', '#/accounts')}
-    ${accounts.length
-      ? `<div class="grid-3">${accounts.slice(0, 6).map(accountCard).join('')}</div>`
-      : emptyState('wallet', 'Noch kein Konto', 'Erfasse deinen aktuellen Kontostand. Dieser wird als verbindlicher Stand ab jetzt gespeichert.')}
-
-    ${sectionHeading('Letzte Bewegungen', 'Die zuletzt erfassten Transaktionen', '#/transactions')}
-    <article class="card card-padding">
-      ${transactions.length
-        ? `<div class="list">${transactions.slice(0, 6).map(transactionRow).join('')}</div>`
-        : `<div class="empty-state empty-state--compact"><span class="empty-state-icon">${icon('list')}</span><h3>Noch keine Transaktionen</h3><p>Neue Buchungen erscheinen hier sofort.</p></div>`}
-    </article>
-  `;
+    ${sectionHeading('Mein Geld','Konten und Bargeld','<a class="card-link" href="#/accounts">Konten verwalten</a>')}
+    ${accounts.length?`<div class="grid-3">${accounts.slice(0,6).map((a)=>accountCard(a,{locale,canWrite:false})).join('')}</div>`:`<div class="inline-alert"><strong>Noch kein Konto.</strong><span>Lege dein erstes Konto an, um mit echten Daten zu arbeiten.</span></div>`}
+    <div class="grid-main-aside" style="margin-top:16px">
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Letzte Bewegungen</h3><p class="card-subtitle">Die letzten echten Transaktionen</p></div><a class="card-link" href="#/transactions">Alle</a></div>${transactions.length?`<div class="list">${transactions.slice(0,6).map((t)=>transactionRow(t,{locale})).join('')}</div>`:'<div class="table-empty">Noch keine Transaktionen.</div>'}</article>
+      <div class="stack">
+        ${metricCard('Nettovermögen',money(netWorth,{currency,locale}),'Vermögen minus Schulden')}
+        ${metricCard('Monatsbudget',money(currentBudgets,{currency,locale}),'Summe der Kategorie-Budgets')}
+        ${metricCard('Sparziele',String(goals.filter((g)=>g.status==='active').length),'aktive Ziele')}
+      </div>
+    </div>`;
 }
