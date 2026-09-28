@@ -1,0 +1,70 @@
+@media (max-width: 1180px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-hero, .grid-main-aside { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  :root { --topbar-height: 80px; }
+  .sidebar {
+    width: min(310px, calc(100vw - 46px)); transform: translateX(-104%);
+    transition: transform .26s var(--ease); box-shadow: var(--shadow-md);
+  }
+  body.mobile-nav-open .sidebar { transform: translateX(0); }
+  .main-column { margin-left: 0; }
+  .mobile-menu-button { display: grid; }
+  .mobile-scrim {
+    position: fixed; inset: 0; z-index: 25; display: block; background: rgba(0,0,0,.25);
+    opacity: 0; pointer-events: none; transition: opacity .22s var(--ease);
+    backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  }
+  body.mobile-nav-open .mobile-scrim { opacity: 1; pointer-events: auto; }
+  .profile-copy, .profile-button > svg { display: none; }
+  .profile-button { padding: 5px; }
+  .topbar { padding-inline: 18px; }
+  .page { padding-inline: 18px; padding-bottom: 104px; }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 660px) {
+  body { background: var(--bg); }
+  .topbar { height: 74px; padding: 12px 14px; }
+  .topbar-title { font-size: 18px; }
+  .eyebrow { display: none; }
+  .topbar-actions { gap: 7px; }
+  .icon-button { width: 40px; height: 40px; }
+  .page { padding: 18px 14px 108px; }
+  .page-header { margin-bottom: 20px; }
+  .page-heading { font-size: 34px; }
+  .page-subtitle { font-size: 13px; }
+  .banner { align-items: flex-start; }
+  .banner > .badge { display: none; }
+  .grid-2, .grid-3, .metric-grid, .module-grid { grid-template-columns: 1fr; }
+  .hero-card { min-height: 220px; padding: 22px; }
+  .hero-value { font-size: 44px; }
+  .card { border-radius: 21px; }
+  .card-padding { padding: 18px; }
+  .account-card { min-height: 146px; }
+  .profile-button { display: none; }
+  .section-heading { margin-top: 24px; }
+  .data-table th:nth-child(2), .data-table td:nth-child(2) { display: none; }
+  .settings-row { align-items: flex-start; flex-direction: column; padding: 14px 0; gap: 10px; }
+  .select-control { width: 100%; }
+
+  .mobile-tabbar {
+    position: fixed; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 22;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px;
+    border: 1px solid var(--border); border-radius: 24px; background: var(--glass);
+    backdrop-filter: blur(28px) saturate(170%); -webkit-backdrop-filter: blur(28px) saturate(170%);
+    box-shadow: var(--shadow-md);
+  }
+  .mobile-tabbar a {
+    min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; border-radius: 18px; color: var(--text-3); font-size: 9px; font-weight: 650;
+  }
+  .mobile-tabbar a svg { width: 19px; height: 19px; }
+  .mobile-tabbar a[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
