@@ -1,29 +1,36 @@
-# Version 1.0.0-style
+# Version 1.2.0-core
 
 Stand: 28.09.2026
 
 ## Enthalten
 
-- eigenständiger Frontend-Neuaufbau
-- Apple/iOS-inspiriertes Designsystem
-- responsive Navigation für Desktop und Mobile
-- Light / Dark / System
-- Finance-Core-Navigation und Modulkonfiguration
-- Einfach / Standard / Experte als UI-Tiefe
-- Views: Übersicht, Konten, Transaktionen, Budget, Rechnungen, Sparziele, Schulden, Vermögen, Einstellungen
-- ausschließlich Demo-Daten
+- neues Supabase-Projekt `finance-v1`
+- Authentifizierung für neue Finance-Benutzer
+- Profile
+- Haushalte und Mitgliedschaften
+- RLS-basierte Benutzertrennung
+- Konten
+- verbindlicher aktueller Kontostand als Balance Anchor
+- Kategorien
+- Transaktionen
+- Live-Übersicht
+- direkte Kategorieerfassung im Transaktionsbereich
+- Schweiz / Deutschland als zentrale Länderkonfiguration
+- öffentliche Module derzeit auf Finance Core + Mein Geld begrenzt
+- Sicherheitsprüfung des neuen Datenbankschemas ohne offene Security-Lints
 
 ## Bewusst noch nicht enthalten
 
-- Authentifizierung
-- Supabase
-- produktive Datenbank
-- RLS
+- alte Aione-Benutzer oder Altdaten
+- Datenmigration aus `budget`
+- CSV-/PDF-Import
 - Bank-APIs
-- CSV-Import
+- Rechnungen
+- Budget
+- Sparziele
+- Schulden/Kredite
+- Vermögen
 - Dokumente
-- QR-Rechnungsparser
-- produktive Finanzberechnungen
 - Admin-/Lizenzsystem
 
-Diese Funktionen werden nicht als Patch auf V1 gesetzt, sondern als reguläre Bestandteile der vorgesehenen Architektur implementiert.
+Diese Bereiche werden als reguläre Module ergänzt. Der alte Aione-Code wird nicht wieder eingebaut.

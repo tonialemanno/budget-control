@@ -1,0 +1,11 @@
+FINANCE V1.2 UPDATE
+
+Dieses Paket enthält nur neue/ersetzte Dateien für den bestehenden beta-Branch.
+
+Wichtig:
+- Supabase `finance-v1` ist bereits angelegt.
+- Die Datenbankmigrationen sind bereits ausgeführt.
+- Dieses Paket bringt das Frontend auf denselben Stand.
+- Das alte Supabase-Projekt `budget` wird nicht berührt.
+
+Dateien aus diesem Paket müssen in den Root des beta-Branches übernommen werden.

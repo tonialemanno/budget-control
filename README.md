@@ -1,82 +1,94 @@
-# Finance App V1 – Style Foundation
+# Finance App V1.2 – Finance Core
 
-Erste deploybare Frontend-Version auf Basis des Projekt-Masterplans.
+Deploybare Finance-Core-Version auf Basis des Projekt-Masterplans.
 
-## Ziel dieser Version
+## In dieser Version aktiv
 
-Diese V1 legt die visuelle und technische Frontend-Basis fest:
+- neuer, eigenständiger Supabase-Backend-Stack (`finance-v1`)
+- neue Benutzer über Supabase Auth
+- Benutzerprofil und einmalige Grundeinrichtung
+- Land Schweiz / Deutschland und Basiswährung
+- Haushaltsmodell mit Rollenbasis
+- Konten mit verbindlichem aktuellem Kontostand (`balance anchor`)
+- Kategorien direkt bei den Transaktionen erfassen
+- manuelle Einnahmen und Ausgaben
+- echte Übersicht aus Live-Daten
+- Row Level Security für Benutzer- und Haushaltsdaten
+- Apple/iOS-inspirierte, responsive Oberfläche
+- Light / Dark / System
+- Finance Core + modular vorbereitete Navigation
 
-- Apple/iOS-inspirierte Gestaltung, ohne Apple-Assets zu kopieren
-- Systemfont statt externer Font-Abhängigkeiten
-- helle und dunkle Darstellung
-- Glass-/Blur-Effekte nur für Navigation und Bedienelemente
-- klare semantische Farben für positiv, Warnung und negativ
-- responsive Desktop-, Tablet- und Mobile-Navigation
-- Finance Core + modulabhängige Navigation
-- Darstellungsstufen Einfach / Standard / Experte
-- zentrale Konfiguration und zentraler UI-State
-- wiederverwendbare Komponenten statt Seiten-Patches
-- nur Demo-Daten; noch keine Supabase-/Bank-/API-Anbindung
+## Noch nicht aktiv
 
-## Struktur
+Die folgenden Module bleiben absichtlich ausgeblendet, bis ihre eigene saubere Implementierung steht:
+
+- Budget & Planung
+- Rechnungen & Verträge
+- Sparziele
+- Schulden & Kredite
+- Vermögen
+- Investments
+- Finance Intelligence
+- CSV-/PDF-Import
+- Banking Provider
+- Dokumente
+- Admin-/Lizenzsystem
+
+## Architektur
 
 ```text
-finance-app-v1/
-├── index.html
-├── _headers
-├── README.md
-├── docs/
-│   └── FINANCE_APP_MASTERPLAN.md
-└── assets/
-    ├── css/
-    │   ├── tokens.css
-    │   ├── base.css
-    │   ├── components.css
-    │   ├── layout.css
-    │   └── responsive.css
-    └── js/
-        ├── main.js
-        ├── app/
-        │   ├── config.js
-        │   ├── demo-data.js
-        │   ├── store.js
-        │   ├── format.js
-        │   ├── icons.js
-        │   └── components.js
-        └── views/
-            ├── overview.js
-            ├── accounts.js
-            ├── transactions.js
-            ├── budget.js
-            ├── bills.js
-            ├── goals.js
-            ├── debts.js
-            ├── wealth.js
-            └── settings.js
+index.html
+_headers
+README.md
+VERSION.md
+assets/
+  css/
+    tokens.css
+    base.css
+    components.css
+    layout.css
+    forms.css
+    responsive.css
+  js/
+    main.js
+    app/
+      backend.js
+      finance-api.js
+      config.js
+      store.js
+      format.js
+      icons.js
+      components.js
+      demo-data.js
+    views/
+      overview.js
+      accounts.js
+      transactions.js
+      ...
+supabase/
+  README.md
+  migrations/
+docs/
+  FINANCE_APP_MASTERPLAN.md
 ```
 
-## Lokal starten
+Die deaktivierten Modul-Views dürfen weiterhin als visuelle Vorarbeit im Repository liegen, sind aber nicht Teil der aktiven Navigation.
 
-Da native ES-Module verwendet werden, über einen kleinen lokalen Webserver öffnen:
+## Sicherheit
 
-```bash
-python3 -m http.server 8080
-```
+- Finanzdaten werden nicht im Frontend als Quelle der Wahrheit gespeichert.
+- Die Datenbank erzwingt Row Level Security.
+- Der Browser enthält nur den öffentlichen Supabase Publishable Key.
+- Service-Role-/Secret-Keys gehören niemals ins Frontend oder Repository.
+- Der aktuelle Kontostand eines Kontos wird als zeitlicher Anker gespeichert. Historische Transaktionen vor diesem Anker verändern den eingegebenen aktuellen Stand nicht.
 
-Danach `http://localhost:8080` öffnen.
+## Deployment
 
-## GitHub / Cloudflare Pages
+Kein Build-Schritt und keine npm-Abhängigkeiten.
 
-Das Verzeichnis kann direkt als Repository-Inhalt verwendet werden. Es gibt keinen Build-Schritt und keine npm-Abhängigkeiten.
-
-Für Cloudflare Pages:
-
+Cloudflare Pages:
 - Framework preset: None
 - Build command: leer
 - Build output directory: `.`
 
-## Wichtig
-
-Diese Version enthält bewusst keine produktive Finanzlogik und keine echten Zugangsdaten. Demo-Daten liegen ausschließlich in `assets/js/app/demo-data.js`.
-
-Die weitere Entwicklung soll den Masterplan als verbindliche Grundlage verwenden. Bestehende Komponenten werden bei Änderungen sauber angepasst oder ersetzt; es werden keine Patch-Ketten über alte Implementierungen gelegt.
+Die Content-Security-Policy in `_headers` erlaubt ausschließlich die eigene App und die neue Supabase-Instanz.

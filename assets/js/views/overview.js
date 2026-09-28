@@ -1,50 +1,112 @@
-import { demoData } from '../app/demo-data.js';
-import { money, percent, shortDate } from '../app/format.js';
+import { money, shortDate, dateLabel, escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { accountCard, budgetItem, demoBanner, pageHeader, sectionHeading, upcomingRow } from '../app/components.js';
+import { emptyState, pageHeader, sectionHeading } from '../app/components.js';
 
-export function renderOverview({ depth = 'standard' } = {}) {
-  const d = demoData;
-  const simple = depth === 'simple';
-  const expert = depth === 'expert';
+function accountTypeLabel(type) {
+  return {
+    checking: 'Zahlungskonto',
+    savings: 'Sparkonto',
+    cash: 'Bargeld',
+    investment: 'Investment',
+    pension: 'Vorsorge',
+    other: 'Konto',
+  }[type] || 'Konto';
+}
+
+function accountCard(account) {
+  return `
+    <article class="card account-card">
+      <div class="account-card-head">
+        <div>
+          <div class="account-name">${escapeHtml(account.name)}</div>
+          <div class="account-kind">${escapeHtml(account.institution_name || accountTypeLabel(account.account_type))}</div>
+        </div>
+        <span class="list-row-leading">${icon(account.account_type === 'cash' ? 'banknote' : 'wallet')}</span>
+      </div>
+      <div class="account-balance">${money(account.current_balance, { currency: account.currency })}</div>
+      <div class="account-change">Stand ab ${dateLabel(account.balance_anchor_at)}</div>
+    </article>`;
+}
+
+function transactionRow(tx) {
+  const positive = Number(tx.amount) >= 0;
+  return `
+    <div class="list-row">
+      <div class="list-row-main">
+        <span class="list-row-leading ${positive ? 'list-row-leading--green' : ''}">${icon(positive ? 'arrow-down-left' : 'arrow-up-right')}</span>
+        <div>
+          <div class="list-row-title">${escapeHtml(tx.description)}</div>
+          <div class="list-row-meta">${escapeHtml(tx.categories?.name || 'Ohne Kategorie')} · ${escapeHtml(tx.accounts?.name || '')} · ${dateLabel(tx.occurred_at)}</div>
+        </div>
+      </div>
+      <div class="list-row-trailing">
+        <div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${money(tx.amount, { sign: positive, currency: tx.currency })}</div>
+      </div>
+    </div>`;
+}
+
+export function renderOverview({ accounts = [], transactions = [], household } = {}) {
+  const currency = household?.base_currency || 'CHF';
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const liquidAccounts = accounts.filter((account) => ['checking', 'savings', 'cash'].includes(account.account_type));
+  const liquidity = liquidAccounts.reduce((sum, account) => sum + Number(account.current_balance || 0), 0);
+
+  const monthTransactions = transactions.filter((tx) => new Date(tx.occurred_at) >= monthStart && tx.status === 'booked');
+  const income = monthTransactions.filter((tx) => Number(tx.amount) > 0).reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const expenses = Math.abs(monthTransactions.filter((tx) => Number(tx.amount) < 0).reduce((sum, tx) => sum + Number(tx.amount), 0));
+  const cashflow = income - expenses;
 
   return `
-    ${pageHeader({ kicker: shortDate(), title: 'Deine Finanzen auf einen Blick', subtitle: 'Wichtige Informationen zuerst. Details bleiben dort, wo du sie brauchst.' })}
-    ${demoBanner()}
+    ${pageHeader({
+      kicker: shortDate(),
+      title: 'Deine Finanzen auf einen Blick',
+      subtitle: 'Live-Daten aus deinem Finance Core. Historische Importe verändern einen ausdrücklich gesetzten aktuellen Kontostand nicht rückwirkend.',
+    })}
 
     <div class="grid-hero">
       <article class="card card--accent hero-card">
         <div>
-          <div class="hero-label">Verfügbar bis Monatsende</div>
-          <div class="hero-value">${money(d.summary.availableMonth, { decimals: 0 })}</div>
-          <div class="hero-caption"><strong>Im Plan</strong> · nach Fixkosten und Rückstellungen</div>
+          <div class="hero-label">Liquidität</div>
+          <div class="hero-value">${money(liquidity, { decimals: 0, currency })}</div>
+          <div class="hero-caption">${liquidAccounts.length} aktive ${liquidAccounts.length === 1 ? 'Geldquelle' : 'Geldquellen'}</div>
         </div>
         <div class="hero-actions">
-          <a class="action-button action-button--primary" href="#/budget">${icon('chart')} Budget ansehen</a>
-          <a class="action-button action-button--secondary" href="#/transactions">${icon('list')} Bewegungen</a>
+          <a class="action-button action-button--primary" href="#/accounts">${icon('plus')} Konto erfassen</a>
+          <a class="action-button action-button--secondary" href="#/transactions">${icon('list')} Transaktionen</a>
         </div>
       </article>
 
       <div class="metric-grid">
-        <article class="card metric-card"><div class="metric-label">Liquidität</div><div class="metric-value">${money(d.summary.totalCash, { decimals: 0 })}</div><div class="metric-note">über alle Konten</div></article>
-        <article class="card metric-card"><div class="metric-label">Nettovermögen</div><div class="metric-value">${money(d.summary.netWorth, { decimals: 0 })}</div><div class="metric-note metric-note--positive">+ CHF 1'970 seit August</div></article>
-        ${simple ? '' : `<article class="card metric-card"><div class="metric-label">Sparquote</div><div class="metric-value">${percent(d.summary.savingsRate, 0)}</div><div class="metric-note">aktueller Monat</div></article>`}
-        ${expert ? `<article class="card metric-card"><div class="metric-label">Rückstellungen</div><div class="metric-value">${money(d.summary.reserves, { decimals: 0 })}</div><div class="metric-note">für bekannte Verpflichtungen</div></article>` : ''}
+        <article class="card metric-card">
+          <div class="metric-label">Einnahmen</div>
+          <div class="metric-value">${money(income, { decimals: 0, currency })}</div>
+          <div class="metric-note">aktueller Monat</div>
+        </article>
+        <article class="card metric-card">
+          <div class="metric-label">Ausgaben</div>
+          <div class="metric-value">${money(expenses, { decimals: 0, currency })}</div>
+          <div class="metric-note">aktueller Monat</div>
+        </article>
+        <article class="card metric-card">
+          <div class="metric-label">Cashflow</div>
+          <div class="metric-value">${money(cashflow, { decimals: 0, currency })}</div>
+          <div class="metric-note ${cashflow >= 0 ? 'metric-note--positive' : 'metric-note--warning'}">${cashflow >= 0 ? 'positiv' : 'negativ'}</div>
+        </article>
       </div>
     </div>
 
     ${sectionHeading('Mein Geld', 'Konten und Bargeld', '#/accounts')}
-    <div class="grid-3">${d.accounts.map(accountCard).join('')}</div>
+    ${accounts.length
+      ? `<div class="grid-3">${accounts.slice(0, 6).map(accountCard).join('')}</div>`
+      : emptyState('wallet', 'Noch kein Konto', 'Erfasse deinen aktuellen Kontostand. Dieser wird als verbindlicher Stand ab jetzt gespeichert.')}
 
-    <div class="grid-main-aside" style="margin-top:16px">
-      <article class="card card-padding">
-        <div class="card-heading"><div><h3 class="card-title">Demnächst</h3><p class="card-subtitle">Nächste erwartete Zahlungen</p></div><a class="card-link" href="#/bills">Rechnungen</a></div>
-        <div class="list">${d.upcoming.slice(0, simple ? 3 : 4).map(upcomingRow).join('')}</div>
-      </article>
-      <article class="card card-padding">
-        <div class="card-heading"><div><h3 class="card-title">Budget September</h3><p class="card-subtitle">Variable Kategorien</p></div><a class="card-link" href="#/budget">Details</a></div>
-        ${d.budgets.slice(0, simple ? 2 : 4).map(budgetItem).join('')}
-      </article>
-    </div>
+    ${sectionHeading('Letzte Bewegungen', 'Die zuletzt erfassten Transaktionen', '#/transactions')}
+    <article class="card card-padding">
+      ${transactions.length
+        ? `<div class="list">${transactions.slice(0, 6).map(transactionRow).join('')}</div>`
+        : `<div class="empty-state empty-state--compact"><span class="empty-state-icon">${icon('list')}</span><h3>Noch keine Transaktionen</h3><p>Neue Buchungen erscheinen hier sofort.</p></div>`}
+    </article>
   `;
 }
