@@ -89,6 +89,7 @@ const runtime = {
 };
 
 const csvState = { file: null, parsed: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -98,6 +99,7 @@ const pageEyebrow = document.querySelector('#pageEyebrow');
 const desktopNav = document.querySelector('#desktopNav');
 const mobileNav = document.querySelector('#mobileNav');
 const themeButton = document.querySelector('#themeButton');
+const privacyButton = document.querySelector('#privacyButton');
 const mobileMenuButton = document.querySelector('#mobileMenuButton');
 const mobileScrim = document.querySelector('#mobileScrim');
 const profileButton = document.querySelector('#profileButton');
@@ -105,10 +107,49 @@ const profileAvatar = document.querySelector('#profileAvatar');
 const profileName = document.querySelector('#profileName');
 const profileMeta = document.querySelector('#profileMeta');
 
-function moduleEnabled(moduleKey) {
+function profilePreferences() {
+  const value = runtime.profile?.preferences;
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function hiddenModuleKeys() {
+  const value = profilePreferences().hidden_modules;
+  return Array.isArray(value) ? value.filter((key)=>typeof key === 'string') : [];
+}
+
+function privacyEnabled() {
+  return profilePreferences().privacy_enabled === true;
+}
+
+function moduleEntitled(moduleKey) {
   if (moduleKey === 'admin') return Boolean(runtime.adminRole);
   if (MODULES[moduleKey]?.locked) return true;
   return runtime.moduleAccess[moduleKey] === true;
+}
+
+function moduleEnabled(moduleKey) {
+  if (!moduleEntitled(moduleKey)) return false;
+  if (moduleKey === 'admin' || MODULES[moduleKey]?.locked) return true;
+  return !hiddenModuleKeys().includes(moduleKey);
+}
+
+async function saveUserPreferences(patch) {
+  const preferences = { ...profilePreferences(), ...patch };
+  runtime.profile = await financeApi.updateProfile(runtime.user.id, { preferences });
+  applyPrivacyUI();
+  updateProfileUI();
+  return preferences;
+}
+
+function applyPrivacyUI() {
+  const enabled = privacyEnabled();
+  document.documentElement.classList.toggle('privacy-mode', enabled);
+  if (privacyButton) {
+    privacyButton.innerHTML = icon(enabled ? 'eye' : 'eye-off');
+    privacyButton.setAttribute('aria-label', enabled ? 'Finanzwerte anzeigen' : 'Finanzwerte verbergen');
+    privacyButton.title = enabled ? 'Finanzwerte anzeigen' : 'Finanzwerte verbergen';
+    privacyButton.setAttribute('aria-pressed', String(enabled));
+  }
 }
 
 function canWriteHousehold() {
@@ -145,6 +186,7 @@ function renderNavigation() {
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
+  if (moduleEntitled('money')) allowed.add('categories');
   return allowed.has(requested) ? requested : 'overview';
 }
 
@@ -175,13 +217,15 @@ function updateProfileUI() {
 }
 
 function profileMenuHtml() {
-  const active = (runtime.productModules || []).filter((m)=>m.is_core || runtime.moduleAccess[m.key] === true);
+  const hidden = new Set(hiddenModuleKeys());
+  const entitled = (runtime.productModules || []).filter((m)=>m.is_core || runtime.moduleAccess[m.key] === true);
   const available = (runtime.productModules || []).filter((m)=>!m.is_core && runtime.moduleAccess[m.key] !== true);
+  const visible = entitled.filter((m)=>!hidden.has(m.key));
   return `<div class="profile-popover-card">
     <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'Finance Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
-    <div class="profile-module-section"><strong>Aktive Module</strong><div class="chip-row">${active.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
-    <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind aktiv.</span>'}</div>
+    <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
+    <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
     <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="#/settings" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
   </div>`;
 }
@@ -229,7 +273,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>Functional Beta V2.1</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>Beta V2.2 · UI Foundation</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -335,11 +379,23 @@ function render() {
   pageEyebrow.textContent = meta.eyebrow;
   document.title = `${meta.title} · Finance`;
   const renderer = views[route] || views.overview;
-  pageContent.innerHTML = renderer({ ...runtime, ...store.getState(), canWrite: canWriteHousehold(), canAdminHousehold: canAdminHousehold(), householdRole: runtime.householdRole });
+  pageContent.innerHTML = renderer({
+    ...runtime,
+    ...store.getState(),
+    canWrite: canWriteHousehold(),
+    canAdminHousehold: canAdminHousehold(),
+    householdRole: runtime.householdRole,
+    hiddenModules: hiddenModuleKeys(),
+    privacyEnabled: privacyEnabled(),
+    adminQuery: uiState.adminQuery,
+    adminPage: uiState.adminPage,
+    adminExpandedUserId: uiState.adminExpandedUserId,
+  });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   closeMobileNav();
   closeProfileMenu();
+  applyPrivacyUI();
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -569,6 +625,21 @@ async function handleAction(target) {
   }
   if (action === 'hide-form') { document.getElementById(target.dataset.target)?.setAttribute('hidden',''); return; }
   if (action === 'profile-close') { closeProfileMenu(); return; }
+  if (action === 'privacy-toggle') {
+    await saveUserPreferences({ privacy_enabled: !privacyEnabled() });
+    render();
+    showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.');
+    return;
+  }
+  if (action === 'admin-user-toggle-details') {
+    uiState.adminExpandedUserId = uiState.adminExpandedUserId === target.dataset.userId ? null : target.dataset.userId;
+    render(); return;
+  }
+  if (action === 'admin-page') {
+    uiState.adminPage = Math.max(1, Number(target.dataset.page) || 1);
+    uiState.adminExpandedUserId = null;
+    render(); return;
+  }
   if (action === 'logout') { await backend.signOut(); runtime.user=null; runtime.household=null; runtime.householdRole=null; closeProfileMenu(); location.hash=''; showAuth(); return; }
   if (action === 'account-edit') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
@@ -696,6 +767,17 @@ pageContent.addEventListener('change', async (event) => {
       document.querySelector('#csvMapping').hidden=false;
       return;
     }
+    if (target.dataset.action === 'user-toggle-module-visibility') {
+      target.disabled = true;
+      const moduleKey = target.dataset.moduleKey;
+      if (!moduleEntitled(moduleKey) || MODULES[moduleKey]?.locked || moduleKey === 'admin') throw new Error('Dieses Modul kann nicht persönlich ausgeblendet werden.');
+      const hidden = new Set(hiddenModuleKeys());
+      if (target.checked) hidden.delete(moduleKey); else hidden.add(moduleKey);
+      await saveUserPreferences({ hidden_modules: [...hidden] });
+      render();
+      showToast(target.checked ? 'Modul wieder eingeblendet.' : 'Modul aus deiner Navigation ausgeblendet.');
+      return;
+    }
     if (target.dataset.action === 'admin-toggle-module') {
       target.disabled=true;
       await backend.adminSetModule({userId:target.dataset.userId,moduleKey:target.dataset.moduleKey,enabled:target.checked});
@@ -709,6 +791,20 @@ pageContent.addEventListener('change', async (event) => {
   } catch (error) { showToast(humanError(error),'error'); target.disabled=false; }
 });
 
+pageContent.addEventListener('input', (event) => {
+  const target = event.target;
+  if (target.id !== 'adminUserSearch') return;
+  uiState.adminQuery = target.value;
+  uiState.adminPage = 1;
+  uiState.adminExpandedUserId = null;
+  render();
+  const next = document.querySelector('#adminUserSearch');
+  if (next) {
+    next.focus();
+    next.setSelectionRange(next.value.length, next.value.length);
+  }
+});
+
 async function enterApp(session) {
   runtime.session=session; runtime.user=session.user;
   authGate.hidden=true; appShell.hidden=false; showLoading();
@@ -720,6 +816,7 @@ window.addEventListener('hashchange',render);
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
+privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
 profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); toggleProfileMenu(); });
@@ -729,5 +826,6 @@ document.addEventListener('click',async(event)=>{ const target=event.target.clos
 hydrateStaticIcons();
 setTheme(store.getState().theme);
 document.documentElement.dataset.depth=store.getState().depth;
+applyPrivacyUI();
 const restored = await backend.restoreSession();
 if (restored?.user) await enterApp(restored); else showAuth();

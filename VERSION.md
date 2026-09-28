@@ -1,34 +1,10 @@
-# Version 2.1.0-functional-beta
+# Version 2.2.0-beta-1
 
-Stand: 28.09.2026
+## V2.2 Beta 1 – UI foundation
 
-## Status
-
-Funktional gehärtete Beta des neuen Finance-Systems mit editierbaren Konten/Buchungen, Mehrwährungskonten, Zugriffstransparenz und backendseitiger Modulprüfung.
-
-## Enthalten
-
-- neuer Finance Core mit Supabase Auth/RLS
-- Admin-Benutzerverwaltung und Modulfreischaltung
-- CH/DE-Onboarding
-- Haushalt und Rollen
-- private/gemeinsame Konten
-- Balance-Anker-Modell
-- Transaktionen und Umbuchungen
-- Kategorien und Regeln
-- CSV-Import
-- wiederkehrende Zahlungen
-- Budget
-- Rechnungen/Verträge/Abos
-- Sparziele
-- Schulden/Kredite
-- Mahnung/Betreibung/Inkasso mit Timeline
-- Vermögen, Immobilien, Fahrzeuge, Versicherungen
-- Investments und Vorsorge
-- Dokumentablage
-- Finance Intelligence
-- zentrale Länder- und Modularchitektur
-
-## Noch nicht enthalten
-
-Externe Provider/API-Automatisierung, insbesondere Banking, Marktdaten, Swiss QR, Behörden-/Steuerintegrationen und direkte Zahlungen.
+- Login-/Scroll-Bug behoben (`hidden` wird nicht mehr durch `.auth-gate` überschrieben).
+- Persönliche Modul-Sichtbarkeit getrennt von Admin-/Lizenzfreigaben.
+- Privacy-Modus mit globalem Schnellschalter für Finanzwerte.
+- Kategorien & Regeln in den Bereich Einstellungen verschoben.
+- Admin-Benutzerliste auf kompakte Suche, Details-on-demand und Pagination umgebaut.
+- Login, E-Mail, Haushaltsrolle, Systemrolle und Modulstatus bleiben sichtbar nachvollziehbar.

@@ -13,15 +13,17 @@ export function money(value, {
     maximumFractionDigits: decimals,
     signDisplay: sign ? 'exceptZero' : 'auto',
   });
-  return formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
+  const formatted = formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
+  return `<span class="privacy-value">${formatted}</span>`;
 }
 
 export function percent(value, decimals = 0, locale = APP_CONFIG.defaultLocale) {
-  return new Intl.NumberFormat(locale, {
+  const formatted = new Intl.NumberFormat(locale, {
     style: 'percent',
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(Number(value || 0) / 100);
+  return `<span class="privacy-value">${formatted}</span>`;
 }
 
 export function shortDate(date = new Date(), locale = APP_CONFIG.defaultLocale) {

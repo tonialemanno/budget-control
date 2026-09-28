@@ -308,3 +308,64 @@ textarea.text-control { resize: vertical; min-height: 88px; }
   .page-header-actions .action-button { flex: 1 1 auto; }
 }
 
+
+/* V2.2: hidden must always win over component display rules. */
+[hidden] { display: none !important; }
+
+/* Personal module visibility */
+.module-visibility-list { display: grid; gap: 8px; margin-top: 14px; }
+.module-visibility-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.module-visibility-row strong, .module-visibility-row span { display: block; }
+.module-visibility-row strong { font-size: 12px; }
+.module-visibility-row span { margin-top: 2px; color: var(--text-3); font-size: 10px; }
+.module-visibility-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+.settings-core-note { margin: 14px 0 0; }
+.settings-link-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.settings-link-card > div { display: flex; align-items: center; gap: 12px; }
+
+/* Admin scales to larger user sets: compact rows, details only on request. */
+.admin-search-hint { margin-top: 9px; color: var(--text-3); font-size: 10px; line-height: 1.4; }
+.admin-user-list { display: grid; gap: 8px; }
+.admin-user-row { padding: 12px 14px; }
+.admin-user-summary { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 16px; }
+.admin-user-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.admin-user-identity > div { min-width: 0; }
+.admin-user-identity strong, .admin-user-identity span { display: block; }
+.admin-user-identity strong { font-size: 12px; }
+.admin-user-identity span { margin-top: 2px; color: var(--text-3); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-user-meta { display: flex; align-items: center; gap: 12px; color: var(--text-3); font-size: 10px; }
+.admin-user-meta > span:first-child { display: grid; gap: 2px; }
+.admin-user-meta strong { color: var(--text-2); font-size: 10px; }
+.admin-user-details { margin-top: 13px; padding-top: 14px; border-top: 1px solid var(--border); }
+.admin-pager { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 8px 0 2px; color: var(--text-3); font-size: 10px; }
+
+/* Privacy mode: fixed placeholders, not readable blur. money() adds .privacy-value to monetary values. */
+.privacy-mode .privacy-value,
+.privacy-mode .metric-value:not(:has(.privacy-value)),
+.privacy-mode .hero-value:not(:has(.privacy-value)) {
+  font-size: 0 !important;
+  color: transparent !important;
+  text-shadow: none !important;
+  user-select: none;
+}
+.privacy-mode .privacy-value::after,
+.privacy-mode .metric-value:not(:has(.privacy-value))::after,
+.privacy-mode .hero-value:not(:has(.privacy-value))::after {
+  content: '••••••';
+  font-size: 13px;
+  letter-spacing: .08em;
+  color: var(--text) !important;
+}
+.privacy-mode .metric-value:not(:has(.privacy-value))::after,
+.privacy-mode .hero-value:not(:has(.privacy-value))::after { font-size: clamp(20px, 3vw, 30px); }
+.privacy-button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.privacy-mode .progress-track { visibility: hidden; }
+
+@media (max-width: 800px) {
+  .admin-user-summary { grid-template-columns: minmax(0,1fr) auto; }
+  .admin-user-meta { grid-column: 1 / -1; justify-content: space-between; padding-left: 44px; }
+  .settings-link-card { align-items: flex-start; flex-direction: column; }
+}
