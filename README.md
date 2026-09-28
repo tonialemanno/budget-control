@@ -1,21 +1,74 @@
-# Finance App V1.3 – Admin Foundation
+# Finance V2 – Working Beta
 
-Finance Core mit produktiver Supabase-Basis und administrativ verwalteten Benutzerkonten.
+Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
-## Enthalten
+## Was jetzt produktiv im Beta-Umfang funktioniert
 
-- Login ohne öffentliche Registrierung in der Finance-Oberfläche
-- erster Finance-Benutzer als Owner/Admin
-- Admin-Navigation nur für Administratoren
-- Benutzerliste
-- Benutzer direkt im Admin-Bereich anlegen
-- neue Benutzer werden serverseitig automatisch bestätigt
-- Service-Role-Key bleibt ausschließlich in der Supabase Edge Function
-- Konten, Kategorien und Transaktionen aus Finance V1.2
-- RLS und getrennte Haushaltsdaten
+- Login mit administrativ angelegten Benutzern
+- Ersteinrichtung für Schweiz oder Deutschland
+- Haushalt, Rollen und Benutzerzuordnung
+- private und gemeinsame Konten
+- aktueller Kontostand als verbindlicher Balance-Anker
+- manuelle Einnahmen, Ausgaben und Umbuchungen
+- Kategorien und Kategorisierungsregeln
+- CSV-Import mit Mapping und Dubletten-Fingerprint
+- wiederkehrende Zahlungen
+- Budgets pro Kategorie und Monat
+- Rechnungen
+- Verträge und Abonnements
+- Sparziele
+- Schulden und Kredite
+- CH/DE-getrennte Mahn-/Betreibungs-/Inkasso-Fälle mit Ereignis-Timeline
+- Vermögenswerte
+- Immobilien
+- Fahrzeuge
+- Versicherungen
+- Investments (manuelle Bestände/Werte)
+- Vorsorge CH/DE (manuelle Werte)
+- private Dokumentablage in Supabase Storage
+- Finance Intelligence auf Basis vorhandener Daten
+- Admin-Bereich für Benutzer, Passwörter und Module
+- Light/Dark/System sowie UI-Tiefe Einfach/Standard/Experte
 
-## Wichtig
+## Wichtige Finanzregel
 
-Öffentliche Sign-ups sollen zusätzlich in Supabase Auth deaktiviert werden. Benutzer werden danach nur noch über den Finance-Admin-Bereich angelegt.
+Ein beim Anlegen eines Kontos eingetragener `Kontostand jetzt` wird als `balance_anchor_amount` und `balance_anchor_at` gespeichert. Historische Transaktionen vor diesem Zeitpunkt verändern diesen aktuellen Stand nicht. Transaktionen nach dem Anker verändern den berechneten aktuellen Kontostand.
 
-Das alte Projekt `budget` bleibt vom neuen Finance-V1-Projekt getrennt.
+## Architektur
+
+- Frontend: statische ES-Module, kein Build-Schritt
+- Backend: Supabase Auth, REST/RPC, Edge Functions
+- Datenbank: PostgreSQL mit RLS, Constraints, Indizes und versionierten Migrationen
+- Dateien: privater Supabase-Storage-Bucket `finance-documents`
+- Länderlogik: getrennte Module unter `assets/js/country/`
+- Modulmodell: zentral über `product_modules` und `user_module_access`
+
+## Bewusst noch nicht in dieser Working Beta
+
+Diese Beta ist manual-first. Folgende externe Integrationen werden erst auf das getestete interne Finanzmodell gesetzt:
+
+- SIX bLink / PSD2-Banking
+- automatische Kurs- und Marktdaten
+- SNB/Bundesbank/ECB-Referenzdaten
+- Swiss-QR-Rechnungsparser
+- eSchKG / deutsche Mahnverfahrensschnittstellen
+- ELSTER / ERiC
+- direkte Bankzahlungen
+- automatische Dokumenterkennung
+
+Die Anwendung bleibt für die wesentlichen Finanzbereiche auch ohne externe API nutzbar.
+
+## Entwicklung
+
+Bestehende Implementierungen werden bei Änderungen refaktoriert oder ersetzt. Keine Wrapper-/Patch-Ketten und keine versteckten Legacy-Versionen.
+
+## Deployment
+
+Cloudflare Pages:
+
+- Framework preset: None
+- Build command: leer
+- Build output directory: `.`
+- Production branch im aktuellen Testbetrieb: `beta`
+
+Das alte Supabase-Projekt `budget` gehört nicht zu Finance V2 und bleibt davon getrennt.

@@ -1,20 +1,34 @@
-# Version 1.3.0-admin
+# Version 2.0.0-working-beta
 
 Stand: 28.09.2026
 
-## Neu
+## Status
 
-- Admin-Rolle für den ersten Finance-Benutzer
-- Admin-only Benutzerverwaltung
-- keine öffentliche Registrierung in der Finance-Oberfläche
-- sichere Benutzeranlage über Supabase Edge Function
-- neue Benutzer werden ohne Bestätigungs-Mail freigeschaltet
-- Admin-Navigation und Benutzerliste
+Erste durchgehend manuell nutzbare Beta des neuen Finance-Systems.
 
-## Weiterhin enthalten
+## Enthalten
 
-- Finance-Core-Onboarding CH/DE
-- Konten mit aktuellem Kontostand als verbindlichem Anker
-- Kategorien
-- manuelle Transaktionen
-- RLS / Haushaltsisolation
+- neuer Finance Core mit Supabase Auth/RLS
+- Admin-Benutzerverwaltung und Modulfreischaltung
+- CH/DE-Onboarding
+- Haushalt und Rollen
+- private/gemeinsame Konten
+- Balance-Anker-Modell
+- Transaktionen und Umbuchungen
+- Kategorien und Regeln
+- CSV-Import
+- wiederkehrende Zahlungen
+- Budget
+- Rechnungen/Verträge/Abos
+- Sparziele
+- Schulden/Kredite
+- Mahnung/Betreibung/Inkasso mit Timeline
+- Vermögen, Immobilien, Fahrzeuge, Versicherungen
+- Investments und Vorsorge
+- Dokumentablage
+- Finance Intelligence
+- zentrale Länder- und Modularchitektur
+
+## Noch nicht enthalten
+
+Externe Provider/API-Automatisierung, insbesondere Banking, Marktdaten, Swiss QR, Behörden-/Steuerintegrationen und direkte Zahlungen.

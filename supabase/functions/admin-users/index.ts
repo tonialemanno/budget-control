@@ -52,6 +52,20 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
     if (error) return json({ error: error.message }, 400, origin);
 
+    const userIds = data.users.map((u) => u.id);
+    const { data: accessRows, error: accessError } = userIds.length
+      ? await admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
+      : { data: [], error: null };
+
+    if (accessError) return json({ error: accessError.message }, 400, origin);
+
+    const modulesByUser = new Map<string, Record<string, boolean>>();
+    for (const row of accessRows || []) {
+      const current = modulesByUser.get(row.user_id) || {};
+      current[row.module_key] = Boolean(row.enabled);
+      modulesByUser.set(row.user_id, current);
+    }
+
     return json({
       users: data.users.map((user) => ({
         id: user.id,
@@ -60,6 +74,7 @@ Deno.serve(async (req: Request) => {
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
         confirmed_at: user.email_confirmed_at,
+        modules: modulesByUser.get(user.id) || {},
       })),
     }, 200, origin);
   }
@@ -71,10 +86,34 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Ungültige Anfrage." }, 400, origin);
   }
 
+  const action = String(body.action || "create_user");
+
+  if (action === "set_module") {
+    const userId = String(body.userId || "");
+    const moduleKey = String(body.moduleKey || "");
+    const enabled = Boolean(body.enabled);
+    if (!userId || !moduleKey) return json({ error: "Benutzer und Modul sind erforderlich." }, 400, origin);
+    if (moduleKey === "core" || moduleKey === "money") return json({ error: "Finance Core und Mein Geld können nicht deaktiviert werden." }, 400, origin);
+
+    const { error } = await admin
+      .from("user_module_access")
+      .upsert({ user_id: userId, module_key: moduleKey, enabled }, { onConflict: "user_id,module_key" });
+    if (error) return json({ error: error.message }, 400, origin);
+    return json({ ok: true }, 200, origin);
+  }
+
+  if (action === "set_password") {
+    const userId = String(body.userId || "");
+    const password = String(body.password || "");
+    if (!userId || password.length < 8) return json({ error: "Mindestens 8 Zeichen erforderlich." }, 400, origin);
+    const { error } = await admin.auth.admin.updateUserById(userId, { password });
+    if (error) return json({ error: error.message }, 400, origin);
+    return json({ ok: true }, 200, origin);
+  }
+
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
   const displayName = String(body.displayName || "").trim();
-
   if (!email || !email.includes("@")) return json({ error: "Bitte eine gültige E-Mail-Adresse angeben." }, 400, origin);
   if (password.length < 8) return json({ error: "Das temporäre Passwort muss mindestens 8 Zeichen lang sein." }, 400, origin);
 
@@ -84,7 +123,6 @@ Deno.serve(async (req: Request) => {
     email_confirm: true,
     user_metadata: { display_name: displayName },
   });
-
   if (error) return json({ error: error.message }, 400, origin);
 
   return json({
