@@ -5,58 +5,29 @@ function buildQuery(table, params = {}) {
   return `${table}?${query.toString()}`;
 }
 
-async function insert(table, payload, { returning = true } = {}) {
-  const result = await backend.rest(table, {
+async function insert(table, payload) {
+  const rows = await backend.rest(table, {
     method: 'POST',
     body: payload,
-    headers: { Prefer: returning ? 'return=representation' : 'return=minimal' },
-  });
-  if (!returning) return null;
-  return Array.isArray(result) ? result[0] || null : result;
-}
-
-async function insertMany(table, payload) {
-  return backend.rest(table, {
-    method: 'POST',
-    body: payload,
-    headers: { Prefer: 'return=representation' },
-  });
-}
-
-async function update(table, id, patch) {
-  const rows = await backend.rest(buildQuery(table, { id: `eq.${id}` }), {
-    method: 'PATCH',
-    body: patch,
     headers: { Prefer: 'return=representation' },
   });
   return rows?.[0] || null;
 }
 
-async function remove(table, id) {
-  await backend.rest(buildQuery(table, { id: `eq.${id}` }), {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
-}
-
-async function listByHousehold(table, householdId, { select = '*', order = 'created_at.desc', limit = 500, extra = {} } = {}) {
-  return backend.rest(buildQuery(table, {
-    select,
-    household_id: `eq.${householdId}`,
-    order,
-    limit: String(limit),
-    ...extra,
-  }));
-}
-
 export const financeApi = Object.freeze({
   async getProfile(userId) {
-    const rows = await backend.rest(buildQuery('profiles', { select: '*', user_id: `eq.${userId}`, limit: '1' }));
+    const rows = await backend.rest(buildQuery('profiles', {
+      select: '*',
+      user_id: `eq.${userId}`,
+      limit: '1',
+    }));
     return rows?.[0] || null;
   },
 
   async updateProfile(userId, patch) {
-    const rows = await backend.rest(buildQuery('profiles', { user_id: `eq.${userId}` }), {
+    const rows = await backend.rest(buildQuery('profiles', {
+      user_id: `eq.${userId}`,
+    }), {
       method: 'PATCH',
       body: patch,
       headers: { Prefer: 'return=representation' },
@@ -64,25 +35,11 @@ export const financeApi = Object.freeze({
     return rows?.[0] || null;
   },
 
-  async getAdminRole(userId) {
-    const rows = await backend.rest(buildQuery('app_admins', { select: 'role', user_id: `eq.${userId}`, limit: '1' }));
-    return rows?.[0]?.role || null;
-  },
-
-  listProductModules() {
-    return backend.rest(buildQuery('product_modules', { select: '*', order: 'sort_order.asc' }));
-  },
-
-  async listUserModules(userId) {
-    const rows = await backend.rest(buildQuery('user_module_access', {
-      select: 'module_key,enabled',
-      user_id: `eq.${userId}`,
+  async listHouseholds() {
+    return backend.rest(buildQuery('households', {
+      select: '*',
+      order: 'created_at.asc',
     }));
-    return Object.fromEntries((rows || []).map((row) => [row.module_key, Boolean(row.enabled)]));
-  },
-
-  listHouseholds() {
-    return backend.rest(buildQuery('households', { select: '*', order: 'created_at.asc' }));
   },
 
   async createHousehold({ name, countryCode, baseCurrency, ownerUserId }) {
@@ -94,20 +51,7 @@ export const financeApi = Object.freeze({
     });
   },
 
-  async listHouseholdMembers(householdId) {
-    const result = await backend.householdMembers({ action: 'list', householdId });
-    return result?.members || [];
-  },
-
-  addHouseholdMember(householdId, email, role) {
-    return backend.householdMembers({ action: 'add', householdId, email, role });
-  },
-
-  removeHouseholdMember(householdId, userId) {
-    return backend.householdMembers({ action: 'remove', householdId, userId });
-  },
-
-  listAccounts(householdId) {
+  async listAccounts(householdId) {
     return backend.rest(buildQuery('account_balances', {
       select: '*',
       household_id: `eq.${householdId}`,
@@ -115,158 +59,34 @@ export const financeApi = Object.freeze({
       order: 'sort_order.asc,name.asc',
     }));
   },
-  createAccount: (payload) => insert('accounts', payload),
-  updateAccount: (id, patch) => update('accounts', id, patch),
-  deleteAccount: (id) => remove('accounts', id),
 
-  listCategories(householdId) {
-    return listByHousehold('categories', householdId, { order: 'kind.asc,sort_order.asc,name.asc', extra: { is_archived: 'eq.false' } });
-  },
-  createCategory: (payload) => insert('categories', payload),
-  updateCategory: (id, patch) => update('categories', id, patch),
-  deleteCategory: (id) => remove('categories', id),
-
-  listCategorizationRules(householdId) {
-    return listByHousehold('categorization_rules', householdId, {
-      select: '*,categories(name,kind)',
-      order: 'priority.asc,created_at.asc',
-    });
-  },
-  createCategorizationRule: (payload) => insert('categorization_rules', payload),
-  deleteCategorizationRule: (id) => remove('categorization_rules', id),
-
-  listTransactions(householdId, limit = 500) {
-    return listByHousehold('transactions', householdId, {
-      select: 'id,household_id,account_id,category_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,accounts(name),categories(name,kind)',
-      order: 'occurred_at.desc,created_at.desc',
-      limit,
-    });
-  },
-  createTransaction: (payload) => insert('transactions', payload),
-  createTransactions: (payload) => insertMany('transactions', payload),
-  async importTransactions(payload) {
-    const rows = await backend.rest(buildQuery('transactions', { on_conflict: 'household_id,external_reference' }), {
-      method: 'POST',
-      body: payload,
-      headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    });
-    return rows || [];
-  },
-  updateTransaction: (id, patch) => update('transactions', id, patch),
-  deleteTransaction: (id) => remove('transactions', id),
-  createTransfer: (payload) => backend.rpc('create_transfer', payload),
-
-  listImportBatches(householdId) {
-    return listByHousehold('import_batches', householdId, { order: 'created_at.desc', limit: 100 });
-  },
-  createImportBatch: (payload) => insert('import_batches', payload),
-
-  listRecurringRules(householdId) {
-    return listByHousehold('recurring_rules', householdId, {
-      select: '*,accounts(name),categories(name,kind)',
-      order: 'next_date.asc,created_at.asc',
-    });
-  },
-  createRecurringRule: (payload) => insert('recurring_rules', payload),
-  updateRecurringRule: (id, patch) => update('recurring_rules', id, patch),
-  deleteRecurringRule: (id) => remove('recurring_rules', id),
-
-  listBudgets(householdId) {
-    return listByHousehold('budgets', householdId, {
-      select: '*,categories(name,kind)',
-      order: 'month_start.desc,created_at.asc',
-    });
-  },
-  async upsertBudget(payload) {
-    const query = buildQuery('budgets', { on_conflict: 'household_id,category_id,month_start' });
-    const rows = await backend.rest(query, {
-      method: 'POST',
-      body: payload,
-      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    });
-    return rows?.[0] || null;
-  },
-  deleteBudget: (id) => remove('budgets', id),
-
-  listBills(householdId) {
-    return listByHousehold('bills', householdId, {
-      select: '*,accounts(name),categories(name,kind)',
-      order: 'due_date.asc,created_at.asc',
-    });
-  },
-  createBill: (payload) => insert('bills', payload),
-  updateBill: (id, patch) => update('bills', id, patch),
-  deleteBill: (id) => remove('bills', id),
-
-  listContracts(householdId) {
-    return listByHousehold('contracts', householdId, {
-      select: '*,categories(name,kind)',
-      order: 'next_payment_date.asc.nullslast,created_at.desc',
-    });
-  },
-  createContract: (payload) => insert('contracts', payload),
-  updateContract: (id, patch) => update('contracts', id, patch),
-  deleteContract: (id) => remove('contracts', id),
-
-  listGoals(householdId) { return listByHousehold('savings_goals', householdId, { order: 'status.asc,target_date.asc.nullslast,created_at.desc' }); },
-  createGoal: (payload) => insert('savings_goals', payload),
-  updateGoal: (id, patch) => update('savings_goals', id, patch),
-  deleteGoal: (id) => remove('savings_goals', id),
-
-  listDebts(householdId) { return listByHousehold('debts', householdId, { order: 'status.asc,next_payment_date.asc.nullslast,created_at.desc' }); },
-  createDebt: (payload) => insert('debts', payload),
-  updateDebt: (id, patch) => update('debts', id, patch),
-  deleteDebt: (id) => remove('debts', id),
-
-  listLegalCases(householdId) { return listByHousehold('legal_cases', householdId, { order: 'status.asc,next_action_date.asc.nullslast,created_at.desc' }); },
-  createLegalCase: (payload) => insert('legal_cases', payload),
-  updateLegalCase: (id, patch) => update('legal_cases', id, patch),
-  deleteLegalCase: (id) => remove('legal_cases', id),
-  listLegalEvents(householdId) { return listByHousehold('legal_case_events', householdId, { order: 'event_date.desc,created_at.desc' }); },
-  createLegalEvent: (payload) => insert('legal_case_events', payload),
-  deleteLegalEvent: (id) => remove('legal_case_events', id),
-
-  listAssets(householdId) { return listByHousehold('assets', householdId, { order: 'created_at.desc' }); },
-  createAsset: (payload) => insert('assets', payload),
-  updateAsset: (id, patch) => update('assets', id, patch),
-  deleteAsset: (id) => remove('assets', id),
-
-  listProperties(householdId) { return listByHousehold('properties', householdId, { order: 'created_at.desc' }); },
-  createProperty: (payload) => insert('properties', payload),
-  updateProperty: (id, patch) => update('properties', id, patch),
-  deleteProperty: (id) => remove('properties', id),
-
-  listVehicles(householdId) { return listByHousehold('vehicles', householdId, { order: 'created_at.desc' }); },
-  createVehicle: (payload) => insert('vehicles', payload),
-  updateVehicle: (id, patch) => update('vehicles', id, patch),
-  deleteVehicle: (id) => remove('vehicles', id),
-
-  listInsurance(householdId) { return listByHousehold('insurance_policies', householdId, { order: 'status.asc,next_payment_date.asc.nullslast,created_at.desc' }); },
-  createInsurance: (payload) => insert('insurance_policies', payload),
-  updateInsurance: (id, patch) => update('insurance_policies', id, patch),
-  deleteInsurance: (id) => remove('insurance_policies', id),
-
-  listInvestments(householdId) { return listByHousehold('investments', householdId, { order: 'created_at.desc' }); },
-  createInvestment: (payload) => insert('investments', payload),
-  updateInvestment: (id, patch) => update('investments', id, patch),
-  deleteInvestment: (id) => remove('investments', id),
-
-  listPensions(householdId) { return listByHousehold('pension_accounts', householdId, { order: 'created_at.desc' }); },
-  createPension: (payload) => insert('pension_accounts', payload),
-  updatePension: (id, patch) => update('pension_accounts', id, patch),
-  deletePension: (id) => remove('pension_accounts', id),
-
-  listDocuments(householdId) { return listByHousehold('documents', householdId, { order: 'created_at.desc', limit: 200 }); },
-  createDocument: (payload) => insert('documents', payload),
-  deleteDocument: async (document) => {
-    if (document?.storage_path) await backend.storageDelete('finance-documents', [document.storage_path]);
-    return remove('documents', document.id);
+  async createAccount(payload) {
+    return insert('accounts', payload);
   },
 
-  uploadDocument(householdId, file) {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-120);
-    const path = `${householdId}/${crypto.randomUUID()}-${safeName}`;
-    return backend.storageUpload('finance-documents', path, file).then(() => path);
+  async listCategories(householdId) {
+    return backend.rest(buildQuery('categories', {
+      select: '*',
+      household_id: `eq.${householdId}`,
+      is_archived: 'eq.false',
+      order: 'kind.asc,sort_order.asc,name.asc',
+    }));
   },
-  downloadDocument: (path) => backend.storageDownload('finance-documents', path),
+
+  async createCategory(payload) {
+    return insert('categories', payload);
+  },
+
+  async listTransactions(householdId, limit = 100) {
+    return backend.rest(buildQuery('transactions', {
+      select: 'id,household_id,account_id,category_id,occurred_at,amount,currency,description,counterparty,note,status,source,accounts(name),categories(name,kind)',
+      household_id: `eq.${householdId}`,
+      order: 'occurred_at.desc',
+      limit: String(limit),
+    }));
+  },
+
+  async createTransaction(payload) {
+    return insert('transactions', payload);
+  },
 });

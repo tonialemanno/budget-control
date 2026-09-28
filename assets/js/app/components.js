@@ -1,91 +1,93 @@
 import { icon } from './icons.js';
-import { dateLabel, escapeHtml, money, progress } from './format.js';
+import { money, progress } from './format.js';
 
-export function pageHeader({ kicker = '', title, subtitle = '', actions = '' }) {
+export function pageHeader({ kicker = 'Montag, 28. September', title, subtitle = '' }) {
   return `
-    <header class="page-header page-header--actions">
-      <div>
-        ${kicker ? `<p class="page-kicker">${escapeHtml(kicker)}</p>` : ''}
-        <h2 class="page-heading">${escapeHtml(title)}</h2>
-        ${subtitle ? `<p class="page-subtitle">${escapeHtml(subtitle)}</p>` : ''}
-      </div>
-      ${actions ? `<div class="page-header-actions">${actions}</div>` : ''}
+    <header class="page-header">
+      <p class="page-kicker">${kicker}</p>
+      <h2 class="page-heading">${title}</h2>
+      ${subtitle ? `<p class="page-subtitle">${subtitle}</p>` : ''}
     </header>`;
 }
 
-export function sectionHeading(title, subtitle = '', action = '') {
+export function demoBanner() {
   return `
-    <div class="section-heading">
-      <div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>
-      ${action}
+    <div class="banner">
+      <div class="banner-copy">
+        <span class="banner-icon">${icon('info')}</span>
+        <div><strong>V1 Style-Prototyp</strong><p>Alle Beträge auf dieser Oberfläche sind Demonstrationsdaten.</p></div>
+      </div>
+      <span class="badge">Demo</span>
     </div>`;
 }
 
-export function emptyState(iconName, title, text, action = '') {
-  return `<div class="card empty-state"><span class="empty-state-icon">${icon(iconName)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p>${action ? `<div class="empty-state-action">${action}</div>` : ''}</div>`;
-}
-
-export function formShell(id, title, subtitle, fields, { hidden = true, submitLabel = 'Speichern', extraActions = '' } = {}) {
+export function sectionHeading(title, subtitle = '', link = '') {
   return `
-    <form class="card card-padding form-card" id="${id}" data-form="${id}" ${hidden ? 'hidden' : ''}>
-      <div class="card-heading"><div><h3 class="card-title">${escapeHtml(title)}</h3><p class="card-subtitle">${escapeHtml(subtitle)}</p></div></div>
-      <div class="form-grid form-grid--2">${fields}</div>
-      <div class="form-actions">
-        <button class="action-button action-button--primary" type="submit">${escapeHtml(submitLabel)}</button>
-        <button class="action-button action-button--secondary" type="button" data-action="hide-form" data-target="${id}">Abbrechen</button>
-        ${extraActions}
-      </div>
-    </form>`;
+    <div class="section-heading">
+      <div><h2>${title}</h2>${subtitle ? `<p>${subtitle}</p>` : ''}</div>
+      ${link ? `<a class="card-link" href="${link}">Alle anzeigen</a>` : ''}
+    </div>`;
 }
 
-export function metricCard(label, value, note = '', tone = '') {
-  return `<article class="card metric-card"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${value}</div>${note ? `<div class="metric-note ${tone ? `metric-note--${tone}` : ''}">${escapeHtml(note)}</div>` : ''}</article>`;
-}
-
-export function dataTable({ headers, rows, emptyText = 'Noch keine Daten vorhanden.' }) {
-  if (!rows?.length) return `<div class="table-empty">${escapeHtml(emptyText)}</div>`;
-  return `<div class="table-scroll"><table class="data-table"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
-}
-
-export function statusPill(status, label = '') {
-  const normalized = String(status || '').toLowerCase();
-  let tone = 'neutral';
-  if (['paid','active','completed','booked','owner'].includes(normalized)) tone = 'positive';
-  if (['open','pending','paused','viewer','editor','admin'].includes(normalized)) tone = 'warning';
-  if (['overdue','defaulted','cancelled','failed'].includes(normalized)) tone = 'negative';
-  return `<span class="status-pill status-pill--${tone}">${escapeHtml(label || status || '—')}</span>`;
-}
-
-export function accountCard(account, { locale = 'de-CH' } = {}) {
-  const typeLabel = ({ checking:'Zahlungskonto', savings:'Sparkonto', cash:'Bargeld', credit_card:'Kreditkarte', investment:'Investmentkonto', pension:'Vorsorgekonto', other:'Sonstiges' })[account.account_type] || 'Konto';
+export function accountCard(account) {
+  const positive = account.change >= 0;
   return `
     <article class="card account-card">
       <div class="account-card-head">
-        <div><div class="account-name">${escapeHtml(account.name)}</div><div class="account-kind">${escapeHtml(account.institution_name || typeLabel)} · ${account.visibility === 'household' ? 'Haushalt' : 'Privat'}</div></div>
-        <span class="list-row-leading">${icon(account.account_type === 'cash' ? 'banknote' : 'wallet')}</span>
+        <div><div class="account-name">${account.name}</div><div class="account-kind">${account.provider} · ${account.type}</div></div>
+        <span class="list-row-leading">${icon(account.icon)}</span>
       </div>
-      <div class="account-balance">${money(account.current_balance, { currency: account.currency, locale })}</div>
-      <div class="account-change">Stand-Anker: ${dateLabel(account.balance_anchor_at, locale)}</div>
+      <div class="account-balance">${money(account.balance)}</div>
+      <div class="account-change"><strong>${positive ? '+' : ''}${money(account.change)}</strong> diesen Monat</div>
     </article>`;
 }
 
-export function transactionRow(tx, { locale = 'de-CH' } = {}) {
-  const positive = Number(tx.amount) >= 0;
+export function transactionRow(tx) {
+  const positive = tx.amount >= 0;
   return `
     <div class="list-row">
       <div class="list-row-main">
-        <span class="list-row-leading ${positive ? 'list-row-leading--green' : ''}">${icon(tx.transfer_group_id ? 'repeat' : positive ? 'arrow-down-left' : 'arrow-up-right')}</span>
-        <div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(tx.categories?.name || 'Ohne Kategorie')} · ${escapeHtml(tx.accounts?.name || '')} · ${dateLabel(tx.occurred_at, locale)}</div></div>
+        <span class="list-row-leading ${positive ? 'list-row-leading--green' : ''}">${icon(tx.icon)}</span>
+        <div><div class="list-row-title">${tx.title}</div><div class="list-row-meta">${tx.category} · ${tx.account} · ${tx.date}</div></div>
       </div>
-      <div class="list-row-trailing"><div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${money(tx.amount, { sign: positive, currency: tx.currency, locale })}</div></div>
+      <div class="list-row-trailing"><div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${positive ? '+' : ''}${money(tx.amount)}</div></div>
     </div>`;
 }
 
-export function goalProgress(goal, locale) {
-  const pct = progress(goal.current_amount, goal.target_amount);
-  return `<div class="progress-track"><div class="progress-fill progress-fill--green" style="--progress:${pct.toFixed(1)}%"></div></div><div class="progress-meta"><span>${pct.toFixed(0)} %</span><strong>${money(goal.current_amount,{currency:goal.currency,locale})} / ${money(goal.target_amount,{currency:goal.currency,locale})}</strong></div>`;
+export function upcomingRow(item) {
+  const positive = item.amount >= 0;
+  return `
+    <div class="list-row">
+      <div class="list-row-main">
+        <span class="list-row-leading ${positive ? 'list-row-leading--green' : 'list-row-leading--orange'}">${icon(item.icon)}</span>
+        <div><div class="list-row-title">${item.title}</div><div class="list-row-meta">${item.meta} · ${item.state}</div></div>
+      </div>
+      <div class="list-row-trailing"><div class="amount ${positive ? 'amount--positive' : ''}">${positive ? '+' : ''}${money(item.amount)}</div></div>
+    </div>`;
 }
 
-export function deleteButton(table, id, label = 'Löschen') {
-  return `<button class="table-action table-action--danger" type="button" data-action="delete" data-table="${escapeHtml(table)}" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
+export function budgetItem(item) {
+  const pct = progress(item.spent, item.limit);
+  const tone = pct >= 90 ? 'progress-fill--red' : pct >= 75 ? 'progress-fill--orange' : '';
+  return `
+    <div class="budget-item">
+      <div class="budget-head"><strong>${item.name}</strong><span>${money(item.spent)} / ${money(item.limit)}</span></div>
+      <div class="progress-track"><div class="progress-fill ${tone}" style="--progress:${pct.toFixed(1)}%"></div></div>
+      <div class="progress-meta"><span>${pct.toFixed(0)} % genutzt</span><strong>${money(item.limit - item.spent)} frei</strong></div>
+    </div>`;
+}
+
+export function goalCard(goal) {
+  const pct = progress(goal.current, goal.target);
+  return `
+    <article class="card card-padding">
+      <div class="card-heading"><div><h3 class="card-title">${goal.name}</h3><p class="card-subtitle">Ziel: ${goal.due}</p></div><span class="status-pill status-pill--positive">${pct.toFixed(0)} %</span></div>
+      <div class="metric-value">${money(goal.current)}</div>
+      <div class="progress-track" style="margin-top:16px"><div class="progress-fill progress-fill--green" style="--progress:${pct.toFixed(1)}%"></div></div>
+      <div class="progress-meta"><span>Gespart</span><strong>Ziel ${money(goal.target)}</strong></div>
+    </article>`;
+}
+
+export function emptyState(iconName, title, text) {
+  return `<div class="card empty-state"><span class="empty-state-icon">${icon(iconName)}</span><h3>${title}</h3><p>${text}</p></div>`;
 }
