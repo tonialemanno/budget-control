@@ -5,7 +5,7 @@ One repository, two release states:
 - branch `stable`: protected production/test baseline used by Ana.
 - branch `beta`: all active development and Beta testing.
 
-Current Beta: `69.0.0-beta.10`.
+Current Beta: `69.0.0-beta.11`.
 
 ## Beta 69 direction
 
@@ -56,3 +56,11 @@ Beta 9 completes the cleanup pass required for code review: top-level function m
 ## Beta 69.0.0-beta.10
 
 The balance entered when creating an existing account is treated as a current balance snapshot. It is stored with the existing account balance-anchor fields so historical bank imports remain available for analytics/reconciliation without being applied a second time to the displayed current balance. Historical balances are reconstructed backwards from that authoritative current snapshot.
+
+
+## Beta 69.0.0-beta.11
+
+See `docs/BETA69_BETA11_SUBSCRIPTION_LIFECYCLE_TEST_REPORT.md` for regression verification and `docs/BETA69_BETA11_SUPABASE_STATE.md` for the live subscription backend state.
+
+
+Subscription lifecycle frontend completion, Admin plan + Family management, Trial extension and tax-year UUID fix.

@@ -11,8 +11,8 @@ function eurRate(){const live=Number(liveFxRate);if(live>0)return live;const r=N
 function displayCHF(v){v=Number(v||0);const base=(currentProfile&&currentProfile.base_currency)||'CHF',rate=eurRate();return base==='EUR'&&rate?money(v/rate,'EUR'):money(v,'CHF')}
 const CHF={format:v=>displayCHF(v)};
 let session=null,accounts=[],categories=[],transactions=[],planned=[],recurringRules=[],taxYears=[],taxReserveRules=[],annualBills=[],taxAssessments=[],taxPaymentAllocations=[],financialYears=[],yearArchives=[],savedFilters=[],savedTags=[],classificationRules=[],documents=[],invoices=[],invoiceLogoData=null,invoiceLogoName=null,currentWealth={},currentProfile={},csvState=null,csvSelectedFiles=[],pdfSelectedFiles=[],bankReconCandidates=[],bankReconLines=[],bankReconFileName='',bankReconMeta={},dismissedRuleSuggestions=new Set(),financeLocal={wishlist:[],vatRefunds:[],fire:{}},financeCloudReady=false,netWorthSnapshots=[],taxReferenceLimits=[],fireScenarioId=null,fireSaveTimer=null,deferredInstallPrompt=null,qrScanner=null,parsedQrBill=null;
-const APP_VERSION='69.0.0-beta.10';
-let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],pendingFeatureChanges=new Map(),adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
+const APP_VERSION='69.0.0-beta.11';
+let accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,subscription:null,workspace:null,features:{},featureDefs:[],plans:[]},previewCtx=null,adminSupportContext=null,simulationContext=null,adminDirectory=[],adminInvitations=[],adminActiveGrants=[],adminDiagnosticsCache=[],adminAuditCache=[],featureAdminRows=[],pendingFeatureChanges=new Map(),adminSection='users',mfaFactorId=null,mfaMode=null,pendingLoginAfterMfa=false;
 const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
 function renderSafely(name,fn){try{return fn()}catch(e){console.error('UI render failed: '+name,e);return null}}
 function localDateISO(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
@@ -201,26 +201,85 @@ async function api(path,opt){const method=String((opt&&opt.method)||'GET').toUpp
 async function loadAccessControl(){
   if(!session||!session.user)return;
   const uid=session.user.id;
-  const [roles,defs,ups,pfs,ents,plans,ws]=await Promise.all([
+  const [roles,defs,effectiveRows,subscriptionRows,plans,ws]=await Promise.all([
     rawApi('/rest/v1/admin_roles?select=role,active&user_id=eq.'+uid),
     rawApi('/rest/v1/features?select=feature_key,name,description,category,default_state,sort_order&active=eq.true&order=category.asc,sort_order.asc'),
-    rawApi('/rest/v1/user_plans?select=plan_key,status,ends_at&user_id=eq.'+uid),
-    rawApi('/rest/v1/plan_features?select=plan_key,feature_key,state'),
-    rawApi('/rest/v1/user_entitlements?select=feature_key,state,expires_at&user_id=eq.'+uid),
+    rawApi('/rest/v1/rpc/my_effective_features',{method:'POST',body:'{}'}),
+    rawApi('/rest/v1/rpc/my_subscription_context',{method:'POST',body:'{}'}),
     rawApi('/rest/v1/plans?select=plan_key,name,description,active,is_paid,sort_order&active=eq.true&order=sort_order.asc'),
     rawApi('/rest/v1/user_workspaces?select=workspace_code&user_id=eq.'+uid)
   ]);
-  const role=(roles||[])[0]||null,up=(ups||[])[0]||null,now=Date.now(),states={};
+  const role=(roles||[])[0]||null;
+  const subscription=(subscriptionRows||[])[0]||null;
+  const states={};
   (defs||[]).forEach(f=>states[f.feature_key]=f.default_state||'hidden');
-  if(up&&['active','trial'].includes(up.status)&&(!up.ends_at||new Date(up.ends_at).getTime()>now)){
-    (pfs||[]).filter(x=>x.plan_key===up.plan_key).forEach(x=>states[x.feature_key]=x.state)
+  (effectiveRows||[]).forEach(f=>states[f.feature_key]=f.effective_state||'hidden');
+  const isSuper=!!(role&&role.active&&role.role==='superadmin');
+  if(isSuper)states.admin='enabled';
+  accessCtl={
+    role,
+    isSuperAdminRole:isSuper,
+    mfaReady:currentAal()==='aal2',
+    plan:subscription&&subscription.plan_key||null,
+    subscription,
+    workspace:ws&&ws[0]&&ws[0].workspace_code||null,
+    features:states,
+    featureDefs:defs||[],
+    plans:plans||[]
+  };
+  if(!accessCtl.workspace){
+    try{accessCtl.workspace=await rawApi('/rest/v1/rpc/ensure_my_workspace',{method:'POST',body:'{}'})}catch(e){}
   }
-  (ents||[]).filter(x=>!x.expires_at||new Date(x.expires_at).getTime()>now).forEach(x=>states[x.feature_key]=x.state);
-  const isSuper=!!(role&&role.active&&role.role==='superadmin');if(isSuper)states.admin='enabled';
-  accessCtl={role:role,isSuperAdminRole:isSuper,mfaReady:currentAal()==='aal2',plan:up&&up.plan_key||null,workspace:ws&&ws[0]&&ws[0].workspace_code||null,features:states,featureDefs:defs||[],plans:plans||[]};
-  if(!accessCtl.workspace){try{accessCtl.workspace=await rawApi('/rest/v1/rpc/ensure_my_workspace',{method:'POST',body:'{}'})}catch(e){}}
-  if(accessCtl.workspace&&!location.hash.startsWith('#access_token')&&!location.hash.startsWith('#type='))history.replaceState(null,'',location.pathname+location.search+'#w/'+accessCtl.workspace);
-  applyFeatureVisibility();registerDevice().catch(()=>{});
+  if(accessCtl.workspace&&!location.hash.startsWith('#access_token')&&!location.hash.startsWith('#type=')){
+    history.replaceState(null,'',location.pathname+location.search+'#w/'+accessCtl.workspace);
+  }
+  applyFeatureVisibility();
+  renderSubscriptionLifecycleBanner();
+  registerDevice().catch(()=>{});
+}
+function subscriptionDateLabel(value){
+  if(!value)return '—';
+  try{return new Intl.DateTimeFormat(localeForLang(),{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(value))}
+  catch(e){return String(value)}
+}
+function subscriptionDaysLeft(value){
+  if(!value)return null;
+  const diff=new Date(value).getTime()-Date.now();
+  return Math.max(0,Math.ceil(diff/86400000));
+}
+function renderSubscriptionLifecycleBanner(){
+  const el=q('#subscriptionBanner');
+  if(!el)return;
+  const s=accessCtl.subscription;
+  if(!s){el.classList.add('hidden');return}
+  const state=String(s.lifecycle_state||s.plan_status||'');
+  const badge=q('#subscriptionStateBadge'),title=q('#subscriptionBannerTitle'),text=q('#subscriptionBannerText');
+  if(s.sponsored_by_user_id&&state==='active'){
+    badge.textContent='FAMILY';badge.className='admin-badge ok';
+    title.textContent='Family-Zugang aktiv';
+    text.textContent='Dein Zugriff wird über den gemeinsamen Haushalt bereitgestellt.';
+    el.classList.remove('hidden');return;
+  }
+  if(state==='trial'){
+    const days=subscriptionDaysLeft(s.trial_ends_at);
+    badge.textContent='TRIAL';badge.className='admin-badge ok';
+    title.textContent=(s.plan_name||'30 Tage Trial')+(days===null?'':' · '+days+' Tage verbleibend');
+    text.textContent='Vollzugriff bis '+subscriptionDateLabel(s.trial_ends_at)+'. Danach bleiben deine Daten bis '+subscriptionDateLabel(s.deletion_scheduled_at)+' erhalten; in dieser Zeit ist die App nur lesbar und Export/Support bleiben verfügbar.';
+    el.classList.remove('hidden');return;
+  }
+  if(state==='grace'){
+    badge.textContent='NUR LESEN';badge.className='admin-badge warn';
+    title.textContent='Testphase beendet';
+    text.textContent='Änderungen sind gesperrt. Deine Daten bleiben bis '+subscriptionDateLabel(s.deletion_scheduled_at)+' erhalten. Export und Support bleiben verfügbar; ein Upgrade hebt die Sperre auf.';
+    el.classList.remove('hidden');return;
+  }
+  if(state==='deletion_due'){
+    badge.textContent='LÖSCHFÄLLIG';badge.className='admin-badge warn';
+    title.textContent='Aufbewahrungsfrist abgelaufen';
+    text.textContent='Deine Daten sind zur automatischen Löschung vorgemerkt. Upgrade oder Support müssen vor der nächsten automatischen Bereinigung erfolgen.';
+    el.classList.remove('hidden');return;
+  }
+  el.classList.add('hidden');
 }
 function applyFeatureVisibility(){
   qa('[data-view]').forEach(b=>{const f=VIEW_FEATURES[b.dataset.view];if(!f)return;const st=featureState(f);if(b.dataset.view==='admin'&&accessCtl.isSuperAdminRole){b.classList.remove('hidden');b.disabled=false;return}b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled';b.classList.toggle('locked-feature',st==='disabled')});
@@ -228,6 +287,9 @@ function applyFeatureVisibility(){
   qa('[data-mobile-more-view]').forEach(b=>{const f=VIEW_FEATURES[b.dataset.mobileMoreView];if(!f)return;if(b.dataset.mobileMoreView==='admin'&&accessCtl.isSuperAdminRole){b.classList.remove('hidden');return}const st=featureState(f);b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled'});
   qa('[data-mobile-action]').forEach(b=>{const f=ACTION_FEATURES[b.dataset.mobileAction];if(!f)return;const st=featureState(f);b.classList.toggle('hidden',st==='hidden');b.disabled=st==='disabled'});
   const adminBtn=q('#adminNavBtn'),mobileAdmin=q('#mobileAdminBtn');if(adminBtn)adminBtn.classList.toggle('hidden',!accessCtl.isSuperAdminRole);if(mobileAdmin)mobileAdmin.classList.toggle('hidden',!accessCtl.isSuperAdminRole);
+  const writeActions=[['#newAccountTop','accounts'],['#newPlanTop','recurring'],['#newTxTop','transactions']];
+  writeActions.forEach(([selector,feature])=>{const el=q(selector);if(el)el.disabled=!featureWritable(feature)});
+  renderSubscriptionLifecycleBanner();
   const csvBtn=q('[data-import-mode="csv"]'),pdfBtn=q('[data-import-mode="pdf"]');if(csvBtn)csvBtn.classList.toggle('hidden',!featureReadable('csv_import'));if(pdfBtn)pdfBtn.classList.toggle('hidden',!featureReadable('pdf_import'));
   const cb=q('#contextBanner');if(cb){if(previewCtx){cb.classList.add('show');q('#contextBannerTitle').textContent='UI-Vorschau · '+previewCtx.label;q('#contextBannerText').textContent='Nur Funktionen/Kacheln werden simuliert. Es werden keine fremden Finanzdaten geladen.'}else cb.classList.remove('show')}
 }
@@ -271,7 +333,7 @@ function resetUserRuntimeState(){
   accounts=[];categories=[];transactions=[];planned=[];recurringRules=[];taxYears=[];taxReserveRules=[];annualBills=[];taxAssessments=[];taxPaymentAllocations=[];financialYears=[];yearArchives=[];savedFilters=[];savedTags=[];classificationRules=[];documents=[];invoices=[];
   currentWealth={};currentProfile={};csvState=null;csvSelectedFiles=[];pdfSelectedFiles=[];bankReconCandidates=[];bankReconLines=[];bankReconFileName='';bankReconMeta={};dismissedRuleSuggestions=new Set();
   financeLocal={wishlist:[],vatRefunds:[],fire:{}};financeCloudReady=false;netWorthSnapshots=[];taxReferenceLimits=[];fireScenarioId=null;parsedQrBill=null;privacyInitialized=false;privacyMode=false;
-  accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,workspace:null,features:{},featureDefs:[],plans:[]};previewCtx=null;adminSupportContext=null;simulationContext=null;adminDirectory=[];adminInvitations=[];adminActiveGrants=[];adminDiagnosticsCache=[];adminAuditCache=[];featureAdminRows=[];pendingFeatureChanges.clear();mfaFactorId=null;mfaMode=null;pendingLoginAfterMfa=false;
+  accessCtl={role:null,isSuperAdminRole:false,mfaReady:false,plan:null,subscription:null,workspace:null,features:{},featureDefs:[],plans:[]};previewCtx=null;adminSupportContext=null;simulationContext=null;adminDirectory=[];adminInvitations=[];adminActiveGrants=[];adminDiagnosticsCache=[];adminAuditCache=[];featureAdminRows=[];pendingFeatureChanges.clear();mfaFactorId=null;mfaMode=null;pendingLoginAfterMfa=false;
   try{qa('dialog[open]').forEach(d=>d.close())}catch(e){}
   if(typeof resetPlannerRuntimeState==='function')resetPlannerRuntimeState();
   ['txFilterFrom','txFilterTo','txSearch'].forEach(id=>{const el=q('#'+id);if(el)el.value=''});['txFilterAccount','txFilterCategory','txFilterType'].forEach(id=>{const el=q('#'+id);if(el)el.value=''});
@@ -279,7 +341,7 @@ function resetUserRuntimeState(){
   const clearIds=['csvAutoStatus','csvPreview','csvPreviewTable','csvImportErrors','csvSelectedFiles','csvAnalysisStatus','pdfSelectedFiles','reconcileFileInfo','reconcileTable','reconcileRaw'];clearIds.forEach(id=>{const el=q('#'+id);if(el)el.textContent=''});
   const hideIds=['csvMapping','importStatus','csvImportErrors','reconcileResults','reconcileMsg'];hideIds.forEach(id=>{const el=q('#'+id);if(el)el.classList.add('hidden')});
   const bar=q('#importBar');if(bar)bar.style.width='0%';renderCsvSelectedFiles();renderPdfSelectedFiles();
-  const user=q('#userMail');if(user)user.textContent='';const an=q('#adminNavBtn');if(an)an.classList.add('hidden');const ma=q('#mobileAdminBtn');if(ma)ma.classList.add('hidden');const ai=q('#adminIdentityStrip');if(ai)ai.classList.add('hidden');const sab=q('#superAdminBanner');if(sab)sab.classList.add('hidden');const cb=q('#contextBanner');if(cb)cb.classList.remove('show');['adminUsers','adminDiagnostics','adminAudit','adminSupportData','mySupportGrants','mySupportAudit'].forEach(id=>{const el=q('#'+id);if(el)el.innerHTML=''})
+  const user=q('#userMail');if(user)user.textContent='';const an=q('#adminNavBtn');if(an)an.classList.add('hidden');const ma=q('#mobileAdminBtn');if(ma)ma.classList.add('hidden');const ai=q('#adminIdentityStrip');if(ai)ai.classList.add('hidden');const sab=q('#superAdminBanner');if(sab)sab.classList.add('hidden');const sb=q('#subscriptionBanner');if(sb)sb.classList.add('hidden');const cb=q('#contextBanner');if(cb)cb.classList.remove('show');['adminUsers','adminDiagnostics','adminAudit','adminSupportData','mySupportGrants','mySupportAudit'].forEach(id=>{const el=q('#'+id);if(el)el.innerHTML=''})
 }
 
 let budgetModuleStartView='dashboard';
@@ -1939,8 +2001,10 @@ qa('[data-month-drill]').forEach(el=>el.addEventListener('click',()=>{const type
 q('#ruleSuggestions').addEventListener('click',e=>{const y=e.target.closest('[data-rule-suggestion-yes]'),n=e.target.closest('[data-rule-suggestion-no]');if(y)applyRuleSuggestion(y.dataset.ruleSuggestionYes);else if(n)rejectRuleSuggestion(n.dataset.ruleSuggestionNo)});
 q('#txUncategorizedBtn').addEventListener('click',()=>{smartReviewIds=null;q('#txFilterCategory').value='__none__';q('#txFilterType').value='';saveTxFilters();renderTransactions()});
 q('#txResetFilters').addEventListener('click',()=>{smartReviewIds=null;q('#txFilterAccount').value='';q('#txFilterCategory').value='';q('#txFilterType').value='';q('#txSearch').value='';q('#txPeriodYear').value=String(new Date().getFullYear());q('#txPeriodKind').value='month';fillPeriodValue('txPeriodKind','txPeriodValue',false);syncTxPeriod(true)});
-q('#taxYearSelect').addEventListener('change',renderTax);q('#taxPeriodsOverview').addEventListener('click',e=>{const b=e.target.closest('[data-tax-period]');if(!b)return;q('#taxYearSelect').value=b.dataset.taxPeriod;renderTax();q('#taxAssessmentsList').scrollIntoView({behavior:'smooth',block:'center'})});q('#saveTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(true)}catch(e){alert(e.message)}});q('#disableTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(false)}catch(e){alert(e.message)}});['#taxEstimatedInput','#taxPaidInput','#taxDueDateInput','#taxFilingStatus','#taxChildren','#taxPremiumReductions','#taxOtherDeductions','#taxNoPension'].forEach(s=>q(s).addEventListener((s==='#taxNoPension'||s==='#taxFilingStatus')?'change':'input',()=>{let existing=taxYears.find(x=>Number(x.tax_year)===taxYear());if(!existing){existing={tax_year:taxYear()};taxYears.push(existing)}existing.estimated_tax=Number(q('#taxEstimatedInput').value||0);existing.tax_paid=Number(q('#taxPaidInput').value||0);existing.due_date=q('#taxDueDateInput').value||v66DefaultTaxDueDate(taxYear());existing.filing_status=q('#taxFilingStatus').value||null;existing.eligible_children=Number(q('#taxChildren').value||0);existing.premium_reductions=Number(q('#taxPremiumReductions').value||0);existing.manual_other_deductions=Number(q('#taxOtherDeductions').value||0);existing.no_pension_or_3a=q('#taxNoPension').checked;renderTax()}));
-q('#saveTaxYearBtn').addEventListener('click',async()=>{const y=taxYear(),body={tax_year:y,estimated_tax:Number(q('#taxEstimatedInput').value||0),tax_paid:Number(q('#taxPaidInput').value||0),due_date:q('#taxDueDateInput').value||v66DefaultTaxDueDate(y),filing_status:q('#taxFilingStatus').value||null,eligible_children:Number(q('#taxChildren').value||0),no_pension_or_3a:q('#taxNoPension').checked,premium_reductions:Number(q('#taxPremiumReductions').value||0),manual_other_deductions:Number(q('#taxOtherDeductions').value||0),notes:q('#taxYearNotes').value.trim()||null};const existing=taxYears.find(x=>Number(x.tax_year)===y);try{if(existing)await api('/rest/v1/tax_years?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify(body)});else await api('/rest/v1/tax_years',{method:'POST',body:JSON.stringify(body)});await reloadAll()}catch(e){alert(e.message)}});
+q('#taxYearSelect').addEventListener('change',renderTax);q('#taxPeriodsOverview').addEventListener('click',e=>{const b=e.target.closest('[data-tax-period]');if(!b)return;q('#taxYearSelect').value=b.dataset.taxPeriod;renderTax();q('#taxAssessmentsList').scrollIntoView({behavior:'smooth',block:'center'})});q('#saveTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(true)}catch(e){alert(e.message)}});q('#disableTaxReserveBtn').addEventListener('click',async()=>{try{await saveTaxReserveRule(false)}catch(e){alert(e.message)}});function taxYearRow(year){return taxYears.find(x=>Number(x.tax_year)===Number(year))||null}
+function ensureTaxYearDraft(year){let row=taxYearRow(year);if(!row){row={tax_year:Number(year)};taxYears.push(row)}return row}
+['#taxEstimatedInput','#taxPaidInput','#taxDueDateInput','#taxFilingStatus','#taxChildren','#taxPremiumReductions','#taxOtherDeductions','#taxNoPension'].forEach(s=>q(s).addEventListener((s==='#taxNoPension'||s==='#taxFilingStatus')?'change':'input',()=>{const y=taxYear(),existing=ensureTaxYearDraft(y);existing.estimated_tax=Number(q('#taxEstimatedInput').value||0);existing.tax_paid=Number(q('#taxPaidInput').value||0);existing.due_date=q('#taxDueDateInput').value||v66DefaultTaxDueDate(y);existing.filing_status=q('#taxFilingStatus').value||null;existing.eligible_children=Number(q('#taxChildren').value||0);existing.premium_reductions=Number(q('#taxPremiumReductions').value||0);existing.manual_other_deductions=Number(q('#taxOtherDeductions').value||0);existing.no_pension_or_3a=q('#taxNoPension').checked;renderTax()}));
+q('#saveTaxYearBtn').addEventListener('click',async()=>{const y=taxYear(),body={tax_year:y,estimated_tax:Number(q('#taxEstimatedInput').value||0),tax_paid:Number(q('#taxPaidInput').value||0),due_date:q('#taxDueDateInput').value||v66DefaultTaxDueDate(y),filing_status:q('#taxFilingStatus').value||null,eligible_children:Number(q('#taxChildren').value||0),no_pension_or_3a:q('#taxNoPension').checked,premium_reductions:Number(q('#taxPremiumReductions').value||0),manual_other_deductions:Number(q('#taxOtherDeductions').value||0),notes:q('#taxYearNotes').value.trim()||null},existing=taxYearRow(y);try{if(existing&&existing.id)await api('/rest/v1/tax_years?id=eq.'+existing.id,{method:'PATCH',body:JSON.stringify(body)});else await api('/rest/v1/tax_years',{method:'POST',body:JSON.stringify(body)});await reloadAll();showToast('Steuerjahr gespeichert.')}catch(e){alert(e.message)}});
 
 ['#opportunityCategory','#opportunityYears','#opportunityRate'].forEach(s=>q(s).addEventListener(s==='#opportunityRate'?'input':'change',renderOpportunity));
 function taxExportRows(){
@@ -2246,12 +2310,83 @@ function adminActiveGrantFor(userId){return (adminActiveGrants||[]).find(g=>g.ow
 function adminOpenDiagCount(userId){return (adminDiagnosticsCache||[]).filter(d=>d.user_id===userId&&['open','investigating'].includes(d.status)).length}
 function fmtDateTime(v){if(!v)return'—';try{return new Date(v).toLocaleString()}catch(e){return String(v)}}
 function fmtDate(v){if(!v)return'—';const s=String(v),m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return m[3]+'.'+m[2]+'.'+m[1];try{return new Intl.DateTimeFormat(localeForLang(),{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v))}catch(e){return s}}
+function adminLifecycleLabel(u){
+  const state=String(u.lifecycle_state||u.plan_status||'unassigned');
+  return {active:'Aktiv',trial:'Trial',grace:'Nur lesen',deletion_due:'Löschung fällig',suspended:'Gesperrt',cancelled:'Beendet',expired:'Abgelaufen',unassigned:'Ohne Tarif'}[state]||state;
+}
+function adminLifecycleMeta(u){
+  const state=String(u.lifecycle_state||'');
+  if(state==='trial')return 'Trial bis '+subscriptionDateLabel(u.trial_ends_at);
+  if(state==='grace')return 'Nur lesen bis '+subscriptionDateLabel(u.deletion_scheduled_at);
+  if(state==='deletion_due')return 'Löschung vorgesehen seit '+subscriptionDateLabel(u.deletion_scheduled_at);
+  if(u.sponsored_by_user_id)return 'Family-Mitglied';
+  return '';
+}
+function adminPlanOptions(selected){
+  return (accessCtl.plans||[]).map(p=>'<option value="'+esc(p.plan_key)+'" '+(p.plan_key===selected?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+}
+function syncAdminSubscriptionControls(row){
+  if(!row)return;
+  const plan=row.querySelector('[data-sub-plan]'),family=row.querySelector('[data-sub-family]'),seats=row.querySelector('[data-sub-seats]');
+  if(!plan||!family||!seats)return;
+  const included=['trial','founder'].includes(plan.value);
+  family.disabled=included;
+  if(included)family.checked=true;
+  seats.disabled=included||!family.checked;
+  const note=row.querySelector('[data-family-note]');
+  if(note)note.textContent=included?'Family ist in diesem Tarif inklusive.':(family.checked?'Family Add-on aktiv.':'Family Add-on aus.');
+}
 function renderAdminUserDirectory(){
-  const term=String(q('#adminUserSearch')&&q('#adminUserSearch').value||'').trim().toLowerCase(),planFilter=q('#adminUserPlanFilter')&&q('#adminUserPlanFilter').value||'',stateFilter=q('#adminUserStateFilter')&&q('#adminUserStateFilter').value||'';
-  let rows=(adminDirectory||[]).filter(u=>{const grant=adminActiveGrantFor(u.user_id),diag=adminOpenDiagCount(u.user_id),banned=u.banned_until&&new Date(u.banned_until)>new Date(),hay=[u.display_name,u.email,u.workspace_code].join(' ').toLowerCase();if(term&&!hay.includes(term))return false;if(planFilter&&u.plan_key!==planFilter)return false;if(stateFilter==='active'&&banned)return false;if(stateFilter==='support'&&!grant)return false;if(stateFilter==='diagnostic'&&!diag)return false;if(stateFilter==='blocked'&&!banned)return false;if(stateFilter==='admin'&&!u.admin_role)return false;return true});
+  const term=String(q('#adminUserSearch')&&q('#adminUserSearch').value||'').trim().toLowerCase();
+  const planFilter=q('#adminUserPlanFilter')&&q('#adminUserPlanFilter').value||'';
+  const stateFilter=q('#adminUserStateFilter')&&q('#adminUserStateFilter').value||'';
+  let rows=(adminDirectory||[]).filter(u=>{
+    const grant=adminActiveGrantFor(u.user_id),diag=adminOpenDiagCount(u.user_id);
+    const banned=u.banned_until&&new Date(u.banned_until)>new Date();
+    const lifecycle=String(u.lifecycle_state||'');
+    const hay=[u.display_name,u.email,u.workspace_code].join(' ').toLowerCase();
+    if(term&&!hay.includes(term))return false;
+    if(planFilter&&u.plan_key!==planFilter)return false;
+    if(stateFilter==='active'&&(banned||!['active','trial'].includes(lifecycle)))return false;
+    if(stateFilter==='trial'&&lifecycle!=='trial')return false;
+    if(stateFilter==='grace'&&lifecycle!=='grace')return false;
+    if(stateFilter==='deletion_due'&&lifecycle!=='deletion_due')return false;
+    if(stateFilter==='family'&&!u.family_enabled)return false;
+    if(stateFilter==='support'&&!grant)return false;
+    if(stateFilter==='diagnostic'&&!diag)return false;
+    if(stateFilter==='blocked'&&!banned)return false;
+    if(stateFilter==='admin'&&!u.admin_role)return false;
+    return true;
+  });
   if(q('#adminUserResultInfo'))q('#adminUserResultInfo').textContent=rows.length+' von '+(adminDirectory||[]).length+' Benutzern angezeigt.';
   if(!rows.length){q('#adminUsers').innerHTML='<div class="admin-empty">Keine Benutzer passen zu diesem Filter.</div>';return}
-  q('#adminUsers').innerHTML='<div class="admin-user-table-wrap"><table class="admin-user-table"><thead><tr><th>Benutzer</th><th>Tarif</th><th>Status</th><th>Letzte Aktivität</th><th>Support</th><th>Aktionen</th></tr></thead><tbody>'+rows.map(u=>{const banned=u.banned_until&&new Date(u.banned_until)>new Date(),isSelf=session.user.id===u.user_id,grant=adminActiveGrantFor(u.user_id),diag=adminOpenDiagCount(u.user_id),supportFinance=grant&&['read','write'].includes(grant.access_level)&&(grant.scopes||[]).includes('finance')&&(grant.scopes||[]).includes('simulation'),rawLabel=u.display_name||u.email||'Benutzer',label=esc(rawLabel);return '<tr class="'+(grant?'support-live':'')+'"><td><div class="admin-user-name">'+esc(u.display_name||u.email||u.user_id)+'</div><div class="admin-user-email">'+esc(u.email||'')+' · '+esc(u.workspace_code||'—')+'</div></td><td><select data-plan-user="'+u.user_id+'">'+(accessCtl.plans||[]).map(p=>'<option value="'+p.plan_key+'" '+(p.plan_key===u.plan_key?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select></td><td><div class="admin-status-stack">'+(u.admin_role?'<span class="admin-badge">'+esc(u.admin_role)+'</span>':'')+(banned?'<span class="admin-badge warn">gesperrt</span>':'<span class="admin-badge ok">aktiv</span>')+(diag?'<span class="admin-badge warn">'+diag+' Diagnose'+(diag===1?'':'n')+'</span>':'')+'</div><div class="admin-user-meta">'+u.account_count+' Konten · '+u.transaction_count+' Buchungen · '+u.import_count+' Importe</div></td><td><div class="admin-user-meta"><strong>Login:</strong> '+fmtDateTime(u.last_sign_in_at)+'<br><strong>App:</strong> '+esc(u.last_app_version||'—')+'</div></td><td>'+(grant?'<div class="admin-status-stack"><span class="admin-badge ok">'+esc(grant.access_level)+'</span><span class="admin-badge">'+esc((grant.scopes||[]).join(', '))+'</span></div><div class="admin-user-meta">'+(grant.expires_at?'bis '+fmtDateTime(grant.expires_at):'bis Widerruf')+'</div>':'<span class="small">Keine Freigabe</span>')+'</td><td><div class="admin-primary-actions"><button class="btn secondary" data-features-user="'+u.user_id+'" data-label="'+label+'">Module</button><button class="btn secondary" data-preview-user="'+u.user_id+'" data-label="'+label+'">UI simulieren</button>'+(grant?'<button class="btn" data-support-user="'+u.user_id+'" data-label="'+label+'">Supportfall</button>':'<button class="btn secondary" disabled>Support · Freigabe nötig</button>')+(supportFinance?'<button class="btn secondary" data-sim-user="'+u.user_id+'" data-label="'+label+'">Live-Simulation</button>':'<button class="btn secondary" disabled title="Benutzer muss Finanzen mindestens lesend freigeben">Live-Simulation · Freigabe nötig</button>')+'</div>'+(!supportFinance?'<div class="admin-user-sim-lock">Live-Simulation zeigt echte Nutzerdaten und wird erst nach Zustimmung aktiv.</div>':'')+'<details class="admin-more" style="margin-top:6px"><summary>Weitere Aktionen</summary><div class="admin-more-menu"><button class="btn secondary" data-reset-email="'+esc(u.email||'')+'">Reset-Mail senden</button>'+(!isSelf?'<button class="btn secondary" data-ban-user="'+u.user_id+'" data-banned="'+(banned?'1':'0')+'">'+(banned?'Entsperren':'Sperren')+'</button>':'')+(!isSelf&&!u.admin_role?'<button class="btn ghost" data-delete-user="'+u.user_id+'" data-label="'+label+'">Endgültig löschen</button>':'')+'</div></details></td></tr>'}).join('')+'</tbody></table></div>';
+  q('#adminUsers').innerHTML='<div class="admin-user-table-wrap"><table class="admin-user-table"><thead><tr><th>Benutzer</th><th>Abo & Family</th><th>Status</th><th>Letzte Aktivität</th><th>Support</th><th>Aktionen</th></tr></thead><tbody>'+rows.map(u=>{
+    const banned=u.banned_until&&new Date(u.banned_until)>new Date();
+    const isSelf=session.user.id===u.user_id,grant=adminActiveGrantFor(u.user_id),diag=adminOpenDiagCount(u.user_id);
+    const supportFinance=grant&&['read','write'].includes(grant.access_level)&&(grant.scopes||[]).includes('finance')&&(grant.scopes||[]).includes('simulation');
+    const rawLabel=u.display_name||u.email||'Benutzer',label=esc(rawLabel);
+    const included=['trial','founder'].includes(u.plan_key),familyEnabled=included||!!u.family_enabled;
+    const familySeats=Math.max(1,Math.min(20,Number(u.family_seats||4)));
+    const life=String(u.lifecycle_state||''),lifeClass=['trial','active'].includes(life)?'ok':'warn',lifeMeta=adminLifecycleMeta(u);
+    return '<tr class="'+(grant?'support-live':'')+'">'+
+      '<td><div class="admin-user-name">'+esc(u.display_name||u.email||u.user_id)+'</div><div class="admin-user-email">'+esc(u.email||'')+' · '+esc(u.workspace_code||'—')+'</div></td>'+
+      '<td><div style="display:grid;gap:6px;min-width:230px">'+
+        '<select data-sub-plan="'+u.user_id+'">'+adminPlanOptions(u.plan_key)+'</select>'+
+        '<label style="display:flex;gap:7px;align-items:center"><input type="checkbox" data-sub-family="'+u.user_id+'" '+(familyEnabled?'checked':'')+' '+(included?'disabled':'')+'> Family</label>'+
+        '<div style="display:flex;gap:6px;align-items:center"><span class="small">Plätze</span><input type="number" min="1" max="20" value="'+familySeats+'" data-sub-seats="'+u.user_id+'" style="width:72px" '+((included||!familyEnabled)?'disabled':'')+'><button class="btn secondary" type="button" data-save-subscription="'+u.user_id+'">Speichern</button></div>'+
+        '<div class="small" data-family-note>'+(included?'Family ist in diesem Tarif inklusive.':(familyEnabled?'Family Add-on aktiv.':'Family Add-on aus.'))+'</div>'+
+        (u.plan_key==='trial'?'<button class="btn ghost" type="button" data-extend-trial="'+u.user_id+'" data-days="30">Trial +30 Tage</button>':'')+
+      '</div></td>'+
+      '<td><div class="admin-status-stack">'+(u.admin_role?'<span class="admin-badge">'+esc(u.admin_role)+'</span>':'')+
+        '<span class="admin-badge '+lifeClass+'">'+esc(adminLifecycleLabel(u))+'</span>'+
+        (banned?'<span class="admin-badge warn">gesperrt</span>':'')+
+        (diag?'<span class="admin-badge warn">'+diag+' Diagnose'+(diag===1?'':'n')+'</span>':'')+
+      '</div><div class="admin-user-meta">'+(lifeMeta?esc(lifeMeta)+'<br>':'')+u.account_count+' Konten · '+u.transaction_count+' Buchungen · '+u.import_count+' Importe</div></td>'+
+      '<td><div class="admin-user-meta"><strong>Login:</strong> '+fmtDateTime(u.last_sign_in_at)+'<br><strong>App:</strong> '+esc(u.last_app_version||'—')+'</div></td>'+
+      '<td>'+(grant?'<div class="admin-status-stack"><span class="admin-badge ok">'+esc(grant.access_level)+'</span><span class="admin-badge">'+esc((grant.scopes||[]).join(', '))+'</span></div><div class="admin-user-meta">'+(grant.expires_at?'bis '+fmtDateTime(grant.expires_at):'bis Widerruf')+'</div>':'<span class="small">Keine Freigabe</span>')+'</td>'+
+      '<td><div class="admin-primary-actions"><button class="btn secondary" data-features-user="'+u.user_id+'" data-label="'+label+'">Module</button><button class="btn secondary" data-preview-user="'+u.user_id+'" data-label="'+label+'">UI simulieren</button>'+(grant?'<button class="btn" data-support-user="'+u.user_id+'" data-label="'+label+'">Supportfall</button>':'<button class="btn secondary" disabled>Support · Freigabe nötig</button>')+(supportFinance?'<button class="btn secondary" data-sim-user="'+u.user_id+'" data-label="'+label+'">Live-Simulation</button>':'<button class="btn secondary" disabled title="Benutzer muss Finanzen mindestens lesend freigeben">Live-Simulation · Freigabe nötig</button>')+'</div>'+(!supportFinance?'<div class="admin-user-sim-lock">Live-Simulation zeigt echte Nutzerdaten und wird erst nach Zustimmung aktiv.</div>':'')+'<details class="admin-more" style="margin-top:6px"><summary>Weitere Aktionen</summary><div class="admin-more-menu"><button class="btn secondary" data-reset-email="'+esc(u.email||'')+'">Reset-Mail senden</button>'+(!isSelf?'<button class="btn secondary" data-ban-user="'+u.user_id+'" data-banned="'+(banned?'1':'0')+'">'+(banned?'Entsperren':'Sperren')+'</button>':'')+(!isSelf&&!u.admin_role?'<button class="btn ghost" data-delete-user="'+u.user_id+'" data-label="'+label+'">Endgültig löschen</button>':'')+'</div></details></td>'+
+    '</tr>';
+  }).join('')+'</tbody></table></div>';
 }
 function adminUserById(userId){return (adminDirectory||[]).find(u=>u.user_id===userId)||null}
 function adminUserLabel(userId){const u=adminUserById(userId);return u?(u.display_name||u.email||u.user_id):userId}
@@ -2388,10 +2523,10 @@ q('#adminInvitationSearch').addEventListener('input',renderAdminInvitations);q('
 q('#adminControlNav').addEventListener('click',e=>{const b=e.target.closest('[data-admin-section]');if(b)showAdminSection(b.dataset.adminSection)});qa('[data-admin-jump]').forEach(b=>b.addEventListener('click',()=>showAdminSection(b.dataset.adminJump)));
 q('#adminSupportCases').addEventListener('click',async e=>{const sup=e.target.closest('[data-support-user]'),sim=e.target.closest('[data-sim-user]');if(sup)return openSupportViewer(sup.dataset.supportUser,sup.dataset.label);if(sim)return startUserSimulation(sim.dataset.simUser,sim.dataset.label)});
 q('#adminDiagnostics').addEventListener('click',async e=>{const bu=e.target.closest('[data-diag-user]'),bs=e.target.closest('[data-diag-support]'),bm=e.target.closest('[data-diag-sim]'),st=e.target.closest('[data-diag-status]');try{if(bu){const u=adminUserById(bu.dataset.diagUser);q('#adminUserSearch').value=u&&u.email||bu.dataset.diagUser;showAdminSection('users');renderAdminUserDirectory();return}if(bs){showAdminSection('support',false);return openSupportViewer(bs.dataset.diagSupport,bs.dataset.label)}if(bm)return startUserSimulation(bm.dataset.diagSim,bm.dataset.label);if(st){const body={status:st.dataset.status};if(st.dataset.status==='resolved'){body.resolved_at=new Date().toISOString();body.resolved_by=session.user.id}else{body.resolved_at=null;body.resolved_by=null}await rawApi('/rest/v1/app_diagnostics?id=eq.'+st.dataset.diagStatus,{method:'PATCH',body:JSON.stringify(body)});await renderAdmin();showAdminSection('diagnostics',false)}}catch(er){alert(er.message)}});
-q('#adminUsers').addEventListener('change',async e=>{const x=e.target.closest('[data-plan-user]');if(!x)return;try{await rawApi('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:x.dataset.planUser,p_plan_key:x.value})});showToast('Tarif aktualisiert.');await renderAdmin()}catch(er){alert(er.message)}});
-q('#adminUsers').addEventListener('click',async e=>{const f=e.target.closest('[data-features-user]'),p=e.target.closest('[data-preview-user]'),sup=e.target.closest('[data-support-user]'),sim=e.target.closest('[data-sim-user]'),reset=e.target.closest('[data-reset-email]'),ban=e.target.closest('[data-ban-user]'),del=e.target.closest('[data-delete-user]');try{if(f)return openFeatureAdmin(f.dataset.featuresUser,f.dataset.label);if(p)return startUiPreview(p.dataset.previewUser,p.dataset.label);if(sup)return openSupportViewer(sup.dataset.supportUser,sup.dataset.label);if(sim)return startUserSimulation(sim.dataset.simUser,sim.dataset.label);if(reset){if(!confirm('Passwort-Reset an '+reset.dataset.resetEmail+' senden?'))return;await adminEdge({action:'send_password_reset',email:reset.dataset.resetEmail,redirect_to:appRedirectUrl()});return showToast('Reset-Mail ausgelöst.')}if(ban){const willBan=ban.dataset.banned!=='1';if(!confirm(willBan?'Benutzer sperren? Daten bleiben erhalten.':'Benutzer wieder freigeben?'))return;await adminEdge({action:'set_banned',user_id:ban.dataset.banUser,banned:willBan});await renderAdmin();return}if(del){const phrase=prompt('ACHTUNG: Benutzer und alle App-Daten werden endgültig gelöscht. Tippe exakt LÖSCHEN, um '+del.dataset.label+' zu löschen.');if(phrase!=='LÖSCHEN')return;await adminEdge({action:'delete_user',user_id:del.dataset.deleteUser,confirm:phrase});await renderAdmin();showToast('Benutzer endgültig gelöscht.')}}catch(er){alert(er.message)}});
+q('#adminUsers').addEventListener('change',e=>{const x=e.target.closest('[data-sub-plan],[data-sub-family]');if(!x)return;syncAdminSubscriptionControls(e.target.closest('tr'))});
+q('#adminUsers').addEventListener('click',async e=>{const saveSub=e.target.closest('[data-save-subscription]'),extend=e.target.closest('[data-extend-trial]'),f=e.target.closest('[data-features-user]'),p=e.target.closest('[data-preview-user]'),sup=e.target.closest('[data-support-user]'),sim=e.target.closest('[data-sim-user]'),reset=e.target.closest('[data-reset-email]'),ban=e.target.closest('[data-ban-user]'),del=e.target.closest('[data-delete-user]');try{if(saveSub){const row=saveSub.closest('tr'),plan=row.querySelector('[data-sub-plan]'),family=row.querySelector('[data-sub-family]'),seats=row.querySelector('[data-sub-seats]'),included=['trial','founder'].includes(plan.value);saveSub.disabled=true;await rawApi('/rest/v1/rpc/admin_update_user_subscription',{method:'POST',body:JSON.stringify({p_user_id:saveSub.dataset.saveSubscription,p_plan_key:plan.value,p_family_enabled:included?true:family.checked,p_family_seats:Number(seats.value||4)})});showToast('Abo und Family-Zugriff aktualisiert.');await renderAdmin();return}if(extend){const days=Number(extend.dataset.days||30);if(!confirm('Trial um '+days+' Tage verlängern?'))return;extend.disabled=true;await rawApi('/rest/v1/rpc/admin_extend_trial',{method:'POST',body:JSON.stringify({p_user_id:extend.dataset.extendTrial,p_days:days})});showToast('Trial verlängert.');await renderAdmin();return}if(f)return openFeatureAdmin(f.dataset.featuresUser,f.dataset.label);if(p)return startUiPreview(p.dataset.previewUser,p.dataset.label);if(sup)return openSupportViewer(sup.dataset.supportUser,sup.dataset.label);if(sim)return startUserSimulation(sim.dataset.simUser,sim.dataset.label);if(reset){if(!confirm('Passwort-Reset an '+reset.dataset.resetEmail+' senden?'))return;await adminEdge({action:'send_password_reset',email:reset.dataset.resetEmail,redirect_to:appRedirectUrl()});return showToast('Reset-Mail ausgelöst.')}if(ban){const willBan=ban.dataset.banned!=='1';if(!confirm(willBan?'Benutzer sperren? Daten bleiben erhalten.':'Benutzer wieder freigeben?'))return;await adminEdge({action:'set_banned',user_id:ban.dataset.banUser,banned:willBan});await renderAdmin();return}if(del){const phrase=prompt('ACHTUNG: Benutzer und alle App-Daten werden endgültig gelöscht. Tippe exakt LÖSCHEN, um '+del.dataset.label+' zu löschen.');if(phrase!=='LÖSCHEN')return;await adminEdge({action:'delete_user',user_id:del.dataset.deleteUser,confirm:phrase});await renderAdmin();showToast('Benutzer endgültig gelöscht.')}}catch(er){alert(er.message)}});
 q('#adminUserSearch').addEventListener('input',renderAdminUserDirectory);q('#adminUserPlanFilter').addEventListener('change',renderAdminUserDirectory);q('#adminUserStateFilter').addEventListener('change',renderAdminUserDirectory);
-q('#adminFeatureBack').addEventListener('click',()=>{if(pendingFeatureChanges.size&&!confirm('Ungespeicherte Moduländerungen verwerfen?'))return;pendingFeatureChanges.clear();closeFeatureAdmin()});q('#adminFeaturePlan').addEventListener('change',async()=>{if(pendingFeatureChanges.size&&!confirm('Ungespeicherte Moduländerungen verwerfen und Tarif wechseln?')){await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent,{preservePending:true,preserveScroll:true});return}pendingFeatureChanges.clear();try{await rawApi('/rest/v1/rpc/admin_assign_plan',{method:'POST',body:JSON.stringify({p_user_id:q('#adminFeaturePage').dataset.userId,p_plan_key:q('#adminFeaturePlan').value})});await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent,{preserveScroll:true})}catch(e){showMsg(q('#adminFeatureMsg'),e.message,true)}});q('#adminFeatureSearch').addEventListener('input',renderFeatureAdminRows);q('#adminFeatureCategoryFilter').addEventListener('change',renderFeatureAdminRows);q('#adminFeatureOnlyOverrides').addEventListener('change',renderFeatureAdminRows);
+q('#adminFeatureBack').addEventListener('click',()=>{if(pendingFeatureChanges.size&&!confirm('Ungespeicherte Moduländerungen verwerfen?'))return;pendingFeatureChanges.clear();closeFeatureAdmin()});q('#adminFeaturePlan').addEventListener('change',async()=>{if(pendingFeatureChanges.size&&!confirm('Ungespeicherte Moduländerungen verwerfen und Tarif wechseln?')){await openFeatureAdmin(q('#adminFeaturePage').dataset.userId,q('#adminFeatureUser').textContent,{preservePending:true,preserveScroll:true});return}pendingFeatureChanges.clear();try{const uid=q('#adminFeaturePage').dataset.userId,nextPlan=q('#adminFeaturePlan').value,current=(adminDirectory||[]).find(u=>u.user_id===uid),familyEnabled=['trial','founder'].includes(nextPlan)?true:!!(current&&current.family_enabled),familySeats=Number(current&&current.family_seats||4);await rawApi('/rest/v1/rpc/admin_update_user_subscription',{method:'POST',body:JSON.stringify({p_user_id:uid,p_plan_key:nextPlan,p_family_enabled:familyEnabled,p_family_seats:familySeats})});await renderAdmin();await openFeatureAdmin(uid,q('#adminFeatureUser').textContent,{preserveScroll:true})}catch(e){showMsg(q('#adminFeatureMsg'),e.message,true)}});q('#adminFeatureSearch').addEventListener('input',renderFeatureAdminRows);q('#adminFeatureCategoryFilter').addEventListener('change',renderFeatureAdminRows);q('#adminFeatureOnlyOverrides').addEventListener('change',renderFeatureAdminRows);
 q('#adminFeatureList').addEventListener('change',e=>{const sel=e.target.closest('[data-feature-select]');if(!sel)return;const key=sel.dataset.featureSelect,original=sel.dataset.originalState||'hidden';if(sel.value===original)pendingFeatureChanges.delete(key);else pendingFeatureChanges.set(key,sel.value);renderFeatureAdminRows()});q('#adminFeatureList').addEventListener('click',e=>{const clear=e.target.closest('[data-clear-feature]');if(!clear)return;pendingFeatureChanges.set(clear.dataset.clearFeature,'__plan__');renderFeatureAdminRows()});q('#adminFeatureDiscard').addEventListener('click',discardAdminFeatureChanges);q('#adminFeatureSave').addEventListener('click',saveAdminFeatureChanges);
 q('#simulationTabs').addEventListener('click',e=>{const b=e.target.closest('[data-sim-tab]');if(b)renderSimulationTab(b.dataset.simTab)});q('#simulationCloseBtn').addEventListener('click',closeSimulation);q('#simulationSupportBtn').addEventListener('click',async()=>{if(!simulationContext)return;const c=simulationContext;await closeSimulation();view('admin');await openSupportViewer(c.userId,c.label)});q('#adminSimulationDialog').addEventListener('cancel',e=>{e.preventDefault();closeSimulation()});
 q('#adminSupportData').addEventListener('click',async e=>{const b=e.target.closest('[data-start-simulation]');if(b){return startUserSimulation(b.dataset.startSimulation,b.dataset.label)}});

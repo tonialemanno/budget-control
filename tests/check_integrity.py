@@ -71,7 +71,7 @@ base_tax=extract_named_sources(app,'taxCalcBase')
 normalized_tax=[v.replace('function taxCalcBase','function taxCalc',1) for v in base_tax]
 normalized_tax_hashes=[hashlib.sha256(v.encode()).hexdigest() for v in normalized_tax]
 check(normalized_tax_hashes==critical_beta7.get('taxCalc',[]),'taxCalcBase changed from the protected Beta 7 regional calculation')
-check("const APP_VERSION='69.0.0-beta.10';" in app,'Beta 69.0.0-beta.10 app version missing')
+check("const APP_VERSION='69.0.0-beta.11';" in app,'Beta 69.0.0-beta.11 app version missing')
 check('window.AioneLegacyBridge' in app,'Beta 69 bridge missing')
 check('country_code:countryCode' in app and 'region_code:' in app and "canton_code:countryCode==='CH'" in app and "municipality:q('#settingsMunicipality')" in app,'Foundation C profile context bridge missing')
 
@@ -81,7 +81,7 @@ required=[
 ]
 for asset in required: check(asset in html,f'index missing {asset}')
 sw=(ROOT/'sw.js').read_text()
-check('aione-v69-0-0-beta-10' in sw,'Beta 69.0.0-beta.10 cache name missing')
+check('aione-v69-0-0-beta-11' in sw,'Beta 69.0.0-beta.11 cache name missing')
 for asset in required: check(asset in sw,f'service worker missing {asset}')
 
 if errors:

@@ -228,6 +228,7 @@
       </div>
     </div>
     <div id="contextBanner" class="support-banner context-banner"><div><strong id="contextBannerTitle">Vorschau</strong><div id="contextBannerText" class="small"></div></div><button id="exitContextBtn" type="button" class="btn secondary">Beenden</button></div>
+    <div id="subscriptionBanner" class="panel hidden" style="margin-bottom:14px;border:1px solid var(--line)"><div class="panel-head"><div><span id="subscriptionStateBadge" class="admin-badge"></span><h2 id="subscriptionBannerTitle" style="margin:7px 0 3px">Abo</h2><div id="subscriptionBannerText" class="small"></div></div><button type="button" class="btn secondary" data-go="support">Upgrade / Hilfe</button></div></div>
     <div id="superAdminBanner" class="panel hidden" style="margin-bottom:14px;border:2px solid var(--accent)"><div class="panel-head"><div><span class="admin-badge ok">SUPERADMIN</span><h2 style="margin:7px 0 3px">Administration verfügbar</h2><div class="small">Benutzer, Tarife, Features, Support und Diagnose. Admin-Aktionen sind mit MFA geschützt.</div></div><button id="superAdminOpenBtn" type="button" class="btn">Administration öffnen</button></div><div id="superAdminMfaState" class="small"></div></div>
 
     <section id="dashboardView" class="view active">
@@ -659,7 +660,7 @@
 
 <section id="adminView" class="view">
   <div class="panel">
-    <div class="panel-head"><div><h2>Family & Sysadmin</h2><div class="small">Benutzer, Tarife, Features, Support, Diagnose und spätere Bezahlmodelle.</div></div><div><span id="adminMfaBadge" class="admin-badge warn">MFA prüfen</span></div></div>
+    <div class="panel-head"><div><h2>Family & Sysadmin</h2><div class="small">Benutzer, Trial-Lifecycle, Tarife, Family, Features, Support und Diagnose.</div></div><div><span id="adminMfaBadge" class="admin-badge warn">MFA prüfen</span></div></div>
     <div id="adminMfaNotice" class="security-note hidden"><strong>Admin-Schutz:</strong> Administrative Änderungen erfordern einen bestätigten zweiten Faktor. <button id="adminSetupMfaBtn" type="button" class="btn secondary" style="margin-left:8px">MFA einrichten / bestätigen</button></div>
     <div class="admin-grid" style="margin-top:12px">
       <div class="admin-kpi"><div class="k">Benutzer</div><div id="adminUserCount" class="v">0</div></div>
@@ -731,7 +732,7 @@
     <div class="admin-user-toolbar">
       <div class="field" style="margin:0"><label>Benutzer suchen</label><input id="adminUserSearch" placeholder="Name, E-Mail oder Workspace"></div>
       <div class="field" style="margin:0"><label>Tarif</label><select id="adminUserPlanFilter"><option value="">Alle Tarife</option></select></div>
-      <div class="field" style="margin:0"><label>Status</label><select id="adminUserStateFilter"><option value="">Alle</option><option value="active">Aktiv</option><option value="support">Support aktiv</option><option value="diagnostic">Offene Diagnose</option><option value="blocked">Gesperrt</option><option value="admin">Administrator</option></select></div>
+      <div class="field" style="margin:0"><label>Status</label><select id="adminUserStateFilter"><option value="">Alle</option><option value="active">Aktiv</option><option value="trial">Trial</option><option value="grace">Nur lesen</option><option value="deletion_due">Löschung fällig</option><option value="family">Family aktiv</option><option value="support">Support aktiv</option><option value="diagnostic">Offene Diagnose</option><option value="blocked">Gesperrt</option><option value="admin">Administrator</option></select></div>
     </div>
     <div id="adminUserResultInfo" class="small" style="margin-bottom:8px"></div>
     <div id="adminUsers"></div>
@@ -754,7 +755,7 @@
         <h2 style="margin:4px 0">Module & Sichtbarkeit</h2>
         <div id="adminFeatureUser" class="small"></div>
       </div>
-      <div class="admin-feature-version"><span class="admin-badge ok">ADMIN</span><span class="small">v66</span></div>
+      <div class="admin-feature-version"><span class="admin-badge ok">ADMIN</span><span class="small">v69</span></div>
     </div>
 
     <div class="admin-feature-topgrid">

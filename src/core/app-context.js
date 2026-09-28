@@ -3,7 +3,7 @@
   const listeners=new Set();
   const state={
     country:'CH',countryRaw:'Schweiz',region:null,municipality:null,municipalityId:null,
-    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},accounts:[],primaryAccountId:null,onboardingVersion:0,onboardingCompleted:false,profileReady:false,version:'69.0.0-beta.10'
+    baseCurrency:'CHF',language:'de-CH',eurToChf:null,email:null,role:null,features:{},accounts:[],primaryAccountId:null,onboardingVersion:0,onboardingCompleted:false,profileReady:false,version:'69.0.0-beta.11'
   };
   function normalizeCountry(raw){
     const v=String(raw||'').trim().toLowerCase();

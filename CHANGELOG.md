@@ -1,5 +1,14 @@
 # Changelog
 
+## 69.0.0-beta.11 — Subscription lifecycle completion
+
+- Server-derived feature and subscription lifecycle state.
+- Trial/Grace/deletion-due UI.
+- Atomic Admin plan + Family + seats save and Trial extension.
+- Tax-year drafts insert instead of PATCHing `id=undefined`.
+- Beta 10 balance-anchor semantics unchanged.
+
+
 ## 69.0.0-beta.10 — Current-balance anchor fix
 
 - Fixes onboarding semantics: the entered value is an authoritative current balance, not a historical opening balance.

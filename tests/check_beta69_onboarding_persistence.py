@@ -10,6 +10,6 @@ assert "Object.prototype.hasOwnProperty.call(payload.profile,'onboarding_version
 assert "ctx.profileReady===true" in wiz
 assert "closeIfCompleted" in wiz
 assert "shouldShow(lastCtx)" in wiz
-assert "const APP_VERSION='69.0.0-beta.10';" in app
-assert "aione-v69-0-0-beta-10" in sw
+assert "const APP_VERSION='69.0.0-beta.11';" in app
+assert "aione-v69-0-0-beta-11" in sw
 print('PASS: onboarding waits for persisted profile before opening')
