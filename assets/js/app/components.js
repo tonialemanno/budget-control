@@ -42,9 +42,18 @@ export function metricCard(label, value, note = '', tone = '') {
   return `<article class="card metric-card"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${value}</div>${note ? `<div class="metric-note ${tone ? `metric-note--${tone}` : ''}">${escapeHtml(note)}</div>` : ''}</article>`;
 }
 
+function mobileLabelTableRow(row, headers = []) {
+  let index = 0;
+  return String(row).replace(/<td(\s[^>]*)?>/g, (match, attrs = '') => {
+    const label = headers[index++] || '';
+    return `<td${attrs || ''} data-label="${escapeHtml(label)}">`;
+  });
+}
+
 export function dataTable({ headers, rows, emptyText = 'Noch keine Daten vorhanden.' }) {
   if (!rows?.length) return `<div class="table-empty">${escapeHtml(emptyText)}</div>`;
-  return `<div class="table-scroll"><table class="data-table"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  const labelledRows = rows.map((row) => mobileLabelTableRow(row, headers));
+  return `<div class="table-scroll"><table class="data-table"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${labelledRows.join('')}</tbody></table></div>`;
 }
 
 export function statusPill(status, label = '') {

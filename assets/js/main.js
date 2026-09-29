@@ -193,7 +193,7 @@ function renderNavigation() {
   `).join('');
 
   mobileNav.innerHTML = enabledNavItems().filter((item) => item.mobile).slice(0, 5)
-    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`).join('');
+    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.mobileLabel || item.label)}</span></a>`).join('');
 }
 
 function resolveRoute() {
@@ -218,6 +218,11 @@ function closeMobileNav() {
   document.body.classList.remove('mobile-nav-open');
   mobileMenuButton?.setAttribute('aria-expanded', 'false');
   if (mobileScrim) mobileScrim.hidden = true;
+}
+
+function syncMobileScrollState() {
+  const compact = window.matchMedia('(max-width: 660px)').matches && window.scrollY > 46;
+  document.body.classList.toggle('mobile-title-collapsed', compact);
 }
 
 function updateProfileUI() {
@@ -305,7 +310,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 4.1</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -1454,6 +1459,8 @@ async function enterApp(session) {
 }
 
 window.addEventListener('hashchange',render);
+window.addEventListener('scroll', syncMobileScrollState, { passive: true });
+window.addEventListener('resize', syncMobileScrollState);
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
@@ -1468,5 +1475,6 @@ hydrateStaticIcons();
 setTheme(store.getState().theme);
 document.documentElement.dataset.depth=store.getState().depth;
 applyPrivacyUI();
+syncMobileScrollState();
 const restored = await backend.restoreSession();
 if (restored?.user) await enterApp(restored); else showAuth();

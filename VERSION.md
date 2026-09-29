@@ -1,4 +1,35 @@
-# Version 2.3.0-beta-4.1
+# Version 2.3.0-beta-5
+
+## V2.3 Beta 5 – iPhone UX
+
+Dieser Stand ist ein reines Mobile-UX-Redesign. Die Desktop-Darstellung bleibt oberhalb des Smartphone-Breakpoints unverändert. Es ist keine zusätzliche Datenbankmigration erforderlich.
+
+### Mobile-Zielgeräte
+
+- iPhone 11 Pro: 375 pt Breite
+- iPhone 12 Pro: 390 pt Breite
+- Safe-Area-Unterstützung für Notch und Home Indicator
+
+### Neu auf dem Handy
+
+- iOS-inspirierte kompakte Topbar mit Large-Title-Verhalten beim Scrollen.
+- Edge-to-edge Bottom-Tabbar mit fünf Kernbereichen und kurzen mobilen Labels.
+- Vollständige Safe-Area-Abstände oben/unten.
+- Mindestens 40–48 px grosse Touch-Ziele; Formfelder auf 16 px zur Vermeidung des Safari-Fokus-Zooms.
+- Mobile Formulare einspaltig, grössere Inputs und klare primäre/sekundäre Aktionen.
+- Tabellen werden auf Smartphones automatisch zu beschrifteten Karten statt horizontalem Desktop-Tabellenscrollen.
+- Transaktionsaktionen, Import/Kategorisierung, Settings, Admin und Kartenraster für Daumenbedienung neu angeordnet.
+- Profilmenü wird auf Smartphones als Bottom-Sheet dargestellt.
+- Seitenmenü wird als iOS-artiges Off-Canvas-Sheet dargestellt.
+- Zwei-Spalten-Metriken auf 375/390 pt reduzieren unnötiges Scrollen; sehr schmale Geräte fallen auf eine Spalte zurück.
+- Login und Toasts berücksichtigen Safe Areas und mobile Tabbar.
+
+### Desktop
+
+- Keine Neugestaltung des Desktop-Layouts.
+- Gleiche Komponenten, Datenlogik und Berechtigungen.
+- Mobile Anpassungen liegen im Smartphone-Breakpoint bzw. in mobiler Beschriftung vorhandener Tabellen.
+
 
 ## V2.3 Beta 4.1 – Stabilisierung & PDF-Import
 

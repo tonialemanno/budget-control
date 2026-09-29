@@ -1,6 +1,6 @@
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.3.0-beta-4.1',
+  version: '2.3.0-beta-5',
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
   defaultLocale: 'de-CH',
@@ -27,15 +27,15 @@ export const MODULES = Object.freeze({
 });
 
 export const NAV_ITEMS = Object.freeze([
-  { route: 'overview', label: 'Übersicht', icon: 'home', group: 'Finance Core', module: 'core', mobile: true },
-  { route: 'accounts', label: 'Konten', icon: 'wallet', group: 'Finance Core', module: 'money', mobile: true },
-  { route: 'transactions', label: 'Transaktionen', icon: 'list', group: 'Finance Core', module: 'money', mobile: true },
+  { route: 'overview', label: 'Übersicht', mobileLabel: 'Übersicht', icon: 'home', group: 'Finance Core', module: 'core', mobile: true },
+  { route: 'accounts', label: 'Konten', mobileLabel: 'Konten', icon: 'wallet', group: 'Finance Core', module: 'money', mobile: true },
+  { route: 'transactions', label: 'Transaktionen', mobileLabel: 'Buchungen', icon: 'list', group: 'Finance Core', module: 'money', mobile: true },
   { route: 'imports', label: 'Datenimport', icon: 'arrow-down-left', group: 'Finance Core', module: 'money' },
   { route: 'recurring', label: 'Wiederkehrend', icon: 'repeat', group: 'Finance Core', module: 'money' },
   { route: 'documents', label: 'Dokumente', icon: 'receipt', group: 'Finance Core', module: 'core' },
 
-  { route: 'budget', label: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
-  { route: 'bills', label: 'Rechnungen & Verträge', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
+  { route: 'budget', label: 'Budget', mobileLabel: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
+  { route: 'bills', label: 'Rechnungen & Verträge', mobileLabel: 'Rechnungen', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals' },
   { route: 'tax-advisor', label: 'Steuerberater', icon: 'receipt', group: 'Planung', module: 'tax' },
 
