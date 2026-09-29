@@ -1,5 +1,5 @@
 import { emptyState, formShell, metricCard, pageHeader, statusPill } from '../app/components.js';
-import { dateLabel, dateTimeLocalValue, escapeHtml, money } from '../app/format.js';
+import { dateInputValue, dateLabel, dateTimeLocalValue, escapeHtml, money } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { buildCategorizationGroups, categorizationSourceLabel } from '../app/categorization.js';
@@ -29,7 +29,7 @@ function filterTransactions(transactions,{period,from,to,query,category,account}
     if(tx.status!=='booked') return false;
     const d=new Date(tx.occurred_at);
     if(start&&d<start) return false;
-    const iso=String(tx.occurred_at||'').slice(0,10);
+    const iso=dateInputValue(new Date(tx.occurred_at));
     if(from&&iso<from) return false;
     if(to&&iso>to) return false;
     if(tx.cashflow_type==='debt_payment' && category && category!=='all') return false;

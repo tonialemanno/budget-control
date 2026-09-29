@@ -1,5 +1,5 @@
 import { dataTable, formShell, metricCard, pageHeader, deleteButton } from '../app/components.js';
-import { cadenceMonthlyFactor, escapeHtml, money, monthInputValue, monthLabel, progress } from '../app/format.js';
+import { cadenceMonthlyFactor, escapeHtml, localMonthKey, money, monthInputValue, monthLabel, progress } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
@@ -14,12 +14,12 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
   const expenseCategories = categories.filter((c)=>c.kind==='expense');
   const monthBudgets = budgets.filter((b)=>String(b.month_start).slice(0,7)===currentMonth);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const monthTx = transactions.filter((tx)=>String(tx.occurred_at).slice(0,7)===currentMonth && Number(tx.amount)<0 && !tx.transfer_group_id);
+  const monthTx = transactions.filter((tx)=>localMonthKey(tx.occurred_at)===currentMonth && Number(tx.amount)<0 && !tx.transfer_group_id);
   const spentBase = monthTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
   const totalBudget = monthBudgets.reduce((s,b)=>s+Number(b.amount),0);
   const left = totalBudget-spentBase;
   const savingsAccountIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
-  const savedThisMonth=transactions.filter((tx)=>String(tx.occurred_at).slice(0,7)===currentMonth && tx.transfer_group_id && Number(tx.amount)>0 && savingsAccountIds.has(tx.account_id)).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+  const savedThisMonth=transactions.filter((tx)=>localMonthKey(tx.occurred_at)===currentMonth && tx.transfer_group_id && Number(tx.amount)>0 && savingsAccountIds.has(tx.account_id)).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
   const recurringMonthly=recurringRules.filter((r)=>r.active&&r.direction==='expense').reduce((s,r)=>s+(convertAmount(Number(r.amount)*cadenceMonthlyFactor(r.cadence),r.currency||currency,currency,fxRates)??0),0);
 
   const fields = `

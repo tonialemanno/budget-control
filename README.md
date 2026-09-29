@@ -1,10 +1,31 @@
-# Finance V2.3 – Beta 4
+# Finance V2.3 – Beta 4.1
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
 
 
+
+## V2.3 Beta 4.1 – Stabilisierung
+
+Dieser Stand korrigiert die im Deep-Test von Beta 4 gefundenen Fehler, ohne neue Modulschichten einzuführen.
+
+- Datenimport akzeptiert jetzt CSV **und textbasierte PDF-Kontoauszüge**. PDF-Zeilen werden nur übernommen, wenn Datum und Vorzeichen/Betragsrichtung eindeutig erkannt werden; unklare Zeilen werden nicht geraten. Gescannte PDFs bleiben bis zur OCR-Stufe bewusst ausgeschlossen.
+- CSV-Felder mit korrekt gequoteten Zeilenumbrüchen werden vollständig gelesen.
+- Historische Imports sind wieder mit ihren Import-Batches verknüpft; der grosse 916er-Import ist 916/916 zugeordnet. Beim ersten alten Import bleiben nach den zwei bewusst gelöschten Dubletten 64 der ursprünglich 66 importierten Zeilen vorhanden.
+- Dokumente und Steuerberater stürzen mit aktivem Steuer-Modul bzw. vorhandenen Belegen nicht mehr ab.
+- Finance Intelligence berechnet die Projektion aus der heutigen Liquidität, ohne laufende Monatsbewegungen doppelt zu zählen.
+- Rechnungen werden beim Bezahlen mit einer echten Kontobuchung verknüpft oder erzeugen diese kontrolliert. Eine von Finance erzeugte Zahlung kann zusammen mit dem Rechnungsstatus zurückgenommen werden; eine bereits vorhandene Bankbuchung bleibt dabei erhalten.
+- Monats- und Datumsgrenzen verwenden lokale Datumswerte statt UTC-basierter Formular-/Monatswerte.
+- Die zwei zuvor gemeldeten öffentlich aufrufbaren `SECURITY DEFINER`-RPCs laufen jetzt als `SECURITY INVOKER`; die fehlenden FK-Indizes aus dem Performance-Audit wurden ergänzt.
+
+### PDF-Import
+
+Für die Extraktion textbasierter PDFs wird PDF.js 4.10.38 versionsfest im Browser geladen. Finance sendet die PDF-Datei dabei nicht an einen OCR-/KI-Dienst; die Datei wird im Browser gelesen. Für gescannte Kontoauszüge ist später eine eigene OCR-Stufe vorgesehen.
+
+### Migration
+
+`20260929_finance_v2_3_beta4_1_stabilization.sql`
 
 ## V2.3 Beta 4
 
@@ -57,7 +78,7 @@ Dieser Stand fokussiert die UI-Grundlage: Login-/Scroll-Fix, sichtbare Identitä
 - aktueller Kontostand als verbindlicher Balance-Anker
 - manuelle Einnahmen, Ausgaben und Umbuchungen
 - Kategorien und Kategorisierungsregeln
-- CSV-Import mit Mapping und Dubletten-Fingerprint
+- CSV-/PDF-Import mit Mapping, Händlerprüfung und Dubletten-Fingerprint
 - wiederkehrende Zahlungen
 - Budgets pro Kategorie und Monat
 - Rechnungen
@@ -100,7 +121,7 @@ Diese Beta ist manual-first. Folgende externe Integrationen werden erst auf das 
 - eSchKG / deutsche Mahnverfahrensschnittstellen
 - ELSTER / ERiC
 - direkte Bankzahlungen
-- automatische Dokumenterkennung
+- OCR für gescannte Dokumente/PDFs und weitergehende automatische Dokumenterkennung
 
 Die Anwendung bleibt für die wesentlichen Finanzbereiche auch ohne externe API nutzbar.
 

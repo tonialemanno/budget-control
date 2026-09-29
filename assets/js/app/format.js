@@ -57,6 +57,12 @@ export function dateInputValue(date = new Date()) {
   return local.toISOString().slice(0, 10);
 }
 
+export function localMonthKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+
 export function monthInputValue(date = new Date()) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 7);

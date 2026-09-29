@@ -233,6 +233,8 @@ export const financeApi = Object.freeze({
   },
   createBill: (payload) => insert('bills', payload),
   updateBill: (id, patch) => update('bills', id, patch),
+  payBill: ({ householdId, billId, source, paidAt = null, accountId = null, transactionId = null }) => backend.rpc('pay_bill_v2', { p_household_id:householdId, p_bill_id:billId, p_source:source, p_paid_at:paidAt, p_account_id:accountId, p_transaction_id:transactionId }),
+  unpayBill: ({ householdId, billId }) => backend.rpc('unpay_bill_v2', { p_household_id:householdId, p_bill_id:billId }),
   deleteBill: (id) => remove('bills', id),
 
   listContracts(householdId) {

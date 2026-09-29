@@ -16,7 +16,7 @@ export function renderTaxAdvisor({ transactions = [], debtPayments = [], documen
   const taxDocuments = documents.filter((doc)=>doc.tax_relevant && Number(doc.tax_year || new Date(doc.document_date || doc.created_at).getFullYear())===year);
   const receiptByTx = new Map();
   for (const doc of documents.filter((d)=>d.object_type==='transaction' && d.object_id)) {
-    const list=receiptByTx.get(d.object_id)||[]; list.push(doc); receiptByTx.set(d.object_id,list);
+    const list=receiptByTx.get(doc.object_id)||[]; list.push(doc); receiptByTx.set(doc.object_id,list);
   }
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const expenseBase = taxTransactions.reduce((sum,tx)=>sum + consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);

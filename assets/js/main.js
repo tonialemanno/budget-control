@@ -2,9 +2,10 @@ import { MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
-import { escapeHtml, dateTimeLocalValue } from './app/format.js';
+import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue } from './app/format.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, suggestKnownCategoryName } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, suggestKnownCategoryName } from './app/csv-import.js';
+import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
@@ -100,7 +101,7 @@ const runtime = {
   fxRates: null,
 };
 
-const csvState = { file: null, parsed: null };
+const importState = { file: null, parsed: null };
 const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
@@ -288,6 +289,14 @@ function humanError(error) {
   if (/Debt was corrected after this payment/i.test(message)) return 'Restschuld oder Zahlungstermin wurden nach dieser Zahlung korrigiert. Eine automatische Stornierung wäre deshalb nicht mehr sicher.';
   if (/Active debt payment transactions must be reversed/i.test(message)) return 'Diese Kontobuchung gehört zu einer Schuldzahlung. Storniere sie im Zahlungsverlauf der Schuld.';
   if (/Active debt payment transaction financial fields are managed/i.test(message)) return 'Betrag, Konto und Datum einer Schuldzahlung werden im Schulden-Zahlungsverlauf verwaltet.';
+  if (/Paid bills require a linked payment transaction/i.test(message)) return 'Eine bezahlte Rechnung benötigt eine verknüpfte Kontobuchung.';
+  if (/Bill payment transaction does not belong/i.test(message)) return 'Die ausgewählte Kontobuchung gehört nicht zu diesem Haushalt.';
+  if (/Bill payment amount\/currency must match/i.test(message)) return 'Betrag und Währung der Kontobuchung müssen exakt zur Rechnung passen.';
+  if (/Only a booked outgoing transaction can be linked|Nur eine gebuchte Ausgangsbuchung/i.test(message)) return 'Es kann nur eine gebuchte Ausgangsbuchung als Zahlung verknüpft werden.';
+  if (/Diese Buchung ist bereits mit einer anderen Rechnung/i.test(message)) return 'Diese Kontobuchung ist bereits mit einer anderen Rechnung verknüpft.';
+  if (/Diese Buchung gehört bereits zu einer Schuldzahlung/i.test(message)) return 'Diese Kontobuchung ist bereits einer Schuldzahlung zugeordnet.';
+  if (/Paid bill transactions must be unlinked/i.test(message)) return 'Diese Kontobuchung gehört zu einer bezahlten Rechnung. Nimm zuerst die Rechnungszahlung zurück.';
+  if (/Paid bill transaction financial fields are managed/i.test(message)) return 'Betrag, Konto und Datum dieser Zahlung werden über die Rechnung verwaltet.';
   return message;
 }
 
@@ -296,7 +305,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 4</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 4.1</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -559,14 +568,21 @@ function showDebtPaymentSource(source) {
   if(historyInfo) historyInfo.hidden=source!=='history_only';
 }
 
-function addMonthsToDate(isoDate, months = 1) {
-  const date = new Date(isoDate || Date.now());
-  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0,10);
-  date.setMonth(date.getMonth() + months);
-  return date.toISOString().slice(0,10);
+function showBillPaymentSource(source) {
+  const accountField=document.querySelector('#billPaymentAccountField');
+  const transactionField=document.querySelector('#billPaymentTransactionField');
+  if(accountField) accountField.hidden=source!=='created_transaction';
+  if(transactionField) transactionField.hidden=source!=='linked_transaction';
 }
 
-function csvMappingFromForm(form) {
+function addMonthsToDate(isoDate, months = 1) {
+  const date = new Date(isoDate || Date.now());
+  if (Number.isNaN(date.getTime())) return dateInputValue();
+  date.setMonth(date.getMonth() + months);
+  return dateInputValue(date);
+}
+
+function importMappingFromForm(form) {
   const data = new FormData(form);
   return {
     date:formValue(data,'mapDate'), description:formValue(data,'mapDescription'), counterparty:formValue(data,'mapCounterparty'),
@@ -574,17 +590,17 @@ function csvMappingFromForm(form) {
   };
 }
 
-function renderCsvReview() {
-  const form = document.querySelector('#csv-import');
-  const host = document.querySelector('#csvReview');
-  if (!form || !host || !csvState.parsed) return;
-  const mapping = csvMappingFromForm(form);
+function renderImportReview() {
+  const form = document.querySelector('#bank-import');
+  const host = document.querySelector('#importReview');
+  if (!form || !host || !importState.parsed) return;
+  const mapping = importMappingFromForm(form);
   if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) {
     host.innerHTML = '<div class="inline-alert"><strong>Zuordnung unvollständig.</strong><span>Wähle Datum, Beschreibung und eine Betragsspalte.</span></div>';
     return;
   }
   const groups = new Map();
-  for (const row of csvState.parsed.rows) {
+  for (const row of importState.parsed.rows) {
     const tx = rowToTransaction(row,mapping);
     if (!tx) continue;
     const merchant = merchantFromTransaction(tx);
@@ -739,6 +755,13 @@ async function handleForm(form) {
   if (id === 'bill-create') {
     await financeApi.createBill({ household_id:h, account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
+  }
+  if (id === 'bill-payment') {
+    const billId=formValue(data,'billId');
+    const source=formValue(data,'source');
+    if(!billId) throw new Error('Rechnung wurde nicht gefunden.');
+    await financeApi.payBill({ householdId:h, billId, source, paidAt:nullValue(data,'paidAt'), accountId:nullValue(data,'accountId'), transactionId:nullValue(data,'transactionId') });
+    await refresh('Rechnung bezahlt und mit der Kontobuchung verknüpft.'); return;
   }
   if (id === 'contract-create') {
     await financeApi.createContract({ household_id:h, account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), contract_type:formValue(data,'contractType'), amount:numberValue(data,'amount'), currency, billing_cadence:formValue(data,'cadence'), next_payment_date:nullValue(data,'nextPaymentDate'), cancellation_notice_days:nullValue(data,'noticeDays')?numberValue(data,'noticeDays'):null, end_date:nullValue(data,'endDate'), status:'active' });
@@ -896,20 +919,20 @@ async function handleForm(form) {
     await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), password:formValue(data,'password') });
     await refresh('Benutzer erstellt.'); return;
   }
-  if (id === 'csv-import') {
-    if (!csvState.parsed || !csvState.file) throw new Error('Bitte zuerst eine CSV-Datei auswählen.');
+  if (id === 'bank-import') {
+    if (!importState.parsed || !importState.file) throw new Error('Bitte zuerst eine CSV- oder PDF-Datei auswählen.');
     const accountId = formValue(data,'accountId');
     const account = runtime.accounts.find((a)=>a.account_id===accountId);
     if (!account) throw new Error('Zielkonto wurde nicht gefunden.');
-    const mapping = csvMappingFromForm(form);
+    const mapping = importMappingFromForm(form);
     if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) throw new Error('Datum, Beschreibung und Betragsspalten müssen zugeordnet sein.');
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
     const remember = data.get('rememberMerchants') === 'on';
-    const batch = await financeApi.createImportBatch({ household_id:h, account_id:accountId, file_name:csvState.file.name, row_count:csvState.parsed.rows.length, imported_count:0, skipped_count:0, status:'processing' });
+    const batch = await financeApi.createImportBatch({ household_id:h, account_id:accountId, file_name:importState.file.name, row_count:importState.parsed.rows.length, imported_count:0, skipped_count:0, status:'processing' });
     try {
       const prepared = [];
       const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
-      for (const row of csvState.parsed.rows) {
+      for (const row of importState.parsed.rows) {
         const tx = rowToTransaction(row,mapping);
         if (!tx) continue;
         const merchantInfo = merchantFromTransaction(tx);
@@ -929,9 +952,10 @@ async function handleForm(form) {
         prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
       }
       const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
-      const skippedCount=Math.max(0,csvState.parsed.rows.length-inserted.length);
+      if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
+      const skippedCount=Math.max(0,importState.parsed.rows.length-inserted.length);
       await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
-      csvState.file=null; csvState.parsed=null;
+      importState.file=null; importState.parsed=null;
       uiState.importQuery=''; uiState.importCategory='all';
       await refresh(`${inserted.length} Transaktionen importiert. ${skippedCount} Dubletten oder ungültige Zeilen wurden übersprungen.`); return;
     } catch (error) {
@@ -948,7 +972,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-paid','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1056,7 +1080,7 @@ async function handleAction(target) {
   }
   if (action === 'insurance-recurring') {
     const p=runtime.insurance.find((row)=>row.id===target.dataset.id); if(!p||!p.account_id) throw new Error('Bitte zuerst ein Zahlungskonto hinterlegen.');
-    const cadence=p.billing_cadence||'annual'; const next=p.next_payment_date||new Date().toISOString().slice(0,10);
+    const cadence=p.billing_cadence||'annual'; const next=p.next_payment_date||dateInputValue();
     const payload={ household_id:runtime.household.id, account_id:p.account_id, category_id:p.category_id||null, direction:'expense', description:p.name, counterparty:p.provider||null, amount:Number(p.premium_amount), currency:p.currency||runtime.household.base_currency, cadence, next_date:next, active:true };
     const existing=runtime.recurringRules.find((r)=>r.account_id===p.account_id&&r.description.trim().toLowerCase()===p.name.trim().toLowerCase());
     if(existing) await financeApi.updateRecurringRule(existing.id,payload); else await financeApi.createRecurringRule(payload);
@@ -1066,7 +1090,7 @@ async function handleAction(target) {
     const c=runtime.contracts.find((row)=>row.id===target.dataset.id); if(!c||!c.account_id) throw new Error('Bitte beim Vertrag zuerst ein Zahlungskonto hinterlegen.');
     if(c.billing_cadence==='oneoff') throw new Error('Einmalige Verträge sind nicht wiederkehrend.');
     const account=runtime.accounts.find((a)=>a.account_id===c.account_id);
-    const payload={ household_id:runtime.household.id, account_id:c.account_id, category_id:c.category_id||null, direction:'expense', description:c.name, counterparty:c.provider||null, amount:Number(c.amount), currency:account?.currency||c.currency||runtime.household.base_currency, cadence:c.billing_cadence, next_date:c.next_payment_date||new Date().toISOString().slice(0,10), active:true };
+    const payload={ household_id:runtime.household.id, account_id:c.account_id, category_id:c.category_id||null, direction:'expense', description:c.name, counterparty:c.provider||null, amount:Number(c.amount), currency:account?.currency||c.currency||runtime.household.base_currency, cadence:c.billing_cadence, next_date:c.next_payment_date||dateInputValue(), active:true };
     const existing=runtime.recurringRules.find((r)=>r.account_id===c.account_id&&r.description.trim().toLowerCase()===c.name.trim().toLowerCase());
     if(existing) await financeApi.updateRecurringRule(existing.id,payload); else await financeApi.createRecurringRule(payload);
     await refresh('Vertrag unter Wiederkehrend übernommen.'); return;
@@ -1096,7 +1120,7 @@ async function handleAction(target) {
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
-    const month=new Date().toISOString().slice(0,7)+'-01'; await financeApi.upsertBudget({household_id:runtime.household.id,category_id:null,merchant_id:target.dataset.merchantId,month_start:month,amount:Number(target.dataset.amount)}); await refresh('Händler-Budget angelegt.'); return;
+    const month=monthInputValue()+'-01'; await financeApi.upsertBudget({household_id:runtime.household.id,category_id:null,merchant_id:target.dataset.merchantId,month_start:month,amount:Number(target.dataset.amount)}); await refresh('Händler-Budget angelegt.'); return;
   }
   if (action === 'document-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
@@ -1112,7 +1136,7 @@ async function handleAction(target) {
     const header=['Datum','Beschreibung','Kategorie','Steuerkategorie','Betrag','Währung','Kostenanteil Basiswährung','Basiswährung','Belege'];
     const escapeCsv=(v)=>`"${String(v??'').replaceAll('"','""')}"`;
     const paymentMap=buildDebtPaymentTransactionMap(runtime.debtPayments);
-    const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=consumptionExpenseBase(tx,paymentMap,runtime.household.base_currency,runtime.fxRates); return [String(tx.occurred_at).slice(0,10),tx.description,tx.categories?.name||(tx.cashflow_type==='debt_payment'?'Schuldentilgung':''),tx.tax_category||'',tx.amount,tx.currency,base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
+    const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=consumptionExpenseBase(tx,paymentMap,runtime.household.base_currency,runtime.fxRates); return [dateInputValue(new Date(tx.occurred_at)),tx.description,tx.categories?.name||(tx.cashflow_type==='debt_payment'?'Schuldentilgung':''),tx.tax_category||'',tx.amount,tx.currency,base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
     const blob=new Blob(['\ufeff'+lines],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`steuerberater-${year}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast(`Steuerexport ${year} erstellt.`); return;
   }
   if (action === 'goal-edit') {
@@ -1173,7 +1197,24 @@ async function handleAction(target) {
     }
     await refresh('Eintrag gelöscht.'); return;
   }
-  if (action === 'bill-paid') { await financeApi.updateBill(target.dataset.id,{status:'paid'}); await refresh('Rechnung als bezahlt markiert.'); return; }
+  if (action === 'bill-payment-open') {
+    const bill=runtime.bills.find((row)=>row.id===target.dataset.id); if(!bill) throw new Error('Rechnung wurde nicht gefunden.');
+    document.querySelector('#billPaymentBillId').value=bill.id;
+    document.querySelector('#billPaymentSource').value='created_transaction';
+    document.querySelector('#billPaymentDate').value=dateInputValue();
+    document.querySelector('#billPaymentAccount').value=bill.account_id||'';
+    const used=new Set(runtime.bills.filter((row)=>row.paid_transaction_id).map((row)=>row.paid_transaction_id));
+    const matches=runtime.transactions.filter((tx)=>tx.status==='booked'&&Number(tx.amount)<0&&!tx.transfer_group_id&&tx.cashflow_type!=='debt_payment'&&tx.currency===bill.currency&&Math.abs(Number(tx.amount)-(-Number(bill.amount)))<0.005&&!used.has(tx.id));
+    const select=document.querySelector('#billPaymentTransaction');
+    select.innerHTML='<option value="">Bitte wählen</option>'+matches.map((tx)=>`<option value="${tx.id}">${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${escapeHtml(tx.description)} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency)}</option>`).join('');
+    showBillPaymentSource('created_transaction');
+    const form=document.querySelector('#bill-payment'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'bill-payment-reverse') {
+    if(!confirm('Rechnungszahlung wirklich zurücknehmen? Eine von Finance erzeugte Kontobuchung wird dabei ebenfalls entfernt.')) return;
+    await financeApi.unpayBill({householdId:runtime.household.id,billId:target.dataset.id});
+    await refresh('Rechnungszahlung zurückgenommen.'); return;
+  }
   if (action === 'goal-progress') {
     const value=prompt('Aktueller Stand des Sparziels:',target.dataset.current||'0'); if (value===null) return;
     const n=Number(value); if (!Number.isFinite(n)||n<0) throw new Error('Ungültiger Betrag.');
@@ -1203,7 +1244,7 @@ async function handleAction(target) {
     const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
     const suggested=Math.min(Number(debt.installment_amount||0)||Number(debt.outstanding_amount||0),Number(debt.outstanding_amount||0));
     document.querySelector('#debtPaymentDebtId').value=debt.id;
-    document.querySelector('#debtPaymentDate').value=new Date().toISOString().slice(0,10);
+    document.querySelector('#debtPaymentDate').value=dateInputValue();
     document.querySelector('#debtPaymentAmount').value=suggested>0?suggested.toFixed(2):'';
     document.querySelector('#debtPaymentPrincipal').value=suggested>0?suggested.toFixed(2):'';
     document.querySelector('#debtPaymentInterest').value='0';
@@ -1252,7 +1293,7 @@ async function handleAction(target) {
   if (action === 'legal-event') {
     const caseId=target.dataset.id; const title=prompt('Ereignis / Titel:'); if (!title) return;
     const type=prompt('Typ des Ereignisses:','Notiz')||'Notiz'; const notes=prompt('Notiz (optional):','')||null;
-    await financeApi.createLegalEvent({case_id:caseId,household_id:runtime.household.id,event_date:new Date().toISOString().slice(0,10),event_type:type,title,notes}); await refresh('Timeline-Ereignis gespeichert.'); return;
+    await financeApi.createLegalEvent({case_id:caseId,household_id:runtime.household.id,event_date:dateInputValue(),event_type:type,title,notes}); await refresh('Timeline-Ereignis gespeichert.'); return;
   }
   if (action === 'family-remove') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder entfernen.'); if (!confirm('Mitglied aus dem Haushalt entfernen?')) return; await financeApi.removeHouseholdMember(runtime.household.id,target.dataset.userId); await refresh('Mitglied entfernt.'); return; }
   if (action === 'document-download') {
@@ -1300,6 +1341,7 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
+    if (target.id === 'billPaymentSource') { showBillPaymentSource(target.value); return; }
     if (target.id === 'debtPaymentTransaction') {
       const option=target.selectedOptions?.[0];
       if(option?.value){
@@ -1322,12 +1364,12 @@ pageContent.addEventListener('change', async (event) => {
       if (file.size > 10*1024*1024) throw new Error('Die Datei ist grösser als 10 MB.');
       const tx=runtime.transactions.find((row)=>row.id===txId); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
       const path=await financeApi.uploadDocument(runtime.household.id,file);
-      await financeApi.createDocument({household_id:runtime.household.id,object_type:'transaction',object_id:tx.id,name:file.name,storage_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:String(tx.occurred_at).slice(0,10),notes:'Quittung zur Transaktion',tax_relevant:true,tax_year:new Date(tx.occurred_at).getFullYear(),tax_category:tx.tax_category||null});
+      await financeApi.createDocument({household_id:runtime.household.id,object_type:'transaction',object_id:tx.id,name:file.name,storage_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:dateInputValue(new Date(tx.occurred_at)),notes:'Quittung zur Transaktion',tax_relevant:true,tax_year:new Date(tx.occurred_at).getFullYear(),tax_category:tx.tax_category||null});
       uiState.taxReceiptTxId=null; await refresh('Quittung gespeichert und mit der Transaktion verknüpft.'); return;
     }
     if (target.id === 'transactionMakeRecurring') { const fields=document.querySelector('#transactionRecurringFields'); if (fields) fields.hidden=!target.checked; return; }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
-    if (target.closest('#csvMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderCsvReview(); return; }
+    if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
       const parent = target.closest('form')?.querySelector('[name="parentId"]');
       if (parent) {
@@ -1336,10 +1378,10 @@ pageContent.addEventListener('change', async (event) => {
       }
       return;
     }
-    if (target.id === 'csvFile') {
+    if (target.id === 'importFile') {
       const file=target.files?.[0]; if (!file) return;
-      const parsed=parseCsv(await file.text()); if (!parsed.headers.length) throw new Error('Keine CSV-Kopfzeile erkannt.');
-      csvState.file=file; csvState.parsed=parsed;
+      const parsed=await parseImportFile(file); if (!parsed.headers.length) throw new Error('Keine verwertbaren Importspalten erkannt.');
+      importState.file=file; importState.parsed=parsed;
       const guess=guessMapping(parsed.headers);
       fillSelect(document.querySelector('#mapDate'),parsed.headers,guess.date,false);
       fillSelect(document.querySelector('#mapDescription'),parsed.headers,guess.description,false);
@@ -1347,9 +1389,10 @@ pageContent.addEventListener('change', async (event) => {
       fillSelect(document.querySelector('#mapAmount'),parsed.headers,guess.amount,true);
       fillSelect(document.querySelector('#mapDebit'),parsed.headers,guess.debit,true);
       fillSelect(document.querySelector('#mapCredit'),parsed.headers,guess.credit,true);
-      document.querySelector('#csvPreviewMeta').textContent=`${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
-      document.querySelector('#csvMapping').hidden=false;
-      renderCsvReview();
+      const meta=parsed.format==='pdf' ? `${parsed.rows.length} erkannte Buchungen · ${parsed.meta?.pages||0} PDF-Seite${parsed.meta?.pages===1?'':'n'}${parsed.meta?.ambiguous?` · ${parsed.meta.ambiguous} unklare Zeile${parsed.meta.ambiguous===1?'':'n'} übersprungen`:''}` : `${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
+      document.querySelector('#importPreviewMeta').textContent=meta;
+      document.querySelector('#importMapping').hidden=false;
+      renderImportReview();
       return;
     }
     if (target.dataset.action === 'user-toggle-module-visibility') {

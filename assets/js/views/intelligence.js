@@ -1,7 +1,7 @@
 import { metricCard, pageHeader, sectionHeading } from '../app/components.js';
 import { cadenceMonthlyFactor, money, percent } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
-import { buildDebtPaymentTransactionMap, cashOutflowBase, consumptionExpenseBase } from '../app/financial-effects.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 
 export function renderIntelligence({ transactions = [], debtPayments = [], accounts = [], bills = [], contracts = [], debts = [], insurance = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], household, profile, fxRates } = {}) {
   const currency = household?.base_currency || 'CHF';
@@ -13,7 +13,6 @@ export function renderIntelligence({ transactions = [], debtPayments = [], accou
   const monthRows = booked.filter((t)=>new Date(t.occurred_at)>=monthStart);
   const income = monthRows.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+inBase(t.amount,t.currency),0);
   const expenses = monthRows.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
-  const cashOutflow = monthRows.reduce((s,t)=>s+cashOutflowBase(t,currency,fxRates),0);
   const savingsRate = income>0 ? ((income-expenses)/income)*100 : 0;
   const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type)).reduce((s,a)=>s+inBase(a.current_balance,a.currency),0);
   const trailingExpenses = booked.filter((t)=>new Date(t.occurred_at)>=ninety).reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
@@ -25,11 +24,12 @@ export function renderIntelligence({ transactions = [], debtPayments = [], accou
   const value=(rows,field)=>rows.reduce((s,a)=>s+inBase(a[field],a.currency),0);
   const totalAssets = cash+value(assets,'current_value')+value(properties,'current_value')+value(vehicles,'current_value')+value(investments,'current_value')+value(pensions,'current_value');
   const debtValue = debts.filter((d)=>d.status!=='paid').reduce((s,d)=>s+inBase(d.outstanding_amount,d.currency),0); const debtRatio = totalAssets>0 ? debtValue/totalAssets*100 : 0;
-  const openBills = bills.filter((b)=>['open','overdue'].includes(b.status)).reduce((s,b)=>s+inBase(b.amount,b.currency),0); const forecast = cash + income - cashOutflow - openBills;
+  const openBills = bills.filter((b)=>['open','overdue'].includes(b.status)).reduce((s,b)=>s+inBase(b.amount,b.currency),0);
+  const forecast = cash - openBills;
   return `
     ${pageHeader({title:'Finance Intelligence',subtitle:`Analyse aus deinen eigenen Finance-Core-Daten · ${fxLabel(fxRates,currency)}.`})}
     <div class="grid-hero"><article class="card card--accent hero-card"><div><div class="hero-label">Runway</div><div class="hero-value">${runway.toFixed(1)} Monate</div><div class="hero-caption">Liquidität geteilt durch den Durchschnitt der letzten 90 Tage</div></div></article><div class="metric-grid">${metricCard('Cashflow Monat',money(income-expenses,{currency,locale}),'Einnahmen minus Ausgaben',income-expenses>=0?'positive':'warning')}${metricCard('Sparquote',percent(savingsRate,1,locale),'aktueller Monat')}${metricCard('Fixkostenquote',percent(fixedRatio,1,locale),'Verträge + Versicherungen + Raten')}${metricCard('Schuldenquote',percent(debtRatio,1,locale),'Restschuld / Vermögen')}</div></div>
     ${sectionHeading('Forecast','Vereinfachte operative Sicht')}
-    <div class="metric-grid">${metricCard('Liquidität',money(cash,{currency,locale}),'heute')}${metricCard('Offene Rechnungen',money(openBills,{currency,locale}),'noch nicht bezahlt')}${metricCard('Projektion nach offenen Rechnungen',money(forecast,{currency,locale}),'vereinfachter Forecast')}</div>
+    <div class="metric-grid">${metricCard('Liquidität',money(cash,{currency,locale}),'heute')}${metricCard('Offene Rechnungen',money(openBills,{currency,locale}),'noch nicht bezahlt')}${metricCard('Nach offenen Rechnungen',money(forecast,{currency,locale}),'heutige Liquidität minus offene Rechnungen')}</div>
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Berechnungsbasis</h3><p class="card-subtitle">Transparente Formeln</p></div></div><div class="stack compact-copy"><p><strong>Runway:</strong> Liquidität / durchschnittliche Monatsausgaben der letzten 90 Tage.</p><p><strong>Sparquote:</strong> (Einnahmen − Ausgaben) / Einnahmen.</p><p><strong>Fixkostenquote:</strong> normalisierte Vertrags-, Versicherungs- und Kreditraten / Einnahmen.</p><p><strong>FX:</strong> Fremdwährungen werden mit dem geladenen Referenzkurs in die Haushalts-Basiswährung umgerechnet; Originalbeträge bleiben erhalten.</p></div></article>`;
 }

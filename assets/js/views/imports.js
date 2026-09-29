@@ -63,17 +63,17 @@ export function renderImports({
   }).join('');
 
   return `
-    ${pageHeader({title:'Datenimport',subtitle:'CSV einlesen, Händler erkennen, direkt kategorisieren und Dubletten sicher überspringen.'})}
+    ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen, Händler erkennen, direkt kategorisieren und Dubletten sicher überspringen.'})}
     <div class="grid-main-aside">
-      <form class="card card-padding" id="csv-import" data-form="csv-import">
-        <div class="card-heading"><div><h3 class="card-title">CSV importieren</h3><p class="card-subtitle">Bankexport oder eigene CSV-Datei</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
+      <form class="card card-padding" id="bank-import" data-form="bank-import">
+        <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">CSV oder textbasierter PDF-Kontoauszug</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
           <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select></label>
-          <label class="field"><span>CSV-Datei</span><input class="text-control" id="csvFile" name="file" type="file" accept=".csv,text/csv" required ${accounts.length?'':'disabled'}></label>
+          <label class="field"><span>Importdatei</span><input class="text-control" id="importFile" name="file" type="file" accept=".csv,text/csv,application/pdf,.pdf" required ${accounts.length?'':'disabled'}></label>
         </div>
-        <div id="csvMapping" hidden style="margin-top:18px">
-          <div class="card-heading"><div><h3 class="card-title">Spalten zuordnen</h3><p class="card-subtitle" id="csvPreviewMeta"></p></div></div>
+        <div id="importMapping" hidden style="margin-top:18px">
+          <div class="card-heading"><div><h3 class="card-title">Spalten zuordnen</h3><p class="card-subtitle" id="importPreviewMeta"></p></div></div>
           <div class="form-grid form-grid--2">
             <label class="field"><span>Datum</span><select class="text-control" name="mapDate" id="mapDate"></select></label>
             <label class="field"><span>Beschreibung</span><select class="text-control" name="mapDescription" id="mapDescription"></select></label>
@@ -82,12 +82,12 @@ export function renderImports({
             <label class="field"><span>Belastung</span><select class="text-control" name="mapDebit" id="mapDebit"></select></label>
             <label class="field"><span>Gutschrift</span><select class="text-control" name="mapCredit" id="mapCredit"></select></label>
           </div>
-          <div id="csvReview" class="csv-review"></div>
+          <div id="importReview" class="csv-review"></div>
           <label class="module-toggle import-remember-toggle"><input type="checkbox" name="rememberMerchants" checked><span><strong>Händler-Zuordnung merken</strong><small>Die gewählte Kategorie wird für denselben erkannten Händler beim nächsten Import vorgeschlagen.</small></span></label>
           <div class="form-actions"><button class="action-button action-button--primary" type="submit">Import starten</button></div>
         </div>
       </form>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• Händler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• CSV und textbasierte PDF-Kontoauszüge werden vor dem Import analysiert.</p><p>• Händler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
     </div>
 
     ${latest ? `<article class="card card-padding import-latest" style="margin-top:16px">
@@ -100,5 +100,5 @@ export function renderImports({
         <div class="import-group-list">${groupRows || '<div class="table-empty">Keine Treffer.</div>'}</div>` : `<div class="table-empty">Dieser ältere Import enthält noch keine verknüpften Einzelbuchungen. Neue Importe ab V2.2 Beta 2 werden vollständig zugeordnet.</div>`}
     </article>` : ''}
 
-    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Importverlauf</h3><p class="card-subtitle">Die letzten 10 Läufe</p></div><a class="table-action" href="#/import-history">Alle Imports</a></div>${dataTable({headers:['Datei','Datum','Importiert','Übersprungen','Status'],rows:recentRows,emptyText:'Noch keine CSV-Dateien importiert.'})}</article>`;
+    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Importverlauf</h3><p class="card-subtitle">Die letzten 10 Läufe</p></div><a class="table-action" href="#/import-history">Alle Imports</a></div>${dataTable({headers:['Datei','Datum','Importiert','Übersprungen','Status'],rows:recentRows,emptyText:'Noch keine Dateien importiert.'})}</article>`;
 }

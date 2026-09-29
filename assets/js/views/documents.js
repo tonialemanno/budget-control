@@ -2,7 +2,7 @@ import { dataTable, pageHeader, deleteButton, statusPill } from '../app/componen
 import { dateLabel, escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 
-export function renderDocuments({ documents = [], canWrite=false, moduleAccess = {} } = {}) {
+export function renderDocuments({ documents = [], canWrite=false, moduleAccess = {}, hiddenModules = [] } = {}) {
   const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax');
   const taxCount=documents.filter((d)=>d.tax_relevant).length;
   const rows = documents.map((d)=>`<tr><td><strong>${escapeHtml(d.name)}</strong><div class="table-meta">${escapeHtml(d.mime_type||'Datei')} · ${escapeHtml(d.object_type||'general')}</div></td><td>${dateLabel(d.document_date||d.created_at)}</td><td>${d.tax_relevant?statusPill('active',`Steuer ${d.tax_year||''}`):'—'}</td><td>${escapeHtml(d.tax_category||d.notes||'')}</td><td><div class="table-actions">${d.storage_path?`<button class="table-action" type="button" data-action="document-download" data-id="${d.id}" data-path="${escapeHtml(d.storage_path)}" data-name="${escapeHtml(d.name)}">Öffnen</button>`:''}${canWrite&&canTax?`<button class="table-action" type="button" data-action="document-tax-toggle" data-id="${d.id}" data-value="${d.tax_relevant?'false':'true'}">${d.tax_relevant?'Steuer entfernen':'Steuerrelevant'}</button>`:''}${canWrite?deleteButton('documents',d.id):''}</div></td></tr>`);

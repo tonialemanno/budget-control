@@ -1,4 +1,42 @@
-# Version 2.3.0-beta-4
+# Version 2.3.0-beta-4.1
+
+## V2.3 Beta 4.1 – Stabilisierung & PDF-Import
+
+Deep-Test-Korrekturen auf Basis von Beta 4. Keine Patch-Wrapper; die betroffenen Funktionen und Views wurden direkt korrigiert.
+
+### Korrigiert
+
+- `Dokumente`: Zugriff auf die persönliche Modul-Sichtbarkeit wird sauber als View-Parameter übergeben; kein `hiddenModules is not defined` mehr.
+- `Steuerberater`: Beleg-Zuordnung verwendet das korrekte Dokumentobjekt; vorhandene Transaktionsbelege lassen die Seite nicht mehr abstürzen.
+- `Finance Intelligence`: Projektion basiert auf heutiger Liquidität minus offenen Rechnungen. Einnahmen/Ausgaben des laufenden Monats werden nicht mehr ein zweites Mal auf den bereits aktuellen Kontostand angewendet.
+- Historische Import-Batch-Zuordnung repariert. Alle noch vorhandenen Import-Transaktionen besitzen wieder `import_batch_id`.
+- CSV-Parser verarbeitet gequotete Felder mit eingebetteten Zeilenumbrüchen.
+- Lokale Monats-/Datumswerte ersetzen UTC-basierte `toISOString()`-Ableitungen an den betroffenen UI-Stellen.
+
+### PDF-Kontoauszüge
+
+- Datenimport akzeptiert `.csv` und `.pdf`.
+- Textbasierte PDFs werden im Browser mit PDF.js 4.10.38 analysiert.
+- Importiert werden nur Zeilen mit eindeutig erkennbarem Datum und eindeutigem Vorzeichen bzw. Debit-/Credit-Kontext.
+- Unklare PDF-Zeilen werden gezählt und übersprungen statt geraten.
+- Gescannte PDFs benötigen OCR und werden in dieser Beta bewusst noch nicht automatisch interpretiert.
+
+### Rechnungen
+
+- `Bezahlen` erzeugt entweder eine echte Kontobuchung oder verknüpft eine bereits vorhandene passende Ausgangsbuchung.
+- Betrag und Währung müssen exakt zur Rechnung passen.
+- Verknüpfte Zahlungen werden serverseitig geschützt.
+- `Zahlung zurücknehmen` entfernt eine von Finance erzeugte Kontobuchung; eine bereits vorhandene Bankbuchung bleibt erhalten.
+
+### Backend-Härtung
+
+- `convert_transaction_to_transfer` und `record_investment_trade` laufen als `SECURITY INVOKER`; ihre bestehenden expliziten Berechtigungsprüfungen bleiben erhalten und RLS greift zusätzlich.
+- Die vom Supabase-Performance-Audit gemeldeten fehlenden FK-Indizes wurden ergänzt.
+- Die bekannte Auth-Einstellung „Leaked Password Protection“ bleibt als separates Supabase-Projektsetting offen.
+
+### Migration
+
+`20260929_finance_v2_3_beta4_1_stabilization.sql`
 
 ## V2.3 Beta 4 – Debt Ledger
 

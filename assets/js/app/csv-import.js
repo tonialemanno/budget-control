@@ -1,52 +1,70 @@
+function parseRecords(text, delimiter) {
+  const rows = [];
+  let row = [];
+  let current = '';
+  let quoted = false;
+  const source = String(text || '').replace(/^\uFEFF/, '');
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === '"') {
+      if (quoted && source[i + 1] === '"') { current += '"'; i += 1; }
+      else quoted = !quoted;
+      continue;
+    }
+    if (char === delimiter && !quoted) {
+      row.push(current.trim());
+      current = '';
+      continue;
+    }
+    if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && source[i + 1] === '\n') i += 1;
+      row.push(current.trim());
+      current = '';
+      if (row.some((value) => String(value).trim())) rows.push(row);
+      row = [];
+      continue;
+    }
+    current += char;
+  }
+  row.push(current.trim());
+  if (row.some((value) => String(value).trim())) rows.push(row);
+  return rows;
+}
+
 function detectDelimiter(text) {
-  const firstLines = text.split(/\r?\n/).slice(0, 8).filter(Boolean);
   const candidates = [';', ',', '\t'];
   let best = ';';
   let bestScore = -1;
   for (const delimiter of candidates) {
-    const score = firstLines.reduce((sum, line) => sum + (line.split(delimiter).length - 1), 0);
+    const records = parseRecords(text, delimiter).slice(0, 12).filter((row) => row.length > 1);
+    if (!records.length) continue;
+    const widths = records.map((row) => row.length);
+    const frequency = new Map();
+    for (const width of widths) frequency.set(width, (frequency.get(width) || 0) + 1);
+    const consistency = Math.max(...frequency.values());
+    const columns = widths.reduce((sum, width) => sum + width, 0) / widths.length;
+    const score = consistency * 10 + columns;
     if (score > bestScore) { best = delimiter; bestScore = score; }
   }
   return best;
-}
-
-function parseLine(line, delimiter) {
-  const values = [];
-  let current = '';
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (quoted && line[i + 1] === '"') { current += '"'; i += 1; }
-      else quoted = !quoted;
-    } else if (char === delimiter && !quoted) {
-      values.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  values.push(current.trim());
-  return values;
 }
 
 export function parseCsv(text) {
   const normalized = String(text || '').replace(/^\uFEFF/, '').trim();
   if (!normalized) return { headers: [], rows: [], delimiter: ';' };
   const delimiter = detectDelimiter(normalized);
-  const lines = normalized.split(/\r?\n/).filter((line) => line.trim().length);
-  if (!lines.length) return { headers: [], rows: [], delimiter };
+  const records = parseRecords(normalized, delimiter);
+  if (!records.length) return { headers: [], rows: [], delimiter };
 
   let headerIndex = 0;
   const financeHeader = /(buchungsdatum|abschlussdatum|datum|date|belastung|gutschrift|betrag|amount|beschreibung|description)/i;
-  const candidate = lines.findIndex((line) => financeHeader.test(line) && line.includes(delimiter));
+  const candidate = records.findIndex((row) => financeHeader.test(row.join(' ')) && row.length > 1);
   if (candidate >= 0) headerIndex = candidate;
 
-  const headers = parseLine(lines[headerIndex], delimiter).map((h, index) => h || `Spalte ${index + 1}`);
-  const rows = lines.slice(headerIndex + 1).map((line) => {
-    const values = parseLine(line, delimiter);
-    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
-  }).filter((row) => Object.values(row).some((value) => String(value).trim()));
+  const headers = records[headerIndex].map((header, index) => String(header || '').trim() || `Spalte ${index + 1}`);
+  const rows = records.slice(headerIndex + 1).map((values) => (
+    Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']))
+  )).filter((row) => Object.values(row).some((value) => String(value).trim()));
 
   return { headers, rows, delimiter };
 }

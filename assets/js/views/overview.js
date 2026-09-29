@@ -1,5 +1,5 @@
 import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { cadenceMonthlyFactor, money, percent, shortDate } from '../app/format.js';
+import { cadenceMonthlyFactor, localMonthKey, money, percent, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase, debtPrincipalBase } from '../app/financial-effects.js';
@@ -8,8 +8,8 @@ export function renderOverview({ accounts = [], transactions = [], debtPayments 
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
-  const monthKey = now.toISOString().slice(0,7);
-  const monthTx = transactions.filter((t)=>String(t.occurred_at).slice(0,7)===monthKey && t.status==='booked' && !t.transfer_group_id);
+  const monthKey = localMonthKey(now);
+  const monthTx = transactions.filter((t)=>localMonthKey(t.occurred_at)===monthKey && t.status==='booked' && !t.transfer_group_id);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const income = monthTx.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
   const expenses = monthTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
@@ -28,7 +28,7 @@ export function renderOverview({ accounts = [], transactions = [], debtPayments 
   const netWorth = totalAssets-debtValue;
   const savingsRate = income>0?(income-expenses)/income*100:0;
   const savingsAccountIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
-  const savedThisMonth=transactions.filter((t)=>String(t.occurred_at).slice(0,7)===monthKey&&t.transfer_group_id&&Number(t.amount)>0&&savingsAccountIds.has(t.account_id)).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+  const savedThisMonth=transactions.filter((t)=>localMonthKey(t.occurred_at)===monthKey&&t.transfer_group_id&&Number(t.amount)>0&&savingsAccountIds.has(t.account_id)).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
   return `
     ${pageHeader({kicker:shortDate(new Date(),locale),title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),subtitle:'Das ist dein aktueller Finance-Core-Stand. Fremdwährungen werden über die verlässliche FX-Schicht in die Basiswährung umgerechnet.'})}
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>FX aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben gespeichert.</span></div>`:''}
