@@ -1,4 +1,29 @@
-# Version 2.3.0-beta-3
+# Version 2.3.0-beta-4
+
+## V2.3 Beta 4 – Debt Ledger
+
+Dieser Stabilisierungsschritt ersetzt die bisherige reine Restschuld-Korrektur durch einen konsistenten Schulden-Zahlungsverlauf.
+
+### Neu
+
+- Bestehende Schulden vollständig bearbeiten: Name, Gläubiger, Typ, Währung, Ursprungsbetrag, Restschuld, Zins, Rate, Rhythmus, Zahlungskonto, Termine, Status und Notiz.
+- `Zahlung erfassen` mit Aufteilung in Tilgung, Zins und Gebühren.
+- Drei saubere Zahlungswege: neue Kontobuchung erzeugen, vorhandene Bankbuchung verknüpfen oder historische Zahlung ohne neue Kontobewegung erfassen.
+- Restschuld und Zahlungshistorie werden in einer Datenbanktransaktion zusammengeführt; Teilzustände werden vermieden.
+- Automatische Fortschreibung des nächsten Zahlungstermins, optional abschaltbar.
+- Zahlungshistorie pro Schuld mit Restschuld nach jeder Zahlung.
+- Nur die zuletzt erfasste aktive Zahlung kann storniert werden; dabei werden Restschuld, Termin und verknüpfte Kontobuchung konsistent zurückgesetzt.
+- Schuldenrate kann mit `Wiederkehrend` verbunden und bei Änderungen synchronisiert werden.
+- Neue Tabelle `debt_payments`, neue Debt-Verknüpfungen zu Zahlungskonto/Wiederkehrend und `transactions.cashflow_type`.
+- Schuldentilgung wird nicht als Konsumausgabe gezählt; Zins und Gebühren bleiben Aufwand. Cashflow berücksichtigt weiterhin den vollständigen Geldabfluss.
+- Kategorisierungsassistent ignoriert Schuldentilgungen bewusst.
+- RLS für `debt_payments` inklusive restriktivem Schulden-Modul-Gate. Keine neue SECURITY-DEFINER-Funktion.
+
+### Migration
+
+`20260929_finance_v2_3_debt_ledger.sql`
+
+Zusätzliche Integritätshärtung: `20260929_finance_v2_3_debt_ledger_hardening.sql` und `20260929_finance_v2_3_debt_transaction_integrity.sql`. Sie verhindern u. a. Währungswechsel nach vorhandenem Zahlungsverlauf sowie direkte Änderungen an aktiven Schuldentilgungs-Buchungen.
 
 ## V2.3 Beta 3 – Categorization Assistant
 

@@ -1,10 +1,16 @@
-# Finance V2.3 – Beta 3
+# Finance V2.3 – Beta 4
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
 
 
+
+## V2.3 Beta 4
+
+Debt Ledger: Schulden und Kredite sind vollständig bearbeitbar. Rate, Rhythmus, Standard-Zahlungskonto, Termine, Status und Notizen lassen sich nachträglich korrigieren. Tatsächliche Zahlungen werden als unveränderbarer Zahlungsverlauf mit Tilgung, Zins und Gebühren gespeichert. Eine Zahlung kann eine neue Kontobuchung erzeugen, eine bestehende Bankbuchung verknüpfen oder als historische Zahlung erfasst werden, wenn sie bereits im Kontostand enthalten ist. Die Restschuld wird dabei atomar aktualisiert; die zuletzt erfasste Zahlung kann sauber storniert werden. Schuldenraten können mit `Wiederkehrend` gekoppelt und bei Änderungen synchron gehalten werden.
+
+Tilgungen werden zusätzlich als eigener Cashflow-Typ geführt: Sie reduzieren die Verbindlichkeit und werden nicht als Konsumausgabe behandelt; Zinsen und Gebühren bleiben Kosten.
 
 ## V2.3 Beta 3
 

@@ -3,6 +3,7 @@ import { dateLabel, dateTimeLocalValue, escapeHtml, money } from '../app/format.
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { buildCategorizationGroups, categorizationSourceLabel } from '../app/categorization.js';
+import { buildDebtPaymentTransactionMap, cashOutflowBase, consumptionExpenseBase, debtPrincipalBase } from '../app/financial-effects.js';
 
 function periodStart(period) {
   const now=new Date();
@@ -31,6 +32,7 @@ function filterTransactions(transactions,{period,from,to,query,category,account}
     const iso=String(tx.occurred_at||'').slice(0,10);
     if(from&&iso<from) return false;
     if(to&&iso>to) return false;
+    if(tx.cashflow_type==='debt_payment' && category && category!=='all') return false;
     if(category==='uncategorized'&&tx.category_id) return false;
     if(category&&category!=='all'&&category!=='uncategorized'&&tx.category_id!==category) return false;
     if(account&&account!=='all'&&tx.account_id!==account) return false;
@@ -39,7 +41,7 @@ function filterTransactions(transactions,{period,from,to,query,category,account}
   });
 }
 function cashSuggestion(tx,accounts){
-  if(Number(tx.amount)>=0||tx.transfer_group_id) return null;
+  if(Number(tx.amount)>=0||tx.transfer_group_id||tx.cashflow_type==='debt_payment') return null;
   const text=`${tx.description||''} ${tx.counterparty||''}`.toLowerCase();
   const cash=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='cash');
   const savings=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='savings');
@@ -47,10 +49,17 @@ function cashSuggestion(tx,accounts){
   if(savings && /(spar|übertrag|uebertrag|transfer|umbuch|eigenes konto)/i.test(text)) return {account:savings,label:`War das Sparen auf ${savings.name}?`};
   return null;
 }
-function txRow(tx,{locale,canWrite,accounts,canTax}){
-  const positive=Number(tx.amount)>=0; const transfer=Boolean(tx.transfer_group_id); const suggestion=cashSuggestion(tx,accounts);
-  const isTwint=/twint/i.test(`${tx.description||''} ${tx.counterparty||''}`);
-  return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(tx.categories?.name||(transfer?'Umbuchung':'Ohne Kategorie'))} · ${escapeHtml(tx.merchants?.name||tx.counterparty||'')} ${tx.merchants?.name||tx.counterparty?'· ':''}${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}</div>${suggestion&&canWrite?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span><button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button></div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${canWrite?`<div class="row-actions">${transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">Wiederkehrend</button>${canTax?`<button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="${tx.tax_relevant?'false':'true'}">${tx.tax_relevant?'Steuer ✓':'Steuer'}</button>`:''}`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button></div>`:''}</div></div>`;
+function txRow(tx,{locale,canWrite,accounts,canTax,paymentMap}){
+  const positive=Number(tx.amount)>=0;
+  const transfer=Boolean(tx.transfer_group_id);
+  const debtPayment=tx.cashflow_type==='debt_payment' ? paymentMap?.get(tx.id) : null;
+  const suggestion=debtPayment?null:cashSuggestion(tx,accounts);
+  const isTwint=!debtPayment&&/twint/i.test(`${tx.description||''} ${tx.counterparty||''}`);
+  const categoryLabel=debtPayment?'Schuldentilgung':tx.categories?.name||(transfer?'Umbuchung':'Ohne Kategorie');
+  const split=debtPayment?` · Tilgung ${money(debtPayment.principal_amount,{currency:debtPayment.currency||tx.currency,locale})}${Number(debtPayment.interest_amount||0)>0?` · Zins ${money(debtPayment.interest_amount,{currency:debtPayment.currency||tx.currency,locale})}`:''}${Number(debtPayment.fee_amount||0)>0?` · Gebühren ${money(debtPayment.fee_amount,{currency:debtPayment.currency||tx.currency,locale})}`:''}`:'';
+  const taxAction=canTax?`<button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="${tx.tax_relevant?'false':'true'}">${tx.tax_relevant?'Steuer ✓':'Steuer'}</button>`:'';
+  const actions=canWrite?`<div class="row-actions">${debtPayment?`<a class="table-action" href="#/debts">Schuld anzeigen</a>${taxAction}`:transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">Wiederkehrend</button>${taxAction}`}${debtPayment?'':`<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button>`}</div>`:'';
+  return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':debtPayment?'credit-card':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(categoryLabel)} · ${escapeHtml(tx.merchants?.name||tx.counterparty||'')} ${tx.merchants?.name||tx.counterparty?'· ':''}${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}${split}</div>${suggestion&&canWrite?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span><button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button></div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${actions}</div></div>`;
 }
 
 function renderCategorizationReview({
@@ -58,7 +67,7 @@ function renderCategorizationReview({
   canWrite, categorizationFilter='action', categorizationPage=1,
 }) {
   const groups = buildCategorizationGroups({ transactions, categories, merchants, rules:categorizationRules });
-  const uncategorizedCount = transactions.filter((tx)=>tx.status==='booked'&&!tx.transfer_group_id&&!tx.category_id).length;
+  const uncategorizedCount = transactions.filter((tx)=>tx.status==='booked'&&!tx.transfer_group_id&&tx.cashflow_type!=='debt_payment'&&!tx.category_id).length;
   const safeGroups = groups.filter((group)=>group.unassignedCount>0&&group.suggestion?.safe);
   const unresolvedGroups = groups.filter((group)=>group.unassignedCount>0&&!group.suggestion);
   const mixedGroups = groups.filter((group)=>group.mixed);
@@ -115,7 +124,7 @@ function renderCategorizationReview({
 }
 
 export function renderTransactions({
-  accounts = [], categories = [], transactions = [], household, profile, canWrite = false, fxRates,
+  accounts = [], categories = [], transactions = [], debtPayments = [], household, profile, canWrite = false, fxRates,
   transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionAccount='all',
   transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [],
   merchants = [], categorizationRules = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1,
@@ -124,9 +133,12 @@ export function renderTransactions({
   const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax');
   const locale = profile?.locale || 'de-CH';
   const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,account:transactionAccount});
-  const spendRows=rows.filter((tx)=>Number(tx.amount)<0&&!tx.transfer_group_id);
+  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
+  const spendRows=rows.filter((tx)=>Number(tx.amount)<0&&!tx.transfer_group_id&&consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates)>0);
   const income=rows.filter((tx)=>Number(tx.amount)>0&&!tx.transfer_group_id).reduce((s,tx)=>s+(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
-  const expenses=spendRows.reduce((s,tx)=>s+Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
+  const expenses=rows.reduce((s,tx)=>s+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
+  const cashOutflow=rows.reduce((s,tx)=>s+cashOutflowBase(tx,baseCurrency,fxRates),0);
+  const debtPrincipal=rows.reduce((s,tx)=>s+debtPrincipalBase(tx,paymentMap,baseCurrency,fxRates),0);
   const savingsIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
   const savings=rows.filter((tx)=>tx.transfer_group_id&&Number(tx.amount)>0&&savingsIds.has(tx.account_id)).reduce((s,tx)=>s+(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
   const categoryOptions = categories.map((c)=>`<option value="${c.id}">${escapeHtml(c.name)} · ${c.kind==='income'?'Einnahme':'Ausgabe'}</option>`).join('');
@@ -138,18 +150,20 @@ export function renderTransactions({
 
   const groups=new Map();
   for(const tx of spendRows){
-    const key=tx.category_id||'uncategorized';
-    const g=groups.get(key)||{id:key,name:tx.categories?.name||'Ohne Kategorie',total:0,count:0,merchants:new Map()};
-    const value=Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0); g.total+=value; g.count++;
+    const isDebtCost=tx.cashflow_type==='debt_payment';
+    const key=isDebtCost?'debt-costs':tx.category_id||'uncategorized';
+    const g=groups.get(key)||{id:key,name:isDebtCost?'Zinsen & Gebühren':tx.categories?.name||'Ohne Kategorie',total:0,count:0,merchants:new Map(),synthetic:isDebtCost};
+    const value=consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates); g.total+=value; g.count++;
     const merchant=tx.merchants?.name||tx.counterparty||tx.description; g.merchants.set(merchant,(g.merchants.get(merchant)||0)+value); groups.set(key,g);
   }
   const summary=[...groups.values()].sort((a,b)=>b.total-a.total).map((g)=>{
     const top=[...g.merchants.entries()].sort((a,b)=>b[1]-a[1]).slice(0,2).map(([n])=>n).join(' · ');
-    return `<article class="card transaction-summary-card"><div class="metric-label">${escapeHtml(g.name)}</div><div class="transaction-summary-value">${money(g.total,{currency:baseCurrency,locale})}</div><div class="metric-note">${g.count} Buchung${g.count===1?'':'en'}${top?` · ${escapeHtml(top)}`:''}</div><div class="card-footer-actions"><button class="table-action" type="button" data-action="transaction-filter-category" data-category="${escapeHtml(g.id)}">Buchungen ansehen</button></div></article>`;
+    const action=g.synthetic?'<a class="table-action" href="#/debts">Schulden ansehen</a>':`<button class="table-action" type="button" data-action="transaction-filter-category" data-category="${escapeHtml(g.id)}">Buchungen ansehen</button>`;
+    return `<article class="card transaction-summary-card"><div class="metric-label">${escapeHtml(g.name)}</div><div class="transaction-summary-value">${money(g.total,{currency:baseCurrency,locale})}</div><div class="metric-note">${g.count} Buchung${g.count===1?'':'en'}${top?` · ${escapeHtml(top)}`:''}</div><div class="card-footer-actions">${action}</div></article>`;
   }).join('');
 
   const monthly=new Map();
-  for(const tx of spendRows){ const key=monthKey(tx.occurred_at); if(!key) continue; const value=Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0); const m=monthly.get(key)||{total:0,count:0}; m.total+=value; m.count++; monthly.set(key,m); }
+  for(const tx of spendRows){ const key=monthKey(tx.occurred_at); if(!key) continue; const value=consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates); const m=monthly.get(key)||{total:0,count:0}; m.total+=value; m.count++; monthly.set(key,m); }
   const monthlyRows=[...monthly.entries()].sort((a,b)=>b[0].localeCompare(a[0]));
   const monthlyHistory=monthlyRows.length>1?`<article class="card card-padding transaction-history-card"><div class="card-heading"><div><h3 class="card-title">Monatsverlauf</h3><p class="card-subtitle">Rückwirkende Ausgaben für den aktuellen Filter.</p></div></div><div class="transaction-month-grid">${monthlyRows.map(([key,m])=>`<div class="transaction-month-item"><span>${escapeHtml(monthLabel(key,locale))}</span><strong>${money(m.total,{currency:baseCurrency,locale})}</strong><small>${m.count} Buchung${m.count===1?'':'en'}</small></div>`).join('')}</div></article>`:'';
 
@@ -190,7 +204,7 @@ export function renderTransactions({
       <div class="toolbar-note">${transactions.length} Buchungen geladen${earliest&&latest?` · Daten von ${dateLabel(earliest.occurred_at,locale)} bis ${dateLabel(latest.occurred_at,locale)}`:''} · ${escapeHtml(fxLabel(fxRates,baseCurrency))}</div>
     </article>
 
-    <div class="metric-grid" style="margin-bottom:16px">${metricCard('Einnahmen',money(income,{currency:baseCurrency,locale}),`${periodLabel(transactionPeriod)} · aktueller Filter`,'positive')}${metricCard('Ausgaben',money(expenses,{currency:baseCurrency,locale}),`${periodLabel(transactionPeriod)} · aktueller Filter`)}${metricCard('Cashflow',money(income-expenses,{currency:baseCurrency,locale}),'ohne interne Umbuchungen',income-expenses>=0?'positive':'warning')}${metricCard('Sparen',money(savings,{currency:baseCurrency,locale}),'Umbuchungen auf Sparkonten','positive')}</div>
+    <div class="metric-grid" style="margin-bottom:16px">${metricCard('Einnahmen',money(income,{currency:baseCurrency,locale}),`${periodLabel(transactionPeriod)} · aktueller Filter`,'positive')}${metricCard('Ausgaben',money(expenses,{currency:baseCurrency,locale}),'Konsum, Zins & Gebühren')}${debtPrincipal>0?metricCard('Schuldentilgung',money(debtPrincipal,{currency:baseCurrency,locale}),'reduziert Verbindlichkeiten'):''}${metricCard('Cashflow',money(income-cashOutflow,{currency:baseCurrency,locale}),'alle externen Geldabflüsse',income-cashOutflow>=0?'positive':'warning')}${metricCard('Sparen',money(savings,{currency:baseCurrency,locale}),'Umbuchungen auf Sparkonten','positive')}</div>
 
-    ${transactionView==='summary'?`<div class="transaction-summary-grid">${summary||emptyState('list','Noch keine Ausgaben','Für den gewählten Filter liegen keine Ausgaben vor.')}</div>${monthlyHistory}`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Buchungen</h3><p class="card-subtitle">${escapeHtml(rangeText)} · keine Endlosliste</p></div><div class="admin-pager"><button class="table-action" type="button" data-action="transaction-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages}</span><button class="table-action" type="button" data-action="transaction-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div></div>${pageRows.length?`<div class="list">${pageRows.map((tx)=>txRow(tx,{locale,canWrite,accounts,canTax})).join('')}</div>`:emptyState('list','Keine Treffer','Passe Suche oder Filter an.')}</article>`}`;
+    ${transactionView==='summary'?`<div class="transaction-summary-grid">${summary||emptyState('list','Noch keine Ausgaben','Für den gewählten Filter liegen keine Ausgaben vor.')}</div>${monthlyHistory}`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Buchungen</h3><p class="card-subtitle">${escapeHtml(rangeText)} · keine Endlosliste</p></div><div class="admin-pager"><button class="table-action" type="button" data-action="transaction-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages}</span><button class="table-action" type="button" data-action="transaction-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div></div>${pageRows.length?`<div class="list">${pageRows.map((tx)=>txRow(tx,{locale,canWrite,accounts,canTax,paymentMap})).join('')}</div>`:emptyState('list','Keine Treffer','Passe Suche oder Filter an.')}</article>`}`;
 }

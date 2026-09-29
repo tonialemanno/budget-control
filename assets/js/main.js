@@ -8,6 +8,7 @@ import { parseCsv, guessMapping, rowToTransaction, applyCategoryRules, transacti
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderAccounts } from './views/accounts.js';
@@ -85,6 +86,7 @@ const runtime = {
   goals: [],
   goalSources: [],
   debts: [],
+  debtPayments: [],
   legalCases: [],
   legalEvents: [],
   assets: [],
@@ -99,7 +101,7 @@ const runtime = {
 };
 
 const csvState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -275,6 +277,17 @@ function humanError(error) {
   if (/email not confirmed/i.test(message)) return 'Dieser Benutzer ist noch nicht freigeschaltet.';
   if (/duplicate key/i.test(message)) return 'Dieser Datensatz existiert bereits.';
   if (/row-level security/i.test(message)) return 'Du hast für diese Aktion keine Berechtigung.';
+  if (/Payment total must equal principal plus interest plus fees/i.test(message)) return 'Zahlung gesamt muss Tilgung + Zins + Gebühren entsprechen.';
+  if (/Principal payment exceeds outstanding debt/i.test(message)) return 'Die Tilgung ist höher als die aktuelle Restschuld.';
+  if (/Only the latest active debt payment can be reversed/i.test(message)) return 'Es kann nur die zuletzt erfasste aktive Zahlung storniert werden.';
+  if (/Linked transaction amount\/currency must match/i.test(message)) return 'Betrag und Währung der Bankbuchung müssen zur Schuldzahlung passen.';
+  if (/Transaction is already linked to a debt payment/i.test(message)) return 'Diese Bankbuchung ist bereits mit einer Schuldzahlung verknüpft.';
+  if (/Debt payment and account must use the same currency/i.test(message)) return 'Zahlungskonto und Schuld müssen für diese Beta dieselbe Währung haben.';
+  if (/Debt payments are immutable/i.test(message)) return 'Erfasste Zahlungen werden nicht überschrieben. Storniere die letzte Zahlung und erfasse sie neu.';
+  if (/Debt currency cannot be changed after payments exist/i.test(message)) return 'Die Währung kann nach der ersten erfassten Zahlung nicht mehr geändert werden.';
+  if (/Debt was corrected after this payment/i.test(message)) return 'Restschuld oder Zahlungstermin wurden nach dieser Zahlung korrigiert. Eine automatische Stornierung wäre deshalb nicht mehr sicher.';
+  if (/Active debt payment transactions must be reversed/i.test(message)) return 'Diese Kontobuchung gehört zu einer Schuldzahlung. Storniere sie im Zahlungsverlauf der Schuld.';
+  if (/Active debt payment transaction financial fields are managed/i.test(message)) return 'Betrag, Konto und Datum einer Schuldzahlung werden im Schulden-Zahlungsverlauf verwaltet.';
   return message;
 }
 
@@ -283,7 +296,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 3</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 4</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -323,14 +336,14 @@ async function loadFinanceData() {
   const results = await Promise.all([
     financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
     financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
-    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
+    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
-    runtime.goals, runtime.goalSources, runtime.debts, runtime.legalCases, runtime.legalEvents, runtime.assets,
+    runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
   ] = results.map((value) => value || (value === null ? null : []));
@@ -412,6 +425,7 @@ function render() {
     categorizationOpen: uiState.categorizationOpen,
     categorizationFilter: uiState.categorizationFilter,
     categorizationPage: uiState.categorizationPage,
+    debtExpandedId: uiState.debtExpandedId,
     taxYear: uiState.taxYear,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -497,6 +511,54 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   return targets.length;
 }
 
+function debtRecurringPayload(debt) {
+  const account = runtime.accounts.find((row)=>row.account_id===debt.payment_account_id);
+  if (!account) throw new Error('Bitte zuerst ein Standard-Zahlungskonto bei der Schuld hinterlegen.');
+  if (account.currency !== debt.currency) throw new Error('Zahlungskonto und Schuld müssen für Wiederkehrend dieselbe Währung haben.');
+  if (debt.payment_cadence === 'manual') throw new Error('Flexible/manuelle Schulden können nicht als Wiederkehrend geplant werden.');
+  if (!(Number(debt.installment_amount) > 0)) throw new Error('Bitte zuerst eine Rate grösser als 0 hinterlegen.');
+  if (!debt.next_payment_date) throw new Error('Bitte zuerst den nächsten Zahlungstermin hinterlegen.');
+  return {
+    household_id: runtime.household.id,
+    account_id: account.account_id,
+    category_id: null,
+    direction: 'expense',
+    description: `Schuldenrate: ${debt.name}`,
+    counterparty: debt.creditor || null,
+    amount: Number(debt.installment_amount),
+    currency: debt.currency,
+    cadence: debt.payment_cadence,
+    next_date: debt.next_payment_date,
+    end_date: debt.end_date || null,
+    active: debt.status === 'active' && Number(debt.outstanding_amount) > 0,
+  };
+}
+
+async function syncLinkedDebtRecurring(debt) {
+  if (!debt?.recurring_rule_id) return;
+  const rule = runtime.recurringRules.find((row)=>row.id===debt.recurring_rule_id);
+  if (!rule) {
+    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
+    return;
+  }
+  const valid = debt.payment_account_id && debt.payment_cadence !== 'manual' && Number(debt.installment_amount)>0 && debt.next_payment_date;
+  if (!valid) {
+    await financeApi.updateRecurringRule(rule.id,{active:false});
+    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
+    return;
+  }
+  await financeApi.updateRecurringRule(rule.id,debtRecurringPayload(debt));
+}
+
+function showDebtPaymentSource(source) {
+  const accountField=document.querySelector('#debtPaymentAccountField');
+  const transactionField=document.querySelector('#debtPaymentTransactionField');
+  const historyInfo=document.querySelector('#debtPaymentHistoryInfo');
+  if(accountField) accountField.hidden=source!=='created_transaction';
+  if(transactionField) transactionField.hidden=source!=='linked_transaction';
+  if(historyInfo) historyInfo.hidden=source!=='history_only';
+}
+
 function addMonthsToDate(isoDate, months = 1) {
   const date = new Date(isoDate || Date.now());
   if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0,10);
@@ -543,6 +605,7 @@ function renderCsvReview() {
 
 function openTransactionEditor(tx, { recurring = false } = {}) {
   if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
+  if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
   document.querySelector('#transactionEditId').value=tx.id;
   document.querySelector('#transactionEditDirection').value=Number(tx.amount)<0?'expense':'income';
   document.querySelector('#transactionEditAmount').value=Math.abs(Number(tx.amount));
@@ -620,6 +683,7 @@ async function handleForm(form) {
     const transactionId=formValue(data,'transactionId');
     const tx=runtime.transactions.find((row)=>row.id===transactionId);
     if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
+    if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
@@ -699,9 +763,60 @@ async function handleForm(form) {
     else throw new Error('Unbekannte Finanzierungsquelle.');
     await financeApi.createGoalSource(payload); await refresh('Finanzierungsquelle hinzugefügt.'); return;
   }
-  if (id === 'debt-create') {
-    await financeApi.createDebt({ household_id:h, debt_type:formValue(data,'debtType'), creditor:formValue(data,'creditor'), name:formValue(data,'name'), original_amount:numberValue(data,'originalAmount'), outstanding_amount:numberValue(data,'outstandingAmount'), currency, interest_rate:numberValue(data,'interestRate'), installment_amount:numberValue(data,'installmentAmount'), payment_cadence:'monthly', next_payment_date:nullValue(data,'nextPaymentDate'), status:'active' });
-    await refresh('Schuld / Kredit gespeichert.'); return;
+  if (id === 'debt-create' || id === 'debt-edit') {
+    const originalAmount=numberValue(data,'originalAmount');
+    const outstandingAmount=numberValue(data,'outstandingAmount');
+    const requestedStatus=formValue(data,'status')||'active';
+    if (requestedStatus==='paid' && outstandingAmount>0) throw new Error('Status „Bezahlt“ ist nur bei Restschuld 0 möglich.');
+    const payload={
+      debt_type:formValue(data,'debtType'), creditor:formValue(data,'creditor'), name:formValue(data,'name'),
+      original_amount:originalAmount, outstanding_amount:outstandingAmount, currency:formValue(data,'currency')||currency,
+      interest_rate:numberValue(data,'interestRate'), installment_amount:numberValue(data,'installmentAmount'),
+      payment_cadence:formValue(data,'paymentCadence')||'manual', payment_account_id:nullValue(data,'paymentAccountId'),
+      next_payment_date:nullValue(data,'nextPaymentDate'), start_date:nullValue(data,'startDate'), end_date:nullValue(data,'endDate'),
+      status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
+    };
+    if (id==='debt-create') {
+      await financeApi.createDebt({household_id:h,...payload});
+      await refresh('Schuld / Kredit gespeichert.');
+    } else {
+      const debtId=formValue(data,'debtId');
+      const before=runtime.debts.find((row)=>row.id===debtId);
+      if (!before) throw new Error('Schuld wurde nicht gefunden.');
+      const updated=await financeApi.updateDebt(debtId,payload);
+      if (before.recurring_rule_id) await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
+      await refresh('Schuld / Kredit aktualisiert.');
+    }
+    return;
+  }
+  if (id === 'debt-payment-create') {
+    const debtId=formValue(data,'debtId');
+    const debt=runtime.debts.find((row)=>row.id===debtId);
+    if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    const amount=numberValue(data,'amount',-1);
+    const principal=numberValue(data,'principalAmount',-1);
+    const interest=numberValue(data,'interestAmount',0);
+    const fee=numberValue(data,'feeAmount',0);
+    if(!(amount>0)||principal<0||interest<0||fee<0) throw new Error('Bitte gültige Zahlungsbeträge eingeben.');
+    if(Math.abs(amount-(principal+interest+fee))>0.005) throw new Error('Zahlung gesamt muss Tilgung + Zins + Gebühren entsprechen.');
+    const source=formValue(data,'source');
+    const payload={
+      household_id:h, debt_id:debt.id, paid_at:formValue(data,'paidAt'), amount,
+      principal_amount:principal, interest_amount:interest, fee_amount:fee, currency:debt.currency,
+      source, payment_account_id:null, transaction_id:null, note:nullValue(data,'note'),
+      advance_next_date:data.get('advanceNextDate')==='on',
+    };
+    if(source==='created_transaction') {
+      payload.payment_account_id=formValue(data,'paymentAccountId');
+      if(!payload.payment_account_id) throw new Error('Bitte ein Zahlungskonto auswählen.');
+    } else if(source==='linked_transaction') {
+      payload.transaction_id=formValue(data,'transactionId');
+      if(!payload.transaction_id) throw new Error('Bitte eine bestehende Buchung auswählen.');
+    } else if(source!=='history_only') throw new Error('Unbekannte Zahlungsart.');
+    await financeApi.createDebtPayment(payload);
+    uiState.debtExpandedId=debt.id;
+    await refresh('Zahlung verbucht und Restschuld aktualisiert.');
+    return;
   }
   if (id === 'legal-create') {
     await financeApi.createLegalCase({ household_id:h, country_code:runtime.household.country_code, case_type:formValue(data,'caseType'), creditor:formValue(data,'creditor'), reference:nullValue(data,'reference'), original_amount:numberValue(data,'originalAmount'), outstanding_amount:numberValue(data,'outstandingAmount'), currency, status:formValue(data,'status'), next_action_date:nullValue(data,'nextActionDate'), notes:nullValue(data,'notes') });
@@ -833,7 +948,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-paid','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-balance','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-paid','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -976,6 +1091,7 @@ async function handleAction(target) {
   }
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
+    if(tx.cashflow_type==='debt_payment') throw new Error('Eine Schuldzahlung kann nicht in eine Umbuchung umgewandelt werden.');
     let toAmount=null; if(tx.currency!==to.currency){ const entered=prompt(`Wie viel ${to.currency} wurden tatsächlich in ${to.name} gelegt?`,String(Math.abs(Number(tx.amount)))); if(entered===null) return; toAmount=Number(entered); if(!Number.isFinite(toAmount)||toAmount<=0) throw new Error('Ungültiger Zielbetrag.'); }
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
@@ -993,9 +1109,10 @@ async function handleAction(target) {
   if (action === 'tax-export-csv') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const year=Number(target.dataset.year)||uiState.taxYear; const rows=runtime.transactions.filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
-    const header=['Datum','Beschreibung','Kategorie','Steuerkategorie','Betrag','Währung','Betrag Basiswährung','Basiswährung','Belege'];
+    const header=['Datum','Beschreibung','Kategorie','Steuerkategorie','Betrag','Währung','Kostenanteil Basiswährung','Basiswährung','Belege'];
     const escapeCsv=(v)=>`"${String(v??'').replaceAll('"','""')}"`;
-    const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=convertAmount(tx.amount,tx.currency,runtime.household.base_currency,runtime.fxRates); return [String(tx.occurred_at).slice(0,10),tx.description,tx.categories?.name||'',tx.tax_category||'',tx.amount,tx.currency,base==null?'':base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
+    const paymentMap=buildDebtPaymentTransactionMap(runtime.debtPayments);
+    const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=consumptionExpenseBase(tx,paymentMap,runtime.household.base_currency,runtime.fxRates); return [String(tx.occurred_at).slice(0,10),tx.description,tx.categories?.name||(tx.cashflow_type==='debt_payment'?'Schuldentilgung':''),tx.tax_category||'',tx.amount,tx.currency,base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
     const blob=new Blob(['\ufeff'+lines],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`steuerberater-${year}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast(`Steuerexport ${year} erstellt.`); return;
   }
   if (action === 'goal-edit') {
@@ -1040,6 +1157,7 @@ async function handleAction(target) {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if (!tx) throw new Error('Transaktion wurde nicht gefunden.');
+    if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden im Zahlungsverlauf unter Schulden & Kredite storniert.');
     if (!confirm(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?')) return;
     if (tx.transfer_group_id) await financeApi.deleteTransfer(runtime.household.id,tx.transfer_group_id); else await financeApi.deleteTransaction(tx.id);
     await refresh(tx.transfer_group_id?'Umbuchung gelöscht.':'Transaktion gelöscht.'); return;
@@ -1061,10 +1179,75 @@ async function handleAction(target) {
     const n=Number(value); if (!Number.isFinite(n)||n<0) throw new Error('Ungültiger Betrag.');
     const goal=runtime.goals.find((g)=>g.id===target.dataset.id); await financeApi.updateGoal(target.dataset.id,{current_amount:n,status:goal&&n>=Number(goal.target_amount)?'completed':'active'}); await refresh('Sparziel aktualisiert.'); return;
   }
-  if (action === 'debt-balance') {
-    const value=prompt('Neue Restschuld:',target.dataset.current||'0'); if (value===null) return;
-    const n=Number(value); if (!Number.isFinite(n)||n<0) throw new Error('Ungültiger Betrag.');
-    await financeApi.updateDebt(target.dataset.id,{outstanding_amount:n,status:n===0?'paid':'active'}); await refresh('Restschuld aktualisiert.'); return;
+  if (action === 'debt-edit') {
+    const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    document.querySelector('#debtEditId').value=debt.id;
+    document.querySelector('#debtEditName').value=debt.name||'';
+    document.querySelector('#debtEditCreditor').value=debt.creditor||'';
+    document.querySelector('#debtEditType').value=debt.debt_type||'other';
+    document.querySelector('#debtEditCurrency').value=debt.currency||runtime.household.base_currency;
+    document.querySelector('#debtEditOriginal').value=debt.original_amount||0;
+    document.querySelector('#debtEditOutstanding').value=debt.outstanding_amount||0;
+    document.querySelector('#debtEditInterest').value=debt.interest_rate||0;
+    document.querySelector('#debtEditInstallment').value=debt.installment_amount||0;
+    document.querySelector('#debtEditCadence').value=debt.payment_cadence||'manual';
+    document.querySelector('#debtEditAccount').value=debt.payment_account_id||'';
+    document.querySelector('#debtEditNext').value=debt.next_payment_date||'';
+    document.querySelector('#debtEditStart').value=debt.start_date||'';
+    document.querySelector('#debtEditEnd').value=debt.end_date||'';
+    document.querySelector('#debtEditStatus').value=debt.status||'active';
+    document.querySelector('#debtEditNotes').value=debt.notes||'';
+    const form=document.querySelector('#debt-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'debt-payment-open') {
+    const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    const suggested=Math.min(Number(debt.installment_amount||0)||Number(debt.outstanding_amount||0),Number(debt.outstanding_amount||0));
+    document.querySelector('#debtPaymentDebtId').value=debt.id;
+    document.querySelector('#debtPaymentDate').value=new Date().toISOString().slice(0,10);
+    document.querySelector('#debtPaymentAmount').value=suggested>0?suggested.toFixed(2):'';
+    document.querySelector('#debtPaymentPrincipal').value=suggested>0?suggested.toFixed(2):'';
+    document.querySelector('#debtPaymentInterest').value='0';
+    document.querySelector('#debtPaymentFee').value='0';
+    document.querySelector('#debtPaymentSource').value='created_transaction';
+    document.querySelector('#debtPaymentAccount').value=debt.payment_account_id||'';
+    const txSelect=document.querySelector('#debtPaymentTransaction');
+    if(txSelect){
+      txSelect.value='';
+      [...txSelect.options].forEach((option)=>{
+        if(!option.value) return;
+        const allowed=option.dataset.currency===debt.currency;
+        option.hidden=!allowed; option.disabled=!allowed;
+      });
+    }
+    document.querySelector('#debtPaymentAdvance').checked=debt.payment_cadence!=='manual';
+    document.querySelector('#debtPaymentNote').value='';
+    showDebtPaymentSource('created_transaction');
+    const form=document.querySelector('#debt-payment-create'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'debt-history') { uiState.debtExpandedId=target.dataset.id; render(); return; }
+  if (action === 'debt-history-close') { uiState.debtExpandedId=null; render(); return; }
+  if (action === 'debt-payment-reverse') {
+    if(!confirm('Die zuletzt erfasste Schuldzahlung wirklich stornieren? Restschuld und verknüpfte Buchung werden entsprechend zurückgesetzt.')) return;
+    const payment=runtime.debtPayments.find((row)=>row.id===target.dataset.id);
+    if(!payment) throw new Error('Zahlung wurde nicht gefunden.');
+    await financeApi.reverseDebtPayment(payment.id);
+    uiState.debtExpandedId=payment.debt_id;
+    await refresh('Schuldzahlung storniert.'); return;
+  }
+  if (action === 'debt-recurring') {
+    const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    const payload=debtRecurringPayload(debt);
+    let rule=null;
+    if(debt.recurring_rule_id) rule=await financeApi.updateRecurringRule(debt.recurring_rule_id,payload);
+    else rule=await financeApi.createRecurringRule(payload);
+    if(!debt.recurring_rule_id) await financeApi.updateDebt(debt.id,{recurring_rule_id:rule.id});
+    await refresh('Schuldenrate unter Wiederkehrend verknüpft.'); return;
+  }
+  if (action === 'debt-recurring-remove') {
+    const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    if(debt.recurring_rule_id) await financeApi.updateRecurringRule(debt.recurring_rule_id,{active:false});
+    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
+    await refresh('Verknüpfung zu Wiederkehrend gelöst.'); return;
   }
   if (action === 'legal-event') {
     const caseId=target.dataset.id; const title=prompt('Ereignis / Titel:'); if (!title) return;
@@ -1116,6 +1299,18 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
+    if (target.id === 'debtPaymentTransaction') {
+      const option=target.selectedOptions?.[0];
+      if(option?.value){
+        const amount=Math.abs(Number(option.dataset.amount||0));
+        const total=document.querySelector('#debtPaymentAmount'); const principal=document.querySelector('#debtPaymentPrincipal');
+        if(total) total.value=amount.toFixed(2); if(principal) principal.value=amount.toFixed(2);
+        const interest=document.querySelector('#debtPaymentInterest'); if(interest) interest.value='0';
+        const fee=document.querySelector('#debtPaymentFee'); if(fee) fee.value='0';
+      }
+      return;
+    }
     if (target.id === 'goalSourceType') {
       const type=target.value; const amount=document.querySelector('#goalSourceAmountField'); const recurring=document.querySelector('#goalSourceRecurringField'); const label=document.querySelector('#goalSourceLabelField'); const info=document.querySelector('#goalSourceSurplusInfo');
       if(amount) amount.hidden=type!=='fixed'; if(recurring) recurring.hidden=type!=='recurring_rule'; if(label) label.hidden=type==='surplus'; if(info) info.hidden=type!=='surplus'; return;
@@ -1183,6 +1378,15 @@ pageContent.addEventListener('change', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target = event.target;
+  if (['debtPaymentAmount','debtPaymentInterest','debtPaymentFee'].includes(target.id)) {
+    const amount=Number(document.querySelector('#debtPaymentAmount')?.value||0);
+    const interest=Number(document.querySelector('#debtPaymentInterest')?.value||0);
+    const fee=Number(document.querySelector('#debtPaymentFee')?.value||0);
+    const principal=document.querySelector('#debtPaymentPrincipal');
+    const calculated=amount-interest-fee;
+    if(principal && Number.isFinite(calculated) && calculated>=0) principal.value=calculated.toFixed(2);
+    return;
+  }
   if (target.id === 'adminUserSearch') {
     uiState.adminQuery = target.value; uiState.adminPage = 1; uiState.adminExpandedUserId = null; render();
     const next = document.querySelector('#adminUserSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }

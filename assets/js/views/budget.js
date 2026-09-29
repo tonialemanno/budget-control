@@ -2,18 +2,20 @@ import { dataTable, formShell, metricCard, pageHeader, deleteButton } from '../a
 import { cadenceMonthlyFactor, escapeHtml, money, monthInputValue, monthLabel, progress } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 
 function roundBudget(value) { return Math.max(10, Math.ceil(Number(value||0)/10)*10); }
 
-export function renderBudget({ budgets = [], categories = [], merchants = [], transactions = [], accounts = [], recurringRules = [], household, profile, fxRates, canWrite=false } = {}) {
+export function renderBudget({ budgets = [], categories = [], merchants = [], transactions = [], debtPayments = [], accounts = [], recurringRules = [], household, profile, fxRates, canWrite=false } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const currentMonth = monthInputValue();
   const monthStart = `${currentMonth}-01`;
   const expenseCategories = categories.filter((c)=>c.kind==='expense');
   const monthBudgets = budgets.filter((b)=>String(b.month_start).slice(0,7)===currentMonth);
+  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const monthTx = transactions.filter((tx)=>String(tx.occurred_at).slice(0,7)===currentMonth && Number(tx.amount)<0 && !tx.transfer_group_id);
-  const spentBase = monthTx.reduce((s,t)=>s+Math.abs(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+  const spentBase = monthTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
   const totalBudget = monthBudgets.reduce((s,b)=>s+Number(b.amount),0);
   const left = totalBudget-spentBase;
   const savingsAccountIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
@@ -29,7 +31,7 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
 
   const rows = monthBudgets.map((b)=>{
     const targetTx=b.merchant_id?monthTx.filter((t)=>t.merchant_id===b.merchant_id):monthTx.filter((t)=>t.category_id===b.category_id);
-    const spent=targetTx.reduce((s,t)=>s+Math.abs(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+    const spent=targetTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
     const pct=progress(spent,b.amount);
     const label=b.merchants?.name||b.categories?.name||'Budget';
     const type=b.merchant_id?'Händler':'Kategorie';
@@ -37,9 +39,9 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
   });
 
   const ninety=new Date(); ninety.setDate(ninety.getDate()-90);
-  const recent=transactions.filter((t)=>new Date(t.occurred_at)>=ninety && Number(t.amount)<0 && !t.transfer_group_id && t.merchant_id);
+  const recent=transactions.filter((t)=>new Date(t.occurred_at)>=ninety && Number(t.amount)<0 && !t.transfer_group_id && t.merchant_id && consumptionExpenseBase(t,paymentMap,currency,fxRates)>0);
   const byMerchant=new Map();
-  for(const tx of recent){ const row=byMerchant.get(tx.merchant_id)||{count:0,total:0,merchant:merchants.find((m)=>m.id===tx.merchant_id)}; row.count++; row.total+=Math.abs(convertAmount(tx.amount,tx.currency,currency,fxRates)??0); byMerchant.set(tx.merchant_id,row); }
+  for(const tx of recent){ const row=byMerchant.get(tx.merchant_id)||{count:0,total:0,merchant:merchants.find((m)=>m.id===tx.merchant_id)}; row.count++; row.total+=consumptionExpenseBase(tx,paymentMap,currency,fxRates); byMerchant.set(tx.merchant_id,row); }
   const existingMerchantBudgets=new Set(monthBudgets.filter((b)=>b.merchant_id).map((b)=>b.merchant_id));
   const suggestions=[...byMerchant.entries()].filter(([id,v])=>v.count>=2 && v.total>=50 && !existingMerchantBudgets.has(id)).map(([id,v])=>({id,name:v.merchant?.name||'Händler',count:v.count,monthly:v.total/3,suggested:roundBudget(v.total/3*1.1)})).sort((a,b)=>b.monthly-a.monthly).slice(0,6);
 

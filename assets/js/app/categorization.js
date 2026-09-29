@@ -22,7 +22,7 @@ export function buildCategorizationGroups({
   const groups = new Map();
 
   for (const tx of transactions) {
-    if (tx.status !== 'booked' || tx.transfer_group_id) continue;
+    if (tx.status !== 'booked' || tx.transfer_group_id || tx.cashflow_type === 'debt_payment') continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
     const linkedMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))

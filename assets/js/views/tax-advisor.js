@@ -1,13 +1,14 @@
 import { dataTable, metricCard, pageHeader, statusPill } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
-import { convertAmount, fxLabel } from '../app/fx.js';
+import { fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 
 const CH_CANTONS = [
   ['AG','Aargau'],['AI','Appenzell Innerrhoden'],['AR','Appenzell Ausserrhoden'],['BE','Bern'],['BL','Basel-Landschaft'],['BS','Basel-Stadt'],['FR','Freiburg'],['GE','Genf'],['GL','Glarus'],['GR','Graubünden'],['JU','Jura'],['LU','Luzern'],['NE','Neuenburg'],['NW','Nidwalden'],['OW','Obwalden'],['SG','St. Gallen'],['SH','Schaffhausen'],['SO','Solothurn'],['SZ','Schwyz'],['TG','Thurgau'],['TI','Tessin'],['UR','Uri'],['VD','Waadt'],['VS','Wallis'],['ZG','Zug'],['ZH','Zürich'],
 ];
 
-export function renderTaxAdvisor({ transactions = [], documents = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false } = {}) {
+export function renderTaxAdvisor({ transactions = [], debtPayments = [], documents = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const year = Number(taxYear) || new Date().getFullYear();
@@ -17,13 +18,19 @@ export function renderTaxAdvisor({ transactions = [], documents = [], household,
   for (const doc of documents.filter((d)=>d.object_type==='transaction' && d.object_id)) {
     const list=receiptByTx.get(d.object_id)||[]; list.push(doc); receiptByTx.set(d.object_id,list);
   }
-  const expenseBase = taxTransactions.filter((tx)=>Number(tx.amount)<0).reduce((sum,tx)=>sum + Math.abs(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates) ?? 0),0);
+  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
+  const expenseBase = taxTransactions.reduce((sum,tx)=>sum + consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
   const missing = taxTransactions.filter((tx)=>!receiptByTx.has(tx.id));
   const years=[year-2,year-1,year,year+1];
   const cantonOptions=CH_CANTONS.map(([code,name])=>`<option value="${code}" ${household?.tax_region_code===code?'selected':''}>${code} · ${name}</option>`).join('');
   const rows=taxTransactions.map((tx)=>{
     const receipts=receiptByTx.get(tx.id)||[];
-    return `<tr><td>${dateLabel(tx.occurred_at,locale)}</td><td><strong>${escapeHtml(tx.description)}</strong><div class="table-meta">${escapeHtml(tx.tax_category||tx.categories?.name||'Nicht spezifiziert')}</div></td><td>${money(tx.amount,{currency:tx.currency,locale})}</td><td>${receipts.length?statusPill('active',`${receipts.length} Beleg${receipts.length===1?'':'e'}`):statusPill('pending','Beleg fehlt')}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-receipt" data-id="${tx.id}">${icon('plus')} Beleg</button><button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="false">Entfernen</button>`:''}</div></td></tr>`;
+    const payment=paymentMap.get(tx.id);
+    const displayedAmount=payment
+      ? -(Number(payment.interest_amount||0)+Number(payment.fee_amount||0))
+      : Number(tx.amount);
+    const amountNote=payment?'<div class="table-meta">nur Zins & Gebühren</div>':'';
+    return `<tr><td>${dateLabel(tx.occurred_at,locale)}</td><td><strong>${escapeHtml(tx.description)}</strong><div class="table-meta">${escapeHtml(tx.tax_category||tx.categories?.name||'Nicht spezifiziert')}</div></td><td>${money(displayedAmount,{currency:tx.currency,locale})}${amountNote}</td><td>${receipts.length?statusPill('active',`${receipts.length} Beleg${receipts.length===1?'':'e'}`):statusPill('pending','Beleg fehlt')}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-receipt" data-id="${tx.id}">${icon('plus')} Beleg</button><button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="false">Entfernen</button>`:''}</div></td></tr>`;
   });
   return `
     ${pageHeader({title:'Steuerberater',subtitle:'Steuerrelevante Buchungen und Belege für den Export an deinen Steuerberater. Die finale steuerliche Beurteilung bleibt beim Kanton bzw. Steuerberater.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} CSV exportieren</button>`})}

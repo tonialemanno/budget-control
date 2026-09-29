@@ -2,15 +2,18 @@ import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } f
 import { cadenceMonthlyFactor, money, percent, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase, debtPrincipalBase } from '../app/financial-effects.js';
 
-export function renderOverview({ accounts = [], transactions = [], budgets = [], bills = [], contracts = [], goals = [], debts = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], insurance = [], household, profile, depth='standard', fxRates } = {}) {
+export function renderOverview({ accounts = [], transactions = [], debtPayments = [], budgets = [], bills = [], contracts = [], goals = [], debts = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], insurance = [], household, profile, depth='standard', fxRates } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
   const monthKey = now.toISOString().slice(0,7);
   const monthTx = transactions.filter((t)=>String(t.occurred_at).slice(0,7)===monthKey && t.status==='booked' && !t.transfer_group_id);
+  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const income = monthTx.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
-  const expenses = monthTx.filter((t)=>Number(t.amount)<0).reduce((s,t)=>s+Math.abs(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+  const expenses = monthTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
+  const debtPrincipalMonth = monthTx.reduce((s,t)=>s+debtPrincipalBase(t,paymentMap,currency,fxRates),0);
   const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type)).reduce((s,a)=>s+(convertAmount(a.current_balance,a.currency,currency,fxRates)??0),0);
   const hasForeign = accounts.some((a)=>a.currency!==currency) || transactions.some((t)=>t.currency!==currency);
   const openBills = bills.filter((b)=>['open','overdue'].includes(b.status)).reduce((s,b)=>s+(convertAmount(b.amount,b.currency||currency,currency,fxRates)??0),0);
@@ -33,7 +36,8 @@ export function renderOverview({ accounts = [], transactions = [], budgets = [],
       <article class="card card--accent hero-card"><div><div class="hero-label">Verfügbar nach offenen Rechnungen</div><div class="hero-value">${money(available,{currency,locale,decimals:0})}</div><div class="hero-caption">Liquidität ${money(cash,{currency,locale})} · offene Rechnungen ${money(openBills,{currency,locale})}</div></div><div class="hero-actions"><a class="action-button action-button--primary" href="#/transactions">${icon('plus')} Buchung erfassen</a><a class="action-button action-button--secondary" href="#/accounts">${icon('wallet')} Konten</a></div></article>
       <div class="metric-grid">
         ${metricCard('Einnahmen Monat',money(income,{currency,locale}),'gebuchte Einnahmen')}
-        ${metricCard('Ausgaben Monat',money(expenses,{currency,locale}),'gebuchte Ausgaben')}
+        ${metricCard('Ausgaben Monat',money(expenses,{currency,locale}),'Konsum, Zins & Gebühren')}
+        ${depth==='expert'&&debtPrincipalMonth>0?metricCard('Schuldentilgung',money(debtPrincipalMonth,{currency,locale}),'reduziert Verbindlichkeiten, nicht Konsum'):''}
         ${depth==='simple'?'':metricCard('Sparquote',percent(savingsRate,1,locale),'aktueller Monat')}
         ${depth==='expert'?metricCard('Fixe Verpflichtungen',money(fixedMonthly,{currency,locale}),'pro Monat normalisiert'):''}${depth==='simple'?'':metricCard('Sparen',money(savedThisMonth,{currency,locale}),'Umbuchungen auf Sparkonten','positive')}
       </div>
