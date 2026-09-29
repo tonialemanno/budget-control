@@ -125,6 +125,7 @@ export const financeApi = Object.freeze({
     return listByHousehold('categories', householdId, { order: 'kind.asc,sort_order.asc,name.asc', extra: { is_archived: 'eq.false' } });
   },
   createCategory: (payload) => insert('categories', payload),
+  createCategories: (payload) => insertMany('categories', payload),
   updateCategory: (id, patch) => update('categories', id, patch),
   deleteCategory: (id) => remove('categories', id),
 
@@ -161,6 +162,17 @@ export const financeApi = Object.freeze({
     return rows || [];
   },
   updateTransaction: (id, patch) => update('transactions', id, patch),
+  async bulkUpdateTransactions(ids, patch) {
+    const unique = [...new Set((ids || []).filter(Boolean))];
+    for (let index = 0; index < unique.length; index += 80) {
+      const chunk = unique.slice(index, index + 80);
+      await backend.rest(buildQuery('transactions', { id: `in.(${chunk.join(',')})` }), {
+        method: 'PATCH',
+        body: patch,
+        headers: { Prefer: 'return=minimal' },
+      });
+    }
+  },
   deleteTransaction: (id) => remove('transactions', id),
   createTransfer: (payload) => backend.rpc('create_transfer_v2', payload),
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),

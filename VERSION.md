@@ -1,4 +1,23 @@
-# Version 2.3.0-beta-2
+# Version 2.3.0-beta-3
+
+## V2.3 Beta 3 – Categorization Assistant
+
+Dieser Stabilisierungsschritt vervollständigt die bereits geplante Händler- und Kategorienlogik, ohne einen neuen Hauptbereich einzuführen.
+
+### Neu
+
+- Button `Kategorien analysieren` direkt unter Transaktionen; jederzeit erneut ausführbar.
+- Analyse des gesamten vorhandenen Buchungsbestands, nicht nur des letzten CSV-Imports.
+- Gruppierung nach normalisiertem Händler statt einer endlosen Einzelbuchungsliste.
+- Vorschläge aus gemerkter Händlerkategorie, bestehenden Regeln und konservativer Händlerbibliothek.
+- Sammelaktion `Sichere Vorschläge übernehmen` verändert ausschließlich bisher unkategorisierte Buchungen.
+- Bestehende Benutzerkategorien werden bei der Sammelaktion bewusst nicht überschrieben.
+- Händlergruppen können einzeln geprüft, auf eine andere Kategorie gesetzt und für zukünftige Imports gemerkt werden.
+- Direkter Sprung von einer Händlergruppe zu den zugehörigen Einzelbuchungen.
+- Review-Liste ist paginiert und kann auf offene Gruppen reduziert werden.
+- Neue Haushalte erhalten die CH-/DE-Starter-Kategorien automatisch.
+- Bestehende Haushalte ohne Kategorien erhalten sie beim ersten Start der Analyse.
+- Keine neue Datenbankmigration erforderlich; bestehende RLS- und Merchant-Struktur wird weiterverwendet.
 
 ## V2.3 Beta 2 – Historical Explorer & Goal Funding
 

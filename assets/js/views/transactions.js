@@ -1,7 +1,8 @@
-import { emptyState, formShell, metricCard, pageHeader } from '../app/components.js';
+import { emptyState, formShell, metricCard, pageHeader, statusPill } from '../app/components.js';
 import { dateLabel, dateTimeLocalValue, escapeHtml, money } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
+import { buildCategorizationGroups, categorizationSourceLabel } from '../app/categorization.js';
 
 function periodStart(period) {
   const now=new Date();
@@ -52,10 +53,72 @@ function txRow(tx,{locale,canWrite,accounts,canTax}){
   return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(tx.categories?.name||(transfer?'Umbuchung':'Ohne Kategorie'))} · ${escapeHtml(tx.merchants?.name||tx.counterparty||'')} ${tx.merchants?.name||tx.counterparty?'· ':''}${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}</div>${suggestion&&canWrite?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span><button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button></div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${canWrite?`<div class="row-actions">${transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">Wiederkehrend</button>${canTax?`<button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="${tx.tax_relevant?'false':'true'}">${tx.tax_relevant?'Steuer ✓':'Steuer'}</button>`:''}`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button></div>`:''}</div></div>`;
 }
 
+function renderCategorizationReview({
+  transactions, categories, merchants, categorizationRules, household, profile, fxRates,
+  canWrite, categorizationFilter='action', categorizationPage=1,
+}) {
+  const groups = buildCategorizationGroups({ transactions, categories, merchants, rules:categorizationRules });
+  const uncategorizedCount = transactions.filter((tx)=>tx.status==='booked'&&!tx.transfer_group_id&&!tx.category_id).length;
+  const safeGroups = groups.filter((group)=>group.unassignedCount>0&&group.suggestion?.safe);
+  const unresolvedGroups = groups.filter((group)=>group.unassignedCount>0&&!group.suggestion);
+  const mixedGroups = groups.filter((group)=>group.mixed);
+
+  let visible = groups;
+  if (categorizationFilter === 'action') visible = groups.filter((group)=>group.needsAttention);
+  if (categorizationFilter === 'unresolved') visible = unresolvedGroups;
+
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const page = Math.min(Math.max(1, Number(categorizationPage)||1), totalPages);
+  const pageRows = visible.slice((page-1)*pageSize, page*pageSize);
+  const currency = household?.base_currency || 'CHF';
+  const locale = profile?.locale || 'de-CH';
+
+  const rows = pageRows.map((group)=>{
+    const total = group.rows.reduce((sum,row)=>sum+Math.abs(convertAmount(row.amount,row.currency,currency,fxRates)??0),0);
+    const current = group.mixed ? 'Gemischt' : group.currentCategory?.name || (group.unassignedCount===group.rows.length ? 'Ohne Kategorie' : 'Teilweise kategorisiert');
+    const suggestion = group.suggestion ? categorizationSourceLabel(group.suggestion.source) : 'Kein sicherer Vorschlag';
+    const options = categories.filter((category)=>category.kind===group.kind).map((category)=>`<option value="${category.id}" ${category.id===group.selectedCategoryId?'selected':''}>${escapeHtml(category.name)}</option>`).join('');
+    const pill = group.suggestion?.safe ? statusPill('active','Sicherer Vorschlag') : group.suggestion ? statusPill('pending','Prüfen') : group.mixed ? statusPill('pending','Gemischt') : statusPill('open','Offen');
+    return `<div class="categorization-group-row" data-categorization-group="${escapeHtml(group.key)}">
+      <div class="categorization-group-copy">
+        <div class="categorization-group-title"><strong>${escapeHtml(group.name)}</strong>${pill}</div>
+        <span>${group.rows.length} Buchung${group.rows.length===1?'':'en'} · ${money(total,{currency,locale})} · aktuell: ${escapeHtml(current)}</span>
+        <small>${escapeHtml(suggestion)}${group.unassignedCount?` · ${group.unassignedCount} noch ohne Kategorie`:''}</small>
+      </div>
+      <select class="text-control" data-categorization-category><option value="">Kategorie wählen</option>${options}</select>
+      <div class="categorization-group-actions">
+        ${canWrite?`<button class="table-action" type="button" data-action="categorization-apply-group" data-group-key="${escapeHtml(group.key)}">Gruppe setzen & merken</button>`:''}
+        <button class="table-action" type="button" data-action="categorization-view-group" data-group-key="${escapeHtml(group.key)}">Buchungen ansehen</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<article class="card card-padding categorization-review">
+    <div class="card-heading">
+      <div><h3 class="card-title">Kategorien analysieren</h3><p class="card-subtitle">Bestehende Buchungen werden nach Händler gruppiert. Sichere Automatik füllt nur bisher unkategorisierte Buchungen; bestehende Kategorien werden nicht still überschrieben.</p></div>
+      <div class="card-footer-actions">${canWrite?`<button class="action-button action-button--primary" type="button" data-action="categorization-apply-safe" ${safeGroups.length?'':'disabled'}>Sichere Vorschläge übernehmen</button>`:''}<button class="action-button action-button--secondary" type="button" data-action="categorization-close">Schliessen</button></div>
+    </div>
+    <div class="categorization-stats">
+      <div><span>Ohne Kategorie</span><strong>${uncategorizedCount}</strong></div>
+      <div><span>Sichere Gruppen</span><strong>${safeGroups.length}</strong></div>
+      <div><span>Noch offen</span><strong>${unresolvedGroups.length}</strong></div>
+      <div><span>Gemischte Gruppen</span><strong>${mixedGroups.length}</strong></div>
+    </div>
+    <div class="categorization-toolbar">
+      <label class="field"><span>Anzeige</span><select class="text-control" id="categorizationFilter"><option value="action" ${categorizationFilter==='action'?'selected':''}>Vorschläge & offene Gruppen</option><option value="unresolved" ${categorizationFilter==='unresolved'?'selected':''}>Nur ohne Vorschlag</option><option value="all" ${categorizationFilter==='all'?'selected':''}>Alle Händlergruppen</option></select></label>
+      <div class="toolbar-note">„Gruppe setzen & merken“ ist die bewusste Korrektur für alle Buchungen dieser Händlergruppe. Danach wird die Zuordnung bei künftigen Imports vorgeschlagen.</div>
+    </div>
+    <div class="categorization-group-list">${rows || '<div class="table-empty">Für diese Ansicht gibt es nichts zu prüfen.</div>'}</div>
+    ${visible.length>pageSize?`<div class="admin-pager categorization-pager"><button class="table-action" type="button" data-action="categorization-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages} · ${visible.length} Gruppen</span><button class="table-action" type="button" data-action="categorization-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div>`:''}
+  </article>`;
+}
+
 export function renderTransactions({
   accounts = [], categories = [], transactions = [], household, profile, canWrite = false, fxRates,
   transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionAccount='all',
   transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [],
+  merchants = [], categorizationRules = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1,
 } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
   const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax');
@@ -102,12 +165,16 @@ export function renderTransactions({
   const categoryFilterOptions=categories.map((c)=>`<option value="${c.id}" ${transactionCategory===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   const accountFilterOptions=accounts.map((a)=>`<option value="${a.account_id}" ${transactionAccount===a.account_id?'selected':''}>${escapeHtml(a.name)}</option>`).join('');
   const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||transactionPeriod==='all'||transactionPeriod==='custom');
+  const categorizationReview = categorizationOpen ? renderCategorizationReview({
+    transactions, categories, merchants, categorizationRules, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage,
+  }) : '';
 
   return `
-    ${pageHeader({title:'Transaktionen',subtitle:'Kacheln zeigen die Auswertung; die Buchungsliste bleibt als vollständiges Journal erhalten, ist aber filterbar und paginiert.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="transaction-create">${icon('plus')} Transaktion</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="transfer-create" ${accounts.length>1?'':'disabled'}>${icon('repeat')} Umbuchung</button>`:''})}
+    ${pageHeader({title:'Transaktionen',subtitle:'Kacheln zeigen die Auswertung; die Buchungsliste bleibt als vollständiges Journal erhalten, ist aber filterbar und paginiert.',actions:canWrite?`<button class="action-button action-button--secondary" type="button" data-action="categorization-open">${icon('sparkles')} Kategorien analysieren</button><button class="action-button action-button--primary" type="button" data-action="show-form" data-target="transaction-create">${icon('plus')} Transaktion</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="transfer-create" ${accounts.length>1?'':'disabled'}>${icon('repeat')} Umbuchung</button>`:''})}
     ${canWrite?formShell('transaction-create','Neue Transaktion','Manuelle Buchung',txFields,{hidden:true,submitLabel:'Transaktion speichern'}):''}
     ${canWrite?formShell('transaction-edit','Transaktion bearbeiten','Buchung, Zweck, Steuerstatus oder Wiederkehrend korrigieren',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('transfer-create','Umbuchung','Geld zwischen eigenen Konten verschieben',transferFields,{hidden:true,submitLabel:'Umbuchung speichern'}):''}
+    ${categorizationReview}
 
     <article class="card card-padding transaction-filter-card">
       <div class="transaction-filter-grid">

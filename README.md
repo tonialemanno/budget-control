@@ -1,10 +1,14 @@
-# Finance V2.3 – Beta 2
+# Finance V2.3 – Beta 3
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.
 
 
 
 
+
+## V2.3 Beta 3
+
+Vollständiger Kategorisierungs-Assistent für bestehende und neue Buchungen. In Transaktionen kann die Analyse jederzeit manuell gestartet werden. Händler werden gruppiert; gemerkte Händlerkategorien, Regeln und die konservative Händlerbibliothek erzeugen nachvollziehbare Vorschläge. Der Sammel-Button übernimmt nur sichere Vorschläge auf bisher unkategorisierte Buchungen. Bestehende Kategorien werden dabei nicht überschrieben. Jede Händlergruppe kann separat geprüft, geändert und als künftige Händler-Zuordnung gespeichert werden. Neue Haushalte erhalten die länderspezifischen Starter-Kategorien automatisch.
 
 ## V2.3 Beta 2
 

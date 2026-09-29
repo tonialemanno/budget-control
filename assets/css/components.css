@@ -273,3 +273,61 @@
 .module-catalog-row strong { font-size: 12px; }
 .module-catalog-row div > span { margin-top: 2px; color: var(--text-3); font-size: 10px; }
 .access-notice { margin-top: -4px; }
+
+
+/* V2.3 Beta 3: full-history categorization assistant */
+.categorization-review { margin-bottom: 16px; }
+.categorization-review .card-heading { align-items: flex-start; gap: 16px; }
+.categorization-stats {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.categorization-stats > div {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.categorization-stats span,
+.categorization-stats strong { display: block; }
+.categorization-stats span { color: var(--text-3); font-size: 10px; }
+.categorization-stats strong { margin-top: 4px; font-size: 18px; }
+.categorization-toolbar {
+  display: grid;
+  grid-template-columns: minmax(190px,260px) 1fr;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.categorization-group-list { display: grid; gap: 8px; }
+.categorization-group-row {
+  display: grid;
+  grid-template-columns: minmax(220px,1.6fr) minmax(180px,.8fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.categorization-group-copy strong,
+.categorization-group-copy span,
+.categorization-group-copy small { display: block; }
+.categorization-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.categorization-group-copy > span { margin-top: 4px; color: var(--text-2); font-size: 10px; }
+.categorization-group-copy > small { margin-top: 3px; color: var(--text-3); font-size: 9px; }
+.categorization-group-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.categorization-pager { margin-top: 12px; }
+@media (max-width: 900px) {
+  .categorization-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .categorization-toolbar { grid-template-columns: 1fr; }
+  .categorization-group-row { grid-template-columns: 1fr; align-items: stretch; }
+  .categorization-group-actions { justify-content: flex-start; }
+}
