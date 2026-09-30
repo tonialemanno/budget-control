@@ -1,12 +1,18 @@
-# Finance V2.3 – Beta 5
+# Finance V2.3 – Beta 5.1
 
 ## iPhone UX
 
-Beta 5 optimiert die bestehende Finance-App gezielt für iPhone 11 Pro und iPhone 12 Pro, ohne die Desktop-Oberfläche neu zu gestalten. Datenmodell, Supabase-Backend und Modulstruktur bleiben identisch zu Beta 4.1.
+Beta 5.1 basiert auf Beta 5 und korrigiert zusätzlich die iPhone-Abmeldung. Beta 5 optimiert die bestehende Finance-App gezielt für iPhone 11 Pro und iPhone 12 Pro, ohne die Desktop-Oberfläche neu zu gestalten. Datenmodell, Supabase-Backend und Modulstruktur bleiben identisch zu Beta 4.1.
 
 **Mobile Referenzbreiten:** 375–390 pt.
 
-**Wichtig:** Für Beta 5 ist keine neue Supabase-Migration notwendig; die Beta-4.1-Stabilisierung bleibt die aktuelle Datenbankbasis.
+**Wichtig:** Für Beta 5.1 ist keine neue Supabase-Migration notwendig; die Beta-4.1-Stabilisierung bleibt die aktuelle Datenbankbasis.
+
+### Beta 5.1 – iPhone-Abmeldung
+
+- Profil-Bottom-Sheet wird auf Smartphones ausserhalb der gefilterten Topbar gemountet, damit iOS/Safari den unteren Aktionsbereich nicht abschneidet.
+- `Abmelden` ist zusätzlich direkt im mobilen Seitenmenü verfügbar.
+- Eine fehlgeschlagene Netzwerk-Abmeldung blockiert nicht mehr die lokale Abmeldung; die lokale Session wird zuverlässig entfernt.
 
 
 Manuell nutzbare Beta auf Basis des verbindlichen Projekt-Masterplans. Diese Version ersetzt die reine Style-/Core-Vorstufe durch echte, persistente Arbeitsabläufe auf dem neuen Supabase-Projekt `finance-v1`.

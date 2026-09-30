@@ -106,6 +106,12 @@
   .profile-button .profile-copy,
   .profile-button > svg { display: none; }
   .profile-avatar { width: 32px; height: 32px; font-size: 13px; }
+  .mobile-sidebar-logout {
+    display: flex;
+    color: var(--negative);
+    background: transparent;
+  }
+  .mobile-sidebar-logout:active { background: var(--surface-3); }
 
   /* iPhone page rhythm: 14 pt outer gutter, Apple-style large title and
      enough bottom clearance for the tab bar plus home indicator. */

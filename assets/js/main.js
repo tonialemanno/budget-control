@@ -115,6 +115,7 @@ const themeButton = document.querySelector('#themeButton');
 const privacyButton = document.querySelector('#privacyButton');
 const mobileMenuButton = document.querySelector('#mobileMenuButton');
 const mobileScrim = document.querySelector('#mobileScrim');
+const mobileLogoutButton = document.querySelector('#mobileLogoutButton');
 const profileButton = document.querySelector('#profileButton');
 const profileAvatar = document.querySelector('#profileAvatar');
 const profileName = document.querySelector('#profileName');
@@ -253,6 +254,21 @@ function closeProfileMenu() {
   profileButton?.setAttribute('aria-expanded','false');
 }
 
+async function logoutCurrentUser() {
+  closeProfileMenu();
+  closeMobileNav();
+  await backend.signOut();
+  runtime.session = null;
+  runtime.user = null;
+  runtime.profile = null;
+  runtime.household = null;
+  runtime.householdRole = null;
+  runtime.adminRole = null;
+  location.hash = '';
+  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  showAuth();
+}
+
 function toggleProfileMenu() {
   const existing = document.querySelector('#profilePopover');
   if (existing) { closeProfileMenu(); return; }
@@ -260,7 +276,13 @@ function toggleProfileMenu() {
   popover.id = 'profilePopover';
   popover.className = 'profile-popover';
   popover.innerHTML = profileMenuHtml();
-  document.querySelector('.topbar-actions')?.appendChild(popover);
+  // On iOS the topbar backdrop-filter can become the containing block for a
+  // fixed descendant. Mount the phone bottom-sheet outside the topbar so its
+  // actions (especially Abmelden) always stay inside the viewport.
+  const host = window.matchMedia('(max-width: 660px)').matches
+    ? appShell
+    : document.querySelector('.topbar-actions');
+  host?.appendChild(popover);
   profileButton?.setAttribute('aria-expanded','true');
 }
 
@@ -310,7 +332,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.1</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -1054,7 +1076,7 @@ async function handleAction(target) {
     uiState.adminExpandedUserId = null;
     render(); return;
   }
-  if (action === 'logout') { await backend.signOut(); runtime.user=null; runtime.household=null; runtime.householdRole=null; closeProfileMenu(); location.hash=''; showAuth(); return; }
+  if (action === 'logout') { await logoutCurrentUser(); return; }
   if (action === 'account-edit') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
     const account=runtime.accounts.find((row)=>row.account_id===target.dataset.id);
@@ -1460,13 +1482,14 @@ async function enterApp(session) {
 
 window.addEventListener('hashchange',render);
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
-window.addEventListener('resize', syncMobileScrollState);
+window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
+mobileLogoutButton?.addEventListener('click',async()=>{ try { await logoutCurrentUser(); } catch (error) { showToast(humanError(error),'error'); } });
 profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); toggleProfileMenu(); });
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
 document.addEventListener('click',async(event)=>{ const target=event.target.closest('#profilePopover [data-action]'); if (!target) return; try { await handleAction(target); } catch (error) { showToast(humanError(error),'error'); } });

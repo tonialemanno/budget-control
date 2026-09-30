@@ -29,6 +29,7 @@ const paths = {
   repeat: '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"/>',
   shield: '<path d="M12 3 5 6v5c0 4.7 2.8 8.2 7 10 4.2-1.8 7-5.3 7-10V6Z"/><path d="m9 12 2 2 4-4"/>',
   'layout-grid': '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  'log-out': '<path d="M9 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/><path d="m15 16 4-4-4-4M19 12H9"/>',
 };
 
 export function icon(name, { size = 24, className = '' } = {}) {

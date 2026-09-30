@@ -1,4 +1,13 @@
-# Version 2.3.0-beta-5
+# Version 2.3.0-beta-5.1
+
+## V2.3 Beta 5.1 – iPhone Logout Fix
+
+Kleine Mobile-Stabilisierung auf Basis von Beta 5. Keine Datenbankmigration.
+
+- Profil-Bottom-Sheet wird auf Smartphones ausserhalb der Topbar gemountet, damit iOS/Safari Fixed-Positioning nicht an der Backdrop-Filter-Topbar festhält oder abschneidet.
+- `Abmelden` ist zusätzlich direkt im mobilen Seitenmenü erreichbar.
+- Lokale Session wird beim Abmelden immer gelöscht, auch wenn der Remote-Logout wegen eines Netzwerkfehlers nicht bestätigt werden kann.
+- Desktop-Verhalten bleibt unverändert.
 
 ## V2.3 Beta 5 – iPhone UX
 

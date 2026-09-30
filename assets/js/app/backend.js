@@ -156,11 +156,18 @@ export const backend = Object.freeze({
 
   async signOut() {
     const active = await ensureSession();
+    let remoteRevoked = true;
     try {
       if (active?.access_token) await authRequest('logout', { method: 'POST', token: active.access_token });
+    } catch {
+      // A failed/blocked network request must never trap the user in the app.
+      // The local session is always cleared; the server token expires normally if
+      // the revoke request could not be delivered.
+      remoteRevoked = false;
     } finally {
       saveSession(null);
     }
+    return { remoteRevoked };
   },
 
   async restoreSession() {
