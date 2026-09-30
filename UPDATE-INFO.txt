@@ -1,24 +1,8 @@
-Finance V2.3 Beta 5.2 – Belegkamera & OCR
+Finance V1.3 Admin Update
 
-Direktes Update für den bestehenden Beta-5.1-Stand.
-Keine BAT-Datei, kein Terminal und keine Datenbankmigration nötig.
-
-Installation:
-1. ZIP entpacken.
-2. Den INHALT dieses Ordners in den bestehenden GitHub-Branch "beta" hochladen.
-3. Vorhandene Dateien ersetzen/überschreiben.
-4. Cloudflare wie bisher deployen lassen.
-
-Neu:
-- "Beleg fotografieren" unter Transaktionen.
-- iPhone-Rückkamera über capture="environment".
-- lokale OCR im Browser mit Tesseract.js.
-- Händler, Datum, Betrag und Währung werden vorgeschlagen.
-- McDonald's wird als Händler erkannt und "Restaurant" vorgeschlagen.
-- bestehende Bankbuchungen werden auf passende Belege geprüft.
-- sichere Treffer können verknüpft werden statt doppelt gebucht zu werden.
-- neue Belegausgaben werden bei einem späteren Bankimport erneut abgeglichen.
-- das Originalfoto wird erst nach Bestätigung im privaten Dokumentenspeicher abgelegt.
-
-Hinweis:
-Für die OCR müssen beim ersten Einsatz die Tesseract-Bibliothek und Sprachdaten aus den in _headers freigegebenen CDNs geladen werden. Das Belegfoto selbst wird dabei nicht an einen OCR-/KI-Dienst gesendet.
+1. Inhalt dieses Ordners auf Branch beta hochladen/überschreiben.
+2. Committen.
+3. Cloudflare Deployment abwarten.
+4. In Supabase öffentliche E-Mail-Signups deaktivieren.
+5. Mit dem initialen Owner-Benutzer einloggen.
+6. Weitere Benutzer in Finance > Admin anlegen.
