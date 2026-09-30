@@ -1,10 +1,9 @@
 import { knownMerchantSuggestion, normalizeMerchantKey, suggestKnownCategoryName } from './csv-import.js';
 
 const TESSERACT_VERSION = '5.1.1';
-const TESSERACT_SCRIPT = `https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/${TESSERACT_VERSION}/tesseract.min.js`;
-const TESSERACT_WORKER = `https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/${TESSERACT_VERSION}/worker.min.js`;
-const TESSERACT_CORE = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@v5.0.0';
-const TESSERACT_LANG = 'https://tessdata.projectnaptha.com/4.0.0_fast';
+const TESSERACT_BASE = `https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VERSION}/dist`;
+const TESSERACT_SCRIPT = `${TESSERACT_BASE}/tesseract.min.js`;
+const TESSERACT_WORKER = `${TESSERACT_BASE}/worker.min.js`;
 
 let tesseractPromise = null;
 
@@ -152,7 +151,22 @@ async function loadImage(file) {
     const image = new Image();
     image.decoding = 'async';
     image.src = url;
-    await image.decode();
+
+    if (typeof image.decode === 'function') {
+      try { await image.decode(); }
+      catch {
+        // Safari/iPhone can reject decode() for a freshly captured image even
+        // though the normal image loader can still display and draw it.
+      }
+    }
+
+    if (!image.complete || !image.naturalWidth) {
+      await new Promise((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('Das iPhone-Foto konnte nicht gelesen werden.'));
+      });
+    }
+    if (!image.naturalWidth || !image.naturalHeight) throw new Error('Das Belegfoto konnte nicht dekodiert werden.');
     return image;
   } finally {
     URL.revokeObjectURL(url);
@@ -261,15 +275,26 @@ export async function analyzeReceiptImage(file, {
   const tesseract = await loadTesseract();
   onProgress({ status: 'Bild wird vorbereitet', progress: 0.05 });
   const prepared = await prepareImage(file);
-  const worker = await tesseract.createWorker('deu+eng', 1, {
-    workerPath: TESSERACT_WORKER,
-    corePath: TESSERACT_CORE,
-    langPath: TESSERACT_LANG,
-    logger: (message) => {
-      if (message?.status === 'recognizing text') onProgress({ status: 'Text wird erkannt', progress: Number(message.progress || 0) });
-      else if (message?.status) onProgress({ status: message.status, progress: Number(message.progress || 0) });
-    },
-  });
+
+  let worker = null;
+  let lastError = null;
+  for (const languages of ['deu+eng', 'deu', 'eng']) {
+    try {
+      worker = await tesseract.createWorker(languages, 1, {
+        workerPath: TESSERACT_WORKER,
+        logger: (message) => {
+          if (message?.status === 'recognizing text') onProgress({ status: 'Text wird erkannt', progress: Number(message.progress || 0) });
+          else if (message?.status) onProgress({ status: message.status, progress: Number(message.progress || 0) });
+        },
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      worker = null;
+    }
+  }
+  if (!worker) throw lastError || new Error('OCR konnte nicht gestartet werden.');
+
   try {
     const result = await worker.recognize(prepared);
     const parsed = parseReceiptText(result?.data?.text || '', { fallbackCurrency });
