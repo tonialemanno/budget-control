@@ -1,13 +1,19 @@
-# Finance V2.3 – Beta 5.5
+# Finance 2.3.0 Stable
 
 ## Aktueller Stand
 
-Beta 5.5 baut direkt auf Beta 5.4 auf. Forderungen, Live-Status, Receipt Intelligence und Dokumentvorschau bleiben erhalten. Neu sind die tatsächliche Verwendung des datensparsamen Länder-/Währungskontexts, eine sofortige Presence-Abmeldung, Security-Härtung sowie ein reproduzierbarer lokaler Docker/Supabase-Workflow.
+Finance 2.3.0 ist der konsolidierte Stable-Stand für den manuellen Familien-/Testbetrieb. Konten, Transaktionen, Imports, Händler, Fixkosten, Budgets, Rechnungen, Verträge, Sparziele, Schulden, Forderungen und Finance Intelligence verwenden einen gemeinsamen Finanzkern und klar getrennte Planungs-/Ist-Logik.
 
-Die Standortlogik nutzt keinen Browser-GPS-Zugriff. Auf Cloudflare wird nur der ISO-Ländercode des Requests ausgewertet; lokal fällt Finance auf die Browser-Locale zurück. Die erkannte Währung ist nur ein Vorschlag für neue Eingaben.
+Wichtige Grundsätze:
 
-Lokale Entwicklung und lokale Daten: siehe `docs/LOCAL-DEVELOPMENT.md`.
-
+- Kontostände werden über einen verbindlichen Balance-Anker geführt.
+- Zukünftige Buchungen sind Planung und verändern den heutigen Kontostand nicht.
+- Fixkosten, variable Budgets und interne Umbuchungen werden getrennt ausgewiesen.
+- Händler sind zentrale Stammdaten und können direkt mit Fixkosten verbunden werden.
+- Regelmässige Zahlungen rollen ihren Plantermin aus dem gespeicherten Terminanker weiter.
+- Verknüpfte Verträge, Versicherungen, Schulden und Planungsregeln werden gegen inkonsistentes Löschen geschützt.
+- Region & Format steuert Zahlen-/Datumsdarstellung; die Oberfläche von Stable 2.3 ist deutsch.
+- Lokale Entwicklung und lokale Daten: siehe `docs/LOCAL-DEVELOPMENT.md`.
 ## iPhone UX
 
 Beta 5.1 basiert auf Beta 5 und korrigiert zusätzlich die iPhone-Abmeldung. Beta 5 optimiert die bestehende Finance-App gezielt für iPhone 11 Pro und iPhone 12 Pro, ohne die Desktop-Oberfläche neu zu gestalten. Datenmodell, Supabase-Backend und Modulstruktur bleiben identisch zu Beta 4.1.
@@ -92,7 +98,7 @@ Dieser Stand fokussiert die UI-Grundlage: Login-/Scroll-Fix, sichtbare Identitä
 - Viewer/Editor/Admin/Owner werden in UI und Aktionen klarer getrennt
 - kompakterer Seitenkopf und scrollbare Navigation, damit Inhalte früher sichtbar sind
 
-## Was jetzt produktiv im Beta-Umfang funktioniert
+## Was im Stable-Umfang funktioniert
 
 - Login mit administrativ angelegten Benutzern
 - Ersteinrichtung für Schweiz oder Deutschland
@@ -133,9 +139,9 @@ Ein beim Anlegen eines Kontos eingetragener `Kontostand jetzt` wird als `balance
 - Länderlogik: getrennte Module unter `assets/js/country/`
 - Modulmodell: zentral über `product_modules` und `user_module_access`
 
-## Bewusst noch nicht in dieser Working Beta
+## Bewusst nicht im Stable-Kern
 
-Diese Beta ist manual-first. Folgende externe Integrationen werden erst auf das getestete interne Finanzmodell gesetzt:
+Stable 2.3 ist manual-first. Folgende externe Integrationen werden erst auf das getestete interne Finanzmodell gesetzt:
 
 - SIX bLink / PSD2-Banking
 - automatische Live-/Intraday-Börsen- und Kryptokurse ohne konfigurierten Market-Data-Provider
@@ -159,6 +165,7 @@ Cloudflare Pages:
 - Framework preset: None
 - Build command: leer
 - Build output directory: `.`
-- Production branch im aktuellen Testbetrieb: `beta`
+- Getesteter Release-Branch: `stable`
+- Cloudflare-Produktionszweig kann nach Freigabe auf `stable` umgestellt werden.
 
 Das alte Supabase-Projekt `budget` gehört nicht zu Finance V2 und bleibt davon getrennt.
