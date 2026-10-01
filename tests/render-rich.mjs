@@ -5,12 +5,15 @@ import {renderCategories} from '../assets/js/views/categories.js';
 import {renderImports} from '../assets/js/views/imports.js';
 import {renderImportHistory} from '../assets/js/views/import-history.js';
 import {renderRecurring} from '../assets/js/views/recurring.js';
+import {renderFixedCosts} from '../assets/js/views/fixed-costs.js';
+import {renderMerchants} from '../assets/js/views/merchants.js';
 import {renderDocuments} from '../assets/js/views/documents.js';
 import {renderBudget} from '../assets/js/views/budget.js';
 import {renderBills} from '../assets/js/views/bills.js';
 import {renderGoals} from '../assets/js/views/goals.js';
 import {renderTaxAdvisor} from '../assets/js/views/tax-advisor.js';
 import {renderDebts} from '../assets/js/views/debts.js';
+import {renderReceivables} from '../assets/js/views/receivables.js';
 import {renderLegal} from '../assets/js/views/legal.js';
 import {renderFamily} from '../assets/js/views/family.js';
 import {renderWealth} from '../assets/js/views/wealth.js';
@@ -66,7 +69,7 @@ const moduleAccess={core:true,money:true,budget:true,bills:true,goals:true,tax:t
 const productModules=Object.keys(moduleAccess).map((key,i)=>({key,label:key,group_name:'Test',sort_order:i,is_core:['core','money'].includes(key),is_available:true}));
 const adminUsers=[{id:'u1',email:'test@example.com',display_name:'Test User',created_at:iso,last_sign_in_at:iso,modules:moduleAccess},{id:'u2',email:'view@example.com',display_name:'Viewer',created_at:iso,last_sign_in_at:null,modules:{core:true,money:true}}];
 const base={household,profile,fxRates,accounts,categories,merchants,transactions,debtPayments,budgets,bills,contracts,recurringRules,goals,goalSources,debts,legalCases,legalEvents,assets,properties,vehicles,insurance,investments,investmentTransactions,pensions,documents,importBatches,categorizationRules,householdMembers,moduleAccess,productModules,adminUsers,canWrite:true,canAdminHousehold:true,householdRole:'owner',depth:'expert',taxYear:now.getFullYear(),transactionView:'details',transactionPeriod:'all',transactionQuery:'',transactionCategory:'all',transactionAccount:'all',transactionFrom:'',transactionTo:'',transactionPage:1,categorizationOpen:true,categorizationFilter:'action',categorizationPage:1,debtExpandedId:'d1',adminQuery:'',adminPage:1,adminExpandedUserId:'u1',hiddenModules:[],privacyEnabled:false};
-const tests={overview:renderOverview,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,admin:renderAdmin};
+const tests={overview:renderOverview,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,'fixed-costs':renderFixedCosts,merchants:renderMerchants,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,receivables:renderReceivables,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,admin:renderAdmin};
 let fail=0;
 for (const [name,fn] of Object.entries(tests)) { try { const out=fn(base); if(typeof out!=='string'||!out.includes('<')) throw new Error('invalid html'); console.log('OK',name,out.length); } catch(e){fail++; console.error('FAIL',name,e.stack);} }
 if(fail) process.exit(1);
