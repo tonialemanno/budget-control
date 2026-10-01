@@ -46,10 +46,10 @@ export function renderBills({ bills = [], contracts = [], accounts = [], categor
   });
   const contractRows=contracts.map((contract)=>{
     const next=effectiveNextDate({next_date:contract.next_payment_date,end_date:contract.end_date,cadence:contract.billing_cadence},new Date());
-    const planningAction=contract.billing_cadence==='oneoff'
-      ? ''
-      : contract.recurring_rule_id
-        ? `<button class="table-action" type="button" data-action="contract-recurring-remove" data-id="${contract.id}">Planung lösen</button>`
+    const planningAction=contract.recurring_rule_id
+      ? `<button class="table-action" type="button" data-action="contract-recurring-remove" data-id="${contract.id}">Planung lösen</button>`
+      : contract.billing_cadence==='oneoff'
+        ? ''
         : `<button class="table-action" type="button" data-action="contract-recurring" data-id="${contract.id}" ${contract.account_id&&contract.next_payment_date&&Number(contract.amount)>0?'':'disabled'}>Mit Fixkosten verbinden</button>`;
     const remove=canWrite&&!contract.recurring_rule_id?deleteButton('contracts',contract.id):'';
     return `<tr><td><strong>${escapeHtml(contract.name)}</strong><div class="table-meta">${escapeHtml(contract.provider||'')}${contract.accounts?.name?` · ${escapeHtml(contract.accounts.name)}`:''}${contract.recurring_rule_id?' · Fixkosten verknüpft':''}</div></td><td>${money(contract.amount,{currency:contract.currency||currency,locale})}</td><td>${escapeHtml(contract.billing_cadence)}</td><td>${next?dateLabel(next,locale):'—'}</td><td>${statusPill(contract.status)}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="contract-edit" data-id="${contract.id}">Bearbeiten</button>${planningAction}${remove}`:''}</div></td></tr>`;
