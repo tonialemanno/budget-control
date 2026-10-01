@@ -9,7 +9,7 @@ assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /Finance wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
 assert.equal(exists('assets/js/views/fixed-costs.js'), true);
-assert.match(read('assets/js/views/fixed-costs.js'), /Fixkosten \/ Monat/);
+assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Ausgaben \/ Monat/);
 assert.match(read('assets/js/main.js'), /fixed-cost-create/);
 assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
