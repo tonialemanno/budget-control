@@ -1,0 +1,41 @@
+name: Finance CI
+
+on:
+  push:
+    branches:
+      - beta
+      - "dev/**"
+  pull_request:
+    branches:
+      - beta
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets/js functions -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in tests/*.mjs; do
+            echo "Running $test"
+            node "$test"
+          done
+      - name: Build full ZIP
+        shell: bash
+        run: |
+          zip -r finance-v2.3-beta5.5-full.zip . -x ".git/*" ".github/*" "payload/*" "*.zip" "runtime-config.local.js" "local-data.sql" "*.backup"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finance-v2.3-beta5.5-full
+          path: finance-v2.3-beta5.5-full.zip
+          if-no-files-found: error

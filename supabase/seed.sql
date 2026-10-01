@@ -1,0 +1,2 @@
+-- Local development seed.
+-- Deliberately empty: no production users or financial data belong in Git.

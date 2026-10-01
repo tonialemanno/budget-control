@@ -8,8 +8,9 @@ const effectiveStatus=(r)=>['paid','written_off'].includes(r.status)?r.status:(r
 const currencyOptions=(selected='CHF')=>['CHF','EUR','USD','GBP'].map((c)=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
 const accountOptions=(accounts)=>accounts.map((a)=>`<option value="${a.account_id}" data-currency="${escapeHtml(a.currency)}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
 
-export function renderReceivables({receivables=[],receivablePayments=[],accounts=[],household,profile,fxRates,canWrite=false,receivableExpandedId=null}={}) {
+export function renderReceivables({receivables=[],receivablePayments=[],accounts=[],household,profile,fxRates,geoContext,canWrite=false,receivableExpandedId=null}={}) {
   const currency=household?.base_currency||'CHF', locale=profile?.locale||'de-CH';
+  const suggestedCurrency=geoContext?.currency||currency;
   const cv=(v,from)=>convertAmount(v,from||currency,currency,fxRates)??0;
   const open=receivables.filter((r)=>!['paid','written_off'].includes(effectiveStatus(r)));
   const total=open.reduce((s,r)=>s+cv(r.outstanding_amount,r.currency),0);
@@ -21,7 +22,7 @@ export function renderReceivables({receivables=[],receivablePayments=[],accounts
     <label class="field"><span>Person</span><input class="text-control" name="debtor" required placeholder="z. B. Marco"></label>
     <label class="field"><span>Grund</span><input class="text-control" name="reason" required placeholder="z. B. Ferien vorgestreckt"></label>
     <label class="field"><span>Betrag</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
-    <label class="field"><span>Währung</span><select class="text-control" name="currency">${currencyOptions(currency)}</select></label>
+    <label class="field"><span>Währung</span><select class="text-control" name="currency">${currencyOptions(suggestedCurrency)}</select><small>${geoContext?.currency ? `Vorschlag für ${escapeHtml(geoContext.country || 'aktuelles Land')}: ${escapeHtml(suggestedCurrency)}.` : ''} Frei änderbar.</small></label>
     <label class="field"><span>Verliehen am</span><input class="text-control" name="lentAt" type="date" value="${dateInputValue()}" required></label>
     <label class="field"><span>Rückzahlung erwartet</span><input class="text-control" name="dueDate" type="date"></label>
     <label class="field form-grid-span"><span>Auszahlungskonto</span><select class="text-control" name="sourceAccountId"><option value="">— Nur Forderung erfassen / bereits früher verliehen —</option>${accountOpts}</select><small>Mit Konto erstellt Finance zusätzlich die Auszahlung. Die Kontowährung muss zur Forderung passen.</small></label>

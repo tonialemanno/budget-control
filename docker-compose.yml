@@ -1,0 +1,9 @@
+services:
+  finance-web:
+    build:
+      context: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./runtime-config.local.js:/usr/share/nginx/html/runtime-config.js:ro
+    restart: unless-stopped

@@ -1,4 +1,12 @@
-# Finance V2.3 – Beta 5.1
+# Finance V2.3 – Beta 5.5
+
+## Aktueller Stand
+
+Beta 5.5 baut direkt auf Beta 5.4 auf. Forderungen, Live-Status, Receipt Intelligence und Dokumentvorschau bleiben erhalten. Neu sind die tatsächliche Verwendung des datensparsamen Länder-/Währungskontexts, eine sofortige Presence-Abmeldung, Security-Härtung sowie ein reproduzierbarer lokaler Docker/Supabase-Workflow.
+
+Die Standortlogik nutzt keinen Browser-GPS-Zugriff. Auf Cloudflare wird nur der ISO-Ländercode des Requests ausgewertet; lokal fällt Finance auf die Browser-Locale zurück. Die erkannte Währung ist nur ein Vorschlag für neue Eingaben.
+
+Lokale Entwicklung und lokale Daten: siehe `docs/LOCAL-DEVELOPMENT.md`.
 
 ## iPhone UX
 
