@@ -1460,7 +1460,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1742,6 +1742,43 @@ async function handleAction(target) {
       const fn=deleteMap[table]; if (!fn) throw new Error('Löschen für diesen Datentyp ist nicht definiert.'); await fn(id);
     }
     await refresh('Eintrag gelöscht.'); return;
+  }
+  if (action === 'bill-edit') {
+    const bill=runtime.bills.find((row)=>row.id===target.dataset.id);
+    if(!bill) throw new Error('Rechnung wurde nicht gefunden.');
+    if(bill.status==='paid') throw new Error('Eine bezahlte Rechnung kann erst nach „Zahlung zurücknehmen“ bearbeitet werden.');
+    document.querySelector('#billEditId').value=bill.id;
+    document.querySelector('#billEditName').value=bill.name||'';
+    document.querySelector('#billEditProvider').value=bill.provider||'';
+    document.querySelector('#billEditAmount').value=bill.amount||0;
+    document.querySelector('#billEditDueDate').value=bill.due_date||'';
+    document.querySelector('#billEditAccount').value=bill.account_id||'';
+    document.querySelector('#billEditCategory').value=bill.category_id||'';
+    document.querySelector('#billEditReference').value=bill.reference||'';
+    const form=document.querySelector('#bill-edit');
+    form?.removeAttribute('hidden');
+    form?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  if (action === 'contract-edit') {
+    const contract=runtime.contracts.find((row)=>row.id===target.dataset.id);
+    if(!contract) throw new Error('Vertrag wurde nicht gefunden.');
+    document.querySelector('#contractEditId').value=contract.id;
+    document.querySelector('#contractEditName').value=contract.name||'';
+    document.querySelector('#contractEditProvider').value=contract.provider||'';
+    document.querySelector('#contractEditType').value=contract.contract_type||'contract';
+    document.querySelector('#contractEditAmount').value=contract.amount||0;
+    document.querySelector('#contractEditCadence').value=contract.billing_cadence||'monthly';
+    document.querySelector('#contractEditNext').value=contract.next_payment_date||'';
+    document.querySelector('#contractEditAccount').value=contract.account_id||'';
+    document.querySelector('#contractEditCategory').value=contract.category_id||'';
+    document.querySelector('#contractEditNotice').value=contract.cancellation_notice_days??'';
+    document.querySelector('#contractEditEnd').value=contract.end_date||'';
+    document.querySelector('#contractEditStatus').value=contract.status||'active';
+    const form=document.querySelector('#contract-edit');
+    form?.removeAttribute('hidden');
+    form?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
   }
   if (action === 'bill-payment-open') {
     const bill=runtime.bills.find((row)=>row.id===target.dataset.id); if(!bill) throw new Error('Rechnung wurde nicht gefunden.');
