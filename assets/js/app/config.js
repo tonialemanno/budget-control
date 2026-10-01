@@ -31,7 +31,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'accounts', label: 'Konten', mobileLabel: 'Konten', icon: 'wallet', group: 'Finance Core', module: 'money', mobile: true },
   { route: 'transactions', label: 'Transaktionen', mobileLabel: 'Buchungen', icon: 'list', group: 'Finance Core', module: 'money', mobile: true },
   { route: 'imports', label: 'Datenimport', icon: 'arrow-down-left', group: 'Finance Core', module: 'money' },
-  { route: 'recurring', label: 'Wiederkehrend', icon: 'repeat', group: 'Finance Core', module: 'money' },
+  { route: 'recurring', label: 'Regelmässige Zahlungen', icon: 'repeat', group: 'Planung', module: 'money' },
   { route: 'fixed-costs', label: 'Fixkosten', icon: 'receipt', group: 'Planung', module: 'money' },
   { route: 'documents', label: 'Dokumente', icon: 'receipt', group: 'Finance Core', module: 'core' },
 
@@ -65,7 +65,7 @@ export const PAGE_META = Object.freeze({
   imports: { title: 'Datenimport', eyebrow: 'Mein Geld' },
   'import-history': { title: 'Import-Historie', eyebrow: 'Mein Geld' },
   merchants: { title: 'Händler', eyebrow: 'Einstellungen' },
-  recurring: { title: 'Wiederkehrende Zahlungen', eyebrow: 'Mein Geld' },
+  recurring: { title: 'Regelmässige Zahlungen', eyebrow: 'Planung' },
   'fixed-costs': { title: 'Fixkosten', eyebrow: 'Planung' },
   documents: { title: 'Dokumente', eyebrow: 'Finance Core' },
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },
