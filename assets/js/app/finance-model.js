@@ -6,6 +6,40 @@ function isActiveRecurring(rule, today) {
   return rule?.active !== false && (!rule?.end_date || String(rule.end_date).slice(0,10) >= today);
 }
 
+function normalizedText(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+function dayDistance(left, right) {
+  const a=new Date(left); const b=new Date(right);
+  if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())) return 999;
+  return Math.abs(a.getTime()-b.getTime())/86400000;
+}
+
+function matchesRecurringExpense(tx, rules) {
+  const txAmount=Math.abs(Number(tx.amount||0));
+  const txText=normalizedText(`${tx.description||''} ${tx.counterparty||''}`);
+  return rules.some((rule)=>{
+    if(rule.direction!=='expense') return false;
+    if(rule.account_id && rule.account_id!==tx.account_id) return false;
+    if((rule.currency||tx.currency)!==tx.currency) return false;
+    if(Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
+    if(rule.next_date && dayDistance(tx.occurred_at,rule.next_date)>3) return false;
+    const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
+    const categoryMatch=Boolean(rule.category_id && tx.category_id && rule.category_id===tx.category_id);
+    const textMatch=Boolean(ruleText && txText && (txText.includes(ruleText)||ruleText.includes(txText)));
+    return categoryMatch || textMatch;
+  });
+}
+
+function budgetCoversTransaction(tx, budgets) {
+  return budgets.some((budget)=>{
+    if(budget.category_id) return budget.category_id===tx.category_id;
+    if(budget.merchant_id) return budget.merchant_id===tx.merchant_id;
+    return true;
+  });
+}
+
 export function buildFinanceSnapshot({
   accounts = [],
   transactions = [],
@@ -50,16 +84,36 @@ export function buildFinanceSnapshot({
   );
 
   const monthBudgets = budgets.filter((budget)=>String(budget.month_start).slice(0,7)===monthKey);
-  const plannedVariableMonthly = monthBudgets
-    .filter((budget)=>!budget.category_id || !fixedCategoryIds.has(budget.category_id))
-    .reduce((sum,budget)=>sum+Number(budget.amount||0),0);
+  const variableBudgets = monthBudgets.filter((budget)=>!budget.category_id || !fixedCategoryIds.has(budget.category_id));
+  const variableBudgetMonthly = variableBudgets.reduce((sum,budget)=>sum+Number(budget.amount||0),0);
+
+  const futureExpenseTransactions = transactions.filter((tx)=>{
+    const date=new Date(tx.occurred_at);
+    return ['booked','pending'].includes(tx.status)
+      && !tx.transfer_group_id
+      && tx.cashflow_type!=='debt_payment'
+      && Number(tx.amount)<0
+      && localMonthKey(tx.occurred_at)===monthKey
+      && !Number.isNaN(date.getTime())
+      && date>now;
+  });
+  const plannedFutureExpenses = futureExpenseTransactions.filter((tx)=>!matchesRecurringExpense(tx,activeRecurring));
+  const plannedFutureExpensesMonth = plannedFutureExpenses
+    .reduce((sum,tx)=>sum+inBase(Math.abs(Number(tx.amount||0)),tx.currency),0);
+  const unbudgetedFutureExpensesMonth = plannedFutureExpenses
+    .filter((tx)=>!budgetCoversTransaction(tx,variableBudgets))
+    .reduce((sum,tx)=>sum+inBase(Math.abs(Number(tx.amount||0)),tx.currency),0);
+  const plannedVariableMonthly = variableBudgetMonthly + unbudgetedFutureExpensesMonth;
 
   const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
-  const bookedMonth = transactions.filter((tx)=>
-    tx.status==='booked'
-    && localMonthKey(tx.occurred_at)===monthKey
-    && !tx.transfer_group_id
-  );
+  const bookedMonth = transactions.filter((tx)=>{
+    const date=new Date(tx.occurred_at);
+    return tx.status==='booked'
+      && localMonthKey(tx.occurred_at)===monthKey
+      && !tx.transfer_group_id
+      && !Number.isNaN(date.getTime())
+      && date<=now;
+  });
   const actualIncomeMonth = bookedMonth
     .filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
     .reduce((sum,tx)=>sum+inBase(tx.amount,tx.currency),0);
@@ -79,7 +133,14 @@ export function buildFinanceSnapshot({
   const ninety = new Date(now);
   ninety.setDate(ninety.getDate()-90);
   const trailingExpenses = transactions
-    .filter((tx)=>tx.status==='booked' && !tx.transfer_group_id && new Date(tx.occurred_at)>=ninety)
+    .filter((tx)=>{
+      const date=new Date(tx.occurred_at);
+      return tx.status==='booked'
+        && !tx.transfer_group_id
+        && !Number.isNaN(date.getTime())
+        && date>=ninety
+        && date<=now;
+    })
     .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
   const avgMonthlyExpenses = trailingExpenses/3;
   const runwayMonths = avgMonthlyExpenses>0 ? cash/avgMonthlyExpenses : 0;
@@ -117,6 +178,9 @@ export function buildFinanceSnapshot({
     incomePlanMonthly,
     incomePlanSource,
     fixedExpensesMonthly,
+    variableBudgetMonthly,
+    plannedFutureExpensesMonth,
+    unbudgetedFutureExpensesMonth,
     plannedVariableMonthly,
     fixedTransfersMonthly,
     plannedCommitmentsMonthly,
