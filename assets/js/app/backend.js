@@ -1,5 +1,6 @@
-const SUPABASE_URL = 'https://bktzavcnaqwdwlwldbjo.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_KKcZR8y1gAmC2MESwNa6pA_JFtC92ps';
+const RUNTIME_CONFIG = globalThis.__FINANCE_CONFIG__ || {};
+const SUPABASE_URL = String(RUNTIME_CONFIG.supabaseUrl || 'https://bktzavcnaqwdwlwldbjo.supabase.co').replace(/\/+$/, '');
+const SUPABASE_KEY = String(RUNTIME_CONFIG.supabaseKey || 'sb_publishable_KKcZR8y1gAmC2MESwNa6pA_JFtC92ps');
 const SESSION_KEY = 'finance-v2-session';
 
 let session = readSession();
@@ -193,6 +194,21 @@ export const backend = Object.freeze({
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },
   householdMembers(payload) { return invokeFunction('household-members', { body: payload }); },
   fxRates() { return invokeFunction('fx-rates', { method: 'GET' }); },
+  async geoContext() {
+    const fallback = () => {
+      const locale = String(navigator.language || '').toUpperCase();
+      const region = locale.includes('-') ? locale.split('-').pop() : '';
+      const currency = region === 'CH' ? 'CHF' : ['DE','AT','IT'].includes(region) ? 'EUR' : null;
+      return { country: region || null, currency, source: 'locale' };
+    };
+    try {
+      const response = await fetch('/api/geo', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!response.ok) return fallback();
+      const data = await response.json();
+      if (data?.currency) return data;
+      return fallback();
+    } catch { return fallback(); }
+  },
 
   getSession() { return session ? { ...session } : null; },
   rest,
