@@ -144,7 +144,7 @@ Deno.serve(async (req: Request) => {
   if (action === "set_locale") {
     const userId = String(body.userId || "");
     const locale = String(body.locale || "");
-    const allowedLocales = new Set(["de-CH", "de-DE", "it-CH", "it-IT"]);
+    const allowedLocales = new Set(["de-CH", "de-DE", "it-CH", "it-IT", "en-CH", "en-GB"]);
     if (!userId || !allowedLocales.has(locale)) return json({ error: "Ungültige Sprache / Region." }, 400, origin);
 
     const { error } = await admin
@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
   const displayName = String(body.displayName || "").trim();
-  const locale = ["de-CH", "de-DE", "it-CH", "it-IT"].includes(String(body.locale || "")) ? String(body.locale) : "de-CH";
+  const locale = ["de-CH", "de-DE", "it-CH", "it-IT", "en-CH", "en-GB"].includes(String(body.locale || "")) ? String(body.locale) : "de-CH";
   if (!email || !email.includes("@")) return json({ error: "Bitte eine gültige E-Mail-Adresse angeben." }, 400, origin);
   if (password.length < 8) return json({ error: "Das temporäre Passwort muss mindestens 8 Zeichen lang sein." }, 400, origin);
 
