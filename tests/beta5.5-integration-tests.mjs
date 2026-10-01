@@ -80,3 +80,22 @@ assert.match(read('assets/js/main.js'), /default_category_id/);
 assert.match(read('assets/js/app/finance-api.js'), /merchants\(name,normalized_key,default_category_id\)/);
 assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
 assert.match(read('assets/js/views/budget.js'), /rule\.merchant_id/);
+
+assert.equal(exists('assets/js/views/merchants.js'), true);
+assert.match(read('assets/js/app/config.js'), /route: 'merchants'/);
+assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler'/);
+assert.match(read('assets/js/main.js'), /renderMerchants/);
+assert.match(read('assets/js/main.js'), /merchant-create/);
+assert.match(read('assets/js/main.js'), /merchant-edit/);
+assert.match(read('assets/js/main.js'), /normalizeMerchantKey/);
+assert.match(read('assets/js/views/merchants.js'), /Standardkategorie/);
+assert.match(read('assets/js/views/merchants.js'), /Verwendung/);
+assert.match(read('assets/js/views/merchants.js'), /merchantSearch/);
+
+const mainSource=read('assets/js/main.js');
+const recurringStart=mainSource.indexOf("if (id === 'recurring-create')");
+const recurringEnd=mainSource.indexOf("if (id === 'fixed-cost-create')",recurringStart);
+const recurringBlock=mainSource.slice(recurringStart,recurringEnd);
+assert.doesNotMatch(recurringBlock,/merchant_id:merchantId/);
+assert.doesNotMatch(recurringBlock,/merchant\?\.name/);
+assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
