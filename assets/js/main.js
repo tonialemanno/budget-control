@@ -1533,7 +1533,7 @@ async function enterApp(session) {
 window.addEventListener('hashchange',render);
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
-window.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); });
 setInterval(()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); },60000);
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
