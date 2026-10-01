@@ -1,6 +1,6 @@
 import { dataTable, formShell, metricCard, pageHeader, deleteButton } from '../app/components.js';
 import { cadenceMonthlyFactor, escapeHtml, localMonthKey, money, monthInputValue, monthLabel, progress } from '../app/format.js';
-import { convertAmount, fxLabel } from '../app/fx.js';
+import { convertAmount } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
@@ -56,18 +56,6 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
   const totalBudget = monthBudgets.reduce((s,b)=>s+Number(b.amount),0);
   const left = totalBudget-spentBase;
 
-  const savingsAccountIds=new Set(accounts.filter((a)=>a.account_type==='savings').map((a)=>a.account_id));
-  const savedThisMonth=transactions.filter((tx)=>{
-    const date=new Date(tx.occurred_at);
-    return localMonthKey(tx.occurred_at)===currentMonth
-      && tx.status==='booked'
-      && tx.transfer_group_id
-      && Number(tx.amount)>0
-      && savingsAccountIds.has(tx.account_id)
-      && !Number.isNaN(date.getTime())
-      && date<=now;
-  }).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
-
   const recurringMonthly=recurringRules
     .filter((r)=>r.active!==false && r.direction==='expense' && (!r.end_date || String(r.end_date).slice(0,10)>=now.toISOString().slice(0,10)))
     .reduce((s,r)=>s+(convertAmount(Number(r.amount)*cadenceMonthlyFactor(r.cadence),r.currency||currency,currency,fxRates)??0),0);
@@ -109,7 +97,6 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
   const byMerchant=new Map();
   for(const tx of recent){
     const merchant=merchants.find((m)=>m.id===tx.merchant_id);
-    if(merchantIsFixed(merchant,recurringRules)) continue;
     const row=byMerchant.get(tx.merchant_id)||{count:0,total:0,merchant,months:new Set(),rows:[]};
     row.count+=1;
     row.total+=consumptionExpenseBase(tx,paymentMap,currency,fxRates);
@@ -140,7 +127,7 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
     .slice(0,6);
 
   return `
-    ${pageHeader({title:'Budget',subtitle:`Variable Ausgaben für ${monthLabel(monthStart,locale)} planen. Bekannte Fixkosten werden separat geführt und nicht als Budgetvorschlag geschätzt.`,actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Budget</button>`:''})}
+    ${pageHeader({title:'Budget',subtitle:`Ausgaben für ${monthLabel(monthStart,locale)} nachvollziehen und variable Budgets planen. Bekannte Fixkosten werden markiert und mit ihrem exakten Planwert verglichen.`,actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Budget</button>`:''})}
     ${formShell('budget-create','Budget festlegen','Kategorie oder einzelnen Händler budgetieren',fields,{hidden:true,submitLabel:'Budget speichern'})}
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Variables Budget',money(totalBudget,{currency,locale}),monthLabel(monthStart,locale))}
