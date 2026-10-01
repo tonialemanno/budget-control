@@ -1721,18 +1721,18 @@ async function handleAction(target) {
   }
   if (action === 'transaction-note') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
-    const value=prompt('Wofür war diese Zahlung?',tx.note||''); if(value===null) return; await financeApi.updateTransaction(tx.id,{note:value.trim()||null}); await refresh('Zweck gespeichert.'); return;
+    const value=prompt(t('Wofür war diese Zahlung?'),tx.note||''); if(value===null) return; await financeApi.updateTransaction(tx.id,{note:value.trim()||null}); await refresh('Zweck gespeichert.'); return;
   }
   if (action === 'transaction-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
-    const value=target.dataset.value==='true'; let category=tx.tax_category||null; if(value&&!category){ const entered=prompt('Steuerkategorie (optional):','Berufskosten'); if(entered!==null) category=entered.trim()||null; }
+    const value=target.dataset.value==='true'; let category=tx.tax_category||null; if(value&&!category){ const entered=prompt(t('Steuerkategorie (optional):'),t('Berufskosten')); if(entered!==null) category=entered.trim()||null; }
     await financeApi.updateTransaction(tx.id,{tax_relevant:value,tax_category:value?category:null}); await refresh(value?'Als steuerrelevant markiert.':'Steuermarkierung entfernt.'); return;
   }
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
     if(tx.cashflow_type==='debt_payment') throw new Error('Eine Schuldzahlung kann nicht in eine Umbuchung umgewandelt werden.');
-    let toAmount=null; if(tx.currency!==to.currency){ const entered=prompt(`Wie viel ${to.currency} wurden tatsächlich in ${to.name} gelegt?`,String(Math.abs(Number(tx.amount)))); if(entered===null) return; toAmount=Number(entered); if(!Number.isFinite(toAmount)||toAmount<=0) throw new Error('Ungültiger Zielbetrag.'); }
+    let toAmount=null; if(tx.currency!==to.currency){ const entered=prompt(t(`Wie viel ${to.currency} wurden tatsächlich in ${to.name} gelegt?`),String(Math.abs(Number(tx.amount)))); if(entered===null) return; toAmount=Number(entered); if(!Number.isFinite(toAmount)||toAmount<=0) throw new Error('Ungültiger Zielbetrag.'); }
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
@@ -1830,7 +1830,7 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if (!tx) throw new Error('Transaktion wurde nicht gefunden.');
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden im Zahlungsverlauf unter Schulden & Kredite storniert.');
-    if (!confirm(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?')) return;
+    if (!confirm(t(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?'))) return;
     if (tx.transfer_group_id) await financeApi.deleteTransfer(runtime.household.id,tx.transfer_group_id); else await financeApi.deleteTransaction(tx.id);
     await refresh(tx.transfer_group_id?'Umbuchung gelöscht.':'Transaktion gelöscht.'); return;
   }
@@ -1862,7 +1862,7 @@ async function handleAction(target) {
       const row=runtime.bills.find((item)=>item.id===id);
       if(row?.status==='paid') throw new Error('Eine bezahlte Rechnung kann nicht direkt gelöscht werden. Bitte zuerst die Zahlung zurücknehmen.');
     }
-    if (!confirm('Diesen Eintrag wirklich löschen?')) return;
+    if (!confirm(t('Diesen Eintrag wirklich löschen?'))) return;
     if (table==='documents') {
       const doc=runtime.documents.find((d)=>d.id===id); if (doc) await financeApi.deleteDocument(doc);
     } else {
@@ -1921,7 +1921,7 @@ async function handleAction(target) {
     const form=document.querySelector('#bill-payment'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'bill-payment-reverse') {
-    if(!confirm('Rechnungszahlung wirklich zurücknehmen? Eine von Finance erzeugte Kontobuchung wird dabei ebenfalls entfernt.')) return;
+    if(!confirm(t('Rechnungszahlung wirklich zurücknehmen? Eine von Finance erzeugte Kontobuchung wird dabei ebenfalls entfernt.'))) return;
     await financeApi.unpayBill({householdId:runtime.household.id,billId:target.dataset.id});
     await refresh('Rechnungszahlung zurückgenommen.'); return;
   }
@@ -1929,7 +1929,7 @@ async function handleAction(target) {
     const goal=runtime.goals.find((g)=>g.id===target.dataset.id);
     if(!goal) throw new Error('Sparziel wurde nicht gefunden.');
     if(goal.account_id) throw new Error('Dieses Sparziel ist mit einem Konto verknüpft. Der aktuelle Stand kommt automatisch vom Kontostand.');
-    const value=prompt('Aktueller Stand des Sparziels:',target.dataset.current||'0'); if (value===null) return;
+    const value=prompt(t('Aktueller Stand des Sparziels:'),target.dataset.current||'0'); if (value===null) return;
     const n=Number(value); if (!Number.isFinite(n)||n<0) throw new Error('Ungültiger Betrag.');
     await financeApi.updateGoal(target.dataset.id,{current_amount:n,status:n>=Number(goal.target_amount)?'completed':'active'}); await refresh('Sparziel aktualisiert.'); return;
   }
@@ -1958,7 +1958,7 @@ async function handleAction(target) {
   if (action === 'receivable-history') { uiState.receivableExpandedId=target.dataset.id; render(); return; }
   if (action === 'receivable-history-close') { uiState.receivableExpandedId=null; render(); return; }
   if (action === 'receivable-payment-reverse') {
-    if(!confirm('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von Finance erstellte Kontobuchung wird ebenfalls entfernt.')) return;
+    if(!confirm(t('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von Finance erstellte Kontobuchung wird ebenfalls entfernt.'))) return;
     const payment=runtime.receivablePayments.find((row)=>row.id===target.dataset.id);
     if(!payment) throw new Error('Rückzahlung wurde nicht gefunden.');
     await financeApi.reverseReceivablePayment(payment.id);
@@ -2084,7 +2084,7 @@ async function handleAction(target) {
   if (action === 'debt-history') { uiState.debtExpandedId=target.dataset.id; render(); return; }
   if (action === 'debt-history-close') { uiState.debtExpandedId=null; render(); return; }
   if (action === 'debt-payment-reverse') {
-    if(!confirm('Die zuletzt erfasste Schuldzahlung wirklich stornieren? Restschuld und verknüpfte Buchung werden entsprechend zurückgesetzt.')) return;
+    if(!confirm(t('Die zuletzt erfasste Schuldzahlung wirklich stornieren? Restschuld und verknüpfte Buchung werden entsprechend zurückgesetzt.'))) return;
     const payment=runtime.debtPayments.find((row)=>row.id===target.dataset.id);
     if(!payment) throw new Error('Zahlung wurde nicht gefunden.');
     await financeApi.reverseDebtPayment(payment.id);
@@ -2141,16 +2141,16 @@ async function handleAction(target) {
     await refresh('Versicherung von Fixkosten getrennt.'); return;
   }
   if (action === 'legal-event') {
-    const caseId=target.dataset.id; const title=prompt('Ereignis / Titel:'); if (!title) return;
-    const type=prompt('Typ des Ereignisses:','Notiz')||'Notiz'; const notes=prompt('Notiz (optional):','')||null;
+    const caseId=target.dataset.id; const title=prompt(t('Ereignis / Titel:')); if (!title) return;
+    const type=prompt(t('Typ des Ereignisses:'),t('Notiz'))||'Notiz'; const notes=prompt(t('Notiz (optional):'),'')||null;
     await financeApi.createLegalEvent({case_id:caseId,household_id:runtime.household.id,event_date:dateInputValue(),event_type:type,title,notes}); await refresh('Timeline-Ereignis gespeichert.'); return;
   }
-  if (action === 'family-remove') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder entfernen.'); if (!confirm('Mitglied aus dem Haushalt entfernen?')) return; await financeApi.removeHouseholdMember(runtime.household.id,target.dataset.userId); await refresh('Mitglied entfernt.'); return; }
+  if (action === 'family-remove') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder entfernen.'); if (!confirm(t('Mitglied aus dem Haushalt entfernen?'))) return; await financeApi.removeHouseholdMember(runtime.household.id,target.dataset.userId); await refresh('Mitglied entfernt.'); return; }
   if (action === 'document-download') {
     const blob=await financeApi.downloadDocument(target.dataset.path); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=target.dataset.name||'dokument'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); return;
   }
   if (action === 'admin-password') {
-    const password=prompt('Neues temporäres Passwort (mind. 8 Zeichen):'); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
+    const password=prompt(t('Neues temporäres Passwort (mind. 8 Zeichen):')); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
   }
 }
@@ -2180,6 +2180,11 @@ pageContent.addEventListener('click', async (event) => {
 
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
+  const filePicker = target.closest?.('.file-picker');
+  if (filePicker && target.matches?.('input[type="file"]')) {
+    const fileName = filePicker.querySelector('[data-file-name]');
+    if (fileName) fileName.textContent = target.files?.[0]?.name || t('Keine Datei ausgewählt');
+  }
   try {
     if (target.id === 'localeSelect') {
       runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
