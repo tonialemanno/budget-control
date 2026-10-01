@@ -687,6 +687,48 @@ async function syncInsuranceRecurring(policy) {
   return rule;
 }
 
+async function syncRecurringSourceFromRule(rule) {
+  if(!rule?.id) return;
+  const contract=runtime.contracts.find((row)=>row.recurring_rule_id===rule.id);
+  if(contract) {
+    await financeApi.updateContract(contract.id,{
+      account_id:rule.account_id,
+      category_id:rule.category_id||null,
+      amount:Number(rule.amount||0),
+      currency:rule.currency,
+      billing_cadence:rule.cadence,
+      next_payment_date:rule.next_date||null,
+      end_date:rule.end_date||null,
+      status:rule.active===false?'paused':'active',
+    });
+  }
+
+  const policy=runtime.insurance.find((row)=>row.recurring_rule_id===rule.id);
+  if(policy) {
+    await financeApi.updateInsurance(policy.id,{
+      account_id:rule.account_id,
+      category_id:rule.category_id||null,
+      premium_amount:Number(rule.amount||0),
+      currency:rule.currency,
+      billing_cadence:rule.cadence,
+      next_payment_date:rule.next_date||null,
+      end_date:rule.end_date||null,
+    });
+  }
+
+  const debt=runtime.debts.find((row)=>row.recurring_rule_id===rule.id);
+  if(debt) {
+    await financeApi.updateDebt(debt.id,{
+      payment_account_id:rule.account_id,
+      installment_amount:Number(rule.amount||0),
+      payment_cadence:rule.cadence,
+      next_payment_date:rule.next_date||null,
+      end_date:rule.end_date||null,
+      status:rule.active===false?'paused':(Number(debt.outstanding_amount)>0?'active':'paid'),
+    });
+  }
+}
+
 function debtRecurringPayload(debt) {
   const account = runtime.accounts.find((row)=>row.account_id===debt.payment_account_id);
   if (!account) throw new Error('Bitte zuerst ein Standard-Zahlungskonto bei der Schuld hinterlegen.');
@@ -965,9 +1007,25 @@ async function handleForm(form) {
   if (id === 'fixed-cost-edit') {
     const ruleId=formValue(data,'ruleId');
     const direction=formValue(data,'direction')||'expense';
+    const cadence=formValue(data,'cadence');
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!ruleId) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
     if (!account) throw new Error('Bitte ein Konto auswählen.');
+
+    const linkedContract=runtime.contracts.find((row)=>row.recurring_rule_id===ruleId);
+    const linkedPolicy=runtime.insurance.find((row)=>row.recurring_rule_id===ruleId);
+    const linkedDebt=runtime.debts.find((row)=>row.recurring_rule_id===ruleId);
+    const linkedSource=linkedContract||linkedPolicy||linkedDebt;
+    if(linkedSource && direction!=='expense') {
+      throw new Error('Diese Fixkosten sind mit Vertrag, Versicherung oder Schuld verknüpft und können nicht direkt in eine Umbuchung umgewandelt werden.');
+    }
+    if(linkedDebt && cadence==='semiannual') {
+      throw new Error('Schuldenraten unterstützen keinen halbjährlichen Rhythmus.');
+    }
+    if(linkedDebt && account.currency!==linkedDebt.currency) {
+      throw new Error('Zahlungskonto und Schuld müssen dieselbe Währung haben.');
+    }
+
     let destinationAccountId=null;
     if(direction==='transfer'){
       const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
@@ -976,20 +1034,21 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
-    await financeApi.updateRecurringRule(ruleId,{
+    const rule=await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
       category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
-      currency:account.currency||currency,
-      cadence:formValue(data,'cadence'),
+      currency:linkedDebt?linkedDebt.currency:(account.currency||currency),
+      cadence,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true',
     });
-    await refresh(direction==='transfer'?'Fixe Umbuchung aktualisiert.':'Fixkosten aktualisiert.'); return;
+    if(linkedSource) await syncRecurringSourceFromRule(rule);
+    await refresh(direction==='transfer'?'Fixe Umbuchung aktualisiert.':linkedSource?'Fixkosten und verknüpfte Quelle aktualisiert.':'Fixkosten aktualisiert.'); return;
   }
   if (id === 'budget-create') {
     const scopeType=formValue(data,'scopeType')||'category';
