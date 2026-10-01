@@ -59,8 +59,8 @@ assert.match(read('assets/js/app/backend.js'), /adminSetLocale/);
 assert.match(read('supabase/functions/admin-users/index.ts'), /set_locale/);
 
 assert.match(read('assets/js/app/format.js'), /export function moneyText/);
-assert.match(read('assets/js/views/overview.js'), /moneyText\(snapshot\.plannedFutureExpensesMonth/);
-assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.plannedFutureExpensesMonth/);
+assert.match(read('assets/js/views/overview.js'), /moneyText\(snapshot\.unbudgetedFutureExpensesMonth/);
+assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.unbudgetedFutureExpensesMonth/);
 assert.match(read('assets/js/views/transactions.js'), /Ø Ausgaben \/ Monat/);
 assert.match(read('assets/js/views/transactions.js'), /monthlyAverage/);
 
@@ -103,3 +103,20 @@ assert.doesNotMatch(read('assets/js/app/config.js'), /route: 'merchants'/);
 assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler', eyebrow: 'Einstellungen' \}/);
 assert.match(read('assets/js/views/settings.js'), /Stammdaten/);
 assert.match(read('assets/js/views/settings.js'), /href="#\/merchants"/);
+
+assert.equal(exists('assets/js/app/recurrence.js'), true);
+assert.match(read('assets/js/views/recurring.js'), /effectiveNextDate/);
+assert.match(read('assets/js/views/fixed-costs.js'), /effectiveNextDate/);
+assert.match(read('assets/js/views/budget.js'), /Davon verbraucht/);
+assert.match(read('assets/js/views/budget.js'), /Ausserhalb Budget/);
+assert.match(read('assets/js/app/finance-model.js'), /unbudgetedActualVariableExpensesMonth/);
+assert.match(read('assets/js/app/finance-model.js'), /isFixedBudget/);
+assert.match(read('assets/js/main.js'), /Diese Planung ist verknüpft mit/);
+assert.match(read('assets/js/main.js'), /Diese Schuld hat eine Zahlungshistorie/);
+assert.match(read('assets/js/views/bills.js'), /data-action="bill-edit"/);
+assert.match(read('assets/js/views/bills.js'), /data-action="contract-edit"/);
+assert.match(read('assets/js/views/bills.js'), /contract-recurring-remove/);
+assert.match(read('assets/js/views/insurance.js'), /insurance-recurring-remove/);
+assert.match(read('assets/js/views/insurance.js'), /insuranceEditStatus/);
+assert.match(read('assets/js/main.js'), /status:id==='insurance-edit'/);
+assert.match(read('assets/js/views/settings.js'), /Region & Format/);
