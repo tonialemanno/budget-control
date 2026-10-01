@@ -643,7 +643,6 @@ async function syncContractRecurring(contract) {
   if(!valid) {
     if(contract?.recurring_rule_id) {
       await financeApi.updateRecurringRule(contract.recurring_rule_id,{active:false});
-      await financeApi.updateContract(contract.id,{recurring_rule_id:null});
     }
     return null;
   }
@@ -686,7 +685,6 @@ async function syncInsuranceRecurring(policy) {
   if(!valid) {
     if(policy?.recurring_rule_id) {
       await financeApi.updateRecurringRule(policy.recurring_rule_id,{active:false});
-      await financeApi.updateInsurance(policy.id,{recurring_rule_id:null});
     }
     return null;
   }
