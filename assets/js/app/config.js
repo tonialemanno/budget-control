@@ -40,6 +40,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'tax-advisor', label: 'Steuerberater', icon: 'receipt', group: 'Planung', module: 'tax' },
 
   { route: 'debts', label: 'Schulden & Kredite', icon: 'credit-card', group: 'Verbindlichkeiten', module: 'debts' },
+  { route: 'receivables', label: 'Forderungen', icon: 'banknote', group: 'Verbindlichkeiten', module: 'debts' },
   { route: 'legal', label: 'Mahnung / Betreibung', icon: 'shield', group: 'Verbindlichkeiten', module: 'legal' },
 
   { route: 'family', label: 'Familie & Haushalt', icon: 'heart-pulse', group: 'Haushalt', module: 'family' },
@@ -69,6 +70,7 @@ export const PAGE_META = Object.freeze({
   goals: { title: 'Sparziele', eyebrow: 'Sparen & Ziele' },
   'tax-advisor': { title: 'Steuerberater', eyebrow: 'Steuern & Export' },
   debts: { title: 'Schulden & Kredite', eyebrow: 'Schulden & Kredite' },
+  receivables: { title: 'Forderungen', eyebrow: 'Verliehenes Geld' },
   legal: { title: 'Mahnung / Betreibung', eyebrow: 'Forderungen' },
   family: { title: 'Familie & Haushalt', eyebrow: 'Haushalt' },
   wealth: { title: 'Vermögen', eyebrow: 'Vermögen' },
