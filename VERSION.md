@@ -1,4 +1,16 @@
-# Version 2.3.0-beta-5.1
+# Version 2.3.0-beta-5.4
+
+## Beta 5.4 – Forderungen, Receipt Intelligence, Währung und Live-Status
+
+- Forderungen wieder als eigener Bereich unter dem bestehenden Modul Schulden & Kredite.
+- Teilrückzahlungen, Verlauf, Fälligkeit sowie optionale Konto-Auszahlung/-Rückzahlung.
+- Forderungen zählen zum Vermögen, aber nicht zur freien Liquidität.
+- OCR mit zwei Erkennungsläufen, Händlerprofilen und plausibler Total-/Datumswahl.
+- Migros MR / Restaurant wird von Migros Supermarkt unterschieden.
+- Standortland dient nur als Währungs-Vorauswahl; erkannte Belegwährung hat Vorrang.
+- Admin zeigt Online-Status, Gerät und App-Version.
+- Dokumente können in Finance als Bild/PDF vorab angesehen und separat heruntergeladen werden.
+- Mobile Belegerfassung hält das Foto beim Korrigieren sichtbar.
 
 ## V2.3 Beta 5.1 – iPhone Logout Fix
 
