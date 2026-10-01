@@ -2,7 +2,7 @@ import { dataTable, formShell, pageHeader, deleteButton } from '../app/component
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 
-export function renderCategories({ categories = [], categorizationRules = [], canWrite = false } = {}) {
+export function renderCategories({ categories = [], categorizationRules = [], canWrite = false, adminRole = null, household = null, countryMasterCategories = [] } = {}) {
   const parentOptions = categories.map((c)=>`<option value="${c.id}" data-kind="${c.kind}" ${c.kind==='income'?'hidden disabled':''}>${escapeHtml(c.name)} · ${c.kind==='income'?'Einnahme':'Ausgabe'}</option>`).join('');
   const allCategoryOptions = categories.map((c)=>`<option value="${c.id}">${escapeHtml(c.name)} · ${c.kind==='income'?'Einnahme':'Ausgabe'}</option>`).join('');
   const categoryFields = `
@@ -16,7 +16,15 @@ export function renderCategories({ categories = [], categorizationRules = [], ca
     <label class="field"><span>Vergleich</span><select class="text-control" name="matchType"><option value="contains">enthält</option><option value="starts_with">beginnt mit</option><option value="exact">ist genau</option></select></label>
     <label class="field"><span>Suchwert</span><input class="text-control" name="matchValue" required placeholder="z. B. Migros"></label>`;
 
-  const categoryRows = categories.map((c)=>`<tr><td><strong>${escapeHtml(c.name)}</strong></td><td>${c.kind==='income'?'Einnahme':'Ausgabe'}</td><td>${escapeHtml(categories.find((p)=>p.id===c.parent_id)?.name || '—')}</td><td>${canWrite?deleteButton('categories',c.id):''}</td></tr>`);
+  const categoryRows = categories.map((c)=>{
+    const isCountryStandard=countryMasterCategories.some((row)=>row.kind===c.kind && String(row.name||'').toLowerCase()===String(c.name||'').toLowerCase());
+    const promoteAction=adminRole && !isCountryStandard
+      ? `<button class="table-action" type="button" data-action="category-promote-master" data-id="${c.id}">Für ${escapeHtml(household?.country_code||'CH')} freigeben</button>`
+      : '';
+    const actions=canWrite?`<div class="table-actions">${promoteAction}${deleteButton('categories',c.id)}</div>`:'';
+    const standardMeta=isCountryStandard?`<div class="table-meta">${escapeHtml(household?.country_code||'CH')}-Standard</div>`:'';
+    return `<tr><td><strong>${escapeHtml(c.name)}</strong>${standardMeta}</td><td>${c.kind==='income'?'Einnahme':'Ausgabe'}</td><td>${escapeHtml(categories.find((p)=>p.id===c.parent_id)?.name || '—')}</td><td>${actions}</td></tr>`;
+  });
   const ruleRows = categorizationRules.map((r)=>`<tr><td>${escapeHtml(r.categories?.name || '')}</td><td>${escapeHtml(r.field_name==='counterparty'?'Gegenpartei':'Beschreibung')}</td><td>${escapeHtml(r.match_type)}: <strong>${escapeHtml(r.match_value)}</strong></td><td>${canWrite?deleteButton('categorization_rules',r.id):''}</td></tr>`);
 
   return `
