@@ -16,6 +16,7 @@ function matchingFixedRule(merchant, recurringRules) {
   if(!merchantName) return null;
   return recurringRules.find((rule)=>{
     if(rule.active===false || rule.direction!=='expense') return false;
+    if(rule.merchant_id && merchant?.id && rule.merchant_id===merchant.id) return true;
     const description=normalized(rule.description);
     const counterparty=normalized(rule.counterparty);
     if(counterparty && (merchantName.includes(counterparty) || counterparty.includes(merchantName))) return true;
