@@ -151,6 +151,17 @@ export const financeApi = Object.freeze({
   createDebt: (payload) => insert('debts', payload), updateDebt: (id, patch) => update('debts', id, patch), deleteDebt: (id) => remove('debts', id),
   async listDebtPayments(householdId) { const select = '*,debts(name,creditor,currency),transactions(id,description,amount,currency,occurred_at,accounts(name))'; const pageSize = 1000; const rows = []; for (let offset = 0; ; offset += pageSize) { const page = await listByHousehold('debt_payments', householdId, { select, order: 'paid_at.desc,created_at.desc', limit: pageSize, extra: { offset: String(offset) } }); rows.push(...(page || [])); if (!page || page.length < pageSize) break; } return rows; },
   createDebtPayment: (payload) => insert('debt_payments', payload), reverseDebtPayment: (id) => update('debt_payments', id, { reversed_at: new Date().toISOString() }),
+  listReceivables(householdId) { return listByHousehold('receivables', householdId, { order: 'status.asc,due_date.asc.nullslast,created_at.desc', limit: 1000 }); },
+  listReceivablePayments(householdId) { return listByHousehold('receivable_payments', householdId, { order: 'paid_at.desc,created_at.desc', limit: 1000 }); },
+  createReceivable({ householdId, debtor, reason, originalAmount, currency, lentAt, dueDate=null, notes=null, sourceAccountId=null, createTransaction=false }) {
+    return backend.rpc('create_receivable_v2', { p_household_id:householdId, p_debtor:debtor, p_reason:reason, p_original_amount:originalAmount, p_currency:currency, p_lent_at:lentAt, p_due_date:dueDate, p_notes:notes, p_source_account_id:sourceAccountId, p_create_transaction:createTransaction });
+  },
+  recordReceivablePayment({ householdId, receivableId, amount, paidAt, note=null, paymentAccountId=null, createTransaction=false }) {
+    return backend.rpc('record_receivable_payment_v2', { p_household_id:householdId, p_receivable_id:receivableId, p_amount:amount, p_paid_at:paidAt, p_note:note, p_payment_account_id:paymentAccountId, p_create_transaction:createTransaction });
+  },
+  reverseReceivablePayment: (paymentId) => backend.rpc('reverse_receivable_payment_v2', { p_payment_id:paymentId }),
+  deleteReceivable: ({ householdId, receivableId }) => backend.rpc('delete_receivable_v2', { p_household_id:householdId, p_receivable_id:receivableId }),
+  touchPresence: ({ route=null, appVersion=null, deviceLabel=null }={}) => backend.rpc('touch_user_presence', { p_route:route, p_app_version:appVersion, p_device_label:deviceLabel }),
   listLegalCases(householdId) { return listByHousehold('legal_cases', householdId, { order: 'status.asc,next_action_date.asc.nullslast,created_at.desc' }); }, createLegalCase: (payload) => insert('legal_cases', payload), updateLegalCase: (id, patch) => update('legal_cases', id, patch), deleteLegalCase: (id) => remove('legal_cases', id),
   listLegalEvents(householdId) { return listByHousehold('legal_case_events', householdId, { order: 'event_date.desc,created_at.desc' }); }, createLegalEvent: (payload) => insert('legal_case_events', payload), deleteLegalEvent: (id) => remove('legal_case_events', id),
   listAssets(householdId) { return listByHousehold('assets', householdId, { order: 'created_at.desc' }); }, createAsset: (payload) => insert('assets', payload), updateAsset: (id, patch) => update('assets', id, patch), deleteAsset: (id) => remove('assets', id),
