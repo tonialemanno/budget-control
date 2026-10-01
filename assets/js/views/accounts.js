@@ -2,6 +2,7 @@ import { accountCard, emptyState, formShell, metricCard, pageHeader } from '../a
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
+import { buildAccountProjection } from '../app/projections.js';
 
 const ACCOUNT_TYPES = [
   ['checking','Zahlungskonto'], ['savings','Sparkonto'], ['cash','Bargeld'], ['credit_card','Kreditkarte'],
@@ -17,7 +18,7 @@ function currencyOptions(selected = 'CHF') {
   return CURRENCIES.map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-export function renderAccounts({ accounts = [], household, profile, canWrite = false, fxRates } = {}) {
+export function renderAccounts({ accounts = [], recurringRules = [], household, profile, canWrite = false, fxRates } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
@@ -66,6 +67,6 @@ export function renderAccounts({ accounts = [], household, profile, canWrite = f
       ${metricCard(`Kreditkarten ${baseCurrency}`, money(baseCredit,{currency:baseCurrency,locale}), 'nicht zur Liquidität gezählt')}
       ${metricCard('Fremdwährungen', foreignSummary, foreign.size ? `${foreign.size} Währung${foreign.size===1?'':'en'}` : 'keine Fremdwährungskonten')}
     </div>
-    ${accounts.length ? `<div class="grid-3">${accounts.map((a)=>accountCard(a,{locale,canWrite})).join('')}</div>` : emptyState('wallet','Noch kein Konto','Erfasse zuerst ein Konto mit dem Stand, den du heute tatsächlich siehst.')}
+    ${accounts.length ? `<div class="grid-3">${accounts.map((a)=>accountCard(a,{locale,canWrite,projection:buildAccountProjection(a,recurringRules)})).join('')}</div>` : emptyState('wallet','Noch kein Konto','Erfasse zuerst ein Konto mit dem Stand, den du heute tatsächlich siehst.')}
   `;
 }
