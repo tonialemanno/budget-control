@@ -1,6 +1,7 @@
 import { cadenceMonthlyFactor, localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
+import { occurrenceNear } from './recurrence.js';
 
 function isActiveRecurring(rule, today) {
   return rule?.active !== false && (!rule?.end_date || String(rule.end_date).slice(0,10) >= today);
@@ -10,13 +11,7 @@ function normalizedText(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g,' ');
 }
 
-function dayDistance(left, right) {
-  const a=new Date(left); const b=new Date(right);
-  if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())) return 999;
-  return Math.abs(a.getTime()-b.getTime())/86400000;
-}
-
-function matchesRecurringExpense(tx, rules) {
+export function matchesRecurringExpense(tx, rules) {
   const txAmount=Math.abs(Number(tx.amount||0));
   const txText=normalizedText(`${tx.description||''} ${tx.counterparty||''}`);
   return rules.some((rule)=>{
@@ -25,7 +20,7 @@ function matchesRecurringExpense(tx, rules) {
     if(rule.merchant_id && tx.merchant_id && rule.merchant_id!==tx.merchant_id) return false;
     if((rule.currency||tx.currency)!==tx.currency) return false;
     if(Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
-    if(rule.next_date && dayDistance(tx.occurred_at,rule.next_date)>3) return false;
+    if(rule.next_date && !occurrenceNear(rule,tx.occurred_at,3)) return false;
     const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
     const merchantMatch=Boolean(rule.merchant_id && tx.merchant_id && rule.merchant_id===tx.merchant_id);
     const categoryMatch=Boolean(rule.category_id && tx.category_id && rule.category_id===tx.category_id);
@@ -34,11 +29,20 @@ function matchesRecurringExpense(tx, rules) {
   });
 }
 
-function budgetCoversTransaction(tx, budgets) {
+export function budgetCoversTransaction(tx, budgets) {
   return budgets.some((budget)=>{
     if(budget.category_id) return budget.category_id===tx.category_id;
     if(budget.merchant_id) return budget.merchant_id===tx.merchant_id;
-    return true;
+    return false;
+  });
+}
+
+export function isFixedBudget(budget, activeRecurringRules) {
+  return activeRecurringRules.some((rule)=>{
+    if(rule.direction!=='expense') return false;
+    if(budget.category_id && rule.category_id===budget.category_id) return true;
+    if(budget.merchant_id && rule.merchant_id===budget.merchant_id) return true;
+    return false;
   });
 }
 
@@ -79,15 +83,37 @@ export function buildFinanceSnapshot({
   const fixedExpensesMonthly = recurringMonthly('expense');
   const fixedTransfersMonthly = recurringMonthly('transfer');
 
-  const fixedCategoryIds = new Set(
-    activeRecurring
-      .filter((rule)=>rule.direction==='expense' && rule.category_id)
-      .map((rule)=>rule.category_id)
-  );
-
   const monthBudgets = budgets.filter((budget)=>String(budget.month_start).slice(0,7)===monthKey);
-  const variableBudgets = monthBudgets.filter((budget)=>!budget.category_id || !fixedCategoryIds.has(budget.category_id));
+  const variableBudgets = monthBudgets.filter((budget)=>!isFixedBudget(budget,activeRecurring));
   const variableBudgetMonthly = variableBudgets.reduce((sum,budget)=>sum+Number(budget.amount||0),0);
+
+  const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
+  const bookedMonth = transactions.filter((tx)=>{
+    const date=new Date(tx.occurred_at);
+    return tx.status==='booked'
+      && localMonthKey(tx.occurred_at)===monthKey
+      && !tx.transfer_group_id
+      && !Number.isNaN(date.getTime())
+      && date<=now;
+  });
+
+  const actualIncomeMonth = bookedMonth
+    .filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
+    .reduce((sum,tx)=>sum+inBase(tx.amount,tx.currency),0);
+
+  const actualExpensesMonth = bookedMonth
+    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+
+  const actualVariableTransactions = bookedMonth.filter((tx)=>
+    Number(tx.amount)<0
+    && consumptionExpenseBase(tx,paymentMap,currency,fxRates)>0
+    && !matchesRecurringExpense(tx,activeRecurring)
+  );
+  const actualVariableExpensesMonth = actualVariableTransactions
+    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+  const unbudgetedActualVariableExpensesMonth = actualVariableTransactions
+    .filter((tx)=>!budgetCoversTransaction(tx,variableBudgets))
+    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
 
   const futureExpenseTransactions = transactions.filter((tx)=>{
     const date=new Date(tx.occurred_at);
@@ -105,22 +131,11 @@ export function buildFinanceSnapshot({
   const unbudgetedFutureExpensesMonth = plannedFutureExpenses
     .filter((tx)=>!budgetCoversTransaction(tx,variableBudgets))
     .reduce((sum,tx)=>sum+inBase(Math.abs(Number(tx.amount||0)),tx.currency),0);
-  const plannedVariableMonthly = variableBudgetMonthly + unbudgetedFutureExpensesMonth;
 
-  const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
-  const bookedMonth = transactions.filter((tx)=>{
-    const date=new Date(tx.occurred_at);
-    return tx.status==='booked'
-      && localMonthKey(tx.occurred_at)===monthKey
-      && !tx.transfer_group_id
-      && !Number.isNaN(date.getTime())
-      && date<=now;
-  });
-  const actualIncomeMonth = bookedMonth
-    .filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
-    .reduce((sum,tx)=>sum+inBase(tx.amount,tx.currency),0);
-  const actualExpensesMonth = bookedMonth
-    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+  const plannedVariableMonthly =
+    variableBudgetMonthly
+    + unbudgetedActualVariableExpensesMonth
+    + unbudgetedFutureExpensesMonth;
 
   const incomePlanMonthly = plannedIncomeRecurring>0 ? plannedIncomeRecurring : actualIncomeMonth;
   const incomePlanSource = plannedIncomeRecurring>0 ? 'recurring' : 'booked';
@@ -181,6 +196,8 @@ export function buildFinanceSnapshot({
     incomePlanSource,
     fixedExpensesMonthly,
     variableBudgetMonthly,
+    actualVariableExpensesMonth,
+    unbudgetedActualVariableExpensesMonth,
     plannedFutureExpensesMonth,
     unbudgetedFutureExpensesMonth,
     plannedVariableMonthly,
@@ -201,5 +218,6 @@ export function buildFinanceSnapshot({
     debtRatio,
     activeRecurringCount: activeRecurring.length,
     monthBudgetCount: monthBudgets.length,
+    variableBudgetCount: variableBudgets.length,
   };
 }
