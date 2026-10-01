@@ -65,3 +65,28 @@ assert.equal(withRecurring.plannedFutureExpensesMonth,0,'future transaction matc
 assert.equal(withRecurring.plannedVariableMonthly,0);
 
 console.log('Future transaction planning assertions OK');
+
+const merchantTx={...futureTx,merchant_id:'merchant-fixed',category_id:null,description:'Andere Beschreibung',counterparty:'Andere Gegenpartei'};
+const merchantLinked=buildFinanceSnapshot({
+  accounts,
+  transactions:[merchantTx],
+  recurringRules:[{
+    id:'rule-merchant',
+    account_id:'ubs',
+    category_id:null,
+    merchant_id:'merchant-fixed',
+    direction:'expense',
+    description:'Miete',
+    counterparty:'Uzon Immobilien AG',
+    amount:243.25,
+    currency:'CHF',
+    cadence:'monthly',
+    next_date:'2026-10-25',
+    end_date:null,
+    active:true,
+  }],
+  household,
+  now,
+});
+assert.equal(merchantLinked.plannedFutureExpensesMonth,0,'merchant-linked fixed cost must not be double-counted even when booking text differs');
+console.log('Merchant-linked fixed cost assertions OK');
