@@ -19,8 +19,23 @@
 
 @media (max-width: 660px) {
   .receipt-review-grid { grid-template-columns: 1fr; gap: 14px; }
-  .receipt-preview-card { position: static; }
-  .receipt-preview { max-height: 360px; border-radius: 16px; }
+  .receipt-preview-card {
+    position: sticky;
+    top: calc(56px + env(safe-area-inset-top));
+    z-index: 8;
+    gap: 8px;
+    margin: 0 -4px 12px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: color-mix(in srgb,var(--surface) 95%,transparent);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .receipt-preview { max-height: 28vh; min-height: 130px; border-radius: 14px; }
+  .receipt-ocr-status { padding: 8px 10px; }
+  body:has(.receipt-review input:focus, .receipt-review textarea:focus, .receipt-review select:focus) .receipt-preview { max-height: 18vh; min-height: 96px; }
   .receipt-fields { grid-template-columns: 1fr; }
   .receipt-review .form-actions {
     position: sticky;
