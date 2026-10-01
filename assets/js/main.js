@@ -1,4 +1,4 @@
-import { MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
@@ -262,6 +262,7 @@ function closeProfileMenu() {
 async function logoutCurrentUser() {
   closeProfileMenu();
   closeMobileNav();
+  await financeApi.clearPresence().catch(()=>{});
   await backend.signOut();
   runtime.session = null;
   runtime.user = null;
@@ -400,7 +401,7 @@ async function loadContext() {
   runtime.productModules = productModules || [];
   runtime.geoContext = geoContext || null;
   runtime.household = households?.[0] || null;
-  financeApi.touchPresence(runtime.user.id).catch(()=>{});
+  financeApi.touchPresence(presenceSnapshot()).catch(()=>{});
   runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers())?.users || [] : [];
   if (runtime.household) {
     await loadFinanceData();
@@ -878,16 +879,21 @@ async function handleForm(form) {
   }
   if (id === 'receivable-create') {
     const originalAmount=numberValue(data,'originalAmount');
-    const outstandingAmount=numberValue(data,'outstandingAmount');
-    if(!(originalAmount>0)) throw new Error('Der ursprüngliche Betrag muss grösser als 0 sein.');
-    if(outstandingAmount<0 || outstandingAmount>originalAmount) throw new Error('Der offene Betrag muss zwischen 0 und dem ursprünglichen Betrag liegen.');
-    const requestedStatus=formValue(data,'status')||'open';
+    if(!(originalAmount>0)) throw new Error('Der Betrag muss grösser als 0 sein.');
+    const createTransaction=data.get('createTransaction')==='on';
+    const sourceAccountId=nullValue(data,'sourceAccountId');
+    if(createTransaction && !sourceAccountId) throw new Error('Bitte ein Auszahlungskonto auswählen.');
     await financeApi.createReceivable({
-      household_id:h, debtor_name:formValue(data,'debtorName'), reason:formValue(data,'reason'),
-      original_amount:originalAmount, outstanding_amount:outstandingAmount,
+      householdId:h,
+      debtor:formValue(data,'debtor'),
+      reason:formValue(data,'reason'),
+      originalAmount,
       currency:formValue(data,'currency')||runtime.geoContext?.currency||currency,
-      installment_amount:numberValue(data,'installmentAmount'), due_date:nullValue(data,'dueDate'),
-      status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
+      lentAt:formValue(data,'lentAt')||dateInputValue(),
+      dueDate:nullValue(data,'dueDate'),
+      notes:nullValue(data,'notes'),
+      sourceAccountId,
+      createTransaction,
     });
     await refresh('Forderung gespeichert.'); return;
   }
@@ -897,7 +903,13 @@ async function handleForm(form) {
     if(!receivable) throw new Error('Forderung wurde nicht gefunden.');
     const amount=numberValue(data,'amount',-1);
     if(!(amount>0) || amount>Number(receivable.outstanding_amount)) throw new Error('Bitte eine gültige Rückzahlung eingeben.');
-    await financeApi.recordReceivablePayment({ householdId:h, receivableId, paidAt:formValue(data,'paidAt'), amount, note:nullValue(data,'note') });
+    const createTransaction=formValue(data,'paymentMode')==='created_transaction';
+    const paymentAccountId=nullValue(data,'paymentAccountId');
+    if(createTransaction && !paymentAccountId) throw new Error('Bitte ein Empfangskonto auswählen.');
+    await financeApi.recordReceivablePayment({
+      householdId:h, receivableId, amount, paidAt:formValue(data,'paidAt'),
+      note:nullValue(data,'note'), paymentAccountId, createTransaction,
+    });
     uiState.receivableExpandedId=receivableId;
     await refresh('Rückzahlung erfasst und Forderung aktualisiert.'); return;
   }
@@ -1026,7 +1038,7 @@ async function handleForm(form) {
 }
 
 const deleteMap = {
-  categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable(id), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
+  categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
 async function handleAction(target) {
@@ -1356,6 +1368,9 @@ async function handleAction(target) {
     document.querySelector('#receivablePaymentId').value=receivable.id;
     document.querySelector('#receivablePaymentDate').value=dateInputValue();
     document.querySelector('#receivablePaymentAmount').value=suggested>0?suggested.toFixed(2):'';
+    const matchingAccount=runtime.accounts.find((account)=>account.currency===receivable.currency && ['checking','savings','cash','wallet'].includes(account.account_type));
+    document.querySelector('#receivablePaymentMode').value='created_transaction';
+    document.querySelector('#receivablePaymentAccount').value=matchingAccount?.account_id||'';
     const form=document.querySelector('#receivable-payment-create'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'receivable-history') { uiState.receivableExpandedId=target.dataset.id; render(); return; }
@@ -1523,6 +1538,13 @@ pageContent.addEventListener('input', (event) => {
   }
 });
 
+function presenceSnapshot() {
+  const route=(location.hash||'#/overview').replace(/^#\//,'').split('?')[0]||'overview';
+  const ua=String(navigator.userAgent||'');
+  const deviceLabel=/iPhone/i.test(ua)?'iPhone':/iPad/i.test(ua)?'iPad':/Android/i.test(ua)?'Android':'Browser';
+  return { route, appVersion:APP_CONFIG.version, deviceLabel };
+}
+
 async function enterApp(session) {
   runtime.session=session; runtime.user=session.user;
   authGate.hidden=true; appShell.hidden=false; showLoading();
@@ -1530,11 +1552,11 @@ async function enterApp(session) {
   catch (error) { pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`; }
 }
 
-window.addEventListener('hashchange',render);
+window.addEventListener('hashchange',()=>{ render(); if(runtime.user) financeApi.touchPresence(presenceSnapshot()).catch(()=>{}); });
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); });
-setInterval(()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); },60000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(presenceSnapshot()).catch(()=>{}); });
+setInterval(()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(presenceSnapshot()).catch(()=>{}); },60000);
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
