@@ -65,17 +65,25 @@ Deno.serve(async (req: Request) => {
     catch (error) { return json({ error: error instanceof Error ? error.message : "Benutzer konnten nicht geladen werden." }, 400, origin); }
 
     const userIds = users.map((u) => u.id);
-    const [{ data: accessRows, error: accessError }, { data: presenceRows, error: presenceError }] = await Promise.all([
+    const [
+      { data: accessRows, error: accessError },
+      { data: presenceRows, error: presenceError },
+      { data: profileRows, error: profileError },
+    ] = await Promise.all([
       userIds.length
         ? admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
       userIds.length
         ? admin.from("user_presence").select("user_id,last_seen_at,route,app_version,device_label").in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
+      userIds.length
+        ? admin.from("profiles").select("user_id,display_name,locale").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     if (accessError) return json({ error: accessError.message }, 400, origin);
     if (presenceError) return json({ error: presenceError.message }, 400, origin);
+    if (profileError) return json({ error: profileError.message }, 400, origin);
 
     const modulesByUser = new Map<string, Record<string, boolean>>();
     for (const row of accessRows || []) {
@@ -87,14 +95,19 @@ Deno.serve(async (req: Request) => {
     const presenceByUser = new Map<string, any>();
     for (const row of presenceRows || []) presenceByUser.set(row.user_id, row);
 
+    const profileByUser = new Map<string, any>();
+    for (const row of profileRows || []) profileByUser.set(row.user_id, row);
+
     return json({
       caller_id: caller.id,
       users: users.map((user) => {
         const presence = presenceByUser.get(user.id) || null;
+        const profile = profileByUser.get(user.id) || null;
         return {
           id: user.id,
           email: user.email,
-          display_name: user.user_metadata?.display_name || "",
+          display_name: profile?.display_name || user.user_metadata?.display_name || "",
+          locale: profile?.locale || user.user_metadata?.locale || "de-CH",
           created_at: user.created_at,
           last_sign_in_at: user.last_sign_in_at,
           confirmed_at: user.email_confirmed_at,
@@ -128,6 +141,25 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true }, 200, origin);
   }
 
+  if (action === "set_locale") {
+    const userId = String(body.userId || "");
+    const locale = String(body.locale || "");
+    const allowedLocales = new Set(["de-CH", "de-DE", "it-CH", "it-IT"]);
+    if (!userId || !allowedLocales.has(locale)) return json({ error: "Ungültige Sprache / Region." }, 400, origin);
+
+    const { error } = await admin
+      .from("profiles")
+      .update({ locale })
+      .eq("user_id", userId);
+    if (error) return json({ error: error.message }, 400, origin);
+
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+      user_metadata: { locale },
+    });
+    if (authError) return json({ error: authError.message }, 400, origin);
+    return json({ ok: true, locale }, 200, origin);
+  }
+
   if (action === "set_password") {
     const userId = String(body.userId || "");
     const password = String(body.password || "");
@@ -140,6 +172,7 @@ Deno.serve(async (req: Request) => {
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
   const displayName = String(body.displayName || "").trim();
+  const locale = ["de-CH", "de-DE", "it-CH", "it-IT"].includes(String(body.locale || "")) ? String(body.locale) : "de-CH";
   if (!email || !email.includes("@")) return json({ error: "Bitte eine gültige E-Mail-Adresse angeben." }, 400, origin);
   if (password.length < 8) return json({ error: "Das temporäre Passwort muss mindestens 8 Zeichen lang sein." }, 400, origin);
 
@@ -147,15 +180,21 @@ Deno.serve(async (req: Request) => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { display_name: displayName },
+    user_metadata: { display_name: displayName, locale },
   });
   if (error) return json({ error: error.message }, 400, origin);
+
+  const { error: profileUpsertError } = await admin
+    .from("profiles")
+    .upsert({ user_id: data.user.id, display_name: displayName || null, locale }, { onConflict: "user_id" });
+  if (profileUpsertError) return json({ error: profileUpsertError.message }, 400, origin);
 
   return json({
     user: {
       id: data.user.id,
       email: data.user.email,
       display_name: data.user.user_metadata?.display_name || "",
+      locale,
       created_at: data.user.created_at,
       confirmed_at: data.user.email_confirmed_at,
     },
