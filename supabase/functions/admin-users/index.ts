@@ -153,10 +153,6 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", userId);
     if (error) return json({ error: error.message }, 400, origin);
 
-    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
-      user_metadata: { locale },
-    });
-    if (authError) return json({ error: authError.message }, 400, origin);
     return json({ ok: true, locale }, 200, origin);
   }
 
