@@ -1416,7 +1416,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1666,6 +1666,31 @@ async function handleAction(target) {
   if (action === 'delete') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
     const table=target.dataset.table; const id=target.dataset.id;
+    if(table==='recurring_rules'){
+      const links=[];
+      if(runtime.contracts.some((row)=>row.recurring_rule_id===id)) links.push('Vertrag');
+      if(runtime.insurance.some((row)=>row.recurring_rule_id===id)) links.push('Versicherung');
+      if(runtime.debts.some((row)=>row.recurring_rule_id===id)) links.push('Schuld');
+      if(runtime.goalSources.some((row)=>row.recurring_rule_id===id)) links.push('Sparziel');
+      if(links.length) throw new Error(`Diese Planung ist verknüpft mit: ${links.join(', ')}. Bitte die Verbindung zuerst dort lösen.`);
+    }
+    if(table==='contracts'){
+      const row=runtime.contracts.find((item)=>item.id===id);
+      if(row?.recurring_rule_id) throw new Error('Dieser Vertrag ist mit Fixkosten verknüpft. Bitte zuerst „Planung lösen“.');
+    }
+    if(table==='insurance_policies'){
+      const row=runtime.insurance.find((item)=>item.id===id);
+      if(row?.recurring_rule_id) throw new Error('Diese Versicherung ist mit Fixkosten verknüpft. Bitte zuerst „Planung lösen“.');
+    }
+    if(table==='debts'){
+      const row=runtime.debts.find((item)=>item.id===id);
+      if(row?.recurring_rule_id) throw new Error('Diese Schuld ist mit einer regelmässigen Rate verknüpft. Bitte zuerst die Planung lösen.');
+      if(runtime.debtPayments.some((payment)=>payment.debt_id===id)) throw new Error('Diese Schuld hat eine Zahlungshistorie und kann nicht gelöscht werden. Setze sie stattdessen auf bezahlt oder pausiert.');
+    }
+    if(table==='bills'){
+      const row=runtime.bills.find((item)=>item.id===id);
+      if(row?.status==='paid') throw new Error('Eine bezahlte Rechnung kann nicht direkt gelöscht werden. Bitte zuerst die Zahlung zurücknehmen.');
+    }
     if (!confirm('Diesen Eintrag wirklich löschen?')) return;
     if (table==='documents') {
       const doc=runtime.documents.find((d)=>d.id===id); if (doc) await financeApi.deleteDocument(doc);
@@ -1837,9 +1862,43 @@ async function handleAction(target) {
   }
   if (action === 'debt-recurring-remove') {
     const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
-    if(debt.recurring_rule_id) await financeApi.updateRecurringRule(debt.recurring_rule_id,{active:false});
-    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
-    await refresh('Verknüpfung zu Wiederkehrend gelöst.'); return;
+    const ruleId=debt.recurring_rule_id;
+    if(ruleId){
+      const shared=runtime.contracts.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.insurance.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.goalSources.some((row)=>row.recurring_rule_id===ruleId);
+      if(shared) throw new Error('Diese Planung wird noch an anderer Stelle verwendet und kann nicht gelöst werden.');
+      await financeApi.deleteRecurringRule(ruleId);
+    } else {
+      await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
+    }
+    await refresh('Verknüpfung zur regelmässigen Rate gelöst.'); return;
+  }
+  if (action === 'contract-recurring-remove') {
+    const contract=runtime.contracts.find((row)=>row.id===target.dataset.id);
+    if(!contract) throw new Error('Vertrag wurde nicht gefunden.');
+    const ruleId=contract.recurring_rule_id;
+    if(ruleId){
+      const shared=runtime.insurance.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.debts.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.goalSources.some((row)=>row.recurring_rule_id===ruleId);
+      if(shared) throw new Error('Diese Planung wird noch an anderer Stelle verwendet und kann nicht gelöst werden.');
+      await financeApi.deleteRecurringRule(ruleId);
+    }
+    await refresh('Vertrag von Fixkosten getrennt.'); return;
+  }
+  if (action === 'insurance-recurring-remove') {
+    const policy=runtime.insurance.find((row)=>row.id===target.dataset.id);
+    if(!policy) throw new Error('Versicherung wurde nicht gefunden.');
+    const ruleId=policy.recurring_rule_id;
+    if(ruleId){
+      const shared=runtime.contracts.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.debts.some((row)=>row.recurring_rule_id===ruleId)
+        || runtime.goalSources.some((row)=>row.recurring_rule_id===ruleId);
+      if(shared) throw new Error('Diese Planung wird noch an anderer Stelle verwendet und kann nicht gelöst werden.');
+      await financeApi.deleteRecurringRule(ruleId);
+    }
+    await refresh('Versicherung von Fixkosten getrennt.'); return;
   }
   if (action === 'legal-event') {
     const caseId=target.dataset.id; const title=prompt('Ereignis / Titel:'); if (!title) return;
