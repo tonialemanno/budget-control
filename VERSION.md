@@ -1,4 +1,16 @@
-# Version 2.3.0-beta-5.1
+# Version 2.4.0-beta
+
+## V2.4 Beta – Forderungen, Präsenz, Währungskontext & Local Dev
+
+- Neues Modul Forderungen: Schuldner, Grund, Ursprungsbetrag, Restbetrag, Rate, Fälligkeit und Rückzahlungsverlauf.
+- Rückzahlungen reduzieren die offene Forderung serverseitig atomar; die letzte aktive Rückzahlung kann storniert werden.
+- Admin zeigt über einen Heartbeat echten Aktivitätsstatus: Online bei Aktivität innerhalb von zwei Minuten, sonst letzte Aktivität.
+- Cloudflare Pages Function /api/geo liefert nur den Ländercode. CH schlägt CHF vor; DE/AT/IT schlagen EUR vor. Keine GPS-/präzise Standortfreigabe.
+- Konten übernehmen diese Währung nur als Vorschlag; bestehende Konten und ihre Währungen werden nie automatisch geändert.
+- Runtime-Konfiguration für lokale Supabase-Instanzen ergänzt.
+- Docker-Webcontainer und Anleitung für lokale Supabase-Daten hinzugefügt.
+- GitHub Actions führt die Tests aus und baut ein vollständiges finance-v2.4-beta-full.zip als Artifact.
+- Datenbankmigration: 20261001_finance_v2_4_receivables_presence.sql.
 
 ## V2.3 Beta 5.1 – iPhone Logout Fix
 
