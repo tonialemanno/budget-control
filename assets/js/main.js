@@ -4,7 +4,7 @@ import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue } from './app/format.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, suggestKnownCategoryName } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, suggestKnownCategoryName } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -15,6 +15,7 @@ import { renderOverview } from './views/overview.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
 import { renderCategories } from './views/categories.js';
+import { renderMerchants } from './views/merchants.js';
 import { renderImports } from './views/imports.js';
 import { renderImportHistory } from './views/import-history.js';
 import { renderRecurring } from './views/recurring.js';
@@ -43,6 +44,7 @@ const views = {
   accounts: renderAccounts,
   transactions: renderTransactions,
   categories: renderCategories,
+  merchants: renderMerchants,
   imports: renderImports,
   'import-history': renderImportHistory,
   recurring: renderRecurring,
@@ -108,7 +110,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -502,6 +504,7 @@ function render() {
     adminExpandedUserId: uiState.adminExpandedUserId,
     importQuery: uiState.importQuery,
     importCategory: uiState.importCategory,
+    merchantQuery: uiState.merchantQuery,
     transactionView: uiState.transactionView,
     transactionPeriod: uiState.transactionPeriod,
     transactionQuery: uiState.transactionQuery,
@@ -959,6 +962,40 @@ async function handleForm(form) {
     await financeApi.createCategorizationRule({ household_id:h, category_id:formValue(data,'categoryId'), field_name:formValue(data,'fieldName'), match_type:formValue(data,'matchType'), match_value:formValue(data,'matchValue'), priority:100, active:true });
     await refresh('Kategorisierungsregel gespeichert.'); return;
   }
+  if (id === 'merchant-create') {
+    const name=formValue(data,'name');
+    const key=normalizeMerchantKey(name);
+    if(!key) throw new Error('Bitte einen gültigen Händlernamen eingeben.');
+    const duplicate=runtime.merchants.find((row)=>row.normalized_key===key);
+    if(duplicate) throw new Error('Dieser Händler existiert bereits.');
+    await financeApi.upsertMerchant({
+      household_id:h,
+      name,
+      normalized_key:key,
+      default_category_id:nullValue(data,'categoryId')
+    });
+    await refresh('Händler gespeichert.'); return;
+  }
+  if (id === 'merchant-edit') {
+    const merchantId=formValue(data,'merchantId');
+    const merchant=runtime.merchants.find((row)=>row.id===merchantId);
+    if(!merchant) throw new Error('Händler wurde nicht gefunden.');
+    const name=formValue(data,'name');
+    const key=normalizeMerchantKey(name);
+    if(!key) throw new Error('Bitte einen gültigen Händlernamen eingeben.');
+    const duplicate=runtime.merchants.find((row)=>row.id!==merchantId && row.normalized_key===key);
+    if(duplicate) throw new Error('Ein anderer Händler verwendet diesen Namen bereits.');
+    const updated=await financeApi.updateMerchant(merchantId,{
+      name,
+      normalized_key:key,
+      default_category_id:nullValue(data,'categoryId')
+    });
+    const linkedRules=runtime.recurringRules.filter((rule)=>rule.merchant_id===merchantId);
+    for(const rule of linkedRules){
+      if(rule.counterparty!==name) await financeApi.updateRecurringRule(rule.id,{counterparty:name});
+    }
+    await refresh('Händler aktualisiert.'); return;
+  }
   if (id === 'recurring-create') {
     const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
@@ -975,11 +1012,9 @@ async function handleForm(form) {
       household_id:h,
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:categoryId,
-      merchant_id:merchantId,
+      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
       direction,
       description:formValue(data,'description'),
-      counterparty:merchant?.name||null,
       amount:Math.abs(numberValue(data,'amount')),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
@@ -1383,7 +1418,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1700,6 +1735,17 @@ async function handleAction(target) {
     await refresh('Rückzahlung storniert; Forderung wiederhergestellt.');
     return;
   }
+  if (action === 'merchant-edit') {
+    const merchant=runtime.merchants.find((row)=>row.id===target.dataset.id);
+    if(!merchant) throw new Error('Händler wurde nicht gefunden.');
+    document.querySelector('#merchantEditId').value=merchant.id;
+    document.querySelector('#merchantEditName').value=merchant.name||'';
+    document.querySelector('#merchantEditCategory').value=merchant.default_category_id||'';
+    const form=document.querySelector('#merchant-edit');
+    form?.removeAttribute('hidden');
+    form?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
   if (action === 'fixed-cost-edit') {
     const rule=runtime.recurringRules.find((row)=>row.id===target.dataset.id);
     if(!rule) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
@@ -1858,6 +1904,7 @@ pageContent.addEventListener('change', async (event) => {
       target.disabled=false;
       return;
     }
+    if (target.id === 'merchantSearch') { uiState.merchantQuery=target.value||''; render(); return; }
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
