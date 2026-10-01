@@ -86,6 +86,9 @@ const runtime = {
   transactions: [],
   importBatches: [],
   merchants: [],
+  countryMasterCategories: [],
+  countryMasterMerchants: [],
+  masterDataHouseholds: [],
   recurringRules: [],
   budgets: [],
   bills: [],
@@ -445,6 +448,9 @@ async function loadFinanceData() {
     financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listReceivables(h), financeApi.listReceivablePayments(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
+    financeApi.listCountryCategoryCatalog(runtime.household.country_code).catch(()=>[]),
+    financeApi.listCountryMerchantCatalog(runtime.household.country_code).catch(()=>[]),
+    financeApi.listMasterDataHouseholds().catch(()=>[]),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
@@ -452,6 +458,7 @@ async function loadFinanceData() {
     runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
+    runtime.countryMasterCategories, runtime.countryMasterMerchants, runtime.masterDataHouseholds,
   ] = results.map((value) => value || (value === null ? null : []));
 }
 async function loadContext() {
@@ -898,9 +905,25 @@ async function handleForm(form) {
       locale: countryCode === 'DE' ? 'de-DE' : 'de-CH', onboarding_completed_at: new Date().toISOString(),
     });
     const createdHousehold = await financeApi.createHousehold({ name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id });
-    await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
+    if(countryCode==='CH') await financeApi.installCountryMasterData(createdHousehold.id);
+    else await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
     await refresh('Finance Core wurde eingerichtet.');
     location.hash = '#/overview';
+    return;
+  }
+
+  if (id === 'masterdata-copy') {
+    const sourceHouseholdId=formValue(data,'sourceHouseholdId');
+    if(!sourceHouseholdId) throw new Error('Bitte einen Quellhaushalt auswählen.');
+    if(sourceHouseholdId===h) throw new Error('Quell- und Zielhaushalt müssen unterschiedlich sein.');
+    const result=await financeApi.copyHouseholdMasterData(sourceHouseholdId,h);
+    const parts=[
+      Number(result?.categories_created||0)?`${result.categories_created} Kategorien`:'',
+      Number(result?.merchants_created||0)?`${result.merchants_created} Händler`:'',
+      Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler-Zuordnungen`:'',
+      Number(result?.rules_created||0)?`${result.rules_created} Regeln`:'',
+    ].filter(Boolean);
+    await refresh(parts.length?`Stammdaten übernommen: ${parts.join(' · ')}.`:'Stammdaten sind bereits aktuell.');
     return;
   }
 
@@ -1524,9 +1547,37 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
+  if (action === 'masterdata-install-country') {
+    const result=await financeApi.installCountryMasterData(runtime.household.id);
+    const parts=[
+      Number(result?.categories_created||0)?`${result.categories_created} Kategorien neu`:'',
+      Number(result?.merchants_created||0)?`${result.merchants_created} Händler neu`:'',
+      Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
+    ].filter(Boolean);
+    await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    return;
+  }
+  if (action === 'merchant-promote-master') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen globale Stammdaten freigeben.');
+    const merchant=runtime.merchants.find((row)=>row.id===target.dataset.id);
+    if(!merchant) throw new Error('Händler wurde nicht gefunden.');
+    if(!merchant.default_category_id) throw new Error('Bitte dem Händler zuerst eine Standardkategorie zuweisen.');
+    const result=await financeApi.promoteMerchantToCountryCatalog(merchant.id);
+    await refresh(`${result?.merchant||merchant.name} wurde für ${result?.country_code||runtime.household.country_code} freigegeben.`);
+    return;
+  }
+  if (action === 'category-promote-master') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen globale Stammdaten freigeben.');
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const result=await financeApi.promoteCategoryToCountryCatalog(category.id);
+    await refresh(`${result?.category||category.name} wurde für ${result?.country_code||runtime.household.country_code} freigegeben.`);
+    return;
+  }
+
   if (action === 'starter-categories') {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
     if (!created) { showToast('Starter-Kategorien sind bereits vorhanden.'); return; }
