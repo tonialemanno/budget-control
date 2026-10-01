@@ -1,35 +1,103 @@
 import { metricCard, pageHeader, sectionHeading } from '../app/components.js';
-import { cadenceMonthlyFactor, money, percent } from '../app/format.js';
-import { convertAmount, fxLabel } from '../app/fx.js';
-import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
+import { money, percent } from '../app/format.js';
+import { fxLabel } from '../app/fx.js';
+import { buildFinanceSnapshot } from '../app/finance-model.js';
 
-export function renderIntelligence({ transactions = [], debtPayments = [], accounts = [], bills = [], contracts = [], debts = [], insurance = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], household, profile, fxRates } = {}) {
-  const currency = household?.base_currency || 'CHF';
+export function renderIntelligence({
+  transactions = [],
+  debtPayments = [],
+  accounts = [],
+  recurringRules = [],
+  budgets = [],
+  bills = [],
+  debts = [],
+  receivables = [],
+  assets = [],
+  properties = [],
+  vehicles = [],
+  investments = [],
+  pensions = [],
+  household,
+  profile,
+  fxRates,
+} = {}) {
   const locale = profile?.locale || 'de-CH';
-  const now = new Date(); const monthStart = new Date(now.getFullYear(), now.getMonth(), 1); const ninety = new Date(now); ninety.setDate(ninety.getDate()-90);
-  const booked = transactions.filter((t)=>t.status==='booked'&&!t.transfer_group_id);
-  const inBase=(value,curr)=>convertAmount(value,curr||currency,currency,fxRates)??0;
-  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const monthRows = booked.filter((t)=>new Date(t.occurred_at)>=monthStart);
-  const income = monthRows.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+inBase(t.amount,t.currency),0);
-  const expenses = monthRows.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
-  const savingsRate = income>0 ? ((income-expenses)/income)*100 : 0;
-  const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type)).reduce((s,a)=>s+inBase(a.current_balance,a.currency),0);
-  const trailingExpenses = booked.filter((t)=>new Date(t.occurred_at)>=ninety).reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
-  const avgMonthlyExpenses = trailingExpenses/3; const runway = avgMonthlyExpenses>0 ? cash/avgMonthlyExpenses : 0;
-  const monthlyContracts = contracts.filter((c)=>c.status==='active').reduce((s,c)=>s+inBase(Number(c.amount)*cadenceMonthlyFactor(c.billing_cadence),c.currency),0);
-  const monthlyInsurance = insurance.filter((p)=>p.status==='active').reduce((s,p)=>s+inBase(Number(p.premium_amount)*cadenceMonthlyFactor(p.billing_cadence),p.currency),0);
-  const monthlyDebt = debts.filter((d)=>d.status==='active'&&d.payment_cadence==='monthly').reduce((s,d)=>s+inBase(d.installment_amount,d.currency),0);
-  const fixed = monthlyContracts+monthlyInsurance+monthlyDebt; const fixedRatio = income>0 ? fixed/income*100 : 0;
-  const value=(rows,field)=>rows.reduce((s,a)=>s+inBase(a[field],a.currency),0);
-  const totalAssets = cash+value(assets,'current_value')+value(properties,'current_value')+value(vehicles,'current_value')+value(investments,'current_value')+value(pensions,'current_value');
-  const debtValue = debts.filter((d)=>d.status!=='paid').reduce((s,d)=>s+inBase(d.outstanding_amount,d.currency),0); const debtRatio = totalAssets>0 ? debtValue/totalAssets*100 : 0;
-  const openBills = bills.filter((b)=>['open','overdue'].includes(b.status)).reduce((s,b)=>s+inBase(b.amount,b.currency),0);
-  const forecast = cash - openBills;
+  const snapshot = buildFinanceSnapshot({
+    accounts, transactions, debtPayments, recurringRules, budgets, bills, debts,
+    receivables, assets, properties, vehicles, investments, pensions,
+    household, fxRates,
+  });
+  const currency = snapshot.currency;
+  const planTone = snapshot.plannedFreeMonthly >= 0 ? 'positive' : 'warning';
+
   return `
-    ${pageHeader({title:'Finance Intelligence',subtitle:`Analyse aus deinen eigenen Finance-Core-Daten · ${fxLabel(fxRates,currency)}.`})}
-    <div class="grid-hero"><article class="card card--accent hero-card"><div><div class="hero-label">Runway</div><div class="hero-value">${runway.toFixed(1)} Monate</div><div class="hero-caption">Liquidität geteilt durch den Durchschnitt der letzten 90 Tage</div></div></article><div class="metric-grid">${metricCard('Cashflow Monat',money(income-expenses,{currency,locale}),'Einnahmen minus Ausgaben',income-expenses>=0?'positive':'warning')}${metricCard('Sparquote',percent(savingsRate,1,locale),'aktueller Monat')}${metricCard('Fixkostenquote',percent(fixedRatio,1,locale),'Verträge + Versicherungen + Raten')}${metricCard('Schuldenquote',percent(debtRatio,1,locale),'Restschuld / Vermögen')}</div></div>
-    ${sectionHeading('Forecast','Vereinfachte operative Sicht')}
-    <div class="metric-grid">${metricCard('Liquidität',money(cash,{currency,locale}),'heute')}${metricCard('Offene Rechnungen',money(openBills,{currency,locale}),'noch nicht bezahlt')}${metricCard('Nach offenen Rechnungen',money(forecast,{currency,locale}),'heutige Liquidität minus offene Rechnungen')}</div>
-    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Berechnungsbasis</h3><p class="card-subtitle">Transparente Formeln</p></div></div><div class="stack compact-copy"><p><strong>Runway:</strong> Liquidität / durchschnittliche Monatsausgaben der letzten 90 Tage.</p><p><strong>Sparquote:</strong> (Einnahmen − Ausgaben) / Einnahmen.</p><p><strong>Fixkostenquote:</strong> normalisierte Vertrags-, Versicherungs- und Kreditraten / Einnahmen.</p><p><strong>FX:</strong> Fremdwährungen werden mit dem geladenen Referenzkurs in die Haushalts-Basiswährung umgerechnet; Originalbeträge bleiben erhalten.</p></div></article>`;
+    ${pageHeader({
+      title:'Finance Intelligence',
+      subtitle:`Eine gemeinsame Sicht aus Konten, Buchungen, Fixkosten, Budgets, Rechnungen, Forderungen, Vermögen und Schulden · ${fxLabel(fxRates,currency)}.`
+    })}
+
+    <div class="grid-hero">
+      <article class="card card--accent hero-card">
+        <div>
+          <div class="hero-label">Monatsplan nach allem Geplanten</div>
+          <div class="hero-value">${money(snapshot.plannedFreeMonthly,{currency,locale})}</div>
+          <div class="hero-caption">
+            Einnahmen ${money(snapshot.incomePlanMonthly,{currency,locale})}
+            · Fixkosten ${money(snapshot.fixedExpensesMonthly,{currency,locale})}
+            · weitere Planung ${money(snapshot.plannedVariableMonthly,{currency,locale})}
+            · Umbuchungen ${money(snapshot.fixedTransfersMonthly,{currency,locale})}
+          </div>
+        </div>
+      </article>
+      <div class="metric-grid">
+        ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),snapshot.incomePlanSource==='recurring'?'aus Wiederkehrend':'bisher gebucht','positive')}
+        ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aus Fixkosten / Wiederkehrend')}
+        ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),'aus Monatsbudgets')}
+        ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Töpfe und Sparen')}
+      </div>
+    </div>
+
+    ${sectionHeading('Liquidität','Was ist heute tatsächlich vorhanden?')}
+    <div class="metric-grid">
+      ${metricCard('Liquidität',money(snapshot.cash,{currency,locale}),'Kontostände heute')}
+      ${metricCard('Offene Rechnungen',money(snapshot.openBills,{currency,locale}),'offen oder überfällig')}
+      ${metricCard('Nach offenen Rechnungen',money(snapshot.cashAfterOpenBills,{currency,locale}),'Liquidität minus offene Rechnungen',snapshot.cashAfterOpenBills>=0?'positive':'warning')}
+      ${metricCard('Runway',`${snapshot.runwayMonths.toFixed(1)} Monate`,'Liquidität / Ø Konsumausgaben der letzten 90 Tage')}
+    </div>
+
+    ${sectionHeading('Tatsächlicher Monat','Was wurde bereits wirklich gebucht?')}
+    <div class="metric-grid">
+      ${metricCard('Gebuchte Einnahmen',money(snapshot.actualIncomeMonth,{currency,locale}),'aktueller Monat','positive')}
+      ${metricCard('Gebuchte Ausgaben',money(snapshot.actualExpensesMonth,{currency,locale}),'Konsum, Zins und Gebühren')}
+      ${metricCard('Cashflow Monat',money(snapshot.actualCashflowMonth,{currency,locale}),'gebuchte Einnahmen minus Ausgaben',snapshot.actualCashflowMonth>=0?'positive':'warning')}
+      ${metricCard('Sparquote',percent(snapshot.savingsRate,1,locale),'aus tatsächlichen Buchungen')}
+    </div>
+
+    ${sectionHeading('Vermögen & Verpflichtungen','Konten und Module zusammengeführt')}
+    <div class="metric-grid">
+      ${metricCard('Nettovermögen',money(snapshot.netWorth,{currency,locale}),'Vermögen inklusive Forderungen minus Schulden',snapshot.netWorth>=0?'positive':'warning')}
+      ${metricCard('Offene Forderungen',money(snapshot.receivablesOutstanding,{currency,locale}),'noch zu erhalten')}
+      ${metricCard('Restschulden',money(snapshot.debtValue,{currency,locale}),'offene Verbindlichkeiten')}
+      ${metricCard('Schuldenquote',percent(snapshot.debtRatio,1,locale),'Restschuld / gesamtes Vermögen')}
+      ${metricCard('Fixkostenquote',percent(snapshot.fixedCostRatio,1,locale),'Fixkosten / geplante Einnahmen')}
+    </div>
+
+    <article class="card card-padding" style="margin-top:16px">
+      <div class="card-heading">
+        <div>
+          <h3 class="card-title">Was Finance Intelligence jetzt verbindet</h3>
+          <p class="card-subtitle">Eine Eingabe wird dort berücksichtigt, wo sie finanziell hingehört.</p>
+        </div>
+      </div>
+      <div class="stack compact-copy">
+        <p><strong>Konten & Umbuchungen:</strong> bestimmen echte Liquidität; interne Umbuchungen verändern nicht deine Ausgaben oder dein Vermögen.</p>
+        <p><strong>Wiederkehrend / Fixkosten:</strong> liefert geplante Einnahmen, feste Ausgaben und feste Umbuchungen auf Töpfe.</p>
+        <p><strong>Budget:</strong> liefert zusätzliche geplante variable Ausgaben; Kategorien, die bereits als Fixkosten geplant sind, werden im Monatsplan nicht nochmals addiert.</p>
+        <p><strong>Rechnungen:</strong> werden separat von der heutigen Liquidität abgezogen, solange sie offen oder überfällig sind.</p>
+        <p><strong>Forderungen:</strong> zählen zum Vermögen, bis sie bezahlt oder abgeschrieben sind.</p>
+        <p><strong>Schulden:</strong> reduzieren das Nettovermögen; gebuchte Tilgung zählt nicht als Konsumausgabe.</p>
+        <p><strong>Runway & Sparquote:</strong> basieren weiterhin auf tatsächlich gebuchten Transaktionen, nicht auf Planung.</p>
+      </div>
+    </article>
+  `;
 }
