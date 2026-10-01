@@ -90,3 +90,60 @@ const merchantLinked=buildFinanceSnapshot({
 });
 assert.equal(merchantLinked.plannedFutureExpensesMonth,0,'merchant-linked fixed cost must not be double-counted even when booking text differs');
 console.log('Merchant-linked fixed cost assertions OK');
+
+const actualUnbudgetedTx={...futureTx,id:'actual-1',occurred_at:'2026-10-01T08:00:00.000Z',amount:-75};
+const actualUnbudgeted=buildFinanceSnapshot({
+  accounts,
+  transactions:[actualUnbudgetedTx],
+  household,
+  now,
+});
+assert.equal(actualUnbudgeted.actualVariableExpensesMonth,75,'actual variable spend must be separated from fixed costs');
+assert.equal(actualUnbudgeted.unbudgetedActualVariableExpensesMonth,75,'actual unbudgeted variable spend must enter the monthly plan');
+assert.equal(actualUnbudgeted.plannedVariableMonthly,75,'monthly plan must not forget already-spent unbudgeted money');
+
+const staleRecurring=buildFinanceSnapshot({
+  accounts,
+  transactions:[merchantTx],
+  recurringRules:[{
+    id:'rule-stale',
+    account_id:'ubs',
+    category_id:null,
+    merchant_id:'merchant-fixed',
+    direction:'expense',
+    description:'Miete',
+    counterparty:'Uzon Immobilien AG',
+    amount:243.25,
+    currency:'CHF',
+    cadence:'monthly',
+    next_date:'2026-09-25',
+    end_date:null,
+    active:true,
+  }],
+  household,
+  now,
+});
+assert.equal(staleRecurring.plannedFutureExpensesMonth,0,'a stale recurring anchor must roll forward and still match the October occurrence');
+
+const fixedMerchantBudget=buildFinanceSnapshot({
+  accounts,
+  transactions:[],
+  budgets:[{month_start:'2026-10-01',category_id:null,merchant_id:'merchant-fixed',amount:300}],
+  recurringRules:[{
+    id:'rule-fixed-budget',
+    account_id:'ubs',
+    category_id:null,
+    merchant_id:'merchant-fixed',
+    direction:'expense',
+    description:'Miete',
+    amount:300,
+    currency:'CHF',
+    cadence:'monthly',
+    next_date:'2026-10-25',
+    active:true,
+  }],
+  household,
+  now,
+});
+assert.equal(fixedMerchantBudget.variableBudgetMonthly,0,'a budget for a known fixed-cost merchant must not be counted as variable budget');
+console.log('Stable monthly planning assertions OK');
