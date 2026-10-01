@@ -208,7 +208,7 @@ function renderNavigation() {
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
-  if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('import-history'); }
+  if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   return allowed.has(requested) ? requested : 'overview';
 }
 
