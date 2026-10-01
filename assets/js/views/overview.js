@@ -1,5 +1,5 @@
 import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { money, shortDate } from '../app/format.js';
+import { money, moneyText, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildAccountProjection } from '../app/projections.js';
@@ -60,7 +60,7 @@ export function renderOverview({
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),incomeCaption,'positive')}
       ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aktive Fixkosten')}
-      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${money(snapshot.variableBudgetMonthly,{currency,locale})} · zukünftige Buchungen ${money(snapshot.plannedFutureExpensesMonth,{currency,locale})} · ohne Doppelzählung`)}
+      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${moneyText(snapshot.variableBudgetMonthly,{currency,locale})} · zukünftige Buchungen ${moneyText(snapshot.plannedFutureExpensesMonth,{currency,locale})} · ohne Doppelzählung`)}
       ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Sparen, Überschuss und andere Töpfe')}
     </div>
 
