@@ -1904,7 +1904,6 @@ pageContent.addEventListener('change', async (event) => {
       target.disabled=false;
       return;
     }
-    if (target.id === 'merchantSearch') { uiState.merchantQuery=target.value||''; render(); return; }
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
@@ -2043,6 +2042,11 @@ pageContent.addEventListener('input', (event) => {
   if (target.id === 'importMerchantSearch') {
     uiState.importQuery = target.value; render();
     const next = document.querySelector('#importMerchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if (target.id === 'merchantSearch') {
+    uiState.merchantQuery = target.value; render();
+    const next = document.querySelector('#merchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
     return;
   }
   if (target.id === 'transactionSearch') {
