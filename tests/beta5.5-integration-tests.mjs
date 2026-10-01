@@ -71,3 +71,12 @@ assert.match(read('assets/js/main.js'), /budgetExpandedMerchantId/);
 assert.match(read('assets/js/main.js'), /pendingTransactionEditId/);
 assert.match(read('assets/js/views/transactions.js'), /transactionEditMerchant/);
 assert.match(read('assets/js/main.js'), /merchant_id:nullValue\(data,'merchantId'\)/);
+
+assert.match(read('supabase/migrations/20261001_finance_recurring_merchant_links.sql'), /merchant_id/);
+assert.match(read('assets/js/views/fixed-costs.js'), /Händler \/ Empfänger/);
+assert.match(read('assets/js/views/fixed-costs.js'), /fixedCost\$\{suffix\}Merchant/);
+assert.match(read('assets/js/main.js'), /merchant_id:merchantId/);
+assert.match(read('assets/js/main.js'), /default_category_id/);
+assert.match(read('assets/js/app/finance-api.js'), /merchants\(name,normalized_key,default_category_id\)/);
+assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
+assert.match(read('assets/js/views/budget.js'), /rule\.merchant_id/);
