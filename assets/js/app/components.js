@@ -69,11 +69,17 @@ export function editButton(action, id, label = 'Bearbeiten') {
   return `<button class="table-action" type="button" data-action="${escapeHtml(action)}" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
 }
 
-export function accountCard(account, { locale = 'de-CH', canWrite = false } = {}) {
+export function accountCard(account, { locale = 'de-CH', canWrite = false, projection = null } = {}) {
   const typeLabel = ({
     checking:'Zahlungskonto', savings:'Sparkonto', cash:'Bargeld', credit_card:'Kreditkarte', wallet:'Onlinekonto / Wallet',
     investment:'Investmentkonto', pension:'Vorsorgekonto', other:'Sonstiges',
   })[account.account_type] || 'Konto';
+  const projectionHtml=projection ? `
+    <div class="account-projection">
+      <span>Prognose bis ${new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(projection.targetDate)}</span>
+      <strong>${money(projection.projectedBalance,{currency:account.currency,locale})}</strong>
+      <small>Geplant ${projection.monthlyNet>=0?'+':'−'}${money(Math.abs(projection.monthlyNet),{currency:account.currency,locale})} / Monat</small>
+    </div>` : '';
   return `
     <article class="card account-card">
       <div class="account-card-head">
@@ -82,6 +88,7 @@ export function accountCard(account, { locale = 'de-CH', canWrite = false } = {}
       </div>
       <div class="account-balance">${money(account.current_balance, { currency: account.currency, locale })}</div>
       <div class="account-change">${escapeHtml(account.currency)} · Stand-Anker ${dateLabel(account.balance_anchor_at, locale)}</div>
+      ${projectionHtml}
       ${canWrite ? `<div class="card-footer-actions"><button class="table-action" type="button" data-action="account-edit" data-id="${escapeHtml(account.account_id)}">Bearbeiten / korrigieren</button></div>` : ''}
     </article>`;
 }
