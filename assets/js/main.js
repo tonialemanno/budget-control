@@ -914,9 +914,11 @@ async function handleForm(form) {
 
   if (id === 'masterdata-copy') {
     const sourceHouseholdId=formValue(data,'sourceHouseholdId');
+    const targetHouseholdId=formValue(data,'targetHouseholdId')||h;
     if(!sourceHouseholdId) throw new Error('Bitte einen Quellhaushalt auswählen.');
-    if(sourceHouseholdId===h) throw new Error('Quell- und Zielhaushalt müssen unterschiedlich sein.');
-    const result=await financeApi.copyHouseholdMasterData(sourceHouseholdId,h);
+    if(!targetHouseholdId) throw new Error('Bitte einen Zielhaushalt auswählen.');
+    if(sourceHouseholdId===targetHouseholdId) throw new Error('Quell- und Zielhaushalt müssen unterschiedlich sein.');
+    const result=await financeApi.copyHouseholdMasterData(sourceHouseholdId,targetHouseholdId);
     const parts=[
       Number(result?.categories_created||0)?`${result.categories_created} Kategorien`:'',
       Number(result?.merchants_created||0)?`${result.merchants_created} Händler`:'',
