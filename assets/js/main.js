@@ -599,6 +599,94 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   return targets.length;
 }
 
+function contractRecurringPayload(contract) {
+  const account=runtime.accounts.find((row)=>row.account_id===contract.account_id);
+  if(!account) throw new Error('Bitte beim Vertrag zuerst ein Zahlungskonto hinterlegen.');
+  if(contract.billing_cadence==='oneoff') throw new Error('Einmalige Verträge sind nicht wiederkehrend.');
+  if(!(Number(contract.amount)>0)) throw new Error('Der Vertragsbetrag muss grösser als 0 sein.');
+  if(!contract.next_payment_date) throw new Error('Bitte beim Vertrag den nächsten Zahlungstermin hinterlegen.');
+  return {
+    household_id:runtime.household.id,
+    account_id:contract.account_id,
+    category_id:contract.category_id||null,
+    direction:'expense',
+    description:contract.name,
+    counterparty:contract.provider||null,
+    amount:Number(contract.amount),
+    currency:account.currency||contract.currency||runtime.household.base_currency,
+    cadence:contract.billing_cadence,
+    next_date:contract.next_payment_date,
+    end_date:contract.end_date||null,
+    active:contract.status==='active',
+  };
+}
+
+async function syncContractRecurring(contract) {
+  const valid=contract?.account_id
+    && contract.billing_cadence!=='oneoff'
+    && Number(contract.amount)>0
+    && contract.next_payment_date
+    && contract.status==='active';
+  if(!valid) {
+    if(contract?.recurring_rule_id) {
+      await financeApi.updateRecurringRule(contract.recurring_rule_id,{active:false});
+      await financeApi.updateContract(contract.id,{recurring_rule_id:null});
+    }
+    return null;
+  }
+  const payload=contractRecurringPayload(contract);
+  const rule=contract.recurring_rule_id
+    ? await financeApi.updateRecurringRule(contract.recurring_rule_id,payload)
+    : await financeApi.createRecurringRule(payload);
+  if(rule?.id && contract.recurring_rule_id!==rule.id) {
+    await financeApi.updateContract(contract.id,{recurring_rule_id:rule.id});
+  }
+  return rule;
+}
+
+function insuranceRecurringPayload(policy) {
+  const account=runtime.accounts.find((row)=>row.account_id===policy.account_id);
+  if(!account) throw new Error('Bitte bei der Versicherung zuerst ein Zahlungskonto hinterlegen.');
+  if(!(Number(policy.premium_amount)>0)) throw new Error('Die Versicherungsprämie muss grösser als 0 sein.');
+  if(!policy.next_payment_date) throw new Error('Bitte bei der Versicherung den nächsten Zahlungstermin hinterlegen.');
+  return {
+    household_id:runtime.household.id,
+    account_id:policy.account_id,
+    category_id:policy.category_id||null,
+    direction:'expense',
+    description:policy.name,
+    counterparty:policy.provider||null,
+    amount:Number(policy.premium_amount),
+    currency:policy.currency||account.currency||runtime.household.base_currency,
+    cadence:policy.billing_cadence||'annual',
+    next_date:policy.next_payment_date,
+    end_date:policy.end_date||null,
+    active:policy.status==='active',
+  };
+}
+
+async function syncInsuranceRecurring(policy) {
+  const valid=policy?.account_id
+    && Number(policy.premium_amount)>0
+    && policy.next_payment_date
+    && policy.status==='active';
+  if(!valid) {
+    if(policy?.recurring_rule_id) {
+      await financeApi.updateRecurringRule(policy.recurring_rule_id,{active:false});
+      await financeApi.updateInsurance(policy.id,{recurring_rule_id:null});
+    }
+    return null;
+  }
+  const payload=insuranceRecurringPayload(policy);
+  const rule=policy.recurring_rule_id
+    ? await financeApi.updateRecurringRule(policy.recurring_rule_id,payload)
+    : await financeApi.createRecurringRule(payload);
+  if(rule?.id && policy.recurring_rule_id!==rule.id) {
+    await financeApi.updateInsurance(policy.id,{recurring_rule_id:rule.id});
+  }
+  return rule;
+}
+
 function debtRecurringPayload(debt) {
   const account = runtime.accounts.find((row)=>row.account_id===debt.payment_account_id);
   if (!account) throw new Error('Bitte zuerst ein Standard-Zahlungskonto bei der Schuld hinterlegen.');
@@ -923,8 +1011,25 @@ async function handleForm(form) {
     await refresh('Rechnung bezahlt und mit der Kontobuchung verknüpft.'); return;
   }
   if (id === 'contract-create') {
-    await financeApi.createContract({ household_id:h, account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), contract_type:formValue(data,'contractType'), amount:numberValue(data,'amount'), currency, billing_cadence:formValue(data,'cadence'), next_payment_date:nullValue(data,'nextPaymentDate'), cancellation_notice_days:nullValue(data,'noticeDays')?numberValue(data,'noticeDays'):null, end_date:nullValue(data,'endDate'), status:'active' });
-    await refresh('Vertrag gespeichert.'); return;
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    const contract=await financeApi.createContract({
+      household_id:h,
+      account_id:accountId,
+      category_id:nullValue(data,'categoryId'),
+      name:formValue(data,'name'),
+      provider:nullValue(data,'provider'),
+      contract_type:formValue(data,'contractType'),
+      amount:numberValue(data,'amount'),
+      currency:account?.currency||currency,
+      billing_cadence:formValue(data,'cadence'),
+      next_payment_date:nullValue(data,'nextPaymentDate'),
+      cancellation_notice_days:nullValue(data,'noticeDays')?numberValue(data,'noticeDays'):null,
+      end_date:nullValue(data,'endDate'),
+      status:'active'
+    });
+    const linked=await syncContractRecurring(contract);
+    await refresh(linked?'Vertrag gespeichert und mit Fixkosten verknüpft.':'Vertrag gespeichert. Für Fixkosten bitte Zahlungskonto und nächsten Termin ergänzen.'); return;
   }
   if (id === 'goal-create') {
     await financeApi.createGoal({ household_id:h, name:formValue(data,'name'), target_amount:numberValue(data,'targetAmount'), current_amount:numberValue(data,'currentAmount'), monthly_amount:numberValue(data,'monthlyAmount'), currency, target_date:nullValue(data,'targetDate'), goal_type:formValue(data,'goalType'), status:'active' });
@@ -1053,9 +1158,12 @@ async function handleForm(form) {
   }
   if (id === 'insurance-create' || id === 'insurance-edit') {
     const payload={ name:formValue(data,'name'), provider:nullValue(data,'provider'), policy_type:formValue(data,'policyType')||'other', policy_number:nullValue(data,'policyNumber'), premium_amount:numberValue(data,'premiumAmount'), currency:formValue(data,'currency')||currency, billing_cadence:formValue(data,'cadence'), account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), next_payment_date:nullValue(data,'nextPaymentDate'), last_paid_date:nullValue(data,'lastPaidDate'), cancellation_notice_days:nullValue(data,'noticeDays')?numberValue(data,'noticeDays'):null, end_date:nullValue(data,'endDate'), status:'active' };
-    if (id==='insurance-create') await financeApi.createInsurance({ household_id:h, ...payload });
-    else await financeApi.updateInsurance(formValue(data,'insuranceId'),payload);
-    await refresh(id==='insurance-create'?'Versicherung gespeichert.':'Versicherung aktualisiert.'); return;
+    const policy=id==='insurance-create'
+      ? await financeApi.createInsurance({ household_id:h, ...payload })
+      : await financeApi.updateInsurance(formValue(data,'insuranceId'),payload);
+    const linked=await syncInsuranceRecurring(policy);
+    const actionLabel=id==='insurance-create'?'Versicherung gespeichert':'Versicherung aktualisiert';
+    await refresh(linked?`${actionLabel} und mit Fixkosten verknüpft.`:`${actionLabel}. Für Fixkosten bitte Zahlungskonto und nächsten Termin ergänzen.`); return;
   }
   if (id === 'insurance-document-upload') {
     const insuranceId=formValue(data,'insuranceId');
@@ -1273,21 +1381,16 @@ async function handleAction(target) {
     const form=document.querySelector('#insurance-document-upload'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'insurance-recurring') {
-    const p=runtime.insurance.find((row)=>row.id===target.dataset.id); if(!p||!p.account_id) throw new Error('Bitte zuerst ein Zahlungskonto hinterlegen.');
-    const cadence=p.billing_cadence||'annual'; const next=p.next_payment_date||dateInputValue();
-    const payload={ household_id:runtime.household.id, account_id:p.account_id, category_id:p.category_id||null, direction:'expense', description:p.name, counterparty:p.provider||null, amount:Number(p.premium_amount), currency:p.currency||runtime.household.base_currency, cadence, next_date:next, active:true };
-    const existing=runtime.recurringRules.find((r)=>r.account_id===p.account_id&&r.description.trim().toLowerCase()===p.name.trim().toLowerCase());
-    if(existing) await financeApi.updateRecurringRule(existing.id,payload); else await financeApi.createRecurringRule(payload);
-    await refresh('Versicherungsprämie unter Wiederkehrend übernommen.'); return;
+    const policy=runtime.insurance.find((row)=>row.id===target.dataset.id);
+    if(!policy) throw new Error('Versicherung wurde nicht gefunden.');
+    await syncInsuranceRecurring(policy);
+    await refresh('Versicherungsprämie mit Fixkosten synchronisiert.'); return;
   }
   if (action === 'contract-recurring') {
-    const c=runtime.contracts.find((row)=>row.id===target.dataset.id); if(!c||!c.account_id) throw new Error('Bitte beim Vertrag zuerst ein Zahlungskonto hinterlegen.');
-    if(c.billing_cadence==='oneoff') throw new Error('Einmalige Verträge sind nicht wiederkehrend.');
-    const account=runtime.accounts.find((a)=>a.account_id===c.account_id);
-    const payload={ household_id:runtime.household.id, account_id:c.account_id, category_id:c.category_id||null, direction:'expense', description:c.name, counterparty:c.provider||null, amount:Number(c.amount), currency:account?.currency||c.currency||runtime.household.base_currency, cadence:c.billing_cadence, next_date:c.next_payment_date||dateInputValue(), active:true };
-    const existing=runtime.recurringRules.find((r)=>r.account_id===c.account_id&&r.description.trim().toLowerCase()===c.name.trim().toLowerCase());
-    if(existing) await financeApi.updateRecurringRule(existing.id,payload); else await financeApi.createRecurringRule(payload);
-    await refresh('Vertrag unter Wiederkehrend übernommen.'); return;
+    const contract=runtime.contracts.find((row)=>row.id===target.dataset.id);
+    if(!contract) throw new Error('Vertrag wurde nicht gefunden.');
+    await syncContractRecurring(contract);
+    await refresh('Vertrag mit Fixkosten synchronisiert.'); return;
   }
   if (action === 'investment-edit') {
     const i=runtime.investments.find((row)=>row.id===target.dataset.id); if(!i) throw new Error('Investment wurde nicht gefunden.');
