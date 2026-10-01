@@ -848,6 +848,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditDate').value=dateTimeLocalValue(new Date(tx.occurred_at));
   document.querySelector('#transactionEditDescription').value=tx.description||'';
   document.querySelector('#transactionEditCategory').value=tx.category_id||'';
+  const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
   document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
@@ -909,7 +910,7 @@ async function handleForm(form) {
   if (id === 'transaction-create') {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     const amount = Math.abs(numberValue(data,'amount')) * (formValue(data,'direction')==='expense' ? -1 : 1);
-    const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
+    const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
     if (moduleEnabled('tax')) { payload.tax_relevant=formValue(data,'taxRelevant')==='true'; payload.tax_category=nullValue(data,'taxCategory'); }
     await financeApi.createTransaction(payload);
     await refresh('Transaktion gespeichert.'); return;
@@ -922,7 +923,7 @@ async function handleForm(form) {
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
-    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
     if (moduleEnabled('tax')) { patch.tax_relevant=formValue(data,'taxRelevant')==='true'; patch.tax_category=nullValue(data,'taxCategory'); }
     await financeApi.updateTransaction(transactionId,patch);
     let recurringSaved = false;
