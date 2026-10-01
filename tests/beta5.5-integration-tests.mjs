@@ -12,6 +12,15 @@ assert.equal(exists('assets/js/views/fixed-costs.js'), true);
 assert.match(read('assets/js/views/fixed-costs.js'), /Fixkosten \/ Monat/);
 assert.match(read('assets/js/main.js'), /fixed-cost-create/);
 assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
+assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
+assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/views/overview.js'), /Einnahmen \/ Monat/);
+assert.match(read('assets/js/views/overview.js'), /Fixe Ausgaben \/ Monat/);
+assert.match(read('assets/js/views/overview.js'), /Weitere geplante Ausgaben/);
+assert.match(read('assets/js/views/overview.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/main.js'), /destination_account_id/);
+assert.match(read('supabase/migrations/20261001_finance_recurring_transfers.sql'), /direction in \('income','expense','transfer'\)/);
+assert.match(read('supabase/migrations/20261001_finance_recurring_transfers.sql'), /destination_account_id/);
 assert.match(read('supabase/migrations/20261001_finance_v2_3_beta5_5_security_hardening.sql'), /user_presence_select_own/);
 for (const path of ['Dockerfile','docker-compose.yml','runtime-config.js','supabase/config.toml']) {
   assert.equal(exists(path), true, `${path} is required`);
