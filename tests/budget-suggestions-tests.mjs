@@ -14,10 +14,10 @@ const merchants=[
   {id:'variable',name:'Tabak Shop'},
 ];
 const transactions=[
-  {id:'f1',merchant_id:'fixed',occurred_at:month(1),amount:-448.75,currency:'CHF',status:'booked',transfer_group_id:null,cashflow_type:'standard'},
-  {id:'f2',merchant_id:'fixed',occurred_at:month(2),amount:-448.75,currency:'CHF',status:'booked',transfer_group_id:null,cashflow_type:'standard'},
-  {id:'v1',merchant_id:'variable',occurred_at:month(1),amount:-180,currency:'CHF',status:'booked',transfer_group_id:null,cashflow_type:'standard'},
-  {id:'v2',merchant_id:'variable',occurred_at:month(2),amount:-270,currency:'CHF',status:'booked',transfer_group_id:null,cashflow_type:'standard'},
+  {id:'f1',merchant_id:'fixed',account_id:'a1',occurred_at:month(1),amount:-448.75,currency:'CHF',description:'Group Mutuel',status:'booked',transfer_group_id:null,cashflow_type:'standard',accounts:{name:'UBS'},categories:{name:'Krankenkasse'}},
+  {id:'f2',merchant_id:'fixed',account_id:'a1',occurred_at:month(2),amount:-448.75,currency:'CHF',description:'Group Mutuel',status:'booked',transfer_group_id:null,cashflow_type:'standard',accounts:{name:'UBS'},categories:{name:'Krankenkasse'}},
+  {id:'v1',merchant_id:'variable',account_id:'a1',occurred_at:month(1),amount:-180,currency:'CHF',description:'Tabak',status:'booked',transfer_group_id:null,cashflow_type:'standard',accounts:{name:'UBS'},categories:{name:'Tabak'}},
+  {id:'v2',merchant_id:'variable',account_id:'a1',occurred_at:month(2),amount:-270,currency:'CHF',description:'Tabak',status:'booked',transfer_group_id:null,cashflow_type:'standard',accounts:{name:'UBS'},categories:{name:'Tabak'}},
 ];
 const recurringRules=[{
   id:'r1',
@@ -33,24 +33,16 @@ const recurringRules=[{
 const html=renderBudget({
   household,profile,merchants,transactions,recurringRules,
   budgets:[],categories:[],debtPayments:[],accounts:[],canWrite:true,
+  budgetExpandedMerchantId:'variable',
 });
 
-assert.equal(html.includes('Variable Budgetvorschläge'),true);
-assert.equal(
-  html.includes('<div class="suggestion-card"><div><strong>Group Mutuel</strong>'),
-  false,
-  'known fixed-cost merchant must not receive a variable budget suggestion',
-);
-assert.equal(
-  html.includes('<div class="suggestion-card"><div><strong>Tabak Shop</strong>'),
-  true,
-  'variable merchant should receive a budget suggestion',
-);
-assert.equal(
-  html.includes('data-amount="150"'),
-  true,
-  '450 CHF over three full months should suggest 150 CHF without hidden 10% buffer',
-);
+assert.equal(html.includes('Ausgabenmuster & Budgetvorschläge'),true);
+assert.equal(html.includes('Group Mutuel'),true,'known fixed cost should remain inspectable');
+assert.equal(html.includes('Als Fixkosten erkannt: Krankenkasse'),true,'known fixed cost must be clearly marked');
+assert.equal(html.includes('Tabak Shop'),true,'variable merchant should receive a budget pattern');
+assert.equal(html.includes('data-amount="150"'),true,'450 CHF over three full months should suggest 150 CHF without hidden buffer');
+assert.equal(html.includes('in 3 vollständigen Monaten ÷ 3'),true,'expanded pattern must explain the monthly calculation');
+assert.equal(html.includes('data-action="budget-transaction-edit" data-id="v1"'),true,'expanded pattern must expose source transactions for correction');
 assert.equal(html.includes('Wiederkehrende Händlerausgaben der letzten 90 Tage'),false);
 
-console.log('Variable budget suggestion assertions OK');
+console.log('Explainable budget pattern assertions OK');
