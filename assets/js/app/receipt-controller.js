@@ -11,6 +11,7 @@ const state = {
   matches: [],
   busy: false,
   generation: 0,
+  geo: null,
 };
 
 function toast(message, tone = 'success') {
@@ -35,6 +36,7 @@ function resetState({ hide = true } = {}) {
   state.context = null;
   state.matches = [];
   state.busy = false;
+  state.geo = null;
   const input = document.querySelector('#receiptCameraInput');
   if (input) input.value = '';
   if (hide) document.querySelector('#receipt-create')?.setAttribute('hidden', '');
@@ -165,6 +167,20 @@ function selectSuggestedCategory(analysis) {
   if (id && [...select.options].some((option) => option.value === id)) select.value = id;
 }
 
+async function detectGeoCurrency(fallbackCurrency='CHF') {
+  try {
+    const response=await fetch('/api/geo',{cache:'no-store'});
+    if(!response.ok) throw new Error('geo unavailable');
+    const data=await response.json();
+    return {
+      country:data?.country||null,
+      currency:['CHF','EUR','USD','GBP'].includes(data?.currency)?data.currency:fallbackCurrency,
+    };
+  } catch {
+    return {country:null,currency:fallbackCurrency};
+  }
+}
+
 async function analyzeFile(file) {
   if (!file) return;
   if (!String(file.type || '').startsWith('image/')) throw new Error('Bitte ein Foto oder Bild des Belegs auswählen.');
@@ -182,16 +198,21 @@ async function analyzeFile(file) {
   setProgress('Beleg wird vorbereitet', 0.03);
 
   state.context = await loadContext();
+  state.geo = await detectGeoCurrency(state.context.household.base_currency || 'CHF');
+  const presetCurrency=document.querySelector('#receiptCurrency');
+  if(presetCurrency) presetCurrency.value=state.geo.currency;
+  const accountHint=document.querySelector('#receiptAccountHint');
+  if(accountHint && state.geo.country) accountHint.textContent=`Standort ${state.geo.country}: ${state.geo.currency} vorgeschlagen. Eine erkannte Belegwährung hat Vorrang.`;
   let analysisResult;
   try {
     analysisResult = await analyzeReceiptImage(file, {
-      fallbackCurrency: state.context.household.base_currency || 'CHF',
+      fallbackCurrency: state.geo.currency,
       onProgress: ({ status, progress }) => setProgress(status === 'recognizing text' ? 'Text wird erkannt' : status, progress),
     });
   } catch (error) {
     if (generation !== state.generation) return;
     analysisResult = {
-      merchant: '', amount: null, currency: state.context.household.base_currency || 'CHF',
+      merchant: '', amount: null, currency: state.geo?.currency || state.context.household.base_currency || 'CHF',
       date: dateInputValue(), suggestedCategoryName: null, rawText: '', confidence: 0, ocrConfidence: 0,
     };
     toast(`OCR nicht verfügbar: ${String(error?.message || error)}. Du kannst den Beleg trotzdem manuell erfassen.`, 'error');
@@ -205,11 +226,13 @@ async function analyzeFile(file) {
   const currency = document.querySelector('#receiptCurrency');
   const date = document.querySelector('#receiptDate');
   const ocrText = document.querySelector('#receiptOcrText');
+  const note = document.querySelector('#receiptNote');
   if (merchant) merchant.value = analysis.merchant || '';
   if (amount) amount.value = analysis.amount ? Number(analysis.amount).toFixed(2) : '';
   if (currency) currency.value = analysis.currency || state.context.household.base_currency || 'CHF';
   if (date) date.value = analysis.date || dateInputValue();
   if (ocrText) ocrText.textContent = analysis.rawText || '';
+  if (note && !note.value && analysis.paymentMethod) note.value = `Zahlung: ${analysis.paymentMethod}`;
   selectSuggestedCategory(analysis);
   updateAccountChoices(currency?.value || state.context.household.base_currency || 'CHF');
   refreshMatches({ chooseBest: true });
@@ -356,7 +379,7 @@ async function saveReceipt(form) {
 // established authentication lifecycle in main.js.
 function syncVersionLabel() {
   document.querySelectorAll('.auth-brand span').forEach((node) => {
-    if (/V2\.3\s*·\s*Beta\s*5\.1/i.test(node.textContent || '')) node.textContent = 'V2.3 · Beta 5.2';
+    if (/V2\.3\s*·\s*Beta\s*5\.[0-9]+/i.test(node.textContent || '')) node.textContent = 'V2.3 · Beta 5.4';
   });
 }
 const versionObserver = new MutationObserver(syncVersionLabel);
