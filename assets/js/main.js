@@ -1,4 +1,4 @@
-import { MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
@@ -258,7 +258,52 @@ function closeProfileMenu() {
   profileButton?.setAttribute('aria-expanded','false');
 }
 
+let presenceTimer = null;
+let adminPresenceTimer = null;
+
+function currentDeviceLabel() {
+  const ua=navigator.userAgent||'';
+  if (/iPhone/i.test(ua)) return 'iPhone';
+  if (/iPad/i.test(ua)) return 'iPad';
+  if (/Android/i.test(ua)) return 'Android';
+  if (/Windows/i.test(ua)) return 'Windows';
+  if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac';
+  return 'Browser';
+}
+
+async function pulsePresence() {
+  if (!runtime.user || document.visibilityState === 'hidden') return;
+  await financeApi.touchPresence({
+    route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
+    appVersion:APP_CONFIG.version,
+    deviceLabel:currentDeviceLabel(),
+  }).catch(()=>null);
+}
+
+function stopLiveTimers() {
+  if (presenceTimer) window.clearInterval(presenceTimer);
+  if (adminPresenceTimer) window.clearInterval(adminPresenceTimer);
+  presenceTimer=null; adminPresenceTimer=null;
+}
+
+function startLiveTimers() {
+  stopLiveTimers();
+  void pulsePresence();
+  presenceTimer=window.setInterval(()=>{ void pulsePresence(); },45000);
+  adminPresenceTimer=window.setInterval(async()=>{
+    if (!runtime.user || !runtime.adminRole || resolveRoute()!=='admin' || document.visibilityState==='hidden') return;
+    if (document.activeElement?.matches('input,select,textarea')) return;
+    try {
+      runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+      const y=window.scrollY;
+      render();
+      window.scrollTo({top:y,left:0,behavior:'auto'});
+    } catch {}
+  },30000);
+}
+
 async function logoutCurrentUser() {
+  stopLiveTimers();
   closeProfileMenu();
   closeMobileNav();
   await backend.signOut();
@@ -1110,6 +1155,12 @@ async function handleAction(target) {
     uiState.adminExpandedUserId = null;
     render(); return;
   }
+  if (action === 'admin-refresh-presence') {
+    runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+    render();
+    showToast('Online-Status aktualisiert.');
+    return;
+  }
   if (action === 'logout') { await logoutCurrentUser(); return; }
   if (action === 'account-edit') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
@@ -1543,11 +1594,12 @@ pageContent.addEventListener('input', (event) => {
 async function enterApp(session) {
   runtime.session=session; runtime.user=session.user;
   authGate.hidden=true; appShell.hidden=false; showLoading();
-  try { await loadContext(); render(); }
+  try { await loadContext(); render(); startLiveTimers(); }
   catch (error) { pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`; }
 }
 
-window.addEventListener('hashchange',render);
+window.addEventListener('hashchange',()=>{ render(); void pulsePresence(); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') void pulsePresence(); });
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
