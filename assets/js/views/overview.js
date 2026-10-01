@@ -48,7 +48,7 @@ export function renderOverview({
       <div>
         <div class="hero-label">Liquidität auf deinen Konten</div>
         <div class="hero-value">${money(snapshot.cash,{currency,locale,decimals:0})}</div>
-        <div class="hero-caption">${accounts.length} Konto${accounts.length===1?'':'en'} · aktueller Stand</div>
+        <div class="hero-caption">${accounts.length} ${accounts.length===1?'Konto':'Konten'} · aktueller Stand</div>
       </div>
       <div class="hero-actions">
         <a class="action-button action-button--primary" href="#/transactions">${icon('plus')} Buchung erfassen</a>
