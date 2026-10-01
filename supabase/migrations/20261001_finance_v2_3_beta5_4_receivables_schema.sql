@@ -79,6 +79,19 @@ drop policy if exists receivable_payments_member_read on public.receivable_payme
 create policy receivable_payments_member_read on public.receivable_payments for select to authenticated
 using (private.has_module_access('debts') and private.is_household_member(household_id));
 
+drop policy if exists receivable_payments_writer_insert on public.receivable_payments;
+create policy receivable_payments_writer_insert on public.receivable_payments for insert to authenticated
+with check (private.has_module_access('debts') and private.can_write_household(household_id));
+
+drop policy if exists receivable_payments_writer_update on public.receivable_payments;
+create policy receivable_payments_writer_update on public.receivable_payments for update to authenticated
+using (private.has_module_access('debts') and private.can_write_household(household_id))
+with check (private.has_module_access('debts') and private.can_write_household(household_id));
+
+drop policy if exists receivable_payments_writer_delete on public.receivable_payments;
+create policy receivable_payments_writer_delete on public.receivable_payments for delete to authenticated
+using (private.has_module_access('debts') and private.can_write_household(household_id));
+
 drop trigger if exists receivables_set_updated_at on public.receivables;
 create trigger receivables_set_updated_at before update on public.receivables
 for each row execute function private.set_updated_at();
