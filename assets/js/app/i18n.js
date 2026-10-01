@@ -1,3 +1,5 @@
+import { UI_TRANSLATIONS, UI_PATTERNS } from './i18n-ui-catalog.js';
+
 const SUPPORTED = new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
 
 let activeLocale = 'de-CH';
@@ -855,10 +857,11 @@ const EN_EXTRA = Object.freeze({
   'Die Deutschland-Regellogik bleibt getrennt von der Schweizer Kantonslogik und wird später über eine eigene Tax-Provider-Schicht erweitert.':'German tax logic remains separate from Swiss canton logic and will later be extended through its own tax-provider layer.'
 });
 
-const DICTS = { it: Object.freeze({ ...IT, ...IT_EXTRA }), en: Object.freeze({ ...EN, ...EN_EXTRA }) };
+const DICTS = { it: Object.freeze({ ...IT, ...IT_EXTRA, ...UI_TRANSLATIONS.it }), en: Object.freeze({ ...EN, ...EN_EXTRA, ...UI_TRANSLATIONS.en }) };
 
 const PATTERNS = {
   it: [
+    ...UI_PATTERNS.it,
     [/^(\d+) sichtbar$/, '$1 visibili'],
     [/^(\d+) aktiv$/, '$1 attivi'],
     [/^(\d+) freigeschaltet$/, '$1 abilitati'],
@@ -872,6 +875,7 @@ const PATTERNS = {
     [/^(\d+) Regeln$/, '$1 regole'],
   ],
   en: [
+    ...UI_PATTERNS.en,
     [/^(\d+) sichtbar$/, '$1 visible'],
     [/^(\d+) aktiv$/, '$1 active'],
     [/^(\d+) freigeschaltet$/, '$1 enabled'],
