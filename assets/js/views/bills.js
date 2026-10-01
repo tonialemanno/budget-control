@@ -1,6 +1,7 @@
 import { dataTable, formShell, metricCard, pageHeader, deleteButton, statusPill } from '../app/components.js';
 import { cadenceMonthlyFactor, dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
+import { effectiveNextDate } from '../app/recurrence.js';
 import { icon } from '../app/icons.js';
 
 export function renderBills({ bills = [], contracts = [], accounts = [], categories = [], transactions = [], household, profile, fxRates, canWrite=false } = {}) {
