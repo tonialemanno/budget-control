@@ -82,7 +82,6 @@ assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
 assert.match(read('assets/js/views/budget.js'), /rule\.merchant_id/);
 
 assert.equal(exists('assets/js/views/merchants.js'), true);
-assert.match(read('assets/js/app/config.js'), /route: 'merchants'/);
 assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler'/);
 assert.match(read('assets/js/main.js'), /renderMerchants/);
 assert.match(read('assets/js/main.js'), /merchant-create/);
@@ -99,3 +98,8 @@ const recurringBlock=mainSource.slice(recurringStart,recurringEnd);
 assert.doesNotMatch(recurringBlock,/merchant_id:merchantId/);
 assert.doesNotMatch(recurringBlock,/merchant\?\.name/);
 assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
+
+assert.doesNotMatch(read('assets/js/app/config.js'), /route: 'merchants'/);
+assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler', eyebrow: 'Einstellungen' \}/);
+assert.match(read('assets/js/views/settings.js'), /Stammdaten/);
+assert.match(read('assets/js/views/settings.js'), /href="#\/merchants"/);
