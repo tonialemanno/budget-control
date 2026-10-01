@@ -153,8 +153,8 @@ export function renderGoals({ goals = [], goalSources = [], recurringRules = [],
       const goalCurrency=plan.targetCurrency;
       const displayGoal={...g,current_amount:effectiveCurrent,currency:goalCurrency};
       const f=feasibility(g,plan.total,effectiveCurrent);
-      const extraSources=Math.max(0,plan.total-Number(g.monthly_amount||0));
-      const suggestedBase=Math.max(0,f.required-extraSources);
+      const externalNet=plan.total-Number(g.monthly_amount||0);
+      const suggestedBase=Math.max(0,f.required-externalNet);
       const accountMeta=linkedAccount
         ? `<span>Topf / Konto <strong>${escapeHtml(linkedAccount.name)}</strong></span><span>Aktueller Stand <strong>${money(effectiveCurrent,{currency:goalCurrency,locale})}</strong> <small>direkt vom Konto</small></span>`
         : `<span>Aktueller Stand <strong>${money(effectiveCurrent,{currency:goalCurrency,locale})}</strong> <small>manuell</small></span>`;
