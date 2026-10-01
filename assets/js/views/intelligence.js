@@ -52,7 +52,7 @@ export function renderIntelligence({
       <div class="metric-grid">
         ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),snapshot.incomePlanSource==='recurring'?'aus Wiederkehrend':'bisher gebucht','positive')}
         ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aus Fixkosten / Wiederkehrend')}
-        ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),'aus Monatsbudgets')}
+        ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${money(snapshot.variableBudgetMonthly,{currency,locale})} · zukünftige Buchungen ${money(snapshot.plannedFutureExpensesMonth,{currency,locale})}`)}
         ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Töpfe und Sparen')}
       </div>
     </div>
