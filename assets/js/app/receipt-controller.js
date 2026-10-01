@@ -375,17 +375,6 @@ async function saveReceipt(form) {
   }
 }
 
-// Keep the visible login marker aligned with APP_CONFIG without touching the
-// established authentication lifecycle in main.js.
-function syncVersionLabel() {
-  document.querySelectorAll('.auth-brand span').forEach((node) => {
-    if (/V2\.3\s*·\s*Beta\s*5\.[0-9]+/i.test(node.textContent || '')) node.textContent = 'V2.3 · Beta 5.4';
-  });
-}
-const versionObserver = new MutationObserver(syncVersionLabel);
-versionObserver.observe(document.documentElement, { childList: true, subtree: true });
-syncVersionLabel();
-
 document.addEventListener('click', (event) => {
   const trigger = event.target.closest('[data-action="receipt-camera"], [data-action="receipt-cancel"]');
   if (!trigger) return;
