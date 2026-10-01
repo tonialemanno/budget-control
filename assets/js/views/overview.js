@@ -1,43 +1,38 @@
 import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { cadenceMonthlyFactor, localMonthKey, money, shortDate } from '../app/format.js';
+import { money, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { convertAmount, fxLabel } from '../app/fx.js';
+import { fxLabel } from '../app/fx.js';
 import { buildAccountProjection } from '../app/projections.js';
+import { buildFinanceSnapshot } from '../app/finance-model.js';
 
-export function renderOverview({ accounts = [], transactions = [], recurringRules = [], budgets = [], household, profile, fxRates } = {}) {
-  const currency = household?.base_currency || 'CHF';
+export function renderOverview({
+  accounts = [],
+  transactions = [],
+  debtPayments = [],
+  recurringRules = [],
+  budgets = [],
+  bills = [],
+  debts = [],
+  receivables = [],
+  assets = [],
+  properties = [],
+  vehicles = [],
+  investments = [],
+  pensions = [],
+  household,
+  profile,
+  fxRates,
+} = {}) {
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
-  const today = now.toISOString().slice(0,10);
-  const monthKey = localMonthKey(now);
-
-  const cash = accounts
-    .filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type))
-    .reduce((s,a)=>s+(convertAmount(a.current_balance,a.currency,currency,fxRates)??0),0);
-
+  const snapshot = buildFinanceSnapshot({
+    accounts, transactions, debtPayments, recurringRules, budgets, bills, debts,
+    receivables, assets, properties, vehicles, investments, pensions,
+    household, fxRates, now,
+  });
+  const currency = snapshot.currency;
   const hasForeign = accounts.some((a)=>a.currency!==currency) || transactions.some((t)=>t.currency!==currency);
-  const activeRecurring = recurringRules.filter((r)=>r.active && (!r.end_date || String(r.end_date).slice(0,10)>=today));
-  const monthlyValue = (rules) => rules.reduce((sum,r)=>{
-    const normalized = Number(r.amount||0) * cadenceMonthlyFactor(r.cadence);
-    return sum + (convertAmount(normalized,r.currency||currency,currency,fxRates) ?? 0);
-  },0);
-
-  const plannedIncome = monthlyValue(activeRecurring.filter((r)=>r.direction==='income'));
-  const fixedExpenses = monthlyValue(activeRecurring.filter((r)=>r.direction==='expense'));
-  const fixedTransfers = monthlyValue(activeRecurring.filter((r)=>r.direction==='transfer'));
-  const fixedCategoryIds = new Set(activeRecurring.filter((r)=>r.direction==='expense' && r.category_id).map((r)=>r.category_id));
-
-  const plannedVariable = budgets
-    .filter((b)=>String(b.month_start).slice(0,7)===monthKey)
-    .filter((b)=>!b.category_id || !fixedCategoryIds.has(b.category_id))
-    .reduce((s,b)=>s+Number(b.amount||0),0);
-
-  const bookedIncome = transactions
-    .filter((t)=>localMonthKey(t.occurred_at)===monthKey && t.status==='booked' && !t.transfer_group_id && Number(t.amount)>0 && t.cashflow_type!=='receivable_principal')
-    .reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
-
-  const incomeValue = plannedIncome > 0 ? plannedIncome : bookedIncome;
-  const incomeCaption = plannedIncome > 0 ? 'geplant aus Wiederkehrend' : 'bisher gebucht';
+  const incomeCaption = snapshot.incomePlanSource==='recurring' ? 'geplant aus Wiederkehrend' : 'bisher gebucht';
 
   return `
     ${pageHeader({
@@ -51,7 +46,7 @@ export function renderOverview({ accounts = [], transactions = [], recurringRule
     <article class="card card--accent hero-card">
       <div>
         <div class="hero-label">Liquidität auf deinen Konten</div>
-        <div class="hero-value">${money(cash,{currency,locale,decimals:0})}</div>
+        <div class="hero-value">${money(snapshot.cash,{currency,locale,decimals:0})}</div>
         <div class="hero-caption">${accounts.length} Konto${accounts.length===1?'':'en'} · aktueller Stand</div>
       </div>
       <div class="hero-actions">
@@ -60,12 +55,12 @@ export function renderOverview({ accounts = [], transactions = [], recurringRule
       </div>
     </article>
 
-    ${sectionHeading('Monatsplanung','Was kommt rein und was ist verplant?','<a class="card-link" href="#/fixed-costs">Fixkosten bearbeiten</a>')}
+    ${sectionHeading('Monatsplanung','Was kommt rein und was ist verplant?','<a class="card-link" href="#/intelligence">Finance Intelligence</a>')}
     <div class="metric-grid" style="margin-bottom:16px">
-      ${metricCard('Einnahmen / Monat',money(incomeValue,{currency,locale}),incomeCaption,'positive')}
-      ${metricCard('Fixe Ausgaben / Monat',money(fixedExpenses,{currency,locale}),'aktive Fixkosten')}
-      ${metricCard('Weitere geplante Ausgaben',money(plannedVariable,{currency,locale}),'Monatsbudgets ohne Fixkosten')}
-      ${metricCard('Fixe Umbuchungen / Monat',money(fixedTransfers,{currency,locale}),'Sparen, Überschuss und andere Töpfe')}
+      ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),incomeCaption,'positive')}
+      ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aktive Fixkosten')}
+      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),'Monatsbudgets ohne Fixkosten')}
+      ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Sparen, Überschuss und andere Töpfe')}
     </div>
 
     ${sectionHeading('Mein Geld','UBS, ZAK, Revolut und weitere Konten','<a class="card-link" href="#/accounts">Konten verwalten</a>')}
