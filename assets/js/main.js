@@ -208,7 +208,7 @@ function renderNavigation() {
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
-  if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('import-history'); }
+  if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   return allowed.has(requested) ? requested : 'overview';
 }
 
@@ -1022,6 +1022,54 @@ async function handleForm(form) {
     });
     await refresh(direction==='transfer'?'Wiederkehrende Umbuchung gespeichert.':'Wiederkehrende Zahlung gespeichert.'); return;
   }
+  if (id === 'recurring-edit') {
+    const ruleId=formValue(data,'ruleId');
+    const rule=runtime.recurringRules.find((row)=>row.id===ruleId);
+    if(!rule) throw new Error('Wiederkehrende Regel wurde nicht gefunden.');
+    const linkedSource=
+      runtime.contracts.some((row)=>row.recurring_rule_id===ruleId)
+      || runtime.insurance.some((row)=>row.recurring_rule_id===ruleId)
+      || runtime.debts.some((row)=>row.recurring_rule_id===ruleId)
+      || runtime.goalSources.some((row)=>row.recurring_rule_id===ruleId);
+    if(linkedSource) throw new Error('Diese Regel ist mit einer Quelle verknüpft und wird dort bearbeitet.');
+
+    const direction=formValue(data,'direction')||rule.direction||'expense';
+    const account=runtime.accounts.find((row)=>row.account_id===formValue(data,'accountId'));
+    if(!account) throw new Error('Bitte ein Konto auswählen.');
+
+    let destinationAccountId=null;
+    if(direction==='transfer'){
+      const destination=runtime.accounts.find((row)=>row.account_id===formValue(data,'destinationAccountId'));
+      if(!destination) throw new Error('Bitte ein Zielkonto / einen Topf auswählen.');
+      if(destination.account_id===account.account_id) throw new Error('Quell- und Zielkonto müssen unterschiedlich sein.');
+      if(destination.currency!==account.currency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      destinationAccountId=destination.account_id;
+    }
+
+    const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    await financeApi.updateRecurringRule(ruleId,{
+      account_id:account.account_id,
+      destination_account_id:destinationAccountId,
+      category_id:categoryId,
+      merchant_id:direction==='expense'?(rule.merchant_id||null):null,
+      counterparty:direction==='expense'?(rule.counterparty||null):null,
+      direction,
+      description:formValue(data,'description'),
+      amount:Math.abs(numberValue(data,'amount')),
+      currency:account.currency||currency,
+      cadence:formValue(data,'cadence'),
+      next_date:formValue(data,'nextDate'),
+      end_date:nullValue(data,'endDate'),
+      active:formValue(data,'active')==='true'
+    });
+    if(direction==='expense' && rule.merchant_id && categoryId){
+      const merchant=runtime.merchants.find((row)=>row.id===rule.merchant_id);
+      if(merchant && merchant.default_category_id!==categoryId){
+        await financeApi.updateMerchant(merchant.id,{default_category_id:categoryId});
+      }
+    }
+    await refresh('Wiederkehrende Regel aktualisiert.'); return;
+  }
   if (id === 'fixed-cost-create') {
     const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
@@ -1460,7 +1508,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1850,6 +1898,38 @@ async function handleAction(target) {
     form?.scrollIntoView({behavior:'smooth',block:'start'});
     return;
   }
+  if (action === 'recurring-edit') {
+    const rule=runtime.recurringRules.find((row)=>row.id===target.dataset.id);
+    if(!rule) throw new Error('Wiederkehrende Regel wurde nicht gefunden.');
+    const linkedSource=
+      runtime.contracts.some((row)=>row.recurring_rule_id===rule.id)
+      || runtime.insurance.some((row)=>row.recurring_rule_id===rule.id)
+      || runtime.debts.some((row)=>row.recurring_rule_id===rule.id)
+      || runtime.goalSources.some((row)=>row.recurring_rule_id===rule.id);
+    if(linkedSource) throw new Error('Diese Regel wird an ihrer verknüpften Quelle bearbeitet.');
+
+    document.querySelector('#recurringEditId').value=rule.id;
+    document.querySelector('#recurringEditDirection').value=rule.direction||'expense';
+    document.querySelector('#recurringEditAmount').value=rule.amount||0;
+    document.querySelector('#recurringEditAccount').value=rule.account_id||'';
+    document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
+    document.querySelector('#recurringEditCategory').value=rule.category_id||'';
+    document.querySelector('#recurringEditDescription').value=rule.description||'';
+    document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#recurringEditNextDate').value=rule.next_date||'';
+    document.querySelector('#recurringEditEndDate').value=rule.end_date||'';
+    document.querySelector('#recurringEditActive').value=rule.active===false?'false':'true';
+
+    const transfer=rule.direction==='transfer';
+    const targetField=document.querySelector('#recurringEditTargetField');
+    const categoryField=document.querySelector('#recurringEditCategoryField');
+    if(targetField) targetField.hidden=!transfer;
+    if(categoryField) categoryField.hidden=transfer;
+    const form=document.querySelector('#recurring-edit');
+    form?.removeAttribute('hidden');
+    form?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
   if (action === 'fixed-cost-edit') {
     const rule=runtime.recurringRules.find((row)=>row.id===target.dataset.id);
     if(!rule) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
@@ -2081,10 +2161,11 @@ pageContent.addEventListener('change', async (event) => {
       if(amount) amount.hidden=type!=='fixed'; if(recurring) recurring.hidden=type!=='recurring_rule'; if(label) label.hidden=type==='surplus'; if(info) info.hidden=type!=='surplus'; return;
     }
     if (target.id === 'taxYearSelect') { uiState.taxYear=Number(target.value)||new Date().getFullYear(); render(); return; }
-    if (target.id === 'recurringDirection') {
+    if (target.id === 'recurringDirection' || target.id === 'recurringEditDirection') {
+      const edit=target.id==='recurringEditDirection';
       const transfer=target.value==='transfer';
-      const targetField=document.querySelector('#recurringTargetField');
-      const categoryField=document.querySelector('#recurringCategoryField');
+      const targetField=document.querySelector(edit?'#recurringEditTargetField':'#recurringTargetField');
+      const categoryField=document.querySelector(edit?'#recurringEditCategoryField':'#recurringCategoryField');
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       return;

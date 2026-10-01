@@ -147,3 +147,115 @@ const fixedMerchantBudget=buildFinanceSnapshot({
 });
 assert.equal(fixedMerchantBudget.variableBudgetMonthly,0,'a budget for a known fixed-cost merchant must not be counted as variable budget');
 console.log('Stable monthly planning assertions OK');
+
+
+const alreadySpent={...futureTx,id:'spent-1',occurred_at:'2026-10-01T08:00:00.000Z',amount:-75};
+const spentSnapshot=buildFinanceSnapshot({
+  accounts,
+  transactions:[alreadySpent],
+  household,
+  now,
+});
+assert.equal(spentSnapshot.plannedVariableMonthly,75,'already-spent unbudgeted money stays in the full monthly plan');
+assert.equal(spentSnapshot.remainingPlannedExpensesMonth,0,'already-spent money must not appear as still upcoming');
+
+const categoryBudgetBesideFixed=buildFinanceSnapshot({
+  accounts,
+  transactions:[],
+  budgets:[{month_start:'2026-10-01',category_id:'housing',merchant_id:null,amount:400}],
+  recurringRules:[{
+    id:'rent-rule',
+    account_id:'ubs',
+    category_id:'housing',
+    merchant_id:'landlord',
+    direction:'expense',
+    description:'Miete',
+    amount:1576,
+    currency:'CHF',
+    cadence:'monthly',
+    next_date:'2026-10-25',
+    active:true,
+  }],
+  household,
+  now,
+});
+assert.equal(categoryBudgetBesideFixed.variableBudgetMonthly,400,'a category budget must stay variable even if a fixed cost uses the same category');
+assert.equal(categoryBudgetBesideFixed.remainingPlannedExpensesMonth,400);
+
+const openBill={
+  id:'bill-1',
+  account_id:'ubs',
+  category_id:'utilities',
+  name:'Stromrechnung',
+  provider:'Stadtwerke',
+  amount:200,
+  currency:'CHF',
+  due_date:'2026-10-15',
+  status:'open',
+};
+const billSnapshot=buildFinanceSnapshot({
+  accounts,
+  bills:[openBill],
+  household,
+  now,
+});
+assert.equal(billSnapshot.unbudgetedOpenBillsMonth,200,'a due open bill must enter remaining obligations');
+assert.equal(billSnapshot.remainingPlannedExpensesMonth,200);
+assert.equal(billSnapshot.plannedVariableMonthly,200);
+
+const budgetedBillSnapshot=buildFinanceSnapshot({
+  accounts,
+  bills:[openBill],
+  budgets:[{month_start:'2026-10-01',category_id:'utilities',merchant_id:null,amount:500}],
+  household,
+  now,
+});
+assert.equal(budgetedBillSnapshot.budgetedOpenBillsMonth,200);
+assert.equal(budgetedBillSnapshot.unbudgetedOpenBillsMonth,0);
+assert.equal(budgetedBillSnapshot.plannedVariableMonthly,500,'a bill already covered by its variable budget must not be added twice');
+assert.equal(budgetedBillSnapshot.remainingPlannedExpensesMonth,500);
+
+const futureForBill={
+  ...futureTx,
+  id:'future-bill',
+  category_id:'utilities',
+  occurred_at:'2026-10-15T10:00:00.000Z',
+  amount:-200,
+  description:'Stromrechnung',
+  counterparty:'Stadtwerke',
+};
+const billAndFutureSnapshot=buildFinanceSnapshot({
+  accounts,
+  bills:[openBill],
+  transactions:[futureForBill],
+  household,
+  now,
+});
+assert.equal(billAndFutureSnapshot.unbudgetedOpenBillsMonth,0,'an open bill represented by the same future transaction must not be counted twice');
+assert.equal(billAndFutureSnapshot.unbudgetedFutureExpensesMonth,200);
+assert.equal(billAndFutureSnapshot.remainingPlannedExpensesMonth,200);
+
+const fixedBillSnapshot=buildFinanceSnapshot({
+  accounts,
+  bills:[openBill],
+  recurringRules:[{
+    id:'utilities-rule',
+    account_id:'ubs',
+    category_id:'utilities',
+    direction:'expense',
+    description:'Stromrechnung',
+    counterparty:'Stadtwerke',
+    amount:200,
+    currency:'CHF',
+    cadence:'monthly',
+    next_date:'2026-10-15',
+    active:true,
+  }],
+  household,
+  now,
+});
+assert.equal(fixedBillSnapshot.fixedExpensesMonthly,200);
+assert.equal(fixedBillSnapshot.unbudgetedOpenBillsMonth,0,'a current-month bill already represented by a fixed recurring rule must not be added again');
+assert.equal(fixedBillSnapshot.remainingPlannedExpensesMonth,0);
+
+console.log('Stable remaining-obligations assertions OK');

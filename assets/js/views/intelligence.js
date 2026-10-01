@@ -52,7 +52,8 @@ export function renderIntelligence({
       <div class="metric-grid">
         ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),snapshot.incomePlanSource==='recurring'?'aus Wiederkehrend':'bisher gebucht','positive')}
         ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aus Fixkosten / Wiederkehrend')}
-        ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${moneyText(snapshot.variableBudgetMonthly,{currency,locale})} · bereits ausserhalb Budget ${moneyText(snapshot.unbudgetedActualVariableExpensesMonth,{currency,locale})} · zukünftig ausserhalb Budget ${moneyText(snapshot.unbudgetedFutureExpensesMonth,{currency,locale})}`)}
+        ${metricCard('Variabler Monatsplan',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgetplan ${moneyText(snapshot.budgetTrackedPlanMonth,{currency,locale})} · bereits ausserhalb Budget ${moneyText(snapshot.unbudgetedActualVariableExpensesMonth,{currency,locale})} · künftig ausserhalb Budget ${moneyText(snapshot.unbudgetedFutureExpensesMonth,{currency,locale})} · offene Rechnungen ${moneyText(snapshot.unbudgetedOpenBillsMonth,{currency,locale})}`)}
+        ${metricCard('Davon noch ausstehend',money(snapshot.remainingPlannedExpensesMonth,{currency,locale}),`Restbudget ${moneyText(snapshot.remainingVariableBudgetMonth,{currency,locale})} · zukünftige Einzelbuchungen und fällige Rechnungen`)}
         ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Töpfe und Sparen')}
       </div>
     </div>
@@ -92,8 +93,8 @@ export function renderIntelligence({
       <div class="stack compact-copy">
         <p><strong>Konten & Umbuchungen:</strong> bestimmen echte Liquidität; interne Umbuchungen verändern nicht deine Ausgaben oder dein Vermögen.</p>
         <p><strong>Wiederkehrend / Fixkosten:</strong> liefert geplante Einnahmen, feste Ausgaben und feste Umbuchungen auf Töpfe.</p>
-        <p><strong>Budget:</strong> liefert zusätzliche geplante variable Ausgaben; Kategorien, die bereits als Fixkosten geplant sind, werden im Monatsplan nicht nochmals addiert.</p>
-        <p><strong>Rechnungen:</strong> werden separat von der heutigen Liquidität abgezogen, solange sie offen oder überfällig sind.</p>
+        <p><strong>Budget:</strong> ist der variable Monatsrahmen. Bereits verbrauchte Beträge reduzieren nur den noch verfügbaren Rest; Überschreitungen bleiben im vollständigen Monatsplan sichtbar.</p>
+        <p><strong>Rechnungen:</strong> reduzieren die Liquidität solange sie offen sind. Fällige oder überfällige Rechnungen fliessen zusätzlich in „noch ausstehend“ ein, sofern sie nicht bereits durch Fixkosten, Budget oder eine zukünftige Buchung abgedeckt sind.</p>
         <p><strong>Forderungen:</strong> zählen zum Vermögen, bis sie bezahlt oder abgeschrieben sind.</p>
         <p><strong>Schulden:</strong> reduzieren das Nettovermögen; gebuchte Tilgung zählt nicht als Konsumausgabe.</p>
         <p><strong>Runway & Sparquote:</strong> basieren weiterhin auf tatsächlich gebuchten Transaktionen, nicht auf Planung.</p>
