@@ -33,6 +33,7 @@ export function renderOverview({
   const currency = snapshot.currency;
   const hasForeign = accounts.some((a)=>a.currency!==currency) || transactions.some((t)=>t.currency!==currency);
   const incomeCaption = snapshot.incomePlanSource==='recurring' ? 'geplant aus Wiederkehrend' : 'bisher gebucht';
+  const actualTransactions=transactions.filter((tx)=>tx.status==='booked' && new Date(tx.occurred_at)<=now);
 
   return `
     ${pageHeader({
@@ -59,7 +60,7 @@ export function renderOverview({
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),incomeCaption,'positive')}
       ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aktive Fixkosten')}
-      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),'Monatsbudgets ohne Fixkosten')}
+      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${money(snapshot.variableBudgetMonthly,{currency,locale})} · zukünftige Buchungen ${money(snapshot.plannedFutureExpensesMonth,{currency,locale})} · ohne Doppelzählung`)}
       ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Sparen, Überschuss und andere Töpfe')}
     </div>
 
@@ -71,7 +72,7 @@ export function renderOverview({
         <div><h3 class="card-title">Letzte Bewegungen</h3><p class="card-subtitle">Die letzten echten Transaktionen</p></div>
         <a class="card-link" href="#/transactions">Alle</a>
       </div>
-      ${transactions.length?`<div class="list">${transactions.slice(0,6).map((t)=>transactionRow(t,{locale})).join('')}</div>`:'<div class="table-empty">Noch keine Transaktionen.</div>'}
+      ${actualTransactions.length?`<div class="list">${actualTransactions.slice(0,6).map((t)=>transactionRow(t,{locale})).join('')}</div>`:'<div class="table-empty">Noch keine gebuchten Transaktionen.</div>'}
     </article>
   `;
 }
