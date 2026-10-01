@@ -2026,7 +2026,7 @@ pageContent.addEventListener('change', async (event) => {
       runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
       updateProfileUI();
       render();
-      showToast('Sprache & Region gespeichert.');
+      showToast('Region & Format gespeichert.');
       return;
     }
     if (target.dataset.action === 'admin-set-locale') {
@@ -2038,7 +2038,7 @@ pageContent.addEventListener('change', async (event) => {
         runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
         updateProfileUI();
       }
-      showToast('Benutzersprache aktualisiert.');
+      showToast('Region & Format des Benutzers aktualisiert.');
       target.disabled=false;
       return;
     }
