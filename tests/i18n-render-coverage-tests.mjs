@@ -58,11 +58,11 @@ for (const locale of ['it-CH','en-CH']) {
       for (const value of visibleStrings(html)) {
         if (fixtureData.has(value)) continue;
         const translated=t(value,locale);
-        if (germanUi.test(translated)) misses.push(\`\${variant[0]}/\${name}: \${translated}\`);
+        if (germanUi.test(translated)) misses.push(`${variant[0]}/${name}: ${translated}`);
       }
     }
   }
-  assert.deepEqual([...new Set(misses)],[],\`Untranslated \${locale} UI:\\n\${[...new Set(misses)].join('\\n')}\`);
+  assert.deepEqual([...new Set(misses)],[],`Untranslated ${locale} UI:\\n${[...new Set(misses)].join('\\n')}`);
 }
 
 setLocale('it-CH');
