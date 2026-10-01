@@ -1062,9 +1062,11 @@ async function handleForm(form) {
     const rule=await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      category_id:categoryId,
+      merchant_id:merchantId,
       direction,
       description:formValue(data,'description'),
+      counterparty:merchant?.name||null,
       amount:Math.abs(numberValue(data,'amount')),
       currency:linkedDebt?linkedDebt.currency:(account.currency||currency),
       cadence,
