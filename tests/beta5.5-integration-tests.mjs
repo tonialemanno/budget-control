@@ -57,3 +57,9 @@ assert.match(read('assets/js/views/settings.js'), /localeSelect/);
 assert.match(read('assets/js/views/admin.js'), /admin-set-locale/);
 assert.match(read('assets/js/app/backend.js'), /adminSetLocale/);
 assert.match(read('supabase/functions/admin-users/index.ts'), /set_locale/);
+
+assert.match(read('assets/js/app/format.js'), /export function moneyText/);
+assert.match(read('assets/js/views/overview.js'), /moneyText\(snapshot\.plannedFutureExpensesMonth/);
+assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.plannedFutureExpensesMonth/);
+assert.match(read('assets/js/views/transactions.js'), /Ø Ausgaben \/ Monat/);
+assert.match(read('assets/js/views/transactions.js'), /monthlyAverage/);
