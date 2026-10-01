@@ -543,7 +543,7 @@ function applyPermissionUI(route) {
     pageContent.prepend(notice);
     pageContent.querySelectorAll('form[data-form] input, form[data-form] select, form[data-form] textarea, form[data-form] button').forEach((el)=>{ el.disabled = true; });
     pageContent.querySelectorAll('[data-action]').forEach((el)=>{
-      if (!['document-download','document-preview','tax-export-csv','profile-close','receivable-history','receivable-history-close'].includes(el.dataset.action)) el.disabled = true;
+      if (!['document-download','document-preview','tax-export-csv','profile-close','receivable-history','receivable-history-close','budget-suggestion-toggle'].includes(el.dataset.action)) el.disabled = true;
     });
   }
   if (route === 'family' && !canAdminHousehold()) {
