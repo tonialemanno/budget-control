@@ -1,6 +1,6 @@
 import { APP_CONFIG } from './config.js';
 
-export function money(value, {
+export function moneyText(value, {
   sign = false,
   decimals = 2,
   currency = APP_CONFIG.defaultCurrency,
@@ -13,8 +13,11 @@ export function money(value, {
     maximumFractionDigits: decimals,
     signDisplay: sign ? 'exceptZero' : 'auto',
   });
-  const formatted = formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
-  return `<span class="privacy-value">${formatted}</span>`;
+  return formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
+}
+
+export function money(value, options = {}) {
+  return `<span class="privacy-value">${moneyText(value, options)}</span>`;
 }
 
 export function percent(value, decimals = 0, locale = APP_CONFIG.defaultLocale) {
