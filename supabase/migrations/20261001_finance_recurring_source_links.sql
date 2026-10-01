@@ -14,32 +14,36 @@ create index if not exists insurance_recurring_rule_idx
   where recurring_rule_id is not null;
 
 -- Safe backfill only when an exact household/account/name match resolves to one rule.
+with matches as (
+  select c.id as source_id, max(r.id::text)::uuid as recurring_rule_id
+  from public.contracts c
+  join public.recurring_rules r
+    on r.household_id=c.household_id
+   and r.account_id=c.account_id
+   and r.direction='expense'
+   and lower(trim(r.description))=lower(trim(c.name))
+  where c.recurring_rule_id is null
+  group by c.id
+  having count(*)=1
+)
 update public.contracts c
-set recurring_rule_id = match.id
-from lateral (
-  select max(r.id::text)::uuid as id
-  from public.recurring_rules r
-  where r.household_id=c.household_id
-    and r.account_id=c.account_id
-    and r.direction='expense'
-    and lower(trim(r.description))=lower(trim(c.name))
-  having count(*)=1
-) match
-where c.recurring_rule_id is null
-  and c.account_id is not null
-  and match.id is not null;
+set recurring_rule_id=m.recurring_rule_id
+from matches m
+where c.id=m.source_id;
 
-update public.insurance_policies p
-set recurring_rule_id = match.id
-from lateral (
-  select max(r.id::text)::uuid as id
-  from public.recurring_rules r
-  where r.household_id=p.household_id
-    and r.account_id=p.account_id
-    and r.direction='expense'
-    and lower(trim(r.description))=lower(trim(p.name))
+with matches as (
+  select p.id as source_id, max(r.id::text)::uuid as recurring_rule_id
+  from public.insurance_policies p
+  join public.recurring_rules r
+    on r.household_id=p.household_id
+   and r.account_id=p.account_id
+   and r.direction='expense'
+   and lower(trim(r.description))=lower(trim(p.name))
+  where p.recurring_rule_id is null
+  group by p.id
   having count(*)=1
-) match
-where p.recurring_rule_id is null
-  and p.account_id is not null
-  and match.id is not null;
+)
+update public.insurance_policies p
+set recurring_rule_id=m.recurring_rule_id
+from matches m
+where p.id=m.source_id;
