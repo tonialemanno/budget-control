@@ -31,3 +31,17 @@ for (const path of ['Dockerfile','docker-compose.yml','runtime-config.js','supab
   assert.equal(exists(path), true, `${path} is required`);
 }
 console.log('Production recovery integration assertions OK');
+
+assert.equal(exists('assets/js/app/finance-model.js'), true);
+assert.match(read('assets/js/views/overview.js'), /buildFinanceSnapshot/);
+assert.match(read('assets/js/views/intelligence.js'), /buildFinanceSnapshot/);
+assert.match(read('assets/js/views/intelligence.js'), /Offene Forderungen/);
+assert.match(read('assets/js/views/intelligence.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/app/finance-model.js'), /receivablesOutstanding/);
+assert.match(read('assets/js/app/finance-model.js'), /plannedVariableMonthly/);
+assert.match(read('assets/js/app/finance-model.js'), /fixedTransfersMonthly/);
+assert.match(read('assets/js/main.js'), /syncContractRecurring/);
+assert.match(read('assets/js/main.js'), /syncInsuranceRecurring/);
+assert.match(read('assets/js/main.js'), /syncRecurringSourceFromRule/);
+assert.match(read('supabase/migrations/20261001_finance_recurring_source_links.sql'), /contracts.*recurring_rule_id/s);
+assert.match(read('supabase/migrations/20261001_finance_recurring_source_links.sql'), /insurance_policies.*recurring_rule_id/s);
