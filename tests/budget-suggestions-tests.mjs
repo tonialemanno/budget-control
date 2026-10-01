@@ -35,9 +35,22 @@ const html=renderBudget({
   budgets:[],categories:[],debtPayments:[],accounts:[],canWrite:true,
 });
 
-assert.match(html,/Variable Budgetvorschläge/);
-assert.doesNotMatch(html,/<div class="suggestion-card"><div><strong>Group Mutuel</strong>/,'known fixed-cost merchant must not receive a variable budget suggestion');
-assert.match(html,/<div class="suggestion-card"><div><strong>Tabak Shop</strong>/);
-assert.match(html,/data-amount="150"/,'450 CHF over three full months should suggest 150 CHF without hidden 10% buffer');
-assert.doesNotMatch(html,/Wiederkehrende Händlerausgaben der letzten 90 Tage/);
+assert.equal(html.includes('Variable Budgetvorschläge'),true);
+assert.equal(
+  html.includes('<div class="suggestion-card"><div><strong>Group Mutuel</strong>'),
+  false,
+  'known fixed-cost merchant must not receive a variable budget suggestion',
+);
+assert.equal(
+  html.includes('<div class="suggestion-card"><div><strong>Tabak Shop</strong>'),
+  true,
+  'variable merchant should receive a budget suggestion',
+);
+assert.equal(
+  html.includes('data-amount="150"'),
+  true,
+  '450 CHF over three full months should suggest 150 CHF without hidden 10% buffer',
+);
+assert.equal(html.includes('Wiederkehrende Händlerausgaben der letzten 90 Tage'),false);
+
 console.log('Variable budget suggestion assertions OK');
