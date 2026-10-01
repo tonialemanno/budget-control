@@ -1091,14 +1091,42 @@ async function handleForm(form) {
     await refresh(linked?'Vertrag gespeichert und mit Fixkosten verknüpft.':'Vertrag gespeichert. Für Fixkosten bitte Zahlungskonto und nächsten Termin ergänzen.'); return;
   }
   if (id === 'goal-create') {
-    await financeApi.createGoal({ household_id:h, name:formValue(data,'name'), target_amount:numberValue(data,'targetAmount'), current_amount:numberValue(data,'currentAmount'), monthly_amount:numberValue(data,'monthlyAmount'), currency, target_date:nullValue(data,'targetDate'), goal_type:formValue(data,'goalType'), status:'active' });
-    await refresh('Sparziel gespeichert.'); return;
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    const targetAmount=numberValue(data,'targetAmount');
+    const currentAmount=account ? Number(account.current_balance||0) : numberValue(data,'currentAmount');
+    await financeApi.createGoal({
+      household_id:h,
+      account_id:account?.account_id||null,
+      name:formValue(data,'name'),
+      target_amount:targetAmount,
+      current_amount:currentAmount,
+      monthly_amount:numberValue(data,'monthlyAmount'),
+      currency:account?.currency||currency,
+      target_date:nullValue(data,'targetDate'),
+      goal_type:formValue(data,'goalType'),
+      status:currentAmount>=targetAmount?'completed':'active'
+    });
+    await refresh(account?'Sparziel gespeichert und mit Topf verknüpft.':'Sparziel gespeichert.'); return;
   }
   if (id === 'goal-edit') {
     const goalId=formValue(data,'goalId');
-    const targetAmount=numberValue(data,'targetAmount'); const currentAmount=numberValue(data,'currentAmount');
-    await financeApi.updateGoal(goalId,{ name:formValue(data,'name'), goal_type:formValue(data,'goalType'), target_amount:targetAmount, current_amount:currentAmount, monthly_amount:numberValue(data,'monthlyAmount'), target_date:nullValue(data,'targetDate'), status:currentAmount>=targetAmount?'completed':'active' });
-    await refresh('Sparziel aktualisiert.'); return;
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    const targetAmount=numberValue(data,'targetAmount');
+    const currentAmount=account ? Number(account.current_balance||0) : numberValue(data,'currentAmount');
+    await financeApi.updateGoal(goalId,{
+      account_id:account?.account_id||null,
+      name:formValue(data,'name'),
+      goal_type:formValue(data,'goalType'),
+      target_amount:targetAmount,
+      current_amount:currentAmount,
+      monthly_amount:numberValue(data,'monthlyAmount'),
+      currency:account?.currency||currency,
+      target_date:nullValue(data,'targetDate'),
+      status:currentAmount>=targetAmount?'completed':'active'
+    });
+    await refresh(account?'Sparziel und Topf-Verknüpfung aktualisiert.':'Sparziel aktualisiert.'); return;
   }
   if (id === 'goal-source-create') {
     const goalId=formValue(data,'goalId'); const sourceType=formValue(data,'sourceType');
@@ -1497,7 +1525,18 @@ async function handleAction(target) {
   }
   if (action === 'goal-edit') {
     const g=runtime.goals.find((row)=>row.id===target.dataset.id); if(!g) throw new Error('Sparziel wurde nicht gefunden.');
-    document.querySelector('#goalEditId').value=g.id; document.querySelector('#goalEditName').value=g.name||''; document.querySelector('#goalEditType').value=g.goal_type||'custom'; document.querySelector('#goalEditTarget').value=g.target_amount||0; document.querySelector('#goalEditCurrent').value=g.current_amount||0; document.querySelector('#goalEditMonthly').value=g.monthly_amount||0; document.querySelector('#goalEditDate').value=g.target_date||'';
+    const account=runtime.accounts.find((row)=>row.account_id===g.account_id);
+    document.querySelector('#goalEditId').value=g.id;
+    document.querySelector('#goalEditName').value=g.name||'';
+    document.querySelector('#goalEditType').value=g.goal_type||'custom';
+    document.querySelector('#goalEditAccount').value=g.account_id||'';
+    document.querySelector('#goalEditTarget').value=g.target_amount||0;
+    const current=document.querySelector('#goalEditCurrent');
+    if(current){ current.value=account?Number(account.current_balance||0):Number(g.current_amount||0); current.disabled=Boolean(account); }
+    const help=document.querySelector('#goalEditCurrentHelp');
+    if(help) help.textContent=account?`Automatisch aus ${account.name}; hier nicht manuell änderbar.`:'Nur für Ziele ohne verknüpftes Konto.';
+    document.querySelector('#goalEditMonthly').value=g.monthly_amount||0;
+    document.querySelector('#goalEditDate').value=g.target_date||'';
     const form=document.querySelector('#goal-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'goal-source-open') {
@@ -1572,9 +1611,12 @@ async function handleAction(target) {
     await refresh('Rechnungszahlung zurückgenommen.'); return;
   }
   if (action === 'goal-progress') {
+    const goal=runtime.goals.find((g)=>g.id===target.dataset.id);
+    if(!goal) throw new Error('Sparziel wurde nicht gefunden.');
+    if(goal.account_id) throw new Error('Dieses Sparziel ist mit einem Konto verknüpft. Der aktuelle Stand kommt automatisch vom Kontostand.');
     const value=prompt('Aktueller Stand des Sparziels:',target.dataset.current||'0'); if (value===null) return;
     const n=Number(value); if (!Number.isFinite(n)||n<0) throw new Error('Ungültiger Betrag.');
-    const goal=runtime.goals.find((g)=>g.id===target.dataset.id); await financeApi.updateGoal(target.dataset.id,{current_amount:n,status:goal&&n>=Number(goal.target_amount)?'completed':'active'}); await refresh('Sparziel aktualisiert.'); return;
+    await financeApi.updateGoal(target.dataset.id,{current_amount:n,status:n>=Number(goal.target_amount)?'completed':'active'}); await refresh('Sparziel aktualisiert.'); return;
   }
   if (action === 'receivable-payment-open') {
     const receivable=runtime.receivables.find((row)=>row.id===target.dataset.id);
@@ -1764,6 +1806,18 @@ pageContent.addEventListener('change', async (event) => {
         const interest=document.querySelector('#debtPaymentInterest'); if(interest) interest.value='0';
         const fee=document.querySelector('#debtPaymentFee'); if(fee) fee.value='0';
       }
+      return;
+    }
+    if (target.id === 'goalCreateAccount' || target.id === 'goalEditAccount') {
+      const edit=target.id==='goalEditAccount';
+      const account=runtime.accounts.find((row)=>row.account_id===target.value);
+      const current=document.querySelector(edit?'#goalEditCurrent':'#goalCreateCurrent');
+      const help=document.querySelector(edit?'#goalEditCurrentHelp':'#goalCreateCurrentHelp');
+      if(current){
+        current.disabled=Boolean(account);
+        if(account) current.value=Number(account.current_balance||0);
+      }
+      if(help) help.textContent=account?`Automatisch aus ${account.name}; hier nicht manuell änderbar.`:'Nur für Ziele ohne verknüpftes Konto.';
       return;
     }
     if (target.id === 'goalSourceType') {
