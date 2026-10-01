@@ -34,7 +34,12 @@ export function renderSettings({
           <div class="inline-alert settings-core-note"><strong>Finance Core bleibt sichtbar.</strong><span>Konten, Transaktionen und die technischen Grundfunktionen können nicht deaktiviert werden.</span></div>
         </article>
 
-        <article class="card card-padding settings-link-card"><div><span class="list-row-leading">${icon('layout-grid')}</span><div><h3 class="card-title">Kategorien & Regeln</h3><p class="card-subtitle">Kategorien, Unterkategorien und automatische Kategorisierungsregeln verwalten.</p></div></div><a class="action-button action-button--secondary" href="#/categories">Öffnen</a></article>
+        <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Stammdaten</h3><p class="card-subtitle">Zentrale Daten, die Import, Fixkosten und automatische Zuordnung steuern.</p></div></div>
+          <div class="stack">
+            <div class="settings-link-card"><div><span class="list-row-leading">${icon('list')}</span><div><h3 class="card-title">Händler</h3><p class="card-subtitle">Händler, Standardkategorien und Verwendung verwalten.</p></div></div><a class="action-button action-button--secondary" href="#/merchants">Öffnen</a></div>
+            <div class="settings-link-card"><div><span class="list-row-leading">${icon('layout-grid')}</span><div><h3 class="card-title">Kategorien & Regeln</h3><p class="card-subtitle">Kategorien, Unterkategorien und automatische Kategorisierungsregeln verwalten.</p></div></div><a class="action-button action-button--secondary" href="#/categories">Öffnen</a></div>
+          </div>
+        </article>
 
         <form class="card card-padding" id="password-change" data-form="password-change"><div class="card-heading"><div><h3 class="card-title">Passwort ändern</h3><p class="card-subtitle">Mindestens 8 Zeichen</p></div><span class="list-row-leading">${icon('shield')}</span></div><div class="form-grid"><label class="field"><span>Neues Passwort</span><input class="text-control" name="password" type="password" minlength="8" required autocomplete="new-password"></label><label class="field"><span>Wiederholen</span><input class="text-control" name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password"></label></div><div class="form-actions"><button class="action-button action-button--primary" type="submit">Passwort speichern</button></div></form>
       </div>
