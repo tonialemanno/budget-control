@@ -18,6 +18,7 @@ import { renderCategories } from './views/categories.js';
 import { renderImports } from './views/imports.js';
 import { renderImportHistory } from './views/import-history.js';
 import { renderRecurring } from './views/recurring.js';
+import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
@@ -45,6 +46,7 @@ const views = {
   imports: renderImports,
   'import-history': renderImportHistory,
   recurring: renderRecurring,
+  'fixed-costs': renderFixedCosts,
   documents: renderDocuments,
   budget: renderBudget,
   bills: renderBills,
@@ -821,6 +823,43 @@ async function handleForm(form) {
     await financeApi.createRecurringRule({ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), direction:formValue(data,'direction'), description:formValue(data,'description'), amount:Math.abs(numberValue(data,'amount')), currency:account?.currency||currency, cadence:formValue(data,'cadence'), next_date:formValue(data,'nextDate'), active:true });
     await refresh('Wiederkehrende Zahlung gespeichert.'); return;
   }
+  if (id === 'fixed-cost-create') {
+    const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
+    if (!account) throw new Error('Bitte ein Konto auswählen.');
+    await financeApi.createRecurringRule({
+      household_id:h,
+      account_id:account.account_id,
+      category_id:nullValue(data,'categoryId'),
+      direction:'expense',
+      description:formValue(data,'description'),
+      amount:Math.abs(numberValue(data,'amount')),
+      currency:account.currency||currency,
+      cadence:formValue(data,'cadence'),
+      next_date:formValue(data,'nextDate'),
+      end_date:nullValue(data,'endDate'),
+      active:true,
+    });
+    await refresh('Fixkosten gespeichert.'); return;
+  }
+  if (id === 'fixed-cost-edit') {
+    const ruleId=formValue(data,'ruleId');
+    const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
+    if (!ruleId) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
+    if (!account) throw new Error('Bitte ein Konto auswählen.');
+    await financeApi.updateRecurringRule(ruleId,{
+      account_id:account.account_id,
+      category_id:nullValue(data,'categoryId'),
+      direction:'expense',
+      description:formValue(data,'description'),
+      amount:Math.abs(numberValue(data,'amount')),
+      currency:account.currency||currency,
+      cadence:formValue(data,'cadence'),
+      next_date:formValue(data,'nextDate'),
+      end_date:nullValue(data,'endDate'),
+      active:formValue(data,'active')==='true',
+    });
+    await refresh('Fixkosten aktualisiert.'); return;
+  }
   if (id === 'budget-create') {
     const scopeType=formValue(data,'scopeType')||'category';
     const categoryId=scopeType==='category'?formValue(data,'categoryId'):null;
@@ -1363,6 +1402,23 @@ async function handleAction(target) {
     await financeApi.reverseReceivablePayment(payment.id);
     uiState.receivableExpandedId=payment.receivable_id;
     await refresh('Rückzahlung storniert; Forderung wiederhergestellt.');
+    return;
+  }
+  if (action === 'fixed-cost-edit') {
+    const rule=runtime.recurringRules.find((row)=>row.id===target.dataset.id);
+    if(!rule) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
+    document.querySelector('#fixedCostEditId').value=rule.id;
+    document.querySelector('#fixedCostEditDescription').value=rule.description||'';
+    document.querySelector('#fixedCostEditAmount').value=rule.amount||0;
+    document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
+    document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
+    document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#fixedCostEditNextDate').value=rule.next_date||'';
+    document.querySelector('#fixedCostEditEndDate').value=rule.end_date||'';
+    document.querySelector('#fixedCostEditActive').value=rule.active?'true':'false';
+    const form=document.querySelector('#fixed-cost-edit');
+    form?.removeAttribute('hidden');
+    form?.scrollIntoView({behavior:'smooth',block:'start'});
     return;
   }
   if (action === 'debt-edit') {
