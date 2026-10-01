@@ -266,6 +266,22 @@ function closeProfileMenu() {
 let presenceTimer = null;
 let adminPresenceTimer = null;
 
+function applyReleaseChannelUI() {
+  const channel=APP_CONFIG.releaseChannel||'stable';
+  const label=channel==='beta'?'Beta':channel==='local'?'Local':'Stable';
+  const pill=document.querySelector('#releaseVersionPill');
+  const heading=document.querySelector('#releaseChannelLabel');
+  const caption=document.querySelector('#releaseChannelCaption');
+  if(pill) pill.textContent=`V2.3 · ${label.toUpperCase()}`;
+  if(heading) heading.textContent=`${label} 2.3`;
+  if(caption) caption.textContent=channel==='beta'
+    ? 'Teststand · kann sich ändern'
+    : channel==='local'
+      ? 'Lokale Entwicklungsumgebung'
+      : 'Freigegebener Stand · Supabase';
+  document.documentElement.dataset.releaseChannel=channel;
+}
+
 function currentDeviceLabel() {
   const ua=navigator.userAgent||'';
   if (/iPhone/i.test(ua)) return 'iPhone';
@@ -280,7 +296,7 @@ async function pulsePresence() {
   if (!runtime.user || document.visibilityState === 'hidden') return;
   await financeApi.touchPresence({
     route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
-    appVersion:APP_CONFIG.version,
+    appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}`,
     deviceLabel:currentDeviceLabel(),
   }).catch(()=>null);
 }
@@ -2297,6 +2313,7 @@ document.addEventListener('click',(event)=>{ if (!event.target.closest('#profile
 document.addEventListener('click',async(event)=>{ const target=event.target.closest('#profilePopover [data-action]'); if (!target) return; try { await handleAction(target); } catch (error) { showToast(humanError(error),'error'); } });
 
 hydrateStaticIcons();
+applyReleaseChannelUI();
 setTheme(store.getState().theme);
 document.documentElement.dataset.depth=store.getState().depth;
 applyPrivacyUI();
