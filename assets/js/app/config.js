@@ -1,6 +1,15 @@
+function releaseChannel() {
+  if (typeof location === 'undefined') return 'stable';
+  const host = String(location.hostname || '').toLowerCase();
+  if (host.startsWith('beta.')) return 'beta';
+  if (host === 'localhost' || host === '127.0.0.1') return 'local';
+  return 'stable';
+}
+
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
   version: '2.3.0',
+  releaseChannel: releaseChannel(),
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
   defaultLocale: 'de-CH',
