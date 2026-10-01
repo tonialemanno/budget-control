@@ -71,6 +71,12 @@ Deno.serve(async (req: Request) => {
 
     if (accessError) return json({ error: accessError.message }, 400, origin);
 
+    const { data: presenceRows, error: presenceError } = userIds.length
+      ? await admin.from("profiles").select("user_id,last_seen_at").in("user_id", userIds)
+      : { data: [], error: null };
+    if (presenceError) return json({ error: presenceError.message }, 400, origin);
+    const presenceByUser = new Map((presenceRows || []).map((row) => [row.user_id, row.last_seen_at]));
+
     const modulesByUser = new Map<string, Record<string, boolean>>();
     for (const row of accessRows || []) {
       const current = modulesByUser.get(row.user_id) || {};
@@ -85,6 +91,7 @@ Deno.serve(async (req: Request) => {
         display_name: user.user_metadata?.display_name || "",
         created_at: user.created_at,
         last_sign_in_at: user.last_sign_in_at,
+        last_seen_at: presenceByUser.get(user.id) || null,
         confirmed_at: user.email_confirmed_at,
         modules: modulesByUser.get(user.id) || {},
       })),
