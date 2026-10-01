@@ -1,0 +1,11 @@
+import {parseCsv,parseAmount,parseDate,rowToTransaction,transactionFingerprint} from '../assets/js/app/csv-import.js';
+import assert from 'node:assert/strict';
+assert.equal(parseAmount("CHF 1'234.50"),1234.5);
+assert.equal(parseAmount('1.234,50'),1234.5);
+assert.equal(parseAmount('-61,43'),-61.43);
+assert.ok(parseDate('29.09.2026'));
+let p=parseCsv('Datum;Beschreibung;Betrag\n29.09.2026;"A;B";-10,50');
+assert.equal(p.rows[0].Beschreibung,'A;B');
+let multi=parseCsv('Datum;Beschreibung;Betrag\n29.09.2026;"Zeile 1\nZeile 2";-10,50');
+console.log('multiline parsed rows=',multi.rows.length, JSON.stringify(multi.rows));
+console.log('CSV basic assertions OK');

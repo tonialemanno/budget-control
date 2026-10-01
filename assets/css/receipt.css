@@ -1,0 +1,50 @@
+/* Finance Beta 5.2 – receipt camera and OCR review */
+.receipt-review-grid {
+  display: grid;
+  grid-template-columns: minmax(220px,.72fr) minmax(0,1.28fr);
+  gap: 20px;
+  align-items: start;
+}
+.receipt-preview-card { display: grid; gap: 12px; position: sticky; top: 88px; }
+.receipt-preview { width: 100%; max-height: 520px; object-fit: contain; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-3); }
+.receipt-ocr-status { display: grid; gap: 4px; padding: 12px 13px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+.receipt-ocr-status strong { font-size: 13px; }
+.receipt-ocr-status > span { color: var(--text-3); font-size: 11px; line-height: 1.35; }
+.receipt-progress { height: 5px; overflow: hidden; border-radius: 999px; background: var(--surface-3); }
+.receipt-progress > span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width .18s var(--ease); }
+.receipt-match-alert { margin: 0; }
+.receipt-ocr-details { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); }
+.receipt-ocr-details summary { cursor: pointer; color: var(--text-2); font-size: 12px; font-weight: 650; }
+.receipt-ocr-text { max-height: 220px; overflow: auto; margin: 10px 0 0; white-space: pre-wrap; color: var(--text-3); font: 11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; }
+
+@media (max-width: 660px) {
+  .receipt-review-grid { grid-template-columns: 1fr; gap: 14px; }
+  .receipt-preview-card {
+    position: sticky;
+    top: calc(56px + env(safe-area-inset-top));
+    z-index: 8;
+    gap: 8px;
+    margin: 0 -4px 12px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: color-mix(in srgb,var(--surface) 95%,transparent);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .receipt-preview { max-height: 28vh; min-height: 130px; border-radius: 14px; }
+  .receipt-ocr-status { padding: 8px 10px; }
+  body:has(.receipt-review input:focus, .receipt-review textarea:focus, .receipt-review select:focus) .receipt-preview { max-height: 18vh; min-height: 96px; }
+  .receipt-fields { grid-template-columns: 1fr; }
+  .receipt-review .form-actions {
+    position: sticky;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    z-index: 5;
+    margin-inline: -4px;
+    padding: 8px 4px;
+    background: color-mix(in srgb,var(--surface) 94%,transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+}

@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+runtime-config.local.js
+local-data.sql
+*.backup
+*.zip
