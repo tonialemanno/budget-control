@@ -21,7 +21,7 @@ assert.doesNotMatch(bills,/\\`/,'bills view must not contain escaped template de
 assert.doesNotMatch(bills,/\\\$\{/,'bills view must not contain escaped template interpolation');
 assert.doesNotMatch(main,/const\s+_v\d+\w*\s*=|renderAll\s*=\s*function/,'stable must not reintroduce patch-wrapper chains');
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'),/new MutationObserver\(syncVersionLabel\)/);
-assert.match(settings,/Region & Format/);
+assert.match(settings,/Sprache & Region/);
 assert.match(read('assets/js/views/budget.js'),/Davon verbraucht/);
 assert.match(read('assets/js/views/budget.js'),/Ausserhalb Budget/);
 assert.match(read('assets/js/app/recurrence.js'),/effectiveNextDate/);
