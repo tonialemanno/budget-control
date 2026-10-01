@@ -164,17 +164,27 @@ export function merchantFromTransaction(tx) {
   const raw = String(tx?.counterparty || tx?.description || '').trim();
   const known = knownMerchantSuggestion(tx);
   if (known) return { name: known.name, key: known.key, sourceField: tx?.counterparty ? 'counterparty' : 'description', known: true };
-  let name = raw
+
+  const parts = raw.split(';').map((part)=>part.trim()).filter(Boolean);
+  let merchantRaw = parts[0] || raw;
+  if (
+    parts.length > 1
+    && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|bezug)\b/i.test(merchantRaw)
+  ) {
+    merchantRaw = parts[1] || merchantRaw;
+  }
+
+  let name = merchantRaw
     .replace(/^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce)\s*[:\-–]?\s*/i, '')
     .replace(/\b(?:terminal|term|beleg|referenz|reference|ref|transaktion|transaction|auth|karte|card)\s*[:#]?\s*[A-Z0-9*\-]{5,}\b/gi, ' ')
     .replace(/\b\d{8,}\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  if (!name) name = raw || 'Unbekannter Händler';
+  if (!name) name = merchantRaw || raw || 'Unbekannter Händler';
   if (name.length > 80) name = name.slice(0, 80).trim();
   return {
     name,
-    key: normalizeMerchantKey(name) || normalizeMerchantKey(raw) || 'unbekannt',
+    key: normalizeMerchantKey(name) || normalizeMerchantKey(merchantRaw) || normalizeMerchantKey(raw) || 'unbekannt',
     sourceField: tx?.counterparty ? 'counterparty' : 'description',
   };
 }
