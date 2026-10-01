@@ -103,7 +103,6 @@ const runtime = {
   pensions: [],
   documents: [],
   fxRates: null,
-  geoContext: null,
 };
 
 const importState = { file: null, parsed: null };
@@ -307,7 +306,6 @@ async function logoutCurrentUser() {
   stopLiveTimers();
   closeProfileMenu();
   closeMobileNav();
-  await financeApi.clearPresence().catch(()=>{});
   await backend.signOut();
   runtime.session = null;
   runtime.user = null;
@@ -383,7 +381,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.5</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -436,15 +434,14 @@ async function loadFinanceData() {
   ] = results.map((value) => value || (value === null ? null : []));
 }
 async function loadContext() {
-  const [profile, adminRole, moduleAccess, productModules, households, geoContext] = await Promise.all([
+  const [profile, adminRole, moduleAccess, productModules, households] = await Promise.all([
     financeApi.getProfile(runtime.user.id), financeApi.getAdminRole(runtime.user.id), financeApi.listUserModules(runtime.user.id),
-    financeApi.listProductModules(), financeApi.listHouseholds(), backend.geoContext().catch(()=>null),
+    financeApi.listProductModules(), financeApi.listHouseholds(),
   ]);
   runtime.profile = profile;
   runtime.adminRole = adminRole;
   runtime.moduleAccess = moduleAccess || {};
   runtime.productModules = productModules || [];
-  runtime.geoContext = geoContext || null;
   runtime.household = households?.[0] || null;
   runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers())?.users || [] : [];
   if (runtime.household) {
