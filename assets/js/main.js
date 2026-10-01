@@ -24,6 +24,7 @@ import { renderBills } from './views/bills.js';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
+import { renderReceivables } from './views/receivables.js';
 import { renderLegal } from './views/legal.js';
 import { renderFamily } from './views/family.js';
 import { renderWealth } from './views/wealth.js';
@@ -50,6 +51,7 @@ const views = {
   goals: renderGoals,
   'tax-advisor': renderTaxAdvisor,
   debts: renderDebts,
+  receivables: renderReceivables,
   legal: renderLegal,
   family: renderFamily,
   wealth: renderWealth,
@@ -88,6 +90,8 @@ const runtime = {
   goalSources: [],
   debts: [],
   debtPayments: [],
+  receivables: [],
+  receivablePayments: [],
   legalCases: [],
   legalEvents: [],
   assets: [],
@@ -99,10 +103,11 @@ const runtime = {
   pensions: [],
   documents: [],
   fxRates: null,
+  geoContext: null,
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -372,28 +377,30 @@ async function loadFinanceData() {
   const results = await Promise.all([
     financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
     financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
-    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
+    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listReceivables(h).catch(()=>[]), financeApi.listReceivablePayments(h).catch(()=>[]), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
-    runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
+    runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
   ] = results.map((value) => value || (value === null ? null : []));
 }
 async function loadContext() {
-  const [profile, adminRole, moduleAccess, productModules, households] = await Promise.all([
+  const [profile, adminRole, moduleAccess, productModules, households, geoContext] = await Promise.all([
     financeApi.getProfile(runtime.user.id), financeApi.getAdminRole(runtime.user.id), financeApi.listUserModules(runtime.user.id),
-    financeApi.listProductModules(), financeApi.listHouseholds(),
+    financeApi.listProductModules(), financeApi.listHouseholds(), backend.geoContext().catch(()=>null),
   ]);
   runtime.profile = profile;
   runtime.adminRole = adminRole;
   runtime.moduleAccess = moduleAccess || {};
   runtime.productModules = productModules || [];
+  runtime.geoContext = geoContext || null;
   runtime.household = households?.[0] || null;
+  financeApi.touchPresence(runtime.user.id).catch(()=>{});
   runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers())?.users || [] : [];
   if (runtime.household) {
     await loadFinanceData();
@@ -462,6 +469,7 @@ function render() {
     categorizationFilter: uiState.categorizationFilter,
     categorizationPage: uiState.categorizationPage,
     debtExpandedId: uiState.debtExpandedId,
+    receivableExpandedId: uiState.receivableExpandedId,
     taxYear: uiState.taxYear,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -868,6 +876,31 @@ async function handleForm(form) {
     await refresh('Zahlung verbucht und Restschuld aktualisiert.');
     return;
   }
+  if (id === 'receivable-create') {
+    const originalAmount=numberValue(data,'originalAmount');
+    const outstandingAmount=numberValue(data,'outstandingAmount');
+    if(!(originalAmount>0)) throw new Error('Der ursprüngliche Betrag muss grösser als 0 sein.');
+    if(outstandingAmount<0 || outstandingAmount>originalAmount) throw new Error('Der offene Betrag muss zwischen 0 und dem ursprünglichen Betrag liegen.');
+    const requestedStatus=formValue(data,'status')||'open';
+    await financeApi.createReceivable({
+      household_id:h, debtor_name:formValue(data,'debtorName'), reason:formValue(data,'reason'),
+      original_amount:originalAmount, outstanding_amount:outstandingAmount,
+      currency:formValue(data,'currency')||runtime.geoContext?.currency||currency,
+      installment_amount:numberValue(data,'installmentAmount'), due_date:nullValue(data,'dueDate'),
+      status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
+    });
+    await refresh('Forderung gespeichert.'); return;
+  }
+  if (id === 'receivable-payment-create') {
+    const receivableId=formValue(data,'receivableId');
+    const receivable=runtime.receivables.find((row)=>row.id===receivableId);
+    if(!receivable) throw new Error('Forderung wurde nicht gefunden.');
+    const amount=numberValue(data,'amount',-1);
+    if(!(amount>0) || amount>Number(receivable.outstanding_amount)) throw new Error('Bitte eine gültige Rückzahlung eingeben.');
+    await financeApi.recordReceivablePayment({ householdId:h, receivableId, paidAt:formValue(data,'paidAt'), amount, note:nullValue(data,'note') });
+    uiState.receivableExpandedId=receivableId;
+    await refresh('Rückzahlung erfasst und Forderung aktualisiert.'); return;
+  }
   if (id === 'legal-create') {
     await financeApi.createLegalCase({ household_id:h, country_code:runtime.household.country_code, case_type:formValue(data,'caseType'), creditor:formValue(data,'creditor'), reference:nullValue(data,'reference'), original_amount:numberValue(data,'originalAmount'), outstanding_amount:numberValue(data,'outstandingAmount'), currency, status:formValue(data,'status'), next_action_date:nullValue(data,'nextActionDate'), notes:nullValue(data,'notes') });
     await refresh('Fall gespeichert.'); return;
@@ -993,13 +1026,13 @@ async function handleForm(form) {
 }
 
 const deleteMap = {
-  categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
+  categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable(id), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'starter-categories') {
@@ -1317,6 +1350,23 @@ async function handleAction(target) {
     await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
     await refresh('Verknüpfung zu Wiederkehrend gelöst.'); return;
   }
+  if (action === 'receivable-payment-open') {
+    const receivable=runtime.receivables.find((row)=>row.id===target.dataset.id); if(!receivable) throw new Error('Forderung wurde nicht gefunden.');
+    const suggested=Math.min(Number(receivable.installment_amount||0)||Number(receivable.outstanding_amount||0),Number(receivable.outstanding_amount||0));
+    document.querySelector('#receivablePaymentId').value=receivable.id;
+    document.querySelector('#receivablePaymentDate').value=dateInputValue();
+    document.querySelector('#receivablePaymentAmount').value=suggested>0?suggested.toFixed(2):'';
+    const form=document.querySelector('#receivable-payment-create'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+  }
+  if (action === 'receivable-history') { uiState.receivableExpandedId=target.dataset.id; render(); return; }
+  if (action === 'receivable-history-close') { uiState.receivableExpandedId=null; render(); return; }
+  if (action === 'receivable-payment-reverse') {
+    if(!confirm('Die zuletzt erfasste Rückzahlung wirklich stornieren?')) return;
+    const payment=runtime.receivablePayments.find((row)=>row.id===target.dataset.id); if(!payment) throw new Error('Rückzahlung wurde nicht gefunden.');
+    await financeApi.reverseReceivablePayment(payment.id);
+    uiState.receivableExpandedId=payment.receivable_id;
+    await refresh('Rückzahlung storniert.'); return;
+  }
   if (action === 'legal-event') {
     const caseId=target.dataset.id; const title=prompt('Ereignis / Titel:'); if (!title) return;
     const type=prompt('Typ des Ereignisses:','Notiz')||'Notiz'; const notes=prompt('Notiz (optional):','')||null;
@@ -1483,6 +1533,8 @@ async function enterApp(session) {
 window.addEventListener('hashchange',render);
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
+window.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); });
+setInterval(()=>{ if(document.visibilityState==='visible'&&runtime.user) financeApi.touchPresence(runtime.user.id).catch(()=>{}); },60000);
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
