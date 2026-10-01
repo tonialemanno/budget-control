@@ -428,6 +428,13 @@ textarea.text-control { resize: vertical; min-height: 88px; }
 .suggestion-card strong, .suggestion-card span { display: block; }
 .suggestion-card strong { font-size: 11px; }
 .suggestion-card span { margin-top: 3px; color: var(--text-3); font-size: 10px; }
+.budget-pattern-card { display: block; }
+.budget-pattern-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.budget-pattern-head > div:first-child { min-width: 0; }
+.budget-pattern-head small { display: block; margin-top: 4px; color: var(--text-2); font-size: 9px; line-height: 1.4; }
+.budget-pattern-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.budget-pattern-details .inline-alert { margin-bottom: 10px; }
+.budget-pattern-scroll { max-height: 430px; overflow: auto; overscroll-behavior: contain; }
 
 .goal-bubble {
   display: inline-flex; align-items: center; justify-content: center; min-width: 64px;
@@ -453,6 +460,11 @@ textarea.text-control { resize: vertical; min-height: 88px; }
   .transaction-toolbar .field { min-width: 0; }
   .transaction-summary-grid, .explain-grid { grid-template-columns: 1fr; }
   .suggestion-card { align-items: flex-start; flex-direction: column; }
+  .budget-pattern-card { display: block; }
+  .budget-pattern-head { flex-direction: column; }
+  .budget-pattern-head .row-actions { width: 100%; }
+  .budget-pattern-head .row-actions > * { flex: 1; }
+  .budget-pattern-scroll { max-height: 360px; }
 }
 
 /* V2.3 Beta 2: transaction explorer and goal funding */
