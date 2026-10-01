@@ -23,7 +23,6 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), { status, headers: cors(origin) });
 }
 
-
 async function listAllUsers(admin: any) {
   const users: any[] = [];
   for (let page = 1; page <= 20; page += 1) {
@@ -34,6 +33,7 @@ async function listAllUsers(admin: any) {
   }
   return users;
 }
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
@@ -62,20 +62,20 @@ Deno.serve(async (req: Request) => {
   if (req.method === "GET") {
     let users;
     try { users = await listAllUsers(admin); }
-    catch (error) { return json({ error: error instanceof Error ? error.message : 'Benutzer konnten nicht geladen werden.' }, 400, origin); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "Benutzer konnten nicht geladen werden." }, 400, origin); }
 
     const userIds = users.map((u) => u.id);
-    const { data: accessRows, error: accessError } = userIds.length
-      ? await admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
-      : { data: [], error: null };
+    const [{ data: accessRows, error: accessError }, { data: presenceRows, error: presenceError }] = await Promise.all([
+      userIds.length
+        ? admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+      userIds.length
+        ? admin.from("user_presence").select("user_id,last_seen_at,route,app_version,device_label").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
     if (accessError) return json({ error: accessError.message }, 400, origin);
-
-    const { data: presenceRows, error: presenceError } = userIds.length
-      ? await admin.from("profiles").select("user_id,last_seen_at").in("user_id", userIds)
-      : { data: [], error: null };
     if (presenceError) return json({ error: presenceError.message }, 400, origin);
-    const presenceByUser = new Map((presenceRows || []).map((row) => [row.user_id, row.last_seen_at]));
 
     const modulesByUser = new Map<string, Record<string, boolean>>();
     for (const row of accessRows || []) {
@@ -84,17 +84,24 @@ Deno.serve(async (req: Request) => {
       modulesByUser.set(row.user_id, current);
     }
 
+    const presenceByUser = new Map<string, any>();
+    for (const row of presenceRows || []) presenceByUser.set(row.user_id, row);
+
     return json({
-      users: users.map((user) => ({
-        id: user.id,
-        email: user.email,
-        display_name: user.user_metadata?.display_name || "",
-        created_at: user.created_at,
-        last_sign_in_at: user.last_sign_in_at,
-        last_seen_at: presenceByUser.get(user.id) || null,
-        confirmed_at: user.email_confirmed_at,
-        modules: modulesByUser.get(user.id) || {},
-      })),
+      caller_id: caller.id,
+      users: users.map((user) => {
+        const presence = presenceByUser.get(user.id) || null;
+        return {
+          id: user.id,
+          email: user.email,
+          display_name: user.user_metadata?.display_name || "",
+          created_at: user.created_at,
+          last_sign_in_at: user.last_sign_in_at,
+          confirmed_at: user.email_confirmed_at,
+          modules: modulesByUser.get(user.id) || {},
+          presence,
+        };
+      }),
     }, 200, origin);
   }
 
