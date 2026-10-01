@@ -119,4 +119,4 @@ assert.match(read('assets/js/views/bills.js'), /contract-recurring-remove/);
 assert.match(read('assets/js/views/insurance.js'), /insurance-recurring-remove/);
 assert.match(read('assets/js/views/insurance.js'), /name="status"/);
 assert.match(read('assets/js/main.js'), /status:id==='insurance-edit'/);
-assert.match(read('assets/js/views/settings.js'), /Region & Format/);
+assert.match(read('assets/js/views/settings.js'), /Sprache & Region/);
