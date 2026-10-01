@@ -31,3 +31,5 @@ assert.match(main,/Diese Planung ist verknüpft mit/);
 assert.match(main,/Diese Schuld hat eine Zahlungshistorie/);
 
 console.log('Stable release guard assertions OK');
+
+assert.match(main,/allowed\.add\('merchants'\)/,'settings merchant route must be reachable even when hidden from primary navigation');
