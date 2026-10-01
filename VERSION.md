@@ -1,4 +1,14 @@
-# Version 2.3.0-beta-5.4
+# Version 2.3.0-beta-5.5
+
+## Beta 5.5 – integrierter Standortkontext, Local Dev und Härtung
+
+- Die bereits vorhandene Cloudflare-Ländererkennung wird nun tatsächlich im Frontend verwendet.
+- CH/LI schlagen CHF vor; Euro-Länder wie DE/AT/IT schlagen EUR vor. Es ist nur eine Eingabe-Vorauswahl: Haushalts-Basiswährung und bestehende Konten werden nicht automatisch geändert.
+- Logout entfernt das Presence-Signal sofort; der Admin zeigt dadurch nicht unnötig lange „Online“.
+- Presence läuft über eigene RLS-Policies und SECURITY INVOKER statt unnötiger Rechteeskalation.
+- Zusätzliche Indizes für Forderungs-Fremdschlüssel.
+- Lokaler Betrieb mit Docker + Supabase CLI, Runtime-Konfiguration und dokumentiertem Daten-/Backup-Workflow.
+- GitHub Actions prüft JavaScript-Syntax und Tests und erzeugt ein vollständiges finance-v2.3-beta5.5-full.zip als Artifact.
 
 ## Beta 5.4 – Forderungen, Receipt Intelligence, Währung und Live-Status
 
