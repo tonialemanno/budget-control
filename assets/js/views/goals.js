@@ -59,7 +59,8 @@ function goalPlan(goal,{goalSources,recurringRules,transactions,accounts,baseCur
     }
     if(source.source_type==='recurring_rule'){
       const rule=recurringRules.find((r)=>r.id===source.recurring_rule_id);
-      if(rule){
+      const today=new Date().toISOString().slice(0,10);
+      if(rule && rule.active!==false && (!rule.end_date || String(rule.end_date).slice(0,10)>=today)){
         const normalized=cadenceMonthly(rule.amount,rule.cadence);
         const converted=convertAmount(normalized,rule.currency||baseCurrency,targetCurrency,fxRates)??0;
         components.push({label:source.label||rule.description,amount:converted,type:'recurring_rule',id:source.id});
