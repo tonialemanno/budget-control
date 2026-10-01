@@ -819,18 +819,51 @@ async function handleForm(form) {
     await refresh('Kategorisierungsregel gespeichert.'); return;
   }
   if (id === 'recurring-create') {
-    const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
-    await financeApi.createRecurringRule({ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), direction:formValue(data,'direction'), description:formValue(data,'description'), amount:Math.abs(numberValue(data,'amount')), currency:account?.currency||currency, cadence:formValue(data,'cadence'), next_date:formValue(data,'nextDate'), active:true });
-    await refresh('Wiederkehrende Zahlung gespeichert.'); return;
-  }
-  if (id === 'fixed-cost-create') {
+    const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Bitte ein Konto auswählen.');
+    let destinationAccountId=null;
+    if(direction==='transfer'){
+      const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
+      if(!destination) throw new Error('Bitte ein Zielkonto / einen Topf auswählen.');
+      if(destination.account_id===account.account_id) throw new Error('Quell- und Zielkonto müssen unterschiedlich sein.');
+      if(destination.currency!==account.currency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      destinationAccountId=destination.account_id;
+    }
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
-      category_id:nullValue(data,'categoryId'),
-      direction:'expense',
+      destination_account_id:destinationAccountId,
+      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      direction,
+      description:formValue(data,'description'),
+      amount:Math.abs(numberValue(data,'amount')),
+      currency:account.currency||currency,
+      cadence:formValue(data,'cadence'),
+      next_date:formValue(data,'nextDate'),
+      end_date:nullValue(data,'endDate'),
+      active:true
+    });
+    await refresh(direction==='transfer'?'Wiederkehrende Umbuchung gespeichert.':'Wiederkehrende Zahlung gespeichert.'); return;
+  }
+  if (id === 'fixed-cost-create') {
+    const direction=formValue(data,'direction')||'expense';
+    const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
+    if (!account) throw new Error('Bitte ein Konto auswählen.');
+    let destinationAccountId=null;
+    if(direction==='transfer'){
+      const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
+      if(!destination) throw new Error('Bitte ein Zielkonto / einen Topf auswählen.');
+      if(destination.account_id===account.account_id) throw new Error('Quell- und Zielkonto müssen unterschiedlich sein.');
+      if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      destinationAccountId=destination.account_id;
+    }
+    await financeApi.createRecurringRule({
+      household_id:h,
+      account_id:account.account_id,
+      destination_account_id:destinationAccountId,
+      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
       currency:account.currency||currency,
@@ -839,17 +872,27 @@ async function handleForm(form) {
       end_date:nullValue(data,'endDate'),
       active:true,
     });
-    await refresh('Fixkosten gespeichert.'); return;
+    await refresh(direction==='transfer'?'Fixe Umbuchung gespeichert.':'Fixkosten gespeichert.'); return;
   }
   if (id === 'fixed-cost-edit') {
     const ruleId=formValue(data,'ruleId');
+    const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!ruleId) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
     if (!account) throw new Error('Bitte ein Konto auswählen.');
+    let destinationAccountId=null;
+    if(direction==='transfer'){
+      const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
+      if(!destination) throw new Error('Bitte ein Zielkonto / einen Topf auswählen.');
+      if(destination.account_id===account.account_id) throw new Error('Quell- und Zielkonto müssen unterschiedlich sein.');
+      if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      destinationAccountId=destination.account_id;
+    }
     await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
-      category_id:nullValue(data,'categoryId'),
-      direction:'expense',
+      destination_account_id:destinationAccountId,
+      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
       currency:account.currency||currency,
@@ -858,7 +901,7 @@ async function handleForm(form) {
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true',
     });
-    await refresh('Fixkosten aktualisiert.'); return;
+    await refresh(direction==='transfer'?'Fixe Umbuchung aktualisiert.':'Fixkosten aktualisiert.'); return;
   }
   if (id === 'budget-create') {
     const scopeType=formValue(data,'scopeType')||'category';
@@ -1408,14 +1451,21 @@ async function handleAction(target) {
     const rule=runtime.recurringRules.find((row)=>row.id===target.dataset.id);
     if(!rule) throw new Error('Fixkosten-Eintrag wurde nicht gefunden.');
     document.querySelector('#fixedCostEditId').value=rule.id;
+    document.querySelector('#fixedCostEditDirection').value=rule.direction||'expense';
     document.querySelector('#fixedCostEditDescription').value=rule.description||'';
     document.querySelector('#fixedCostEditAmount').value=rule.amount||0;
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
+    document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#fixedCostEditNextDate').value=rule.next_date||'';
     document.querySelector('#fixedCostEditEndDate').value=rule.end_date||'';
     document.querySelector('#fixedCostEditActive').value=rule.active?'true':'false';
+    const transfer=rule.direction==='transfer';
+    const targetField=document.querySelector('#fixedCostEditTargetField');
+    const categoryField=document.querySelector('#fixedCostEditCategoryField');
+    if(targetField) targetField.hidden=!transfer;
+    if(categoryField) categoryField.hidden=transfer;
     const form=document.querySelector('#fixed-cost-edit');
     form?.removeAttribute('hidden');
     form?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1559,6 +1609,23 @@ pageContent.addEventListener('change', async (event) => {
       if(amount) amount.hidden=type!=='fixed'; if(recurring) recurring.hidden=type!=='recurring_rule'; if(label) label.hidden=type==='surplus'; if(info) info.hidden=type!=='surplus'; return;
     }
     if (target.id === 'taxYearSelect') { uiState.taxYear=Number(target.value)||new Date().getFullYear(); render(); return; }
+    if (target.id === 'recurringDirection') {
+      const transfer=target.value==='transfer';
+      const targetField=document.querySelector('#recurringTargetField');
+      const categoryField=document.querySelector('#recurringCategoryField');
+      if(targetField) targetField.hidden=!transfer;
+      if(categoryField) categoryField.hidden=transfer;
+      return;
+    }
+    if (target.id === 'fixedCostDirection' || target.id === 'fixedCostEditDirection') {
+      const edit=target.id==='fixedCostEditDirection';
+      const transfer=target.value==='transfer';
+      const targetField=document.querySelector(edit?'#fixedCostEditTargetField':'#fixedCostTargetField');
+      const categoryField=document.querySelector(edit?'#fixedCostEditCategoryField':'#fixedCostCategoryField');
+      if(targetField) targetField.hidden=!transfer;
+      if(categoryField) categoryField.hidden=transfer;
+      return;
+    }
     if (target.id === 'budgetScopeType') { const merchant=document.querySelector('#budgetMerchantField'); const category=document.querySelector('#budgetCategoryField'); if(merchant) merchant.hidden=target.value!=='merchant'; if(category) category.hidden=target.value==='merchant'; return; }
     if (target.id === 'taxReceiptInput') {
       const file=target.files?.[0]; const txId=uiState.taxReceiptTxId; if(!file||!txId) return;
