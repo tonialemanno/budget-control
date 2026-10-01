@@ -208,6 +208,7 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bsbb\b|\bcff\b|\bffs\b/i, name:'SBB', key:'sbb', category:'Mobilität' },
   { pattern:/\bvbsg\b|verkehrsbetriebe\s+st\.?\s*gall/i, name:'VBSG / Verkehrsbetriebe', key:'vbsg', category:'Mobilität' },
   { pattern:/parkingpay/i, name:'ParkingPay', key:'parkingpay', category:'Mobilität' },
+  { pattern:/\bwellauer\b/i, name:'Wellauer AG', key:'wellauer ag', category:'Tabak' },
   { pattern:/\bnetflix\b/i, name:'Netflix', key:'netflix', category:'Abos & Verträge' },
   { pattern:/\bsunrise\b|\byallo\b/i, name:'Sunrise / Yallo', key:'sunrise yallo', category:'Abos & Verträge' },
 ]);
