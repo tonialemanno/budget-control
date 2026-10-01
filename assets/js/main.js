@@ -1120,8 +1120,29 @@ async function handleForm(form) {
     await refresh('Budget gespeichert.'); return;
   }
   if (id === 'bill-create') {
-    await financeApi.createBill({ household_id:h, account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    await financeApi.createBill({ household_id:h, account_id:accountId, category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency:account?.currency||currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
+  }
+  if (id === 'bill-edit') {
+    const billId=formValue(data,'billId');
+    const bill=runtime.bills.find((row)=>row.id===billId);
+    if(!bill) throw new Error('Rechnung wurde nicht gefunden.');
+    if(bill.status==='paid') throw new Error('Eine bezahlte Rechnung kann erst nach „Zahlung zurücknehmen“ bearbeitet werden.');
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    await financeApi.updateBill(billId,{
+      account_id:accountId,
+      category_id:nullValue(data,'categoryId'),
+      name:formValue(data,'name'),
+      provider:nullValue(data,'provider'),
+      amount:numberValue(data,'amount'),
+      currency:account?.currency||bill.currency||currency,
+      due_date:formValue(data,'dueDate'),
+      reference:nullValue(data,'reference')
+    });
+    await refresh('Rechnung aktualisiert.'); return;
   }
   if (id === 'bill-payment') {
     const billId=formValue(data,'billId');
@@ -1150,6 +1171,29 @@ async function handleForm(form) {
     });
     const linked=await syncContractRecurring(contract);
     await refresh(linked?'Vertrag gespeichert und mit Fixkosten verknüpft.':'Vertrag gespeichert. Für Fixkosten bitte Zahlungskonto und nächsten Termin ergänzen.'); return;
+  }
+  if (id === 'contract-edit') {
+    const contractId=formValue(data,'contractId');
+    const current=runtime.contracts.find((row)=>row.id===contractId);
+    if(!current) throw new Error('Vertrag wurde nicht gefunden.');
+    const accountId=nullValue(data,'accountId');
+    const account=runtime.accounts.find((row)=>row.account_id===accountId);
+    const contract=await financeApi.updateContract(contractId,{
+      account_id:accountId,
+      category_id:nullValue(data,'categoryId'),
+      name:formValue(data,'name'),
+      provider:nullValue(data,'provider'),
+      contract_type:formValue(data,'contractType'),
+      amount:numberValue(data,'amount'),
+      currency:account?.currency||current.currency||currency,
+      billing_cadence:formValue(data,'cadence'),
+      next_payment_date:nullValue(data,'nextPaymentDate'),
+      cancellation_notice_days:nullValue(data,'noticeDays')?numberValue(data,'noticeDays'):null,
+      end_date:nullValue(data,'endDate'),
+      status:formValue(data,'status')||'active'
+    });
+    await syncContractRecurring(contract);
+    await refresh('Vertrag und verknüpfte Planung aktualisiert.'); return;
   }
   if (id === 'goal-create') {
     const accountId=nullValue(data,'accountId');
