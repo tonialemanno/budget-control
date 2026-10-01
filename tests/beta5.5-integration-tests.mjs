@@ -63,3 +63,11 @@ assert.match(read('assets/js/views/overview.js'), /moneyText\(snapshot\.plannedF
 assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.plannedFutureExpensesMonth/);
 assert.match(read('assets/js/views/transactions.js'), /Ø Ausgaben \/ Monat/);
 assert.match(read('assets/js/views/transactions.js'), /monthlyAverage/);
+
+assert.match(read('assets/js/views/budget.js'), /Ausgabenmuster & Budgetvorschläge/);
+assert.match(read('assets/js/views/budget.js'), /budget-suggestion-toggle/);
+assert.match(read('assets/js/views/budget.js'), /budget-transaction-edit/);
+assert.match(read('assets/js/main.js'), /budgetExpandedMerchantId/);
+assert.match(read('assets/js/main.js'), /pendingTransactionEditId/);
+assert.match(read('assets/js/views/transactions.js'), /transactionEditMerchant/);
+assert.match(read('assets/js/main.js'), /merchant_id:nullValue\(data,'merchantId'\)/);
