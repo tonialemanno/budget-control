@@ -40,14 +40,14 @@ export function formShell(id, title, subtitle, fields, { hidden = true, submitLa
 }
 
 export function metricCard(label, value, note = '', tone = '') {
-  return `<article class="card metric-card"><div class="metric-label">${escapeHtml(t(label))}</div><div class="metric-value">${value}</div>${note ? `<div class="metric-note ${tone ? `metric-note--${tone}` : ''}">${escapeHtml(note)}</div>` : ''}</article>`;
+  return `<article class="card metric-card"><div class="metric-label">${escapeHtml(t(label))}</div><div class="metric-value">${value}</div>${note ? `<div class="metric-note ${tone ? `metric-note--${tone}` : ''}">${escapeHtml(t(note))}</div>` : ''}</article>`;
 }
 
 function mobileLabelTableRow(row, headers = []) {
   let index = 0;
   return String(row).replace(/<td(\s[^>]*)?>/g, (match, attrs = '') => {
     const label = headers[index++] || '';
-    return `<td${attrs || ''} data-label="${escapeHtml(label)}">`;
+    return `<td${attrs || ''} data-label="${escapeHtml(t(label))}">`;
   });
 }
 
@@ -55,6 +55,26 @@ export function dataTable({ headers, rows, emptyText = 'Noch keine Daten vorhand
   if (!rows?.length) return `<div class="table-empty">${escapeHtml(t(emptyText))}</div>`;
   const labelledRows = rows.map((row) => mobileLabelTableRow(row, headers));
   return `<div class="table-scroll"><table class="data-table"><thead><tr>${headers.map((h) => `<th>${escapeHtml(t(h))}</th>`).join('')}</tr></thead><tbody>${labelledRows.join('')}</tbody></table></div>`;
+}
+
+export function filePicker({ id, name = 'file', accept = '', capture = '', required = false, disabled = false, label = 'Datei auswählen' } = {}) {
+  const safeId = escapeHtml(id || 'file-picker');
+  const attrs = [
+    `id="${safeId}"`,
+    `name="${escapeHtml(name)}"`,
+    'type="file"',
+    'class="file-picker__input"',
+    'data-file-picker',
+    accept ? `accept="${escapeHtml(accept)}"` : '',
+    capture ? `capture="${escapeHtml(capture)}"` : '',
+    required ? 'required' : '',
+    disabled ? 'disabled' : '',
+  ].filter(Boolean).join(' ');
+  return `<span class="file-picker">
+    <input ${attrs}>
+    <label class="file-picker__button" for="${safeId}">${escapeHtml(t(label))}</label>
+    <span class="file-picker__name" data-file-name>${escapeHtml(t('Keine Datei ausgewählt'))}</span>
+  </span>`;
 }
 
 export function statusPill(status, label = '') {
