@@ -42,3 +42,9 @@ assert.match(read('assets/js/views/recurring.js'), /recurring-edit/);
 assert.match(main,/if \(id === 'recurring-edit'\)/);
 assert.match(main,/if \(action === 'recurring-edit'\)/);
 assert.match(read('assets/js/app/finance-model.js'), /if\(!budget\?\.merchant_id\) return false/,'category budgets must not be suppressed merely because a fixed cost uses the same category');
+
+assert.match(read('assets/js/app/config.js'), /releaseChannel/);
+assert.match(index,/releaseVersionPill/);
+assert.match(index,/releaseChannelLabel/);
+assert.match(main,/applyReleaseChannelUI/);
+assert.match(main,/APP_CONFIG\.releaseChannel/);
