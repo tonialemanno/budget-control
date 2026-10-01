@@ -45,3 +45,14 @@ assert.match(read('assets/js/main.js'), /syncInsuranceRecurring/);
 assert.match(read('assets/js/main.js'), /syncRecurringSourceFromRule/);
 assert.match(read('supabase/migrations/20261001_finance_recurring_source_links.sql'), /contracts.*recurring_rule_id/s);
 assert.match(read('supabase/migrations/20261001_finance_recurring_source_links.sql'), /insurance_policies.*recurring_rule_id/s);
+
+assert.match(read('supabase/migrations/20261001_finance_goal_account_links.sql'), /savings_goals/);
+assert.match(read('assets/js/views/goals.js'), /Topf \/ Konto/);
+assert.match(read('assets/js/views/goals.js'), /Automatisch auf/);
+assert.match(read('assets/js/views/goals.js'), /account\.current_balance/);
+assert.match(read('assets/js/main.js'), /goalCreateAccount/);
+assert.match(read('assets/js/main.js'), /account_id:account\?\.account_id/);
+assert.match(read('assets/js/views/settings.js'), /localeSelect/);
+assert.match(read('assets/js/views/admin.js'), /admin-set-locale/);
+assert.match(read('assets/js/app/backend.js'), /adminSetLocale/);
+assert.match(read('supabase/functions/admin-users/index.ts'), /set_locale/);
