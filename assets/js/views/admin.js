@@ -3,6 +3,17 @@ import { dateLabel, escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 
 const PAGE_SIZE = 20;
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+
+function presenceMeta(user) {
+  if (!user.last_seen_at) return { online:false, label:'Nicht online', detail:'keine Aktivität erfasst' };
+  const seen = new Date(user.last_seen_at).getTime();
+  if (!Number.isFinite(seen)) return { online:false, label:'Nicht online', detail:'unbekannt' };
+  const diff = Math.max(0, Date.now() - seen);
+  if (diff <= ONLINE_WINDOW_MS) return { online:true, label:'Online', detail:'gerade aktiv' };
+  if (diff < 60 * 60 * 1000) return { online:false, label:'Offline', detail:`vor ${Math.max(1,Math.round(diff/60000))} Min.` };
+  return { online:false, label:'Offline', detail:dateLabel(user.last_seen_at) };
+}
 
 function matchesUser(user, query) {
   const needle = String(query || '').trim().toLowerCase();
@@ -24,13 +35,14 @@ export function renderAdmin({
 
   const rows = visibleUsers.map((user)=>{
     const expanded = adminExpandedUserId === user.id;
+    const presence = presenceMeta(user);
     return `<article class="card admin-user-row ${expanded ? 'admin-user-row--expanded' : ''}">
       <div class="admin-user-summary">
         <div class="admin-user-identity">
           <span class="profile-avatar">${escapeHtml((user.display_name || user.email || 'B').charAt(0).toUpperCase())}</span>
           <div><strong>${escapeHtml(user.display_name || 'Ohne Anzeigename')}</strong><span>${escapeHtml(user.email || '')}</span></div>
         </div>
-        <div class="admin-user-meta"><span>Letzter Login <strong>${user.last_sign_in_at ? dateLabel(user.last_sign_in_at) : 'noch nie'}</strong></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
+        <div class="admin-user-meta"><span>Letzter Login <strong>${user.last_sign_in_at ? dateLabel(user.last_sign_in_at) : 'noch nie'}</strong></span><span>Aktivität <strong>${escapeHtml(presence.detail)}</strong></span>${statusPill(presence.online?'active':'pending',presence.label)}${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
         <button class="table-action" type="button" data-action="admin-user-toggle-details" data-user-id="${user.id}">${expanded ? 'Schliessen' : 'Details'}</button>
       </div>
       ${expanded ? `<div class="admin-user-details">
