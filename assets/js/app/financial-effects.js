@@ -16,6 +16,7 @@ export function cashOutflowBase(tx, baseCurrency, fxRates) {
 
 export function consumptionExpenseBase(tx, paymentMap, baseCurrency, fxRates) {
   if (!tx || tx.status !== 'booked' || tx.transfer_group_id || Number(tx.amount) >= 0) return 0;
+  if (tx.cashflow_type === 'receivable_principal') return 0;
   if (tx.cashflow_type !== 'debt_payment') return cashOutflowBase(tx, baseCurrency, fxRates);
 
   const payment = paymentMap?.get(tx.id);
