@@ -923,11 +923,31 @@ export function t(source, locale = activeLocale) {
   if (lang === 'de') return text;
   const dict = DICTS[lang];
   if (!dict) return text;
-  if (Object.prototype.hasOwnProperty.call(dict, text)) return dict[text];
-  for (const [pattern, replacement] of PATTERNS[lang] || []) {
-    if (pattern.test(text)) return text.replace(pattern, replacement);
+  const finish = (value) => {
+    if (lang === 'it') return String(value).replace(/\bunbekannt\b/g, 'sconosciuto');
+    if (lang === 'en') return String(value).replace(/\bunbekannt\b/g, 'unknown');
+    return value;
+  };
+  let result = text;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const direct = Object.prototype.hasOwnProperty.call(dict, result) ? dict[result] : null;
+    if (direct !== null && direct !== result) {
+      result = direct;
+      continue;
+    }
+    let changed = false;
+    for (const [pattern, replacement] of PATTERNS[lang] || []) {
+      if (!pattern.test(result)) continue;
+      const next = result.replace(pattern, replacement);
+      if (next !== result) {
+        result = next;
+        changed = true;
+      }
+      break;
+    }
+    if (!changed) break;
   }
-  return text;
+  return finish(result);
 }
 
 function shouldSkipNode(node) {
