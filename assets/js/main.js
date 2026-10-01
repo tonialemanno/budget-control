@@ -3,6 +3,7 @@ import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue } from './app/format.js';
+import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, suggestKnownCategoryName } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
@@ -171,8 +172,9 @@ function applyPrivacyUI() {
   document.documentElement.classList.toggle('privacy-mode', enabled);
   if (privacyButton) {
     privacyButton.innerHTML = icon(enabled ? 'eye' : 'eye-off');
-    privacyButton.setAttribute('aria-label', enabled ? 'Finanzwerte anzeigen' : 'Finanzwerte verbergen');
-    privacyButton.title = enabled ? 'Finanzwerte anzeigen' : 'Finanzwerte verbergen';
+    const privacyLabel=t(enabled ? 'Finanzwerte anzeigen' : 'Finanzwerte verbergen');
+    privacyButton.setAttribute('aria-label', privacyLabel);
+    privacyButton.title = privacyLabel;
     privacyButton.setAttribute('aria-pressed', String(enabled));
   }
 }
@@ -186,7 +188,7 @@ function canAdminHousehold() {
 }
 
 function householdRoleLabel(role) {
-  return ({ owner:'Owner', admin:'Haushalt-Admin', editor:'Editor', viewer:'Nur lesen' })[role] || 'Keine Rolle';
+  return t(({ owner:'Owner', admin:'Haushalt-Admin', editor:'Editor', viewer:'Nur lesen' })[role] || 'Keine Rolle');
 }
 
 function enabledNavItems() {
@@ -200,12 +202,12 @@ function renderNavigation() {
   }, {});
 
   desktopNav.innerHTML = Object.entries(grouped).map(([group, links]) => `
-    <div class="nav-group-label">${escapeHtml(group)}</div>
-    ${links.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`).join('')}
+    <div class="nav-group-label">${escapeHtml(t(group))}</div>
+    ${links.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
   `).join('');
 
   mobileNav.innerHTML = enabledNavItems().filter((item) => item.mobile).slice(0, 5)
-    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.mobileLabel || item.label)}</span></a>`).join('');
+    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.mobileLabel || item.label))}</span></a>`).join('');
 }
 
 function resolveRoute() {
@@ -238,13 +240,16 @@ function syncMobileScrollState() {
 }
 
 function updateProfileUI() {
-  document.documentElement.lang=(runtime.profile?.locale||'de-CH').split('-')[0];
+  setLocale(runtime.profile?.locale || APP_CONFIG.defaultLocale);
   const fallbackName = runtime.user?.email?.split('@')[0] || 'Privat';
   const name = runtime.profile?.display_name || fallbackName;
   profileAvatar.textContent = name.trim().charAt(0).toUpperCase() || 'F';
   profileName.textContent = name;
   profileMeta.textContent = runtime.user?.email || '';
-  profileButton?.setAttribute('aria-label', `Konto und Zugriff – ${runtime.user?.email || name}`);
+  profileButton?.setAttribute('aria-label', `${t('Konto und Zugriff')} – ${runtime.user?.email || name}`);
+  translateElement(document.querySelector('.sidebar-footer'));
+  translateElement(document.querySelector('.topbar'));
+  applyReleaseChannelUI();
 }
 
 function profileMenuHtml() {
@@ -278,10 +283,10 @@ function applyReleaseChannelUI() {
   if(pill) pill.textContent=`V2.3 · ${label.toUpperCase()}`;
   if(heading) heading.textContent=`${label} 2.3`;
   if(caption) caption.textContent=channel==='beta'
-    ? 'Teststand · kann sich ändern'
+    ? t('Teststand · kann sich ändern')
     : channel==='local'
-      ? 'Lokale Entwicklungsumgebung'
-      : 'Freigegebener Stand · Supabase';
+      ? t('Lokale Entwicklungsumgebung')
+      : t('Freigegebener Stand · Supabase');
   document.documentElement.dataset.releaseChannel=channel;
 }
 
@@ -349,6 +354,7 @@ function toggleProfileMenu() {
   popover.id = 'profilePopover';
   popover.className = 'profile-popover';
   popover.innerHTML = profileMenuHtml();
+  translateElement(popover);
   // On iOS the topbar backdrop-filter can become the containing block for a
   // fixed descendant. Mount the phone bottom-sheet outside the topbar so its
   // actions (especially Abmelden) always stay inside the viewport.
@@ -363,7 +369,7 @@ function showToast(message, tone = 'success') {
   document.querySelector('.toast')?.remove();
   const toast = document.createElement('div');
   toast.className = `toast toast--${tone}`;
-  toast.textContent = message;
+  toast.textContent = t(message);
   document.body.appendChild(toast);
   window.setTimeout(() => toast.classList.add('toast--visible'), 20);
   window.setTimeout(() => {
@@ -415,6 +421,7 @@ function showAuth() {
       </form>
     </div>`;
 
+  translateElement(authGate);
   document.querySelector('#authForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -436,7 +443,7 @@ function showAuth() {
 }
 
 function showLoading(title = 'Daten werden geladen …') {
-  pageContent.innerHTML = `<div class="loading-state"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(title)}</strong></div>`;
+  pageContent.innerHTML = `<div class="loading-state"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t(title))}</strong></div>`;
 }
 
 async function loadFinanceData() {
@@ -467,6 +474,7 @@ async function loadContext() {
     financeApi.listProductModules(), financeApi.listHouseholds(),
   ]);
   runtime.profile = profile;
+  setLocale(profile?.locale || APP_CONFIG.defaultLocale);
   runtime.adminRole = adminRole;
   runtime.moduleAccess = moduleAccess || {};
   runtime.productModules = productModules || [];
@@ -483,9 +491,9 @@ async function loadContext() {
 
 function renderSetup() {
   renderNavigation();
-  pageTitle.textContent = 'Einrichtung';
-  pageEyebrow.textContent = 'Finance Core';
-  document.title = 'Einrichtung · Finance';
+  pageTitle.textContent = t('Einrichtung');
+  pageEyebrow.textContent = t('Finance Core');
+  document.title = `${t('Einrichtung')} · Finance`;
   const displayName = runtime.profile?.display_name || '';
   pageContent.innerHTML = `
     <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Finance Core</h2><p class="page-subtitle">Lege Land, Basiswährung und Haushalt fest. Danach stehen dir alle freigeschalteten Module zur Verfügung.</p></header>
@@ -502,6 +510,7 @@ function renderSetup() {
     const currency = document.querySelector('#setupCurrency');
     currency.value = event.target.value === 'DE' ? 'EUR' : 'CHF';
   });
+  translateElement(pageContent);
 }
 
 function render() {
@@ -510,9 +519,9 @@ function render() {
   renderNavigation();
   const route = resolveRoute();
   const meta = PAGE_META[route] || PAGE_META.overview;
-  pageTitle.textContent = meta.title;
-  pageEyebrow.textContent = meta.eyebrow;
-  document.title = `${meta.title} · Finance`;
+  pageTitle.textContent = t(meta.title);
+  pageEyebrow.textContent = t(meta.eyebrow);
+  document.title = `${t(meta.title)} · Finance`;
   const renderer = views[route] || views.overview;
   pageContent.innerHTML = renderer({
     ...runtime,
@@ -546,6 +555,7 @@ function render() {
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
+  translateElement(pageContent);
   closeMobileNav();
   closeProfileMenu();
   applyPrivacyUI();
@@ -2173,9 +2183,10 @@ pageContent.addEventListener('change', async (event) => {
   try {
     if (target.id === 'localeSelect') {
       runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
+      setLocale(target.value);
       updateProfileUI();
       render();
-      showToast('Region & Format gespeichert.');
+      showToast('Sprache & Region gespeichert.');
       return;
     }
     if (target.dataset.action === 'admin-set-locale') {
@@ -2185,9 +2196,11 @@ pageContent.addEventListener('change', async (event) => {
       if(user) user.locale=target.value;
       if(target.dataset.userId===runtime.user?.id){
         runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
+        setLocale(target.value);
         updateProfileUI();
+        render();
       }
-      showToast('Region & Format des Benutzers aktualisiert.');
+      showToast('Sprache & Region des Benutzers aktualisiert.');
       target.disabled=false;
       return;
     }
