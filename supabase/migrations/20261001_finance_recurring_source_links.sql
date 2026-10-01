@@ -17,7 +17,7 @@ create index if not exists insurance_recurring_rule_idx
 update public.contracts c
 set recurring_rule_id = match.id
 from lateral (
-  select min(r.id) as id
+  select max(r.id::text)::uuid as id
   from public.recurring_rules r
   where r.household_id=c.household_id
     and r.account_id=c.account_id
@@ -32,7 +32,7 @@ where c.recurring_rule_id is null
 update public.insurance_policies p
 set recurring_rule_id = match.id
 from lateral (
-  select min(r.id) as id
+  select max(r.id::text)::uuid as id
   from public.recurring_rules r
   where r.household_id=p.household_id
     and r.account_id=p.account_id
