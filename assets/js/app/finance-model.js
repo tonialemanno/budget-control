@@ -22,13 +22,15 @@ function matchesRecurringExpense(tx, rules) {
   return rules.some((rule)=>{
     if(rule.direction!=='expense') return false;
     if(rule.account_id && rule.account_id!==tx.account_id) return false;
+    if(rule.merchant_id && tx.merchant_id && rule.merchant_id!==tx.merchant_id) return false;
     if((rule.currency||tx.currency)!==tx.currency) return false;
     if(Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
     if(rule.next_date && dayDistance(tx.occurred_at,rule.next_date)>3) return false;
     const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
+    const merchantMatch=Boolean(rule.merchant_id && tx.merchant_id && rule.merchant_id===tx.merchant_id);
     const categoryMatch=Boolean(rule.category_id && tx.category_id && rule.category_id===tx.category_id);
     const textMatch=Boolean(ruleText && txText && (txText.includes(ruleText)||ruleText.includes(txText)));
-    return categoryMatch || textMatch;
+    return merchantMatch || categoryMatch || textMatch;
   });
 }
 
