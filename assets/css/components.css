@@ -168,6 +168,10 @@
 .account-balance { margin-top: 28px; font-size: 28px; font-weight: 760; line-height: 1; }
 .account-change { color: var(--text-3); font-size: 11px; margin-top: 8px; }
 .account-change strong { color: var(--positive); }
+.account-projection { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border); }
+.account-projection span, .account-projection small { display: block; color: var(--text-3); font-size: 10px; }
+.account-projection strong { display: block; margin-top: 3px; font-size: 15px; font-weight: 740; color: var(--text); }
+.account-projection small { margin-top: 3px; }
 
 .progress-track { position: relative; height: 8px; border-radius: var(--radius-pill); background: var(--surface-3); overflow: hidden; }
 .progress-fill { height: 100%; width: var(--progress, 0%); border-radius: inherit; background: var(--accent); }
