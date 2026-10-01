@@ -5,3 +5,5 @@ Thumbs.db
 .env.*
 !.env.example
 runtime-config.local.js
+local-data.sql
+*.backup
