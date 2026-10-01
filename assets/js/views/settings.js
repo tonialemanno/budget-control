@@ -19,8 +19,10 @@ export function renderSettings({
   const available = catalog.filter((module)=>!module.is_core && moduleAccess[module.key] !== true);
   const visibleCount = entitled.filter((module)=>!hidden.has(module.key)).length;
   const countryCode=household?.country_code||'CH';
-  const sourceHouseholds=(masterDataHouseholds||[]).filter((row)=>row.id!==household?.id && row.country_code===countryCode);
-  const sourceOptions=sourceHouseholds.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
+  const eligibleHouseholds=(masterDataHouseholds||[]);
+  const sourceHouseholds=eligibleHouseholds.filter((row)=>row.id!==household?.id || Boolean(adminRole));
+  const sourceOptions=sourceHouseholds.map((row)=>`<option value="${row.id}" ${adminRole && row.id===household?.id?'selected':''}>${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
+  const targetOptions=eligibleHouseholds.map((row)=>`<option value="${row.id}" ${row.id===household?.id?'selected':''}>${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
   const standardLabel=`${countryCode}-Standard`;
 
   return `
@@ -46,7 +48,7 @@ export function renderSettings({
 
             <div class="settings-link-card"><div><span class="list-row-leading">${icon('sparkles')}</span><div><h3 class="card-title">${escapeHtml(standardLabel)} installieren / aktualisieren</h3><p class="card-subtitle">${countryMasterCategories.length} Kategorien · ${countryMasterMerchants.length} geprüfte Händler. Fehlende Einträge werden ergänzt; eigene Händler-Kategorien werden nicht überschrieben.</p></div></div>${canWrite?`<button class="action-button action-button--secondary" type="button" data-action="masterdata-install-country">${escapeHtml(standardLabel)} anwenden</button>`:`<span>${statusPill('paused','Nur lesen')}</span>`}</div>
 
-            ${sourceHouseholds.length && canWrite ? `<form class="settings-link-card" id="masterdata-copy" data-form="masterdata-copy"><div><span class="list-row-leading">${icon('arrow-down-left')}</span><div><h3 class="card-title">Stammdaten aus anderem Haushalt übernehmen</h3><p class="card-subtitle">Kopiert nur Kategorien, Händler-Zuordnungen und Kategorisierungsregeln. Keine Buchungen, Konten, Salden, Fixkosten oder Beträge.</p><select class="select-control" name="sourceHouseholdId" required><option value="">Quellhaushalt wählen</option>${sourceOptions}</select></div></div><button class="action-button action-button--secondary" type="submit">Stammdaten übernehmen</button></form>` : ''}
+            ${sourceHouseholds.length && canWrite ? `<form class="settings-link-card" id="masterdata-copy" data-form="masterdata-copy"><div><span class="list-row-leading">${icon('arrow-down-left')}</span><div><h3 class="card-title">Stammdaten aus anderem Haushalt übernehmen</h3><p class="card-subtitle">Kopiert nur Kategorien, Händler-Zuordnungen und Kategorisierungsregeln. Keine Buchungen, Konten, Salden, Fixkosten oder Beträge.</p><label class="field"><span>Quelle</span><select class="select-control" name="sourceHouseholdId" required><option value="">Quellhaushalt wählen</option>${sourceOptions}</select></label>${adminRole?`<label class="field"><span>Ziel</span><select class="select-control" name="targetHouseholdId" required>${targetOptions}</select></label>`:`<input type="hidden" name="targetHouseholdId" value="${household?.id||''}">`}</div></div><button class="action-button action-button--secondary" type="submit">Stammdaten übernehmen</button></form>` : ''}
           </div>
         </article>
 
