@@ -16,7 +16,7 @@ assert.match(migration,/install_country_master_data/);
 assert.match(migration,/copy_household_master_data/);
 assert.match(migration,/promote_merchant_to_country_catalog/);
 assert.match(migration,/Wellauer AG/);
-assert.match(migration,/Keine Buchungen|public\.transactions/,{invert:true});
+assert.doesNotMatch(migration,/public\.transactions/);
 assert.match(api,/installCountryMasterData/);
 assert.match(api,/copyHouseholdMasterData/);
 assert.match(api,/promoteMerchantToCountryCatalog/);
