@@ -1,0 +1,37 @@
+name: Build Beta 5.4 deploy ZIP
+
+on:
+  push:
+    branches:
+      - artifact-build-beta54
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare full deploy package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf deploy
+          mkdir -p deploy
+          cp index.html _headers sw.js VERSION.md README.md UPDATE-INFO.txt deploy/
+          cp -R assets deploy/
+          cp -R functions deploy/
+          cp -R supabase deploy/
+          if [ -d tests ]; then cp -R tests deploy/; fi
+          if [ -d docs ]; then cp -R docs deploy/; fi
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-v2.3-beta5.4-full-deploy
+          path: deploy/
+          if-no-files-found: error
+          retention-days: 1
