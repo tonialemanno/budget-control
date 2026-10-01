@@ -233,6 +233,7 @@ function syncMobileScrollState() {
 }
 
 function updateProfileUI() {
+  document.documentElement.lang=(runtime.profile?.locale||'de-CH').split('-')[0];
   const fallbackName = runtime.user?.email?.split('@')[0] || 'Privat';
   const name = runtime.profile?.display_name || fallbackName;
   profileAvatar.textContent = name.trim().charAt(0).toUpperCase() || 'F';
@@ -1299,7 +1300,7 @@ async function handleForm(form) {
     await backend.updatePassword(p1); form.reset(); showToast('Passwort geändert.'); return;
   }
   if (id === 'admin-user-create') {
-    await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), password:formValue(data,'password') });
+    await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH', password:formValue(data,'password') });
     await refresh('Benutzer erstellt.'); return;
   }
   if (id === 'bank-import') {
@@ -1786,6 +1787,26 @@ pageContent.addEventListener('click', async (event) => {
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
   try {
+    if (target.id === 'localeSelect') {
+      runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
+      updateProfileUI();
+      render();
+      showToast('Sprache & Region gespeichert.');
+      return;
+    }
+    if (target.dataset.action === 'admin-set-locale') {
+      target.disabled=true;
+      await backend.adminSetLocale({userId:target.dataset.userId,locale:target.value});
+      const user=runtime.adminUsers.find((row)=>row.id===target.dataset.userId);
+      if(user) user.locale=target.value;
+      if(target.dataset.userId===runtime.user?.id){
+        runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
+        updateProfileUI();
+      }
+      showToast('Benutzersprache aktualisiert.');
+      target.disabled=false;
+      return;
+    }
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
