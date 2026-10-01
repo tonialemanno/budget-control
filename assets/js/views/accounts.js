@@ -17,10 +17,9 @@ function currencyOptions(selected = 'CHF') {
   return CURRENCIES.map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-export function renderAccounts({ accounts = [], household, profile, canWrite = false, fxRates, geoContext } = {}) {
+export function renderAccounts({ accounts = [], household, profile, canWrite = false, fxRates } = {}) {
   const baseCurrency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
-  const suggestedCurrency = geoContext?.currency || baseCurrency;
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
   const baseLiquid = accounts
     .filter((a) => liquidTypes.has(a.account_type))
@@ -38,7 +37,7 @@ export function renderAccounts({ accounts = [], household, profile, canWrite = f
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. UBS Lohnkonto oder Revolut EUR"></label>
     <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" required>${typeOptions()}</select></label>
     <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" placeholder="z. B. UBS, Revolut"></label>
-    <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" required>${currencyOptions(suggestedCurrency)}</select><small>${geoContext?.currency ? `Vorschlag nach aktuellem Land (${escapeHtml(geoContext.country || '–')}): ${escapeHtml(suggestedCurrency)}. ` : ''}Die Kontowährung bleibt frei wählbar und unabhängig von der Basiswährung des Haushalts.</small></label>
+    <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" required>${currencyOptions(baseCurrency)}</select><small>Die Kontowährung ist unabhängig vom Wohnland und von der Basiswährung des Haushalts.</small></label>
     <label class="field"><span>Kontostand jetzt</span><input class="text-control" name="balance" type="number" step="0.01" required value="0"><small>Negative Salden mit Minus eingeben, z. B. -1250.40.</small></label>
     <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>
     <div class="field form-grid-span"><small>Der eingegebene Betrag ist der verbindliche Stand jetzt. Historische Importe vor diesem Zeitpunkt verändern ihn nicht rückwirkend. Für ein Multiwährungs-Wallet wird pro Währung ein Konto geführt, z. B. Revolut CHF und Revolut EUR.</small></div>`;
