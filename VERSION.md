@@ -1,3 +1,36 @@
+# Finance 2.3.0 Stable
+
+## Stable 2.3.0 – konsolidierter Finanzkern
+
+Dieser Release friert den geprüften Beta-Stand als erste stabile 2.3-Version ein.
+
+### Zentrale Stable-Regeln
+
+- Der aktuelle Kontostand bleibt ein Balance-Anker; historische Imports verändern den heutigen Stand nicht.
+- Zukünftig datierte Transaktionen verändern den heutigen Kontostand nicht und werden als Planung behandelt.
+- Fixkosten, variable Budgets und interne Umbuchungen werden getrennt gerechnet.
+- Interne Umbuchungen verändern weder Konsumausgaben noch Nettovermögen.
+- Regelmässige Zahlungen verwenden einen Terminanker und rollen vergangene Termine anhand ihres Rhythmus auf den nächsten Plantermin weiter.
+- Händler sind zentrale Stammdaten für Import, Kategorien, Fixkosten und Budgetanalyse.
+- Fixkosten können mit einem Händler verknüpft werden; Händler- und Kategorienzuordnung wird für künftige Imports wiederverwendet.
+- Verträge, Versicherungen und Schulden können mit ihrer Planungsregel verknüpft werden; verknüpfte Datensätze werden vor inkonsistentem Löschen geschützt.
+- Rechnungen und Verträge sind korrigierbar. Bezahlte Rechnungen müssen vor einer Änderung zuerst sauber zurückgesetzt werden.
+- Sparziele können an echte Konten/Töpfe gebunden werden; Kontostand und geplante Umbuchungen fliessen in die Prognose ein.
+- Hauptübersicht und Finance Intelligence verwenden dieselbe zentrale Finanzberechnung.
+- Region & Format steuert Datums-, Zahlen- und Regionsformat; die Stable-2.3-Oberfläche ist deutsch.
+
+### Release-Prüfung
+
+- JavaScript-Syntaxcheck für alle Frontend- und Function-Dateien.
+- Automatisierte Finanz-, Import-, OCR-, Mobile-, Render-, Recurrence- und Integrationsprüfungen.
+- Supabase-Referenzprüfung auf verwaiste Konten, Händler, Budgets, Sparziele und Planungsbeziehungen.
+- Cloudflare Pages Deployment-Check.
+
+### Externe / optionale Integrationen
+
+Stable 2.3 bleibt bewusst manual-first. Direkte Bankanbindungen, direkte Bankzahlungen, verbindliche automatische Steuerentscheidungen und nicht konfigurierte Live-Market-Data-Provider gehören nicht zum Stable-Kern.
+
+---
 # Version 2.3.0-beta-5.5
 
 ## Beta 5.5 – integrierter Standortkontext, Local Dev und Härtung
