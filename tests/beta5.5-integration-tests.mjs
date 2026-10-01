@@ -1,3 +1,4 @@
+// Integrated Finance consistency baseline
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
