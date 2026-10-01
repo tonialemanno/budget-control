@@ -9,7 +9,8 @@ function householdRoleLabel(role) {
 
 export function renderSettings({
   theme='auto', depth='standard', moduleAccess={}, productModules=[], profile, household, user, adminRole, householdRole,
-  hiddenModules=[], privacyEnabled=false,
+  hiddenModules=[], privacyEnabled=false, canWrite=false,
+  masterDataHouseholds=[], countryMasterCategories=[], countryMasterMerchants=[],
 } = {}) {
   const hidden = new Set(hiddenModules || []);
   const catalog = (productModules || []).filter((module)=>module.key !== 'admin');
@@ -17,6 +18,10 @@ export function renderSettings({
   const optionalEntitled = entitled.filter((module)=>!module.is_core && !MODULES[module.key]?.locked);
   const available = catalog.filter((module)=>!module.is_core && moduleAccess[module.key] !== true);
   const visibleCount = entitled.filter((module)=>!hidden.has(module.key)).length;
+  const countryCode=household?.country_code||'CH';
+  const sourceHouseholds=(masterDataHouseholds||[]).filter((row)=>row.id!==household?.id && row.country_code===countryCode);
+  const sourceOptions=sourceHouseholds.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
+  const standardLabel=`${countryCode}-Standard`;
 
   return `
     ${pageHeader({title:'Einstellungen',subtitle:'Darstellung, Privatsphäre, persönliche Navigation, Kategorien und Zugriff.'})}
@@ -38,6 +43,10 @@ export function renderSettings({
           <div class="stack">
             <div class="settings-link-card"><div><span class="list-row-leading">${icon('list')}</span><div><h3 class="card-title">Händler</h3><p class="card-subtitle">Händler, Standardkategorien und Verwendung verwalten.</p></div></div><a class="action-button action-button--secondary" href="#/merchants">Öffnen</a></div>
             <div class="settings-link-card"><div><span class="list-row-leading">${icon('layout-grid')}</span><div><h3 class="card-title">Kategorien & Regeln</h3><p class="card-subtitle">Kategorien, Unterkategorien und automatische Kategorisierungsregeln verwalten.</p></div></div><a class="action-button action-button--secondary" href="#/categories">Öffnen</a></div>
+
+            <div class="settings-link-card"><div><span class="list-row-leading">${icon('sparkles')}</span><div><h3 class="card-title">${escapeHtml(standardLabel)} installieren / aktualisieren</h3><p class="card-subtitle">${countryMasterCategories.length} Kategorien · ${countryMasterMerchants.length} geprüfte Händler. Fehlende Einträge werden ergänzt; eigene Händler-Kategorien werden nicht überschrieben.</p></div></div>${canWrite?`<button class="action-button action-button--secondary" type="button" data-action="masterdata-install-country">${escapeHtml(standardLabel)} anwenden</button>`:`<span>${statusPill('paused','Nur lesen')}</span>`}</div>
+
+            ${sourceHouseholds.length && canWrite ? `<form class="settings-link-card" id="masterdata-copy" data-form="masterdata-copy"><div><span class="list-row-leading">${icon('arrow-down-left')}</span><div><h3 class="card-title">Stammdaten aus anderem Haushalt übernehmen</h3><p class="card-subtitle">Kopiert nur Kategorien, Händler-Zuordnungen und Kategorisierungsregeln. Keine Buchungen, Konten, Salden, Fixkosten oder Beträge.</p><select class="select-control" name="sourceHouseholdId" required><option value="">Quellhaushalt wählen</option>${sourceOptions}</select></div></div><button class="action-button action-button--secondary" type="submit">Stammdaten übernehmen</button></form>` : ''}
           </div>
         </article>
 
