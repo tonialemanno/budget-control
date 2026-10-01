@@ -1,4 +1,24 @@
-# Finance V2.3 – Beta 5.1
+# Finance V2.4 – Beta
+
+## V2.4 – aktueller Entwicklungsstand
+
+Finance V2.4 ergänzt den bestehenden V2.3-Beta-Stand ohne Patch-Layer. Neu sind ein eigenes Forderungen-Ledger, Admin-Präsenz mit last_seen_at, ein datensparsamer Länderkontext für CHF/EUR-Vorschläge sowie ein reproduzierbarer lokaler Entwicklungsweg mit Docker und lokaler Supabase-Datenbank.
+
+### Forderungen
+
+Geld, das andere Personen dem Benutzer schulden, wird getrennt von eigenen Schulden/Krediten geführt. Pro Forderung werden Schuldner, Grund, Ursprungsbetrag, Restbetrag, Währung, optionale Rate, Fälligkeit, Status, Notiz und Rückzahlungen gespeichert. Rückzahlungen verändern den Restbetrag atomar in PostgreSQL.
+
+### Online-Status im Admin
+
+Die App aktualisiert bei aktiver Sitzung profiles.last_seen_at. Im Admin gilt ein Benutzer bei Aktivität innerhalb der letzten zwei Minuten als online. Danach wird die letzte Aktivität angezeigt. Der Status ist eine App-Präsenz und keine Aussage darüber, ob der Benutzer sein Gerät generell verwendet.
+
+### CHF / EUR nach aktuellem Land
+
+Auf Cloudflare Pages liefert /api/geo ausschließlich den ISO-Ländercode aus Cloudflares Request-Kontext. Für CH wird CHF vorgeschlagen, für DE/AT/IT EUR. Es wird keine Browser-GPS-Berechtigung benötigt. Die Erkennung ändert keine bestehenden Kontowährungen; sie beeinflusst nur sinnvolle Vorgaben bei neuen Eingaben.
+
+### Lokal
+
+Siehe docs/LOCAL-DEVELOPMENT.md. Das Frontend läuft in Docker; PostgreSQL, Auth, Storage und Supabase-Dienste laufen lokal über die Supabase CLI in Docker. Die lokale Instanz verwendet runtime-config.local.js.
 
 ## iPhone UX
 
