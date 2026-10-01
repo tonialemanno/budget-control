@@ -60,7 +60,7 @@ export function renderOverview({
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Einnahmen / Monat',money(snapshot.incomePlanMonthly,{currency,locale}),incomeCaption,'positive')}
       ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aktive Fixkosten')}
-      ${metricCard('Weitere geplante Ausgaben',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgets ${moneyText(snapshot.variableBudgetMonthly,{currency,locale})} · bereits ausserhalb Budget ${moneyText(snapshot.unbudgetedActualVariableExpensesMonth,{currency,locale})} · zukünftig ausserhalb Budget ${moneyText(snapshot.unbudgetedFutureExpensesMonth,{currency,locale})}`)}
+      ${metricCard('Weitere geplante Ausgaben',money(snapshot.remainingPlannedExpensesMonth,{currency,locale}),`Rest aus Budgets ${moneyText(snapshot.remainingVariableBudgetMonth,{currency,locale})} · zukünftige Einzelbuchungen ${moneyText(snapshot.unbudgetedFutureExpensesMonth,{currency,locale})} · fällige offene Rechnungen ${moneyText(snapshot.unbudgetedOpenBillsMonth,{currency,locale})}`)}
       ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Sparen, Überschuss und andere Töpfe')}
     </div>
 
