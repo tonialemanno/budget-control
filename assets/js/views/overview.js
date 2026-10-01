@@ -2,6 +2,7 @@ import { accountCard, metricCard, pageHeader, sectionHeading, transactionRow } f
 import { cadenceMonthlyFactor, localMonthKey, money, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
+import { buildAccountProjection } from '../app/projections.js';
 
 export function renderOverview({ accounts = [], transactions = [], recurringRules = [], budgets = [], household, profile, fxRates } = {}) {
   const currency = household?.base_currency || 'CHF';
@@ -68,7 +69,7 @@ export function renderOverview({ accounts = [], transactions = [], recurringRule
     </div>
 
     ${sectionHeading('Mein Geld','UBS, ZAK, Revolut und weitere Konten','<a class="card-link" href="#/accounts">Konten verwalten</a>')}
-    ${accounts.length?`<div class="grid-3">${accounts.slice(0,6).map((a)=>accountCard(a,{locale,canWrite:false})).join('')}</div>`:`<div class="inline-alert"><strong>Noch kein Konto.</strong><span>Lege dein erstes Konto an.</span></div>`}
+    ${accounts.length?`<div class="grid-3">${accounts.slice(0,6).map((a)=>accountCard(a,{locale,canWrite:false,projection:buildAccountProjection(a,recurringRules)})).join('')}</div>`:`<div class="inline-alert"><strong>Noch kein Konto.</strong><span>Lege dein erstes Konto an.</span></div>`}
 
     <article class="card card-padding" style="margin-top:16px">
       <div class="card-heading">
