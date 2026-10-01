@@ -1,6 +1,7 @@
 import { dataTable, formShell, metricCard, pageHeader, deleteButton, statusPill } from '../app/components.js';
 import { cadenceMonthlyFactor, dateLabel, escapeHtml, money } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
+import { effectiveNextDate } from '../app/recurrence.js';
 import { icon } from '../app/icons.js';
 
 function formFields(accounts,categories,{edit=false}={}) {
@@ -20,7 +21,8 @@ function formFields(accounts,categories,{edit=false}={}) {
     <label class="field"><span>Nächste Zahlung</span><input class="text-control" name="nextPaymentDate" ${edit?`id="${p}Next"`:''} type="date"></label>
     <label class="field"><span>Zuletzt bezahlt</span><input class="text-control" name="lastPaidDate" ${edit?`id="${p}LastPaid"`:''} type="date"></label>
     <label class="field"><span>Kündigungsfrist Tage</span><input class="text-control" name="noticeDays" ${edit?`id="${p}Notice"`:''} type="number" min="0"></label>
-    <label class="field"><span>Enddatum</span><input class="text-control" name="endDate" ${edit?`id="${p}End"`:''} type="date"></label>`;
+    <label class="field"><span>Enddatum</span><input class="text-control" name="endDate" ${edit?`id="${p}End"`:''} type="date"></label>
+    ${edit?`<label class="field"><span>Status</span><select class="text-control" name="status" id="${p}Status"><option value="active">Aktiv</option><option value="cancelled">Gekündigt</option><option value="expired">Abgelaufen</option></select></label>`:''}`;
 }
 
 export function renderInsurance({ insurance = [], accounts = [], categories = [], documents = [], household, profile, fxRates, canWrite=false } = {}) {
@@ -29,7 +31,11 @@ export function renderInsurance({ insurance = [], accounts = [], categories = []
   const monthly = insurance.filter((p)=>p.status==='active').reduce((s,p)=>s+(convertAmount(Number(p.premium_amount)*cadenceMonthlyFactor(p.billing_cadence),p.currency||currency,currency,fxRates)??0),0);
   const rows = insurance.map((p)=>{
     const docs=documents.filter((d)=>d.object_type==='insurance'&&d.object_id===p.id);
-    return `<tr><td><strong>${escapeHtml(p.name)}</strong><div class="table-meta">${escapeHtml(p.provider||p.policy_type||'')}${p.policy_number?` · ${escapeHtml(p.policy_number)}`:''}</div></td><td>${money(p.premium_amount,{currency:p.currency||currency,locale})}</td><td>${escapeHtml(p.billing_cadence)}</td><td>${dateLabel(p.last_paid_date,locale)}</td><td>${dateLabel(p.next_payment_date,locale)}</td><td>${docs.length?`${docs.length} Dok.`:'—'}</td><td>${statusPill(p.status)}</td><td><div class="table-actions">${docs[0]?.storage_path?`<button class="table-action" type="button" data-action="document-download" data-path="${escapeHtml(docs[0].storage_path)}" data-name="${escapeHtml(docs[0].name)}">Dokument öffnen</button>`:''}${canWrite?`<button class="table-action" type="button" data-action="insurance-edit" data-id="${p.id}">Bearbeiten</button><button class="table-action" type="button" data-action="insurance-recurring" data-id="${p.id}" ${p.account_id?'':'disabled'}>Wiederkehrend</button><button class="table-action" type="button" data-action="insurance-document" data-id="${p.id}">Foto / Police</button>${deleteButton('insurance_policies',p.id)}`:''}</div></td></tr>`;
+    const next=effectiveNextDate({next_date:p.next_payment_date,end_date:p.end_date,cadence:p.billing_cadence},new Date());
+    const planningAction=p.recurring_rule_id
+      ? `<button class="table-action" type="button" data-action="insurance-recurring-remove" data-id="${p.id}">Planung lösen</button>`
+      : `<button class="table-action" type="button" data-action="insurance-recurring" data-id="${p.id}" ${p.account_id&&p.next_payment_date&&Number(p.premium_amount)>0?'':'disabled'}>Mit Fixkosten verbinden</button>`;
+    return `<tr><td><strong>${escapeHtml(p.name)}</strong><div class="table-meta">${escapeHtml(p.provider||p.policy_type||'')}${p.policy_number?` · ${escapeHtml(p.policy_number)}`:''}${p.recurring_rule_id?' · Fixkosten verknüpft':''}</div></td><td>${money(p.premium_amount,{currency:p.currency||currency,locale})}</td><td>${escapeHtml(p.billing_cadence)}</td><td>${dateLabel(p.last_paid_date,locale)}</td><td>${next?dateLabel(next,locale):'—'}</td><td>${docs.length?`${docs.length} Dok.`:'—'}</td><td>${statusPill(p.status)}</td><td><div class="table-actions">${docs[0]?.storage_path?`<button class="table-action" type="button" data-action="document-download" data-path="${escapeHtml(docs[0].storage_path)}" data-name="${escapeHtml(docs[0].name)}">Dokument öffnen</button>`:''}${canWrite?`<button class="table-action" type="button" data-action="insurance-edit" data-id="${p.id}">Bearbeiten</button>${planningAction}<button class="table-action" type="button" data-action="insurance-document" data-id="${p.id}">Foto / Police</button>${p.recurring_rule_id?'':deleteButton('insurance_policies',p.id)}`:''}</div></td></tr>`;
   });
   const docFields=`<input type="hidden" name="insuranceId" id="insuranceDocumentId"><label class="field form-grid-span"><span>Foto oder PDF</span><input class="text-control" name="file" type="file" accept="image/*,application/pdf" capture="environment" required><small>Auf dem Smartphone kann direkt die Kamera geöffnet werden.</small></label><label class="field"><span>Dokumentdatum</span><input class="text-control" name="documentDate" type="date"></label><label class="field"><span>Notiz</span><input class="text-control" name="notes" placeholder="z. B. Police 2027"></label>`;
   return `
@@ -38,6 +44,6 @@ export function renderInsurance({ insurance = [], accounts = [], categories = []
     ${canWrite?formShell('insurance-edit','Versicherung bearbeiten','Prämie, Zahlung und Policendaten aktualisieren',formFields(accounts,categories,{edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('insurance-document-upload','Police / Beleg speichern','Direkt mit der Versicherung verknüpft',docFields,{hidden:true,submitLabel:'Dokument speichern'}):''}
     <div class="metric-grid" style="margin-bottom:16px">${metricCard('Prämien / Monat',money(monthly,{currency,locale}),'normalisierte laufende Kosten')}${metricCard('Aktive Policen',String(insurance.filter((p)=>p.status==='active').length),'Versicherungen')}${metricCard('Gesamt',String(insurance.length),'inkl. beendet')}</div>
-    <div class="inline-alert"><strong>Budget-Verknüpfung.</strong><span>Policen mit Zahlungskonto können mit einem Klick als wiederkehrende Zahlung übernommen werden und erscheinen damit in der monatlichen Planung.</span></div>
+    <div class="inline-alert"><strong>Budget-Verknüpfung.</strong><span>Policen mit Zahlungskonto und Termin werden mit Fixkosten verknüpft. Änderungen bleiben synchron; die Verbindung kann bewusst gelöst werden.</span></div>
     <article class="card card-padding">${dataTable({headers:['Police','Prämie','Rhythmus','Zuletzt','Nächste','Dok.','Status',''],rows,emptyText:'Noch keine Versicherungen.'})}</article>`;
 }
