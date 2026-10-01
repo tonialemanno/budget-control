@@ -1,4 +1,4 @@
-import { dataTable, pageHeader, statusPill } from '../app/components.js';
+import { dataTable, pageHeader, statusPill, filePicker } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 
@@ -70,7 +70,7 @@ export function renderImports({
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
           <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select></label>
-          <label class="field"><span>Importdatei</span><input class="text-control" id="importFile" name="file" type="file" accept=".csv,text/csv,application/pdf,.pdf" required ${accounts.length?'':'disabled'}></label>
+          <label class="field"><span>Importdatei</span>${filePicker({id:'importFile',name:'file',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length})}</label>
         </div>
         <div id="importMapping" hidden style="margin-top:18px">
           <div class="card-heading"><div><h3 class="card-title">Spalten zuordnen</h3><p class="card-subtitle" id="importPreviewMeta"></p></div></div>
