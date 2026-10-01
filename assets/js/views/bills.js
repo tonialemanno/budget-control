@@ -30,12 +30,36 @@ export function renderBills({ bills = [], contracts = [], accounts = [], categor
   const openBills=bills.filter((b)=>['open','overdue'].includes(b.status));
   const openTotal=openBills.reduce((s,b)=>s+(convertAmount(b.amount,b.currency||currency,currency,fxRates)??0),0);
   const monthlyContracts=contracts.filter((c)=>c.status==='active').reduce((s,c)=>s+(convertAmount(Number(c.amount)*cadenceMonthlyFactor(c.billing_cadence),c.currency||currency,currency,fxRates)??0),0);
-  const billRows=bills.map((b)=>`<tr><td><strong>${escapeHtml(b.name)}</strong><div class="table-meta">${escapeHtml(b.provider||b.reference||'')}</div></td><td>${money(b.amount,{currency:b.currency||currency,locale})}</td><td>${dateLabel(b.due_date,locale)}</td><td>${statusPill(b.status,{open:'Offen',paid:'Bezahlt',overdue:'Überfällig',cancelled:'Storniert'}[b.status]||b.status)}${b.paid_at?`<div class="table-meta">bezahlt ${dateLabel(b.paid_at,locale)}</div>`:''}</td><td><div class="table-actions">${canWrite&&b.status!=='paid'?`<button class="table-action" type="button" data-action="bill-payment-open" data-id="${b.id}">Bezahlen</button>`:''}${canWrite&&b.status==='paid'&&b.paid_transaction_id?`<button class="table-action" type="button" data-action="bill-payment-reverse" data-id="${b.id}">Zahlung zurücknehmen</button>`:''}${canWrite?deleteButton('bills',b.id):''}</div></td></tr>`);
-  const contractRows=contracts.map((c)=>`<tr><td><strong>${escapeHtml(c.name)}</strong><div class="table-meta">${escapeHtml(c.provider||'')}${c.accounts?.name?` · ${escapeHtml(c.accounts.name)}`:''}</div></td><td>${money(c.amount,{currency:c.currency||currency,locale})}</td><td>${escapeHtml(c.billing_cadence)}</td><td>${dateLabel(c.next_payment_date,locale)}</td><td>${statusPill(c.status)}</td><td><div class="table-actions">${canWrite&&c.account_id&&c.billing_cadence!=='oneoff'?`<button class="table-action" type="button" data-action="contract-recurring" data-id="${c.id}">Wiederkehrend</button>`:''}${canWrite?deleteButton('contracts',c.id):''}</div></td></tr>`);
+  const billRows=bills.map((b)=>{
+    const dueDate=new Date(\`\${String(b.due_date).slice(0,10)}T23:59:59\`);
+    const displayStatus=b.status==='open' && !Number.isNaN(dueDate.getTime()) && dueDate<new Date() ? 'overdue' : b.status;
+    const actions=[];
+    if(canWrite && b.status!=='paid'){
+      actions.push(\`<button class="table-action" type="button" data-action="bill-edit" data-id="\${b.id}">Bearbeiten</button>\`);
+      actions.push(\`<button class="table-action" type="button" data-action="bill-payment-open" data-id="\${b.id}">Bezahlen</button>\`);
+      actions.push(deleteButton('bills',b.id));
+    }
+    if(canWrite && b.status==='paid' && b.paid_transaction_id){
+      actions.push(\`<button class="table-action" type="button" data-action="bill-payment-reverse" data-id="\${b.id}">Zahlung zurücknehmen</button>\`);
+    }
+    return \`<tr><td><strong>\${escapeHtml(b.name)}</strong><div class="table-meta">\${escapeHtml(b.provider||b.reference||'')}</div></td><td>\${money(b.amount,{currency:b.currency||currency,locale})}</td><td>\${dateLabel(b.due_date,locale)}</td><td>\${statusPill(displayStatus,{open:'Offen',paid:'Bezahlt',overdue:'Überfällig',cancelled:'Storniert'}[displayStatus]||displayStatus)}\${b.paid_at?\`<div class="table-meta">bezahlt \${dateLabel(b.paid_at,locale)}</div>\`:''}</td><td><div class="table-actions">\${actions.join('')}</div></td></tr>\`;
+  });
+  const contractRows=contracts.map((contract)=>{
+    const next=effectiveNextDate({next_date:contract.next_payment_date,end_date:contract.end_date,cadence:contract.billing_cadence},new Date());
+    const planningAction=contract.billing_cadence==='oneoff'
+      ? ''
+      : contract.recurring_rule_id
+        ? \`<button class="table-action" type="button" data-action="contract-recurring-remove" data-id="\${contract.id}">Planung lösen</button>\`
+        : \`<button class="table-action" type="button" data-action="contract-recurring" data-id="\${contract.id}" \${contract.account_id&&contract.next_payment_date&&Number(contract.amount)>0?'':'disabled'}>Mit Fixkosten verbinden</button>\`;
+    const remove=canWrite&&!contract.recurring_rule_id?deleteButton('contracts',contract.id):'';
+    return \`<tr><td><strong>\${escapeHtml(contract.name)}</strong><div class="table-meta">\${escapeHtml(contract.provider||'')}\${contract.accounts?.name?\` · \${escapeHtml(contract.accounts.name)}\`:''}\${contract.recurring_rule_id?' · Fixkosten verknüpft':''}</div></td><td>\${money(contract.amount,{currency:contract.currency||currency,locale})}</td><td>\${escapeHtml(contract.billing_cadence)}</td><td>\${next?dateLabel(next,locale):'—'}</td><td>\${statusPill(contract.status)}</td><td><div class="table-actions">\${canWrite?\`<button class="table-action" type="button" data-action="contract-edit" data-id="\${contract.id}">Bearbeiten</button>\${planningAction}\${remove}\`:''}</div></td></tr>\`;
+  });
   return `
     ${pageHeader({title:'Rechnungen & Verträge',subtitle:'Rechnung = konkrete Forderung mit Fälligkeit. Vertrag/Abo = laufende Verpflichtung mit Rhythmus, nächster Zahlung und Kündigungsfrist.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="bill-create">${icon('plus')} Rechnung</button><button class="action-button action-button--secondary" type="button" data-action="show-form" data-target="contract-create">${icon('plus')} Vertrag / Abo</button>`:''})}
     ${canWrite?formShell('bill-create','Neue Rechnung','Einmalige oder konkrete fällige Forderung',billFields,{hidden:true,submitLabel:'Rechnung speichern'}):''}
-    ${canWrite?formShell('contract-create','Neuer Vertrag / Abo','Laufende Verpflichtung; kann danach zu Wiederkehrend übernommen werden',contractFields,{hidden:true,submitLabel:'Vertrag speichern'}):''}
+    ${canWrite?formShell('contract-create','Neuer Vertrag / Abo','Laufende Verpflichtung; mit Konto und Termin wird sie automatisch in Fixkosten geplant',contractFields,{hidden:true,submitLabel:'Vertrag speichern'}):''}
+    ${canWrite?formShell('bill-edit','Rechnung bearbeiten','Offene Rechnung korrigieren',billEditFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('contract-edit','Vertrag / Abo bearbeiten','Betrag, Rhythmus, Termin, Status und Laufzeit korrigieren',contractEditFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${paymentForm}
     <div class="explain-grid"><article class="card card-padding"><strong>Rechnung</strong><p class="card-subtitle">z. B. Zahnarzt CHF 480, fällig 15.10. → offen → bezahlt.</p></article><article class="card card-padding"><strong>Vertrag / Abo</strong><p class="card-subtitle">z. B. Internet, Handy, Fitness → Rhythmus, Laufzeit, Kündigung und nächste Zahlung.</p></article></div>
     <div class="metric-grid" style="margin:16px 0">${metricCard('Offene Rechnungen',money(openTotal,{currency,locale}),`${openBills.length} offen`)}${metricCard('Vertragskosten / Monat',money(monthlyContracts,{currency,locale}),'normalisiert aus Rhythmen')}${metricCard('Aktive Verträge',String(contracts.filter((c)=>c.status==='active').length),'Verträge und Abos')}</div>
