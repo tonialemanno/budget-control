@@ -1,0 +1,3 @@
+-- Local development seed.
+-- Intentionally contains no production/user financial data.
+-- Create local Auth users through Supabase Studio (http://localhost:54323).
