@@ -18,10 +18,11 @@ function endLabel(value, locale='de-CH') {
   return `bis ${new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(date)}`;
 }
 
-function fixedCostFields({ accounts = [], categories = [], edit = false } = {}) {
+function fixedCostFields({ accounts = [], categories = [], merchants = [], edit = false } = {}) {
   const suffix = edit ? 'Edit' : '';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const categoryOptions = categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const merchantOptions = merchants.map((m)=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
   return `
     ${edit?'<input type="hidden" name="ruleId" id="fixedCostEditId">':''}
     <label class="field"><span>Art</span><select class="text-control" name="direction" id="fixedCost${suffix}Direction"><option value="expense">Fixe Ausgabe</option><option value="transfer">Umbuchung / Topf</option></select></label>
@@ -29,6 +30,7 @@ function fixedCostFields({ accounts = [], categories = [], edit = false } = {}) 
     <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" id="fixedCost${suffix}Amount" type="number" min="0.01" step="0.01" required></label>
     <label class="field"><span>Von Konto</span><select class="text-control" name="accountId" id="fixedCost${suffix}Account" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
     <label class="field" id="fixedCost${suffix}TargetField" hidden><span>Auf Topf / Zielkonto</span><select class="text-control" name="destinationAccountId" id="fixedCost${suffix}Target"><option value="">Bitte wählen</option>${accountOptions}</select><small>Umbuchungen zählen nicht als Ausgabe, reduzieren aber dein frei verfügbares Geld.</small></label>
+    <label class="field" id="fixedCost${suffix}MerchantField"><span>Händler / Empfänger</span><select class="text-control" name="merchantId" id="fixedCost${suffix}Merchant"><option value="">Ohne Händler</option>${merchantOptions}</select><small>Für Imports und automatische Wiedererkennung.</small></label>
     <label class="field" id="fixedCost${suffix}CategoryField"><span>Kategorie</span><select class="text-control" name="categoryId" id="fixedCost${suffix}Category"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
     <label class="field"><span>Rhythmus</span><select class="text-control" name="cadence" id="fixedCost${suffix}Cadence"><option value="weekly">Wöchentlich</option><option value="monthly" selected>Monatlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label>
     <label class="field"><span>Nächster Termin</span><input class="text-control" name="nextDate" id="fixedCost${suffix}NextDate" type="date" value="${dateInputValue()}" required></label>
@@ -37,7 +39,7 @@ function fixedCostFields({ accounts = [], categories = [], edit = false } = {}) 
   `;
 }
 
-export function renderFixedCosts({ recurringRules = [], accounts = [], categories = [], household, profile, fxRates, canWrite = false } = {}) {
+export function renderFixedCosts({ recurringRules = [], accounts = [], categories = [], merchants = [], household, profile, fxRates, canWrite = false } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const today = dateInputValue();
@@ -68,7 +70,7 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
       const type = r.direction==='transfer' ? 'Umbuchung' : 'Ausgabe';
       const detail = r.direction==='transfer'
         ? `${escapeHtml(accountName(r.account_id))} → ${escapeHtml(accountName(r.destination_account_id))}`
-        : escapeHtml(r.categories?.name||'Ohne Kategorie');
+        : `${escapeHtml(r.merchants?.name||'Ohne Händler')} · ${escapeHtml(r.categories?.name||'Ohne Kategorie')}`;
       return `<tr>
         <td><strong>${escapeHtml(r.description)}</strong><div class="table-meta">${detail}</div></td>
         <td>${type}</td>
@@ -88,8 +90,8 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
       subtitle:'Regelmässige Ausgaben und feste Umbuchungen auf deine Töpfe – inklusive Laufzeit.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="fixed-cost-create">${icon('plus')} Fixkosten hinzufügen</button>`:''
     })}
-    ${canWrite?formShell('fixed-cost-create','Neue Fixkosten','Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories}),{hidden:true,submitLabel:'Speichern'}):''}
-    ${canWrite?formShell('fixed-cost-edit','Fixkosten bearbeiten','Betrag, Topf, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('fixed-cost-create','Neue Fixkosten','Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories,merchants}),{hidden:true,submitLabel:'Speichern'}):''}
+    ${canWrite?formShell('fixed-cost-edit','Fixkosten bearbeiten','Betrag, Topf, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,merchants,edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
 
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Fixe Ausgaben / Monat',money(monthlyExpenses,{currency,locale}),'echte regelmässige Kosten')}
