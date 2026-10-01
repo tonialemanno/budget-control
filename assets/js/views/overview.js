@@ -4,14 +4,14 @@ import { icon } from '../app/icons.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase, debtPrincipalBase } from '../app/financial-effects.js';
 
-export function renderOverview({ accounts = [], transactions = [], debtPayments = [], budgets = [], bills = [], contracts = [], goals = [], debts = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], insurance = [], household, profile, depth='standard', fxRates } = {}) {
+export function renderOverview({ accounts = [], transactions = [], debtPayments = [], budgets = [], bills = [], contracts = [], goals = [], debts = [], receivables = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [], insurance = [], household, profile, depth='standard', fxRates } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
   const monthKey = localMonthKey(now);
   const monthTx = transactions.filter((t)=>localMonthKey(t.occurred_at)===monthKey && t.status==='booked' && !t.transfer_group_id);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const income = monthTx.filter((t)=>Number(t.amount)>0).reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
+  const income = monthTx.filter((t)=>Number(t.amount)>0&&t.cashflow_type!=='receivable_principal').reduce((s,t)=>s+(convertAmount(t.amount,t.currency,currency,fxRates)??0),0);
   const expenses = monthTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
   const debtPrincipalMonth = monthTx.reduce((s,t)=>s+debtPrincipalBase(t,paymentMap,currency,fxRates),0);
   const cash = accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type)).reduce((s,a)=>s+(convertAmount(a.current_balance,a.currency,currency,fxRates)??0),0);
@@ -23,7 +23,8 @@ export function renderOverview({ accounts = [], transactions = [], debtPayments 
   const currentBudgets = budgets.filter((b)=>String(b.month_start).slice(0,7)===monthKey).reduce((s,b)=>s+Number(b.amount),0);
   const available = cash - openBills;
   const value=(rows,field)=>rows.reduce((s,a)=>s+(convertAmount(a[field],a.currency||currency,currency,fxRates)??0),0);
-  const totalAssets = cash+value(assets,'current_value')+value(properties,'current_value')+value(vehicles,'current_value')+value(investments,'current_value')+value(pensions,'current_value');
+  const receivableValue=receivables.filter((r)=>!['paid','written_off'].includes(r.status)).reduce((s,r)=>s+(convertAmount(r.outstanding_amount,r.currency||currency,currency,fxRates)??0),0);
+  const totalAssets = cash+value(assets,'current_value')+value(properties,'current_value')+value(vehicles,'current_value')+value(investments,'current_value')+value(pensions,'current_value')+receivableValue;
   const debtValue = debts.filter((d)=>d.status!=='paid').reduce((s,d)=>s+(convertAmount(d.outstanding_amount,d.currency||currency,currency,fxRates)??0),0);
   const netWorth = totalAssets-debtValue;
   const savingsRate = income>0?(income-expenses)/income*100:0;
