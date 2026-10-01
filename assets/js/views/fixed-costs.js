@@ -1,6 +1,7 @@
 import { dataTable, formShell, metricCard, pageHeader, statusPill } from '../app/components.js';
 import { cadenceMonthlyFactor, dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
+import { effectiveNextDate } from '../app/recurrence.js';
 import { icon } from '../app/icons.js';
 
 const cadenceLabel = (value) => ({
@@ -33,7 +34,7 @@ function fixedCostFields({ accounts = [], categories = [], merchants = [], edit 
     <label class="field" id="fixedCost${suffix}MerchantField"><span>Händler / Empfänger</span><select class="text-control" name="merchantId" id="fixedCost${suffix}Merchant"><option value="">Ohne Händler</option>${merchantOptions}</select><small>Für Imports und automatische Wiedererkennung.</small></label>
     <label class="field" id="fixedCost${suffix}CategoryField"><span>Kategorie</span><select class="text-control" name="categoryId" id="fixedCost${suffix}Category"><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
     <label class="field"><span>Rhythmus</span><select class="text-control" name="cadence" id="fixedCost${suffix}Cadence"><option value="weekly">Wöchentlich</option><option value="monthly" selected>Monatlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label>
-    <label class="field"><span>Nächster Termin</span><input class="text-control" name="nextDate" id="fixedCost${suffix}NextDate" type="date" value="${dateInputValue()}" required></label>
+    <label class="field"><span>Erster / nächster Termin</span><input class="text-control" name="nextDate" id="fixedCost${suffix}NextDate" type="date" value="${dateInputValue()}" required><small>Vergangene Termine werden anhand des Rhythmus automatisch als nächster Plantermin fortgeschrieben.</small></label>
     <label class="field"><span>Läuft bis</span><input class="text-control" name="endDate" id="fixedCost${suffix}EndDate" type="date"><small>Leer lassen = unbefristet.</small></label>
     ${edit?`<label class="field"><span>Status</span><select class="text-control" name="active" id="fixedCostEditActive"><option value="true">Aktiv</option><option value="false">Pausiert</option></select></label>`:''}
   `;
@@ -66,6 +67,7 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
       const isExpired = Boolean(r.end_date && String(r.end_date).slice(0,10) < today);
       const isRunning = Boolean(r.active && !isExpired);
       const monthlyAmount = Number(r.amount || 0) * cadenceMonthlyFactor(r.cadence);
+      const next=effectiveNextDate(r,new Date());
       const status = isExpired ? statusPill('cancelled','Beendet') : statusPill(isRunning?'active':'paused',isRunning?'Aktiv':'Pausiert');
       const type = r.direction==='transfer' ? 'Umbuchung' : 'Ausgabe';
       const detail = r.direction==='transfer'
@@ -77,7 +79,7 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
         <td>${money(r.amount,{currency:r.currency||currency,locale})}</td>
         <td>${escapeHtml(cadenceLabel(r.cadence))}</td>
         <td><strong>${money(monthlyAmount,{currency:r.currency||currency,locale})}</strong></td>
-        <td>${r.next_date?dateLabel(r.next_date,locale):'—'}</td>
+        <td>${next?dateLabel(next,locale):'—'}</td>
         <td><strong>${escapeHtml(endLabel(r.end_date,locale))}</strong></td>
         <td>${status}</td>
         <td>${canWrite?`<button class="table-action" type="button" data-action="fixed-cost-edit" data-id="${r.id}">Bearbeiten</button>`:''}</td>
@@ -105,7 +107,7 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
         <div><h3 class="card-title">Monatliche Verpflichtungen</h3><p class="card-subtitle">Umbuchungen bleiben Vermögensverschiebungen und werden nicht als Ausgabe gerechnet.</p></div>
       </div>
       ${dataTable({
-        headers:['Position','Art','Betrag','Rhythmus','Ø pro Monat','Nächster Termin','Läuft bis','Status',''],
+        headers:['Position','Art','Betrag','Rhythmus','Ø pro Monat','Nächster Plantermin','Läuft bis','Status',''],
         rows,
         emptyText:'Noch keine Fixkosten erfasst.'
       })}
