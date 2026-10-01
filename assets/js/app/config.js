@@ -32,6 +32,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'transactions', label: 'Transaktionen', mobileLabel: 'Buchungen', icon: 'list', group: 'Finance Core', module: 'money', mobile: true },
   { route: 'imports', label: 'Datenimport', icon: 'arrow-down-left', group: 'Finance Core', module: 'money' },
   { route: 'recurring', label: 'Wiederkehrend', icon: 'repeat', group: 'Finance Core', module: 'money' },
+  { route: 'fixed-costs', label: 'Fixkosten', icon: 'receipt', group: 'Planung', module: 'money' },
   { route: 'documents', label: 'Dokumente', icon: 'receipt', group: 'Finance Core', module: 'core' },
 
   { route: 'budget', label: 'Budget', mobileLabel: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
@@ -64,6 +65,7 @@ export const PAGE_META = Object.freeze({
   imports: { title: 'Datenimport', eyebrow: 'Mein Geld' },
   'import-history': { title: 'Import-Historie', eyebrow: 'Mein Geld' },
   recurring: { title: 'Wiederkehrende Zahlungen', eyebrow: 'Mein Geld' },
+  'fixed-costs': { title: 'Fixkosten', eyebrow: 'Planung' },
   documents: { title: 'Dokumente', eyebrow: 'Finance Core' },
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },
   bills: { title: 'Rechnungen & Verträge', eyebrow: 'Rechnungen & Verträge' },
