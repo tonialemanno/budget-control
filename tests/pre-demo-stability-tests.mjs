@@ -13,6 +13,7 @@ const main=read('assets/js/main.js');
 const docPreview=read('assets/js/app/document-preview.js');
 const receivableMigration=read('supabase/migrations/20261002_finance_receivables_rpc_reconcile_to_repo.sql');
 const demoMigration=read('supabase/migrations/20261002_finance_demo_reset_paid_bill_unlink.sql');
+const receivableSameDayMigration=read('supabase/migrations/20261002_finance_receivables_same_day_balance_fix.sql');
 
 assert.match(config,/host\.endsWith\('\.aione-test\.pages\.dev'\).*host !== 'aione-test\.pages\.dev'/s);
 assert.equal((backend.match(/fetchWithTimeout\(/g)||[]).length>=6,true,'all network/storage paths should use bounded requests');
@@ -22,6 +23,9 @@ assert.match(receipt,/3500/);
 
 assert.match(receivableMigration,/private\.has_module_access\('debts'\)/);
 assert.doesNotMatch(receivableMigration,/private\.has_module_access\('receivables'\)/);
+assert.match(receivableSameDayMigration,/coalesce\(p_lent_at,current_date\)=current_date then now\(\)/);
+assert.match(receivableSameDayMigration,/coalesce\(p_paid_at,current_date\)=current_date then now\(\)/);
+assert.match(receivableSameDayMigration,/cashflow_type='receivable_principal'/);
 
 assert.match(demoMigration,/paid_transaction_id=null/);
 assert.match(demoMigration,/delete from public\.households where id = v_old_household/);
