@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { renderTaxAdvisor } from '../assets/js/views/tax-advisor.js';
+
+const household={id:'h1',country_code:'CH',tax_region_code:'SG',base_currency:'CHF'};
+const profile={locale:'de-CH'};
+const rules=[
+  {id:'r25',country_code:'CH',canton_code:'SG',tax_year:2025,version:'SG-2025',status:'official',notes:'official'},
+  {id:'r26',country_code:'CH',canton_code:'SG',tax_year:2026,version:'SG-2026',status:'partial',notes:'partial'},
+  {id:'r27',country_code:'CH',canton_code:'SG',tax_year:2027,version:'SG-2027',status:'pending',notes:'pending'},
+];
+const taxCases=[
+  {id:'c25',household_id:'h1',tax_year:2025,country_code:'CH',canton_code:'SG',status:'open',currency:'CHF',expected_tax_amount:12000,assessed_tax_amount:null,tax_rule_versions:rules[0]},
+  {id:'c26',household_id:'h1',tax_year:2026,country_code:'CH',canton_code:'SG',status:'collecting',currency:'CHF',expected_tax_amount:15000,assessed_tax_amount:null,tax_rule_versions:rules[1]},
+  {id:'c27',household_id:'h1',tax_year:2027,country_code:'CH',canton_code:'SG',status:'open',currency:'CHF',expected_tax_amount:16000,assessed_tax_amount:null,tax_rule_versions:rules[2]},
+];
+const obligations=[
+  {id:'o25',tax_case_id:'c25',amount:12000,currency:'CHF',status:'open',obligation_type:'provisional',label:'Provisorische Steuer 2025',due_date:'2026-03-31'},
+  {id:'o26',tax_case_id:'c26',amount:15000,currency:'CHF',status:'open',obligation_type:'provisional',label:'Provisorische Steuer 2026',due_date:'2026-12-31'},
+  {id:'o27',tax_case_id:'c27',amount:16000,currency:'CHF',status:'open',obligation_type:'provisional',label:'Plan Steuer 2027',due_date:'2027-12-31'},
+];
+const payments=[
+  {id:'p25',tax_case_id:'c25',amount:8000,currency:'CHF',payment_type:'payment',paid_at:'2026-06-01'},
+  {id:'p26',tax_case_id:'c26',amount:5000,currency:'CHF',payment_type:'payment',paid_at:'2026-08-01'},
+];
+const html=renderTaxAdvisor({
+  household,profile,taxYear:2026,canWrite:true,taxRuleVersions:rules,taxCases,
+  taxCaseSections:[{tax_case_id:'c26',section_key:'income',status:'complete'}],
+  taxItems:[{id:'i1',tax_case_id:'c26',section_key:'income',item_type:'salary_certificate',title:'Lohnausweis Demo',currency:'CHF',verification_status:'verified',occurred_on:'2026-12-31'}],
+  taxObligations:obligations,taxPayments:payments,transactions:[],debtPayments:[],documents:[],
+  accounts:[],pensions:[],debts:[],receivables:[],investments:[],properties:[],vehicles:[],fxRates:null,
+});
+
+assert.match(html,/Tax Center · St\.Gallen/);
+assert.match(html,/Steuerkonto 2025–2027/);
+assert.match(html,/Steuerjahr 2025/);
+assert.match(html,/Steuerjahr 2026/);
+assert.match(html,/Steuerjahr 2027/);
+assert.match(html,/CHF 8['’]000\.00|CHF 8,000\.00|CHF 8\.000,00/);
+assert.match(html,/CHF 4['’]000\.00|CHF 4,000\.00|CHF 4\.000,00/);
+assert.match(html,/CHF 5['’]000\.00|CHF 5,000\.00|CHF 5\.000,00/);
+assert.match(html,/CHF 10['’]000\.00|CHF 10,000\.00|CHF 10\.000,00/);
+assert.match(html,/Personen & Haushalt/);
+assert.match(html,/Banken & Wertschriften/);
+assert.match(html,/Kryptowährungen/);
+assert.match(html,/Erbschaften & Schenkungen/);
+assert.match(html,/Steuerposition erfassen/);
+assert.match(html,/tax-obligation-create/);
+assert.match(html,/tax-payment-create/);
+assert.match(html,/tax-section-status/);
+assert.match(html,/Steuerdaten 2026 exportieren/);
+
+const api=fs.readFileSync(new URL('../assets/js/app/finance-api.js',import.meta.url),'utf8');
+const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_tax_center_core_sg.sql',import.meta.url),'utf8');
+
+for(const method of ['listTaxRuleVersions','listTaxCases','ensureTaxCase','listTaxCaseSections','upsertTaxCaseSection','listTaxItems','createTaxItem','listTaxObligations','createTaxObligation','listTaxPayments','createTaxPayment']){
+  assert.match(api,new RegExp(method));
+}
+assert.match(main,/tax-case-settings/);
+assert.match(main,/tax-item-create/);
+assert.match(main,/tax-obligation-create/);
+assert.match(main,/tax-payment-create/);
+assert.match(main,/tax-case-select/);
+assert.match(migration,/create table if not exists public\.tax_cases/);
+assert.match(migration,/create table if not exists public\.tax_items/);
+assert.match(migration,/create table if not exists public\.tax_obligations/);
+assert.match(migration,/create table if not exists public\.tax_payments/);
+assert.match(migration,/private\.has_module_access\('tax'\)/);
+assert.match(migration,/SG-2025/);
+assert.match(migration,/SG-2026/);
+assert.match(migration,/SG-2027/);
+
+console.log('SG tax center assertions OK');
