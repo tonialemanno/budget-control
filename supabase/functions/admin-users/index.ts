@@ -73,10 +73,13 @@ Deno.serve(async (req: Request) => {
     catch (error) { return json({ error: error instanceof Error ? error.message : "Benutzer konnten nicht geladen werden." }, 400, origin); }
 
     const userIds = users.map((u) => u.id);
+    const since30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const [
       { data: accessRows, error: accessError },
       { data: presenceRows, error: presenceError },
       { data: profileRows, error: profileError },
+      { data: activitySummaryRows, error: activitySummaryError },
+      { data: activityRows, error: activityError },
     ] = await Promise.all([
       userIds.length
         ? admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
@@ -87,11 +90,24 @@ Deno.serve(async (req: Request) => {
       userIds.length
         ? admin.from("profiles").select("user_id,display_name,locale").in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
+      userIds.length
+        ? admin.from("user_activity_summary").select("user_id,last_activity_at,last_module,last_action,last_household_id").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+      userIds.length
+        ? admin.from("user_activity_events")
+            .select("user_id,module_key,action_kind,occurred_at")
+            .in("user_id", userIds)
+            .gte("occurred_at", since30Days)
+            .order("occurred_at", { ascending: false })
+            .limit(5000)
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     if (accessError) return json({ error: accessError.message }, 400, origin);
     if (presenceError) return json({ error: presenceError.message }, 400, origin);
     if (profileError) return json({ error: profileError.message }, 400, origin);
+    if (activitySummaryError) return json({ error: activitySummaryError.message }, 400, origin);
+    if (activityError) return json({ error: activityError.message }, 400, origin);
 
     const modulesByUser = new Map<string, Record<string, boolean>>();
     for (const row of accessRows || []) {
@@ -106,11 +122,29 @@ Deno.serve(async (req: Request) => {
     const profileByUser = new Map<string, any>();
     for (const row of profileRows || []) profileByUser.set(row.user_id, row);
 
+    const activitySummaryByUser = new Map<string, any>();
+    for (const row of activitySummaryRows || []) activitySummaryByUser.set(row.user_id, row);
+
+    const activityByUser = new Map<string, any[]>();
+    for (const row of activityRows || []) {
+      const current = activityByUser.get(row.user_id) || [];
+      current.push(row);
+      activityByUser.set(row.user_id, current);
+    }
+
     return json({
       caller_id: caller.id,
       users: users.map((user) => {
         const presence = presenceByUser.get(user.id) || null;
         const profile = profileByUser.get(user.id) || null;
+        const activitySummary = activitySummaryByUser.get(user.id) || null;
+        const events = activityByUser.get(user.id) || [];
+        const moduleCounts = new Map<string, { module_key: string; count: number; last_at: string }>();
+        for (const event of events) {
+          const current = moduleCounts.get(event.module_key);
+          if (current) current.count += 1;
+          else moduleCounts.set(event.module_key, { module_key: event.module_key, count: 1, last_at: event.occurred_at });
+        }
         return {
           id: user.id,
           email: user.email,
@@ -121,6 +155,18 @@ Deno.serve(async (req: Request) => {
           confirmed_at: user.email_confirmed_at,
           modules: modulesByUser.get(user.id) || {},
           presence,
+          activity: {
+            last_at: activitySummary?.last_activity_at || null,
+            last_module: activitySummary?.last_module || null,
+            last_action: activitySummary?.last_action || null,
+            last_30_days: events.length,
+            modules: [...moduleCounts.values()].sort((a, b) => b.count - a.count || String(b.last_at).localeCompare(String(a.last_at))),
+            recent: events.slice(0, 8).map((event) => ({
+              module_key: event.module_key,
+              action_kind: event.action_kind,
+              occurred_at: event.occurred_at,
+            })),
+          },
         };
       }),
     }, 200, origin);
