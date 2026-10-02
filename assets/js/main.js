@@ -446,19 +446,35 @@ function showLoading(title = 'Daten werden geladen …') {
   pageContent.innerHTML = `<div class="loading-state"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t(title))}</strong></div>`;
 }
 
+async function runLimited(tasks, limit = 5) {
+  const results = new Array(tasks.length);
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const index = next;
+      next += 1;
+      if (index >= tasks.length) return;
+      results[index] = await tasks[index]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
+  return results;
+}
+
 async function loadFinanceData() {
   if (!runtime.household) return;
   const h = runtime.household.id;
-  const results = await Promise.all([
-    financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
-    financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
-    financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listReceivables(h), financeApi.listReceivablePayments(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
-    financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
-    financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
-    financeApi.listCountryCategoryCatalog(runtime.household.country_code).catch(()=>[]),
-    financeApi.listCountryMerchantCatalog(runtime.household.country_code).catch(()=>[]),
-    financeApi.listMasterDataHouseholds().catch(()=>[]),
-  ]);
+  const tasks = [
+    () => financeApi.listAccounts(h), () => financeApi.listCategories(h), () => financeApi.listCategorizationRules(h), () => financeApi.listTransactions(h),
+    () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h),
+    () => financeApi.listGoals(h), () => financeApi.listGoalSources(h), () => financeApi.listDebts(h), () => financeApi.listDebtPayments(h), () => financeApi.listReceivables(h), () => financeApi.listReceivablePayments(h), () => financeApi.listLegalCases(h), () => financeApi.listLegalEvents(h), () => financeApi.listAssets(h),
+    () => financeApi.listProperties(h), () => financeApi.listVehicles(h), () => financeApi.listInsurance(h), () => financeApi.listInvestments(h), () => financeApi.listInvestmentTransactions(h), () => financeApi.listPensions(h),
+    () => financeApi.listDocuments(h), () => financeApi.listHouseholdMembers(h), () => financeApi.getFxRates().catch(()=>null),
+    () => financeApi.listCountryCategoryCatalog(runtime.household.country_code).catch(()=>[]),
+    () => financeApi.listCountryMerchantCatalog(runtime.household.country_code).catch(()=>[]),
+    () => financeApi.listMasterDataHouseholds().catch(()=>[]),
+  ];
+  const results = await runLimited(tasks, 5);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
