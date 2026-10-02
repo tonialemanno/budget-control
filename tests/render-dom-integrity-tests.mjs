@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { base, tests } from './render-rich.mjs';
 
 function ids(html){
-  return [...String(html).matchAll(/\bid="([^"]+)"/g)].map((m)=>m[1]);
+  return [...String(html).matchAll(/(?:^|\s)id="([^"]+)"/g)].map((m)=>m[1]);
 }
 function targets(html){
   return [...String(html).matchAll(/data-target="([^"]+)"/g)].map((m)=>m[1]);
