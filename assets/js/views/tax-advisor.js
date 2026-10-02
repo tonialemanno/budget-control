@@ -306,7 +306,7 @@ export function renderTaxAdvisor({
   </form>`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">Noch nicht angelegt. Der Jahresstatus bleibt trotzdem in der Übersicht sichtbar.</p></div>${ruleStatus(rule)}</div>${canWrite?`<button class="action-button action-button--primary" type="button" data-action="tax-case-create" data-year="${year}">${icon('plus')} Steuerfall ${year} anlegen</button>`:''}</article>`;
 
   return `
-    ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdaten ${year} exportieren</button>`})}
+    ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
     <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
 
