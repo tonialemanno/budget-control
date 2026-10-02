@@ -168,8 +168,10 @@ function selectSuggestedCategory(analysis) {
 }
 
 async function detectGeoCurrency(fallbackCurrency='CHF') {
+  const controller=new AbortController();
+  const timer=window.setTimeout(()=>controller.abort(),3500);
   try {
-    const response=await fetch('/api/geo',{cache:'no-store'});
+    const response=await fetch('/api/geo',{cache:'no-store',signal:controller.signal});
     if(!response.ok) throw new Error('geo unavailable');
     const data=await response.json();
     return {
@@ -178,6 +180,8 @@ async function detectGeoCurrency(fallbackCurrency='CHF') {
     };
   } catch {
     return {country:null,currency:fallbackCurrency};
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
