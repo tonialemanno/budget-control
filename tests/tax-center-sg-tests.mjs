@@ -31,7 +31,11 @@ const html=renderTaxAdvisor({
   taxCaseSections:[{tax_case_id:'c26',section_key:'income',status:'complete'}],
   taxItems:[{id:'i1',tax_case_id:'c26',section_key:'income',item_type:'salary_certificate',title:'Lohnausweis Demo',currency:'CHF',verification_status:'verified',occurred_on:'2026-12-31',source_type:null,source_id:null}],
   taxObligations:obligations,taxPayments:payments,
-  transactions:[{id:'tx1',status:'booked',transfer_group_id:null,cashflow_type:'standard',occurred_at:'2026-08-01T10:00:00Z',amount:-5000,currency:'CHF',description:'Steuerzahlung 2026'}],
+  transactions:[
+    {id:'txTax25',status:'booked',transfer_group_id:null,cashflow_type:'standard',occurred_at:'2026-09-10T10:00:00Z',amount:-500,currency:'CHF',description:'Nachzahlung Staatssteuer 2025',tax_relevant:true,tax_year:2025,tax_treatment:'tax_payment',tax_section_key:'tax_account',tax_category:'Staatssteuer'},
+    {id:'txIncome26',status:'booked',transfer_group_id:null,cashflow_type:'standard',occurred_at:'2026-08-01T10:00:00Z',amount:1000,currency:'CHF',description:'Nebeneinkommen',tax_relevant:true,tax_year:2026,tax_treatment:'income',tax_section_key:'income',tax_category:'Nebenerwerb'},
+    {id:'txExpense26',status:'booked',transfer_group_id:null,cashflow_type:'standard',occurred_at:'2026-08-02T10:00:00Z',amount:-200,currency:'CHF',description:'Weiterbildung',tax_relevant:true,tax_year:2026,tax_treatment:'deduction',tax_section_key:'work_expenses',tax_category:'Berufskosten'},
+  ],
   debtPayments:[],documents:[],accounts:[],pensions:[],debts:[],receivables:[],insurance:[],investments:[],properties:[],vehicles:[],bills:[],fxRates:null,
 });
 
@@ -40,8 +44,8 @@ assert.match(html,/Steuerkonto 2025–2027/);
 assert.match(html,/Steuerjahr 2025/);
 assert.match(html,/Steuerjahr 2026/);
 assert.match(html,/Steuerjahr 2027/);
-assert.match(html,/CHF 8['’]000\.00|CHF 8,000\.00|CHF 8\.000,00/);
-assert.match(html,/CHF 4['’]000\.00|CHF 4,000\.00|CHF 4\.000,00/);
+assert.match(html,/CHF 8['’]500\.00|CHF 8,500\.00|CHF 8\.500,00/);
+assert.match(html,/CHF 3['’]500\.00|CHF 3,500\.00|CHF 3\.500,00/);
 assert.match(html,/CHF 5['’]000\.00|CHF 5,000\.00|CHF 5\.000,00/);
 assert.match(html,/CHF 10['’]000\.00|CHF 10,000\.00|CHF 10\.000,00/);
 assert.match(html,/Personen &amp; Haushalt/);
@@ -61,12 +65,19 @@ assert.match(html,/Kind erfassen/);
 assert.match(html,/Finance-Quelle/);
 assert.match(html,/taxItemDocumentInput/);
 assert.match(html,/taxPaymentTransaction/);
+assert.match(html,/Steuerrelevante Einnahmen/);
+assert.match(html,/CHF 1['’]000\.00|CHF 1,000\.00|CHF 1\.000,00/);
+assert.match(html,/Steuerrelevante Ausgaben/);
+assert.match(html,/CHF 200\.00|CHF 200,00/);
+assert.match(html,/Steuerjahr 2026/);
+assert.match(html,/Abzug \/ Ausgabe/);
 
 const api=fs.readFileSync(new URL('../assets/js/app/finance-api.js',import.meta.url),'utf8');
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 const migration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_tax_center_core_sg.sql',import.meta.url),'utf8');
 const peopleMigration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_tax_center_people_work_sg.sql',import.meta.url),'utf8');
 const integrityMigration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_tax_center_link_integrity.sql',import.meta.url),'utf8');
+const transactionTaxMigration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_tax_transaction_linkage.sql',import.meta.url),'utf8');
 
 for(const method of ['listTaxRuleVersions','listTaxCases','listTaxPeople','createTaxPerson','listTaxChildren','createTaxChild','listTaxEmployments','createTaxEmployment','ensureTaxCase','listTaxCaseSections','upsertTaxCaseSection','listTaxItems','createTaxItem','listTaxObligations','createTaxObligation','listTaxPayments','createTaxPayment']){
   assert.match(api,new RegExp(method));
@@ -91,5 +102,11 @@ assert.match(peopleMigration,/create table if not exists public\.tax_employments
 assert.match(peopleMigration,/homeoffice_days/);
 assert.match(integrityMigration,/validate_tax_item_source/);
 assert.match(integrityMigration,/validate_tax_payment_links/);
+assert.match(transactionTaxMigration,/tax_year/);
+assert.match(transactionTaxMigration,/tax_treatment/);
+assert.match(transactionTaxMigration,/tax_section_key/);
+assert.match(transactionTaxMigration,/transactions_normalize_tax_link/);
+assert.match(main,/ensureTransactionTaxCase/);
+assert.match(main,/tax_treatment/);
 
 console.log('SG tax center assertions OK');
