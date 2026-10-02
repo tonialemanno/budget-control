@@ -1,0 +1,39 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { renderAdmin } from '../assets/js/views/admin.js';
+
+const backend=fs.readFileSync(new URL('../assets/js/app/backend.js',import.meta.url),'utf8');
+const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
+const edge=fs.readFileSync(new URL('../supabase/functions/admin-users/index.ts',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_demo_instance_auth_context.sql',import.meta.url),'utf8');
+
+assert.match(backend,/adminCreateDemo/);
+assert.match(main,/admin-demo-create/);
+assert.match(main,/admin-demo-copy/);
+assert.match(edge,/action === "create_demo"/);
+assert.match(edge,/provision_demo_instance/);
+assert.match(edge,/demoPassword/);
+assert.match(migration,/create table if not exists public\.demo_instances/);
+assert.match(migration,/create or replace function public\.provision_demo_instance/);
+assert.match(migration,/request\.jwt\.claim\.sub/);
+assert.match(migration,/Demo Haushalt/);
+assert.match(migration,/Demo Immobilien AG/);
+assert.match(migration,/Vanguard FTSE All-World/);
+assert.match(migration,/Säule 3a/);
+assert.match(migration,/Ferien vorgestreckt/);
+assert.match(migration,/Zahnarztrechnung/);
+assert.match(migration,/revoke all on function public\.provision_demo_instance/);
+assert.match(migration,/grant execute on function public\.provision_demo_instance\(uuid,text\) to service_role/);
+
+const html=renderAdmin({
+  adminUsers:[],
+  productModules:[],
+  demoCredentials:{email:'demo@example.com',password:'Demo-AbCd2345!7'},
+});
+assert.match(html,/Demo-Instanz/);
+assert.match(html,/demo@example\.com/);
+assert.match(html,/Demo-AbCd2345!7/);
+assert.match(html,/admin-demo-copy/);
+assert.match(html,/Demo erstellen \/ zurücksetzen/);
+
+console.log('demo instance tests passed');
