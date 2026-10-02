@@ -2473,3 +2473,4 @@ applyPrivacyUI();
 syncMobileScrollState();
 const restored = await backend.restoreSession();
 if (restored?.user) await enterApp(restored); else showAuth();
+window.__FINANCE_BOOT_COMPLETE__ = true;
