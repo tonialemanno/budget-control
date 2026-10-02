@@ -31,14 +31,14 @@ const missingFinance=new Map();
 const missingBackend=new Map();
 for(const file of files){
   const source=fs.readFileSync(file,'utf8');
-  for(const match of source.matchAll(/\bfinanceApi\.([A-Za-z_$][\w$]*)/g)){
+  for(const match of source.matchAll(/(?<!\/)\bfinanceApi\.([A-Za-z_$][\w$]*)/g)){
     const method=match[1];
     if(typeof financeApi[method]!=='function'){
       if(!missingFinance.has(method)) missingFinance.set(method,[]);
       missingFinance.get(method).push(path.relative(root,file));
     }
   }
-  for(const match of source.matchAll(/\bbackend\.([A-Za-z_$][\w$]*)/g)){
+  for(const match of source.matchAll(/(?<!\/)\bbackend\.([A-Za-z_$][\w$]*)/g)){
     const method=match[1];
     if(typeof backend[method]!=='function'){
       if(!missingBackend.has(method)) missingBackend.set(method,[]);
