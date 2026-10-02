@@ -70,7 +70,7 @@ function sectionStatusPill(status){
   return statusPill('pending',SECTION_STATUS[status]||'Offen');
 }
 
-function taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,debts,receivables,investments,properties,vehicles,taxItems}){
+function taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,debts,receivables,investments,properties,vehicles,taxItems,taxPeople,taxChildren,taxEmployments}){
   const checks=[];
   const docs=(documents||[]).filter((d)=>d.tax_relevant&&Number(d.tax_year||new Date(d.document_date||d.created_at).getFullYear())===year);
   const items=(taxItems||[]).filter((i)=>i.tax_case_id===taxCase?.id);
@@ -79,6 +79,9 @@ function taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,d
   const taxTransactions=(transactions||[]).filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
 
   if(!taxCase) checks.push({level:'warning',text:`Steuerfall ${year} ist noch nicht angelegt.`});
+  if(taxCase && !(taxPeople||[]).some((p)=>p.tax_case_id===taxCase.id&&Number(p.person_no)===1)) checks.push({level:'warning',text:'Hauptperson im Steuerfall ist noch nicht erfasst.'});
+  if(taxCase && (taxChildren||[]).some((child)=>child.tax_case_id===taxCase.id&&child.assignment_status==='unresolved')) checks.push({level:'warning',text:'Mindestens ein Kind hat die steuerliche Zuordnung ungeklärt.'});
+  if(taxCase && (taxEmployments||[]).some((job)=>job.tax_case_id===taxCase.id) && !items.some((i)=>i.item_type==='salary_certificate') && !/lohnausweis/.test(docText)) checks.push({level:'warning',text:'Arbeitsstelle erfasst, aber Lohnausweis/Bescheinigung noch nicht bestätigt.'});
   if(rule?.status==='partial') checks.push({level:'warning',text:`Regelversion ${rule.version} ist als teilweise veröffentlicht markiert. Betragslimiten nicht automatisch als definitiv behandeln.`});
   if(rule?.status==='pending') checks.push({level:'warning',text:`Regelversion ${rule.version} ist noch ausstehend. Keine automatischen Abzüge versprechen.`});
 
@@ -175,7 +178,7 @@ export function renderTaxAdvisor({
   const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
   const selectedChildren=(taxChildren||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedEmployments=(taxEmployments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
-  const checks=taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,debts,receivables,investments,properties,vehicles,taxItems});
+  const checks=taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,debts,receivables,investments,properties,vehicles,taxItems,taxPeople,taxChildren,taxEmployments});
 
   const transactionRows=taxTransactions.map((tx)=>{
     const receipts=receiptByTx.get(tx.id)||[];
