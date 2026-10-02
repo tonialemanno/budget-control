@@ -60,7 +60,8 @@ function goalPlan(goal,{goalSources,recurringRules,transactions,accounts,baseCur
     if(source.source_type==='recurring_rule'){
       const rule=recurringRules.find((r)=>r.id===source.recurring_rule_id);
       const today=new Date().toISOString().slice(0,10);
-      if(rule && rule.active!==false && (!rule.end_date || String(rule.end_date).slice(0,10)>=today)){
+      const targetsGoal=!account || rule?.destination_account_id===account.account_id;
+      if(rule && rule.direction==='transfer' && targetsGoal && rule.active!==false && (!rule.end_date || String(rule.end_date).slice(0,10)>=today)){
         const normalized=cadenceMonthly(rule.amount,rule.cadence);
         const converted=convertAmount(normalized,rule.currency||baseCurrency,targetCurrency,fxRates)??0;
         components.push({label:source.label||rule.description,amount:converted,type:'recurring_rule',id:source.id});
@@ -111,7 +112,7 @@ function feasibility(goal,plannedMonthly,currentAmount) {
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], accounts = [], household, profile, fxRates, canWrite=false } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
-  const recurringOptions=recurringRules.filter((r)=>r.active!==false).map((r)=>`<option value="${r.id}">${escapeHtml(r.description)} · ${money(r.amount,{currency:r.currency||currency,locale})} · ${escapeHtml(r.cadence)}</option>`).join('');
+  const recurringOptions=recurringRules.filter((r)=>r.active!==false&&r.direction==='transfer').map((r)=>`<option value="${r.id}">${escapeHtml(r.description)} · ${money(r.amount,{currency:r.currency||currency,locale})} · ${escapeHtml(r.cadence)}</option>`).join('');
   const accountOptions=accounts
     .filter((a)=>!['credit_card','investment','pension'].includes(a.account_type))
     .map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${money(a.current_balance,{currency:a.currency,locale})}</option>`)
