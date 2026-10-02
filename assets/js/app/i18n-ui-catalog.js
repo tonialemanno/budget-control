@@ -738,7 +738,18 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Schliessen": "Chiudi",
   "Lade …": "Caricamento …",
   "Dokumentpfad fehlt.": "Percorso del documento mancante.",
-  "Vorschau konnte nicht geöffnet werden": "Impossibile aprire l’anteprima"}),
+  "Vorschau konnte nicht geöffnet werden": "Impossibile aprire l’anteprima",
+  "Rückzahlung Forderung": "Rimborso credito",
+  "Forderung ausgezahlt": "Credito erogato",
+  "Rechnungszahlung": "Pagamento fattura",
+  "Forderung anzeigen": "Mostra credito",
+  "Rechnung anzeigen": "Mostra fattura",
+  "Forderungsbuchungen werden unter Forderungen verwaltet.": "I movimenti dei crediti vengono gestiti nella sezione Crediti.",
+  "Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.": "Questo movimento è collegato a una fattura pagata. Gestisci la fattura nella sezione Fatture.",
+  "Eine Forderungsbuchung kann nicht in eine Umbuchung umgewandelt werden.": "Un movimento relativo a un credito non può essere convertito in un trasferimento.",
+  "Eine bezahlte Rechnungsbuchung kann nicht in eine Umbuchung umgewandelt werden.": "Un movimento di una fattura pagata non può essere convertito in un trasferimento.",
+  "Forderungsbuchungen werden unter Forderungen korrigiert oder storniert.": "I movimenti dei crediti vengono corretti o annullati nella sezione Crediti.",
+  "Diese Buchung gehört zu einer bezahlten Rechnung. Bitte zuerst die Rechnungszahlung zurücknehmen.": "Questo movimento appartiene a una fattura pagata. Prima annulla il pagamento della fattura."}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -1478,7 +1489,18 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Schliessen": "Close",
   "Lade …": "Loading …",
   "Dokumentpfad fehlt.": "Document path is missing.",
-  "Vorschau konnte nicht geöffnet werden": "Preview could not be opened"})
+  "Vorschau konnte nicht geöffnet werden": "Preview could not be opened",
+  "Rückzahlung Forderung": "Receivable repayment",
+  "Forderung ausgezahlt": "Receivable paid out",
+  "Rechnungszahlung": "Bill payment",
+  "Forderung anzeigen": "Show receivable",
+  "Rechnung anzeigen": "Show bill",
+  "Forderungsbuchungen werden unter Forderungen verwaltet.": "Receivable transactions are managed under Receivables.",
+  "Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.": "This transaction is linked to a paid bill. Manage the bill under Bills.",
+  "Eine Forderungsbuchung kann nicht in eine Umbuchung umgewandelt werden.": "A receivable transaction cannot be converted into a transfer.",
+  "Eine bezahlte Rechnungsbuchung kann nicht in eine Umbuchung umgewandelt werden.": "A paid-bill transaction cannot be converted into a transfer.",
+  "Forderungsbuchungen werden unter Forderungen korrigiert oder storniert.": "Receivable transactions are corrected or reversed under Receivables.",
+  "Diese Buchung gehört zu einer bezahlten Rechnung. Bitte zuerst die Rechnungszahlung zurücknehmen.": "This transaction belongs to a paid bill. Reverse the bill payment first."})
 });
 
 export const UI_PATTERNS = Object.freeze({
