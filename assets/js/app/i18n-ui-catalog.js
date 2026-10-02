@@ -1991,6 +1991,10 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^Steuerdossier (\d{4}) exportieren \(CSV\)$/, 'Esporta dossier fiscale $1 (CSV)'],
+    [/^Steuerdossier (\d{4}) als CSV erstellt\.$/, 'Dossier fiscale $1 creato come CSV.'],
+    [/^Arbeitsstellen (\d{4})$/, 'Posti di lavoro $1'],
+    [/^Person (\d+)$/, 'Persona $1'],
     [/^noch offen (.+)$/, 'ancora aperto $1'],
     [/^Steuerjahr (\d{4})$/, 'Anno fiscale $1'],
     [/^Steuerfall (\d{4})$/, 'Caso fiscale $1'],
@@ -2077,6 +2081,10 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^Steuerdossier (\d{4}) exportieren \(CSV\)$/, 'Export tax dossier $1 (CSV)'],
+    [/^Steuerdossier (\d{4}) als CSV erstellt\.$/, 'Tax dossier $1 created as CSV.'],
+    [/^Arbeitsstellen (\d{4})$/, 'Employments $1'],
+    [/^Person (\d+)$/, 'Person $1'],
     [/^noch offen (.+)$/, 'still open $1'],
     [/^Steuerjahr (\d{4})$/, 'Tax year $1'],
     [/^Steuerfall (\d{4})$/, 'Tax case $1'],
