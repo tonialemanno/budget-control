@@ -120,7 +120,7 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
-  investments = [], properties = [], vehicles = [], household, profile, fxRates, taxYear, canWrite=false,
+  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false,
   taxRuleVersions = [], taxCases = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
@@ -146,6 +146,27 @@ export function renderTaxAdvisor({
 
   const sectionRows=new Map((taxCaseSections||[]).filter((row)=>row.tax_case_id===taxCase?.id).map((row)=>[row.section_key,row]));
   const caseItems=(taxItems||[]).filter((row)=>row.tax_case_id===taxCase?.id);
+  const itemDocuments=new Map();
+  for(const doc of documents.filter((d)=>d.object_type==='tax_item'&&d.object_id)){
+    const list=itemDocuments.get(doc.object_id)||[]; list.push(doc); itemDocuments.set(doc.object_id,list);
+  }
+  const linkedTaxTransactionIds=new Set((taxPayments||[]).map((row)=>row.transaction_id).filter(Boolean));
+  const paidBillTransactionIds=new Set((bills||[]).filter((row)=>row.status==='paid'&&row.paid_transaction_id).map((row)=>row.paid_transaction_id));
+  const taxPaymentCandidates=(transactions||[]).filter((tx)=>
+    tx.status==='booked' && !tx.transfer_group_id && tx.cashflow_type==='standard' &&
+    !linkedTaxTransactionIds.has(tx.id) && !paidBillTransactionIds.has(tx.id) &&
+    new Date(tx.occurred_at).getFullYear()===year
+  );
+  const sourceOptions=[
+    ...accounts.map((row)=>({value:`account:${row.account_id}`,label:`Konto · ${row.name}`})),
+    ...debts.map((row)=>({value:`debt:${row.id}`,label:`Schuld · ${row.name||row.creditor}`})),
+    ...receivables.map((row)=>({value:`receivable:${row.id}`,label:`Forderung · ${row.debtor} · ${row.reason}`})),
+    ...pensions.map((row)=>({value:`pension:${row.id}`,label:`Vorsorge · ${row.name}`})),
+    ...insurance.map((row)=>({value:`insurance:${row.id}`,label:`Versicherung · ${row.name}`})),
+    ...investments.map((row)=>({value:`investment:${row.id}`,label:`Investment · ${row.name}`})),
+    ...properties.map((row)=>({value:`property:${row.id}`,label:`Liegenschaft · ${row.name}`})),
+    ...vehicles.map((row)=>({value:`vehicle:${row.id}`,label:`Fahrzeug · ${row.name}`})),
+  ];
   const completeSections=TAX_SECTIONS.filter((section)=>['complete','not_applicable'].includes(sectionRows.get(section.key)?.status)).length;
   const completeness=Math.round((completeSections/TAX_SECTIONS.length)*100);
   const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments);
@@ -161,14 +182,18 @@ export function renderTaxAdvisor({
     return `<tr><td>${dateLabel(tx.occurred_at,locale)}</td><td><strong>${escapeHtml(tx.description)}</strong><div class="table-meta">${escapeHtml(tx.tax_category||tx.categories?.name||'Nicht spezifiziert')}</div></td><td>${money(displayedAmount,{currency:tx.currency,locale})}${amountNote}</td><td>${receipts.length?statusPill('active',`${receipts.length} Beleg${receipts.length===1?'':'e'}`):statusPill('pending','Beleg fehlt')}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-receipt" data-id="${tx.id}">${icon('plus')} Beleg</button><button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="false">Entfernen</button>`:''}</div></td></tr>`;
   });
 
-  const itemRows=caseItems.map((item)=>`<tr>
+  const itemRows=caseItems.map((item)=>{
+    const itemDocs=itemDocuments.get(item.id)||[];
+    const sourceLabel=item.source_type?sourceOptions.find((option)=>option.value===`${item.source_type}:${item.source_id}`)?.label:null;
+    return `<tr>
     <td>${item.occurred_on?dateLabel(item.occurred_on,locale):'—'}</td>
-    <td><strong>${escapeHtml(item.title)}</strong><div class="table-meta">${escapeHtml(TAX_SECTIONS.find((s)=>s.key===item.section_key)?.label||item.section_key)}${item.person_label?` · ${escapeHtml(item.person_label)}`:''}</div></td>
+    <td><strong>${escapeHtml(item.title)}</strong><div class="table-meta">${escapeHtml(TAX_SECTIONS.find((s)=>s.key===item.section_key)?.label||item.section_key)}${item.person_label?` · ${escapeHtml(item.person_label)}`:''}${sourceLabel?` · ${escapeHtml(sourceLabel)}`:''}</div></td>
     <td>${item.gross_amount!==null&&item.gross_amount!==undefined?money(item.gross_amount,{currency:item.currency,locale}):item.amount!==null&&item.amount!==undefined?money(item.amount,{currency:item.currency,locale}):'—'}</td>
     <td>${item.deductible_amount!==null&&item.deductible_amount!==undefined?money(item.deductible_amount,{currency:item.currency,locale}):'—'}</td>
-    <td>${statusPill(item.verification_status==='verified'?'active':item.verification_status==='review'||item.verification_status==='advisor_review'?'warning':'pending',item.verification_status)}</td>
-    <td>${canWrite?`<button class="table-action table-action--danger" type="button" data-action="tax-item-delete" data-id="${item.id}">Löschen</button>`:''}</td>
-  </tr>`);
+    <td>${statusPill(item.verification_status==='verified'?'active':item.verification_status==='review'||item.verification_status==='advisor_review'?'warning':'pending',item.verification_status)}<div class="table-meta">${itemDocs.length} Beleg${itemDocs.length===1?'':'e'}</div></td>
+    <td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-item-document" data-id="${item.id}">${icon('plus')} Beleg</button><button class="table-action table-action--danger" type="button" data-action="tax-item-delete" data-id="${item.id}">Löschen</button>`:''}</div></td>
+  </tr>`;
+  });
 
   const obligationRows=selectedObligations.map((row)=>`<tr>
     <td>${row.due_date?dateLabel(row.due_date,locale):'—'}</td><td><strong>${escapeHtml(row.label)}</strong><div class="table-meta">${escapeHtml(row.obligation_type)}</div></td>
@@ -220,6 +245,7 @@ export function renderTaxAdvisor({
   return `
     ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdaten ${year} exportieren</button>`})}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
+    <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
 
     <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Steuerkonto 2025–2027</h3><p class="card-subtitle">Was ist offen, was wurde bezahlt und welcher Regelstand gilt?</p></div></div><div class="metric-grid">${yearCards}</div></article>
 
@@ -244,6 +270,7 @@ export function renderTaxAdvisor({
         <div class="form-grid form-grid--2">
           <label class="field"><span>Bereich</span><select class="text-control" name="sectionKey" required>${TAX_SECTIONS.map((s)=>`<option value="${s.key}">${escapeHtml(s.label)}</option>`).join('')}</select></label>
           <label class="field"><span>Typ</span><select class="text-control" name="itemType"><option value="manual">Allgemein</option><option value="salary_certificate">Lohnausweis</option><option value="account_snapshot">Kontostand 31.12.</option><option value="security_snapshot">Wertschrift 31.12.</option><option value="crypto_snapshot">Krypto 31.12.</option><option value="debt_snapshot">Schuld 31.12.</option><option value="medical_cost">Krankheitskosten</option><option value="child">Kind / Ausbildung</option><option value="donation">Spende</option><option value="property">Liegenschaft</option><option value="vehicle_snapshot">Fahrzeug 31.12.</option><option value="inheritance_gift">Erbschaft / Schenkung</option><option value="foreign_item">Ausland</option></select></label>
+          <label class="field form-grid-span"><span>Finance-Quelle</span><select class="text-control" name="sourceRef"><option value="">— keine / manuell —</option>${sourceOptions.map((option)=>`<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('')}</select><small>Verknüpft die Steuerposition mit dem bestehenden Finance-Objekt statt es zu duplizieren.</small></label>
           <label class="field form-grid-span"><span>Bezeichnung</span><input class="text-control" name="title" required placeholder="z. B. UBS Saldo 31.12."></label>
           <label class="field"><span>Person</span><input class="text-control" name="personLabel" placeholder="optional"></label>
           <label class="field"><span>Land</span><input class="text-control" name="countryCode" value="CH" maxlength="2"></label>
@@ -281,7 +308,7 @@ export function renderTaxAdvisor({
         </form>
         <form class="card card-padding" id="tax-payment-create" data-form="tax-payment-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
           <div class="card-heading"><div><h3 class="card-title">Zahlung / Rückerstattung</h3></div></div>
-          <div class="form-grid"><label class="field"><span>Art</span><select class="text-control" name="paymentType"><option value="payment">Zahlung</option><option value="refund">Rückerstattung</option><option value="interest_payment">Zinszahlung</option><option value="interest_credit">Zinsgutschrift</option></select></label><label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}">${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label><label class="field"><span>Betrag</span><input class="text-control" type="number" step="0.01" min="0" name="amount" required></label><label class="field"><span>Bezahlt am</span><input class="text-control" type="date" name="paidAt" value="${dateInputValue()}" required></label><label class="field"><span>Referenz</span><input class="text-control" name="reference"></label><input type="hidden" name="currency" value="${escapeHtml(taxCase.currency||'CHF')}"></div>
+          <div class="form-grid"><label class="field"><span>Art</span><select class="text-control" id="taxPaymentType" name="paymentType"><option value="payment">Zahlung</option><option value="refund">Rückerstattung</option><option value="interest_payment">Zinszahlung</option><option value="interest_credit">Zinsgutschrift</option></select></label><label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}">${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label><label class="field"><span>Kontobuchung</span><select class="text-control" id="taxPaymentTransaction" name="transactionId"><option value="">— keine / manuell —</option>${taxPaymentCandidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(num(tx.amount))}" data-type="${num(tx.amount)<0?'payment':'refund'}" data-date="${dateInputValue(new Date(tx.occurred_at))}">${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.description)} · ${money(tx.amount,{currency:tx.currency,locale})}</option>`).join('')}</select><small>Optional mit einer bestehenden Bankbuchung verknüpfen.</small></label><label class="field"><span>Betrag</span><input class="text-control" id="taxPaymentAmount" type="number" step="0.01" min="0" name="amount" required></label><label class="field"><span>Bezahlt am</span><input class="text-control" id="taxPaymentDate" type="date" name="paidAt" value="${dateInputValue()}" required></label><label class="field"><span>Referenz</span><input class="text-control" name="reference"></label><input type="hidden" name="currency" value="${escapeHtml(taxCase.currency||'CHF')}"></div>
           ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Zahlung speichern</button></div>':''}
         </form>
       </div>
