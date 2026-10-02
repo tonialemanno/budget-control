@@ -3,6 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_KKcZR8y1gAmC2MESwNa6pA_JFtC92ps';
 const SESSION_KEY = 'finance-v2-session';
 
 let session = readSession();
+let refreshInFlight = null;
 
 function readSession() {
   try {
@@ -66,12 +67,20 @@ async function authRequest(path, { method = 'POST', body, token } = {}) {
 
 async function refreshSession() {
   if (!session?.refresh_token) return saveSession(null);
-  try {
-    const data = await authRequest('token?grant_type=refresh_token', { body: { refresh_token: session.refresh_token } });
-    return saveSession(data);
-  } catch {
-    return saveSession(null);
-  }
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const token = session?.refresh_token;
+      if (!token) return saveSession(null);
+      const data = await authRequest('token?grant_type=refresh_token', { body: { refresh_token: token } });
+      return saveSession(data);
+    } catch {
+      return saveSession(null);
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 async function ensureSession() {
