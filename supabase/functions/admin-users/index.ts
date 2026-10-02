@@ -23,6 +23,14 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), { status, headers: cors(origin) });
 }
 
+function demoPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+  return `Demo-${token}!7`;
+}
+
 async function listAllUsers(admin: any) {
   const users: any[] = [];
   for (let page = 1; page <= 20; page += 1) {
@@ -126,6 +134,58 @@ Deno.serve(async (req: Request) => {
   }
 
   const action = String(body.action || "create_user");
+
+  if (action === "create_demo") {
+    const email = String(body.email || "demo@example.com").trim().toLowerCase();
+    const requestedLocale = String(body.locale || "de-CH");
+    const allowedLocales = new Set(["de-CH", "de-DE", "it-CH", "it-IT", "en-CH", "en-GB"]);
+    const locale = allowedLocales.has(requestedLocale) ? requestedLocale : "de-CH";
+    if (!email || !email.includes("@")) return json({ error: "Bitte eine gültige Demo-E-Mail-Adresse angeben." }, 400, origin);
+
+    const password = demoPassword();
+    let users;
+    try { users = await listAllUsers(admin); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "Demo-Benutzer konnten nicht geprüft werden." }, 400, origin); }
+
+    let demoUser = users.find((user) => String(user.email || "").toLowerCase() === email) || null;
+    let created = false;
+
+    if (!demoUser) {
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { display_name: "Finance Demo", locale, demo: true },
+      });
+      if (error || !data.user) return json({ error: error?.message || "Demo-Benutzer konnte nicht erstellt werden." }, 400, origin);
+      demoUser = data.user;
+      created = true;
+    } else {
+      const { data, error } = await admin.auth.admin.updateUserById(demoUser.id, {
+        password,
+        user_metadata: { ...(demoUser.user_metadata || {}), display_name: "Finance Demo", locale, demo: true },
+      });
+      if (error || !data.user) return json({ error: error?.message || "Demo-Benutzer konnte nicht aktualisiert werden." }, 400, origin);
+      demoUser = data.user;
+    }
+
+    const { data: seeded, error: seedError } = await admin.rpc("provision_demo_instance", {
+      p_user_id: demoUser.id,
+      p_locale: locale,
+    });
+    if (seedError) return json({ error: seedError.message }, 400, origin);
+
+    return json({
+      ok: true,
+      created,
+      reset: !created,
+      email,
+      password,
+      user_id: demoUser.id,
+      household_id: seeded?.household_id || null,
+      locale,
+    }, 200, origin);
+  }
 
   if (action === "set_module") {
     const userId = String(body.userId || "");
