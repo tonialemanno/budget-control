@@ -212,7 +212,7 @@ export function renderTaxAdvisor({
   const taxPaymentCandidates=(transactions||[]).filter((tx)=>
     tx.status==='booked' && !tx.transfer_group_id && tx.cashflow_type==='standard' &&
     !linkedTaxTransactionIds.has(tx.id) && !paidBillTransactionIds.has(tx.id) &&
-    new Date(tx.occurred_at).getFullYear()===year
+    (effectiveTaxYear(tx)===year || (!tx.tax_relevant && new Date(tx.occurred_at).getFullYear()===year))
   );
   const sourceOptions=[
     ...accounts.map((row)=>({value:`account:${row.account_id}`,label:`Konto · ${row.name}`})),
