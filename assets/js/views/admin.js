@@ -26,7 +26,7 @@ function presenceState(user){
   return {online,label,detail:[user.presence?.device_label,user.presence?.app_version].filter(Boolean).join(' · ')||'Live-Status'};
 }
 
-export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',adminPage=1,adminExpandedUserId=null}={}){
+export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',adminPage=1,adminExpandedUserId=null,demoCredentials=null}={}){
   const moduleList=productModules.filter((m)=>!m.is_core&&!['admin'].includes(m.key));
   const filtered=adminUsers.filter((user)=>matchesUser(user,adminQuery));
   const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
@@ -53,6 +53,21 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
   return `
     ${pageHeader({title:'Administration',subtitle:`${onlineCount} online · ${adminUsers.length} Benutzer. Online bedeutet: aktives Signal innerhalb der letzten 95 Sekunden.`,actions:'<button class="action-button action-button--secondary" type="button" data-action="admin-refresh-presence">Status aktualisieren</button>'})}
     <div class="grid-main-aside">
+      <form class="card card-padding" id="admin-demo-create" data-form="admin-demo-create">
+        <div class="card-heading"><div><h3 class="card-title">Demo-Instanz</h3><p class="card-subtitle">Isolierter Demo-Haushalt mit synthetischen Daten und allen Modulen.</p></div><span class="list-row-leading">${icon('sparkles')}</span></div>
+        <div class="form-grid">
+          <label class="field"><span>Demo-E-Mail</span><input class="text-control" name="email" type="email" value="demo@example.com" required></label>
+          <label class="field"><span>Sprache</span><select class="text-control" name="locale"><option value="de-CH">Deutsch · Schweiz</option><option value="it-CH">Italiano · Svizzera</option><option value="en-CH">English · Switzerland</option></select></label>
+        </div>
+        <p class="admin-search-hint">Erstellt oder setzt nur die Demo-Instanz zurück. Echte Benutzer- und Finanzdaten werden nicht kopiert oder verändert.</p>
+        <div class="form-actions"><button class="action-button action-button--primary" type="submit">${icon('refresh-cw')} Demo erstellen / zurücksetzen</button></div>
+        ${demoCredentials?`<div class="inline-alert" style="margin-top:14px"><strong>Demo-Zugang bereit</strong><span>Die Zugangsdaten wurden neu gesetzt. Beim nächsten Zurücksetzen wird ein neues Passwort erzeugt.</span></div>
+        <div class="form-grid" style="margin-top:12px">
+          <label class="field"><span>E-Mail</span><input class="text-control" value="${escapeHtml(demoCredentials.email||'')}" readonly></label>
+          <label class="field"><span>Passwort</span><input class="text-control" value="${escapeHtml(demoCredentials.password||'')}" readonly></label>
+        </div>
+        <div class="form-actions"><button class="action-button action-button--secondary" type="button" data-action="admin-demo-copy" data-email="${escapeHtml(demoCredentials.email||'')}" data-password="${escapeHtml(demoCredentials.password||'')}">Zugang kopieren</button></div>`:``}
+      </form>
       <form class="card card-padding" id="admin-user-create" data-form="admin-user-create">
         <div class="card-heading"><div><h3 class="card-title">Benutzer anlegen</h3><p class="card-subtitle">Direkt bestätigt, keine E-Mail-Bestätigung nötig</p></div><span class="list-row-leading">${icon('shield')}</span></div>
         <div class="form-grid"><label class="field"><span>Name</span><input class="text-control" name="displayName" required placeholder="z. B. Ana"></label><label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" required></label><label class="field"><span>Region & Format</span><select class="text-control" name="locale"><option value="de-CH">Deutsch · Schweiz</option><option value="de-DE">Deutsch · Deutschland</option><option value="it-CH">Italiano · Svizzera</option><option value="it-IT">Italiano · Italia</option><option value="en-CH">English · Switzerland</option><option value="en-GB">English · United Kingdom</option></select></label><label class="field"><span>Temporäres Passwort</span><input class="text-control" name="password" type="password" minlength="8" required autocomplete="new-password"></label></div>
