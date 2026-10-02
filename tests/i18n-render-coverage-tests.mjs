@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { base, tests } from './render-rich.mjs';
 import { setLocale, t } from '../assets/js/app/i18n.js';
+import { renderTaxAdvisor } from '../assets/js/views/tax-advisor.js';
 
 function decode(text='') {
   return String(text)
@@ -63,6 +64,29 @@ for (const locale of ['it-CH','en-CH']) {
     }
   }
   assert.deepEqual([...new Set(misses)],[],`Untranslated ${locale} UI:\\n${[...new Set(misses)].join('\\n')}`);
+}
+
+const taxRules=[
+  {id:'r26',country_code:'CH',canton_code:'SG',tax_year:2026,version:'SG-2026',status:'partial',notes:'Teilweise Regeln'}
+];
+const taxCases=[{id:'c26',household_id:'h1',tax_year:2026,country_code:'CH',canton_code:'SG',status:'collecting',currency:'CHF',expected_tax_amount:15000,tax_rule_versions:taxRules[0]}];
+const structuredTaxData={
+  household:{id:'h1',country_code:'CH',tax_region_code:'SG',base_currency:'CHF'},taxYear:2026,canWrite:true,
+  taxRuleVersions:taxRules,taxCases,
+  taxPeople:[{id:'p1',tax_case_id:'c26',person_no:1,role:'taxpayer',first_name:'Demo',last_name:'Person',birth_date:'1988-05-12',occupation:'Expert',employer_name:'Demo AG'}],
+  taxChildren:[{id:'ch1',tax_case_id:'c26',first_name:'Demo-Kind',last_name:'Muster',birth_date:'2015-04-22',education_status:'school',school_or_training:'Schule',childcare_costs:1200,currency:'CHF',assignment_status:'review'}],
+  taxEmployments:[{id:'e1',tax_case_id:'c26',tax_person_id:'p1',employer_name:'Demo AG',work_location:'St. Gallen',period_from:'2026-01-01',period_to:'2026-12-31',gross_income:78000,currency:'CHF',work_days:220,homeoffice_days:50,vacation_days:25,sick_days:3,field_service_days:12,commuting_distance_km:8.4,transport_mode:'ÖV'}],
+  taxCaseSections:[],taxItems:[],taxObligations:[],taxPayments:[],transactions:[],debtPayments:[],documents:[],accounts:[],pensions:[],debts:[],receivables:[],insurance:[],investments:[],properties:[],vehicles:[],bills:[],fxRates:null,
+};
+for (const locale of ['it-CH','en-CH']) {
+  setLocale(locale);
+  const html=renderTaxAdvisor({...structuredTaxData,profile:{locale}});
+  const misses=[];
+  for(const value of visibleStrings(html)){
+    const translated=t(value,locale);
+    if(germanUi.test(translated)) misses.push(translated);
+  }
+  assert.deepEqual([...new Set(misses)],[],`Untranslated structured Tax Center ${locale} UI:\n${[...new Set(misses)].join('\n')}`);
 }
 
 setLocale('it-CH');
