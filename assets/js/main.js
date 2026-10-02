@@ -495,7 +495,7 @@ async function loadContext() {
   runtime.moduleAccess = moduleAccess || {};
   runtime.productModules = productModules || [];
   runtime.household = households?.[0] || null;
-  runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers())?.users || [] : [];
+  runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers().catch(()=>({ users: [] })))?.users || [] : [];
   if (runtime.household) {
     await loadFinanceData();
     runtime.householdRole = runtime.householdMembers.find((member)=>member.user_id===runtime.user.id)?.role || null;
