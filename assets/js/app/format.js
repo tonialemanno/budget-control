@@ -60,6 +60,14 @@ export function dateInputValue(date = new Date()) {
   return local.toISOString().slice(0, 10);
 }
 
+export function financeEventTimestamp(value, now = new Date()) {
+  const text = String(value || '').slice(0, 10);
+  if (!text) return now.toISOString();
+  if (text === dateInputValue(now)) return now.toISOString();
+  const date = new Date(`${text}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? now.toISOString() : date.toISOString();
+}
+
 export function localMonthKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';
