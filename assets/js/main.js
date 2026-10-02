@@ -908,6 +908,39 @@ function renderImportReview() {
   host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${groups.size} erkannte Händler · Kategorien können vor dem Import gesetzt werden.</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
 }
 
+function transactionTaxDefaults(txLike={}) {
+  const amount=Number(txLike.amount||0);
+  const text=`${txLike.tax_category||txLike.taxCategory||''} ${txLike.description||''} ${txLike.counterparty||''} ${txLike.note||''}`.toLowerCase();
+  let treatment=txLike.tax_treatment||txLike.taxTreatment||null;
+  if(!treatment){
+    if(/steuerrück|steuererstatt|tax refund/.test(text)) treatment='tax_refund';
+    else if(/steuerzahlung|steueramt|steuerverwaltung|kanton.*steuer|gemeinde.*steuer|tax payment/.test(text)) treatment=amount>=0?'tax_refund':'tax_payment';
+    else treatment=amount>=0?'income':'deduction';
+  }
+  let section=txLike.tax_section_key||txLike.taxSectionKey||null;
+  if(!section){
+    if(['tax_payment','tax_refund'].includes(treatment)) section='tax_account';
+    else if(treatment==='income') section='income';
+    else if(treatment==='deduction') section='work_expenses';
+  }
+  return {treatment,section};
+}
+function transactionTaxYear(txLike={}) {
+  const explicit=Number(txLike.tax_year||txLike.taxYear);
+  if(Number.isInteger(explicit)&&explicit>=2000&&explicit<=2100) return explicit;
+  const text=`${txLike.tax_category||txLike.taxCategory||''} ${txLike.description||''} ${txLike.counterparty||''} ${txLike.note||''}`;
+  const mentioned=text.match(/\b(20\d{2})\b/);
+  if(mentioned) return Number(mentioned[1]);
+  const d=new Date(txLike.occurred_at||txLike.occurredAt||Date.now());
+  return Number.isNaN(d.getTime())?new Date().getFullYear():d.getFullYear();
+}
+async function ensureTransactionTaxCase(year) {
+  if(!moduleEnabled('tax')||runtime.household?.country_code!=='CH') return null;
+  const existing=runtime.taxCases.find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG');
+  if(existing) return existing;
+  return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
+}
+
 function openTransactionEditor(tx, { recurring = false } = {}) {
   if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
   if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
@@ -924,6 +957,9 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
+  const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
+  const taxTreatment=document.querySelector('#transactionEditTaxTreatment'); if (taxTreatment) taxTreatment.value=tx.tax_treatment||transactionTaxDefaults(tx).treatment||'';
+  const taxSection=document.querySelector('#transactionEditTaxSectionKey'); if (taxSection) taxSection.value=tx.tax_section_key||transactionTaxDefaults(tx).section||'';
   const taxCategory=document.querySelector('#transactionEditTaxCategory'); if (taxCategory) taxCategory.value=tx.tax_category||'';
   const toggle=document.querySelector('#transactionMakeRecurring');
   const fields=document.querySelector('#transactionRecurringFields');
@@ -1017,7 +1053,17 @@ async function handleForm(form) {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     const amount = Math.abs(numberValue(data,'amount')) * (formValue(data,'direction')==='expense' ? -1 : 1);
     const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
-    if (moduleEnabled('tax')) { payload.tax_relevant=formValue(data,'taxRelevant')==='true'; payload.tax_category=nullValue(data,'taxCategory'); }
+    if (moduleEnabled('tax')) {
+      payload.tax_relevant=formValue(data,'taxRelevant')==='true';
+      payload.tax_category=payload.tax_relevant?nullValue(data,'taxCategory'):null;
+      if(payload.tax_relevant){
+        const defaults=transactionTaxDefaults({...payload,taxTreatment:nullValue(data,'taxTreatment'),taxSectionKey:nullValue(data,'taxSectionKey')});
+        payload.tax_year=numberValue(data,'taxYear',transactionTaxYear(payload));
+        payload.tax_treatment=nullValue(data,'taxTreatment')||defaults.treatment;
+        payload.tax_section_key=nullValue(data,'taxSectionKey')||defaults.section;
+        await ensureTransactionTaxCase(payload.tax_year);
+      }
+    }
     await financeApi.createTransaction(payload);
     await refresh('Transaktion gespeichert.'); return;
   }
@@ -1032,7 +1078,19 @@ async function handleForm(form) {
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
-    if (moduleEnabled('tax')) { patch.tax_relevant=formValue(data,'taxRelevant')==='true'; patch.tax_category=nullValue(data,'taxCategory'); }
+    if (moduleEnabled('tax')) {
+      patch.tax_relevant=formValue(data,'taxRelevant')==='true';
+      patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
+      if(patch.tax_relevant){
+        const defaults=transactionTaxDefaults({...patch,taxTreatment:nullValue(data,'taxTreatment'),taxSectionKey:nullValue(data,'taxSectionKey')});
+        patch.tax_year=numberValue(data,'taxYear',transactionTaxYear({...tx,...patch}));
+        patch.tax_treatment=nullValue(data,'taxTreatment')||defaults.treatment;
+        patch.tax_section_key=nullValue(data,'taxSectionKey')||defaults.section;
+        await ensureTransactionTaxCase(patch.tax_year);
+      } else {
+        patch.tax_year=null; patch.tax_treatment=null; patch.tax_section_key=null;
+      }
+    }
     await financeApi.updateTransaction(transactionId,patch);
     let recurringSaved = false;
     if (data.get('makeRecurring') === 'on') {
@@ -1948,7 +2006,15 @@ async function handleAction(target) {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
     const value=target.dataset.value==='true'; let category=tx.tax_category||null; if(value&&!category){ const entered=prompt(t('Steuerkategorie (optional):'),t('Berufskosten')); if(entered!==null) category=entered.trim()||null; }
-    await financeApi.updateTransaction(tx.id,{tax_relevant:value,tax_category:value?category:null}); await refresh(value?'Als steuerrelevant markiert.':'Steuermarkierung entfernt.'); return;
+    if(value){
+      const defaults=transactionTaxDefaults({...tx,tax_category:category});
+      const taxYear=transactionTaxYear({...tx,tax_category:category});
+      await ensureTransactionTaxCase(taxYear);
+      await financeApi.updateTransaction(tx.id,{tax_relevant:true,tax_category:category,tax_year:taxYear,tax_treatment:defaults.treatment,tax_section_key:defaults.section});
+    } else {
+      await financeApi.updateTransaction(tx.id,{tax_relevant:false,tax_category:null,tax_year:null,tax_treatment:null,tax_section_key:null});
+    }
+    await refresh(value?'Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.':'Steuermarkierung entfernt.'); return;
   }
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
