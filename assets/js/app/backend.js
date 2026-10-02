@@ -24,6 +24,19 @@ function saveSession(next) {
   return session;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Server antwortet nicht. Bitte erneut versuchen.');
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function parseResponse(response) {
   const text = await response.text();
   let data = null;
@@ -43,7 +56,7 @@ async function parseResponse(response) {
 async function authRequest(path, { method = 'POST', body, token } = {}) {
   const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -78,7 +91,7 @@ async function rest(path, { method = 'GET', body, headers = {} } = {}) {
     ...headers,
   };
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -93,7 +106,7 @@ async function rpc(name, body = {}) {
 async function invokeFunction(name, { method = 'POST', body } = {}) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${name}`, {
     method,
     headers: {
       apikey: SUPABASE_KEY,
