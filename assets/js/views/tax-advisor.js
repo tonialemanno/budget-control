@@ -1,6 +1,6 @@
 import { dataTable, metricCard, pageHeader, statusPill } from '../app/components.js';
 import { dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
-import { fxLabel } from '../app/fx.js';
+import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { t } from '../app/i18n.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
@@ -36,20 +36,68 @@ const SECTION_STATUS={
 };
 
 function num(value){ const n=Number(value); return Number.isFinite(n)?n:0; }
+function effectiveTaxYear(tx){
+  const explicit=Number(tx?.tax_year);
+  if(Number.isInteger(explicit)&&explicit>=2000&&explicit<=2100) return explicit;
+  const d=new Date(tx?.occurred_at);
+  return Number.isNaN(d.getTime())?null:d.getFullYear();
+}
+function effectiveTaxTreatment(tx){
+  if(tx?.tax_treatment) return tx.tax_treatment;
+  const text=`${tx?.tax_category||''} ${tx?.description||''} ${tx?.counterparty||''}`.toLowerCase();
+  if(/steuerrück|steuererstatt|tax refund/.test(text)) return 'tax_refund';
+  if(/steuerzahlung|steueramt|steuerverwaltung|kanton.*steuer|gemeinde.*steuer|tax payment/.test(text)) return num(tx?.amount)>=0?'tax_refund':'tax_payment';
+  return num(tx?.amount)>=0?'income':'deduction';
+}
+function effectiveTaxSection(tx){
+  if(tx?.tax_section_key) return tx.tax_section_key;
+  const treatment=effectiveTaxTreatment(tx);
+  if(['tax_payment','tax_refund'].includes(treatment)) return 'tax_account';
+  if(treatment==='income') return 'income';
+  if(treatment==='deduction') return 'work_expenses';
+  return null;
+}
+function taxSectionLabel(key){
+  return TAX_SECTIONS.find((section)=>section.key===key)?.label||key||'Nicht spezifiziert';
+}
+function taxTreatmentLabel(value){
+  return {
+    income:'Einkommen',
+    deduction:'Abzug / Ausgabe',
+    tax_payment:'Steuerzahlung',
+    tax_refund:'Steuerrückerstattung',
+    information:'Information',
+  }[value]||value||'—';
+}
+function taxMovementBase(tx,targetCurrency,fxRates){
+  const converted=convertAmount(Math.abs(num(tx?.amount)),tx?.currency||targetCurrency,targetCurrency,fxRates);
+  return converted===null?0:Math.abs(converted);
+}
 function caseForYear(cases,year){ return (cases||[]).find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG')||null; }
 function ruleForYear(rules,year){ return (rules||[]).find((row)=>row.country_code==='CH'&&row.canton_code==='SG'&&Number(row.tax_year)===Number(year))||null; }
 
-function taxLedgerSummary(taxCase,obligations,payments){
-  if(!taxCase) return {paid:0,refunds:0,due:0,open:0,known:false};
+function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates){
+  if(!taxCase) return {paid:0,refunds:0,due:0,open:0,known:false,transactionPaid:0,transactionRefunds:0};
   const caseObligations=(obligations||[]).filter((row)=>row.tax_case_id===taxCase.id&&row.status!=='cancelled');
   const casePayments=(payments||[]).filter((row)=>row.tax_case_id===taxCase.id);
+  const linkedTransactionIds=new Set(casePayments.map((row)=>row.transaction_id).filter(Boolean));
+  const accountTransactions=(transactions||[]).filter((tx)=>
+    tx.tax_relevant && tx.status==='booked' && !tx.transfer_group_id &&
+    effectiveTaxYear(tx)===Number(taxCase.tax_year) &&
+    !linkedTransactionIds.has(tx.id) &&
+    ['tax_payment','tax_refund'].includes(effectiveTaxTreatment(tx))
+  );
   const obligationsTotal=caseObligations.reduce((sum,row)=>sum+num(row.amount),0);
-  const paid=casePayments.filter((row)=>['payment','interest_payment'].includes(row.payment_type)).reduce((sum,row)=>sum+num(row.amount),0);
-  const refunds=casePayments.filter((row)=>['refund','interest_credit'].includes(row.payment_type)).reduce((sum,row)=>sum+num(row.amount),0);
+  const explicitPaid=casePayments.filter((row)=>['payment','interest_payment'].includes(row.payment_type)).reduce((sum,row)=>sum+num(row.amount),0);
+  const explicitRefunds=casePayments.filter((row)=>['refund','interest_credit'].includes(row.payment_type)).reduce((sum,row)=>sum+num(row.amount),0);
+  const transactionPaid=accountTransactions.filter((tx)=>effectiveTaxTreatment(tx)==='tax_payment').reduce((sum,tx)=>sum+taxMovementBase(tx,taxCase.currency||'CHF',fxRates),0);
+  const transactionRefunds=accountTransactions.filter((tx)=>effectiveTaxTreatment(tx)==='tax_refund').reduce((sum,tx)=>sum+taxMovementBase(tx,taxCase.currency||'CHF',fxRates),0);
+  const paid=explicitPaid+transactionPaid;
+  const refunds=explicitRefunds+transactionRefunds;
   const fallback=num(taxCase.assessed_tax_amount)||num(taxCase.expected_tax_amount);
   const due=obligationsTotal>0?obligationsTotal:fallback;
   const known=obligationsTotal>0||taxCase.assessed_tax_amount!==null&&taxCase.assessed_tax_amount!==undefined||taxCase.expected_tax_amount!==null&&taxCase.expected_tax_amount!==undefined;
-  return {paid,refunds,due,open:Math.max(0,due-paid+refunds),known};
+  return {paid,refunds,due,open:Math.max(0,due-paid+refunds),known,transactionPaid,transactionRefunds};
 }
 
 function ledgerStatus(summary){
@@ -76,7 +124,7 @@ function taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,d
   const items=(taxItems||[]).filter((i)=>i.tax_case_id===taxCase?.id);
   const sourceKeys=new Set(items.filter((i)=>i.source_type&&i.source_id).map((i)=>`${i.source_type}:${i.source_id}`));
   const docText=docs.map((d)=>`${d.name||''} ${d.tax_category||''}`.toLowerCase()).join(' | ');
-  const taxTransactions=(transactions||[]).filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
+  const taxTransactions=(transactions||[]).filter((tx)=>tx.tax_relevant&&effectiveTaxYear(tx)===year);
 
   if(!taxCase) checks.push({level:'warning',text:`Steuerfall ${year} ist noch nicht angelegt.`});
   if(taxCase && !(taxPeople||[]).some((p)=>p.tax_case_id===taxCase.id&&Number(p.person_no)===1)) checks.push({level:'warning',text:'Hauptperson im Steuerfall ist noch nicht erfasst.'});
@@ -88,7 +136,7 @@ function taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,d
   const accountSnapshots=items.filter((i)=>i.item_type==='account_snapshot');
   if((accounts||[]).length&&accountSnapshots.length<(accounts||[]).length) checks.push({level:'warning',text:`31.12.-Salden: ${accountSnapshots.length} von ${accounts.length} Konten im Steuerdossier dokumentiert.`});
 
-  const salaryTx=(transactions||[]).filter((tx)=>new Date(tx.occurred_at).getFullYear()===year&&num(tx.amount)>0&&(/lohn|salary|gehalt/i.test(`${tx.description||''} ${tx.counterparty||''}`)||tx.categories?.name==='Lohn'));
+  const salaryTx=(transactions||[]).filter((tx)=>effectiveTaxYear(tx)===year&&num(tx.amount)>0&&(/lohn|salary|gehalt/i.test(`${tx.description||''} ${tx.counterparty||''}`)||tx.categories?.name==='Lohn'));
   if(salaryTx.length&&!/lohnausweis/.test(docText)&&!items.some((i)=>i.item_type==='salary_certificate')) checks.push({level:'warning',text:'Erwerbseinkommen erkannt, aber kein Lohnausweis im Steuerdossier bestätigt.'});
 
   const pillar3a=(pensions||[]).filter((p)=>String(p.pension_type||'').includes('3a')&&num(p.annual_contribution)>0);
@@ -134,17 +182,23 @@ export function renderTaxAdvisor({
   const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y)]));
   const yearCards=TAX_YEARS.map((y)=>{
     const c=caseForYear(taxCases,y);
-    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments),selected:y===year,locale});
+    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments,transactions,fxRates),selected:y===year,locale});
   }).join('');
 
-  const taxTransactions=transactions.filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
+  const taxTransactions=transactions.filter((tx)=>tx.tax_relevant&&effectiveTaxYear(tx)===year);
   const taxDocuments=documents.filter((doc)=>doc.tax_relevant&&Number(doc.tax_year||new Date(doc.document_date||doc.created_at).getFullYear())===year);
   const receiptByTx=new Map();
   for(const doc of documents.filter((d)=>d.object_type==='transaction'&&d.object_id)){
     const list=receiptByTx.get(doc.object_id)||[]; list.push(doc); receiptByTx.set(doc.object_id,list);
   }
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const markedExpense=taxTransactions.reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
+  const taxIncome=taxTransactions
+    .filter((tx)=>effectiveTaxTreatment(tx)==='income'&&num(tx.amount)>0)
+    .reduce((sum,tx)=>sum+taxMovementBase(tx,baseCurrency,fxRates),0);
+  const taxExpense=taxTransactions
+    .filter((tx)=>effectiveTaxTreatment(tx)==='deduction')
+    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
+  const taxAccountMovementCount=taxTransactions.filter((tx)=>['tax_payment','tax_refund'].includes(effectiveTaxTreatment(tx))).length;
   const missingReceipts=taxTransactions.filter((tx)=>!receiptByTx.has(tx.id));
 
   const sectionRows=new Map((taxCaseSections||[]).filter((row)=>row.tax_case_id===taxCase?.id).map((row)=>[row.section_key,row]));
@@ -172,7 +226,7 @@ export function renderTaxAdvisor({
   ];
   const completeSections=TAX_SECTIONS.filter((section)=>['complete','not_applicable'].includes(sectionRows.get(section.key)?.status)).length;
   const completeness=Math.round((completeSections/TAX_SECTIONS.length)*100);
-  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments);
+  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments,transactions,fxRates);
   const selectedObligations=(taxObligations||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPayments=(taxPayments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
@@ -185,7 +239,9 @@ export function renderTaxAdvisor({
     const payment=paymentMap.get(tx.id);
     const displayedAmount=payment?-(num(payment.interest_amount)+num(payment.fee_amount)):num(tx.amount);
     const amountNote=payment?'<div class="table-meta">nur Zins & Gebühren</div>':'';
-    return `<tr><td>${dateLabel(tx.occurred_at,locale)}</td><td><strong>${escapeHtml(tx.description)}</strong><div class="table-meta">${escapeHtml(tx.tax_category||tx.categories?.name||'Nicht spezifiziert')}</div></td><td>${money(displayedAmount,{currency:tx.currency,locale})}${amountNote}</td><td>${receipts.length?statusPill('active',`${receipts.length} Beleg${receipts.length===1?'':'e'}`):statusPill('pending','Beleg fehlt')}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-receipt" data-id="${tx.id}">${icon('plus')} Beleg</button><button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="false">Entfernen</button>`:''}</div></td></tr>`;
+    const treatment=effectiveTaxTreatment(tx);
+    const section=effectiveTaxSection(tx);
+    return `<tr><td>${dateLabel(tx.occurred_at,locale)}<div class="table-meta">Steuerjahr ${effectiveTaxYear(tx)}</div></td><td><strong>${escapeHtml(tx.description)}</strong><div class="table-meta">${escapeHtml(taxSectionLabel(section))} · ${escapeHtml(taxTreatmentLabel(treatment))}${tx.tax_category?` · ${escapeHtml(tx.tax_category)}`:''}</div></td><td>${money(displayedAmount,{currency:tx.currency,locale})}${amountNote}</td><td>${receipts.length?statusPill('active',`${receipts.length} Beleg${receipts.length===1?'':'e'}`):statusPill('pending','Beleg fehlt')}</td><td><div class="table-actions">${canWrite?`<button class="table-action" type="button" data-action="tax-receipt" data-id="${tx.id}">${icon('plus')} Beleg</button><button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Steuerdaten bearbeiten</button><button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="false">Entfernen</button>`:''}</div></td></tr>`;
   });
 
   const itemRows=caseItems.map((item)=>{
@@ -317,9 +373,10 @@ export function renderTaxAdvisor({
 
     <div class="metric-grid" style="margin-top:16px">
       ${metricCard('Vollständigkeit',`${completeness}%`,`${completeSections} von ${TAX_SECTIONS.length} Bereichen abgeschlossen`,completeness===100?'positive':completeness>=60?'warning':'')}
-      ${metricCard('Steuerrelevante Buchungen',String(taxTransactions.length),`${money(markedExpense,{currency:baseCurrency,locale})} ${t('markierte Kosten')} · ${t(fxLabel(fxRates,baseCurrency))}`)}
+      ${metricCard('Steuerrelevante Einnahmen',money(taxIncome,{currency:baseCurrency,locale}),`${taxTransactions.filter((tx)=>effectiveTaxTreatment(tx)==='income').length} Buchungen · ${t(fxLabel(fxRates,baseCurrency))}`,'positive')}
+      ${metricCard('Steuerrelevante Ausgaben',money(taxExpense,{currency:baseCurrency,locale}),`${taxTransactions.filter((tx)=>effectiveTaxTreatment(tx)==='deduction').length} Buchungen · ohne Schuldentilgung`,'warning')}
+      ${metricCard('Steuerkonto',money(selectedLedger.paid,{currency:taxCase?.currency||'CHF',locale}),selectedLedger.known?`noch offen ${money(selectedLedger.open,{currency:taxCase?.currency||'CHF',locale})} · ${taxAccountMovementCount} Bankbewegungen`:'offener Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
       ${metricCard('Belege',String(taxDocuments.length),missingReceipts.length?`${missingReceipts.length} fehlen`:'aktuell vollständig',missingReceipts.length?'warning':'positive')}
-      ${metricCard('Steuerkonto',money(selectedLedger.paid,{currency:taxCase?.currency||'CHF',locale}),selectedLedger.known?`noch offen ${money(selectedLedger.open,{currency:taxCase?.currency||'CHF',locale})}`:'offener Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
     </div>
 
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuer-Check ${year}</h3><p class="card-subtitle">Automatische Vollständigkeitsprüfung. Hinweise sind keine verbindliche steuerliche Beurteilung.</p></div></div><div class="stack">${checkHtml}</div></article>
@@ -451,7 +508,7 @@ export function renderTaxAdvisor({
       </div>
     </article>`:''}
 
-    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuerrelevante Buchungen ${year}</h3><p class="card-subtitle">Bestehende Finance-Buchungen werden referenziert. Belege können direkt per Foto oder PDF verknüpft werden.</p></div></div>${dataTable({headers:['Datum','Buchung','Betrag','Beleg',''],rows:transactionRows,emptyText:'Noch keine steuerrelevanten Buchungen markiert.'})}</article>
+    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuerrelevante Buchungen ${year}</h3><p class="card-subtitle">Bestehende Finance-Buchungen werden referenziert. Belege können direkt per Foto oder PDF verknüpft werden.</p></div></div>${dataTable({headers:['Datum / Steuerjahr','Buchung / Steuerzuordnung','Betrag','Beleg',''],rows:transactionRows,emptyText:'Noch keine steuerrelevanten Buchungen markiert.'})}</article>
 
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Offizielle Referenzen</h3><p class="card-subtitle">Kanton St.Gallen · Regeln werden pro Steuerjahr versioniert.</p></div></div><div class="stack compact-copy">
       <p><a class="card-link" href="https://www.sg.ch/steuern-finanzen/steuern/formulare-wegleitungen/einkommens-vermoegenssteuer-privatpersonen.html" target="_blank" rel="noreferrer">SG Formulare & Wegleitungen</a> · offizielle Unterlagen je Steuerperiode.</p>
