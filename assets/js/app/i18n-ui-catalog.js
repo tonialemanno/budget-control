@@ -1028,7 +1028,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "geändert": "modificato",
   "gelöscht": "eliminato",
   "Schulden & Kredite": "Debiti e crediti",
-  "Finance Intelligence": "Finance Intelligence"}),
+  "Finance Intelligence": "Finance Intelligence",
+  "noch keine Eintragung": "nessuna registrazione",
+  "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -2058,7 +2060,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "geändert": "updated",
   "gelöscht": "deleted",
   "Schulden & Kredite": "Debts & loans",
-  "Finance Intelligence": "Finance Intelligence"})
+  "Finance Intelligence": "Finance Intelligence",
+  "noch keine Eintragung": "no entry yet",
+  "noch kein Live-Signal": "no live signal yet"})
 });
 
 export const UI_PATTERNS = Object.freeze({
