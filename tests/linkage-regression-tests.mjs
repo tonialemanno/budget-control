@@ -45,6 +45,7 @@ const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8
 const receipt=fs.readFileSync(new URL('../assets/js/app/receipt-controller.js',import.meta.url),'utf8');
 const master=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_masterdata_copy_recursive_fix.sql',import.meta.url),'utf8');
 const sameDay=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_same_day_bill_debt_balance_fix.sql',import.meta.url),'utf8');
+const sourceDelete=fs.readFileSync(new URL('../supabase/migrations/20261002_finance_source_recurring_delete_cleanup.sql',import.meta.url),'utf8');
 
 assert.doesNotMatch(main,/new Date\(formValue\(data,'occurredAt'\)\)\.toISOString\(\)/);
 assert.equal((main.match(/financeEventTimestamp\(formValue\(data,'occurredAt'\)\)/g)||[]).length>=3,true);
@@ -56,5 +57,13 @@ assert.match(main,/rule\.direction!=='transfer'/);
 assert.match(master,/select c\.\*,t\.depth\+1/);
 assert.match(sameDay,/v_paid_at=current_date then now\(\)/);
 assert.match(sameDay,/new\.paid_at=current_date then now\(\)/);
+assert.match(sourceDelete,/contracts_cleanup_recurring_rule/);
+assert.match(sourceDelete,/insurance_cleanup_recurring_rule/);
+assert.match(sourceDelete,/debts_cleanup_recurring_rule/);
+assert.match(sourceDelete,/delete from public\.recurring_rules/);
+assert.ok(
+  main.indexOf("await financeApi.deleteTransaction(tx.id);") < main.indexOf("await deleteLinkedDocuments('transaction',tx.id);"),
+  'transaction data must be deleted before linked document cleanup'
+);
 
 console.log('linkage regression assertions OK');
