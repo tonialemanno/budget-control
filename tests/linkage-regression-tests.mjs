@@ -8,6 +8,9 @@ assert.equal(financeEventTimestamp('2026-10-02',fixedNow),fixedNow.toISOString()
 assert.equal(financeEventTimestamp('',fixedNow),fixedNow.toISOString(),'empty date falls back to now');
 assert.equal(financeEventTimestamp('2026-10-03',fixedNow).slice(0,10),'2026-10-03','future day must remain future');
 assert.equal(financeEventTimestamp('2026-10-01',fixedNow).slice(0,10),'2026-10-01','past day must remain historical');
+assert.equal(financeEventTimestamp('2026-10-02T11:29',fixedNow),fixedNow.toISOString(),'current-minute datetime must use the actual instant');
+assert.equal(financeEventTimestamp('2026-10-02T08:15',fixedNow),new Date('2026-10-02T08:15').toISOString(),'explicit same-day time must be preserved');
+assert.equal(financeEventTimestamp('2026-10-03T09:45',fixedNow),new Date('2026-10-03T09:45').toISOString(),'future datetime must preserve its time');
 
 const household={base_currency:'CHF'};
 const profile={locale:'de-CH'};
