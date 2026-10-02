@@ -2,6 +2,7 @@ import { dataTable, metricCard, pageHeader, statusPill } from '../app/components
 import { dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
 import { fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
+import { t } from '../app/i18n.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 
 const TAX_YEARS=[2025,2026,2027];
@@ -183,13 +184,13 @@ export function renderTaxAdvisor({
     const row=sectionRows.get(section.key);
     const status=row?.status||'open';
     const count=caseItems.filter((item)=>item.section_key===section.key).length;
-    return `<article class="settings-link-card"><div><span class="list-row-leading">${icon(status==='complete'?'check':'list')}</span><div><h3 class="card-title">${escapeHtml(section.label)}</h3><p class="card-subtitle">${escapeHtml(section.group)} · ${count} Position${count===1?'':'en'} · ${escapeHtml(section.hint)}</p></div></div>
+    return `<article class="settings-link-card"><div><span class="list-row-leading">${icon(status==='complete'?'check':'list')}</span><div><h3 class="card-title">${escapeHtml(t(section.label))}</h3><p class="card-subtitle">${escapeHtml(t(section.group))} · ${count} ${escapeHtml(t(count===1?'Position':'Positionen'))} · ${escapeHtml(t(section.hint))}</p></div></div>
       <div class="stack" style="min-width:min(100%,220px)">${sectionStatusPill(status)}
       ${taxCase&&canWrite?`<form data-form="tax-section-status"><input type="hidden" name="taxCaseId" value="${taxCase.id}"><input type="hidden" name="sectionKey" value="${section.key}"><select class="select-control" name="status">${Object.entries(SECTION_STATUS).map(([key,label])=>`<option value="${key}" ${key===status?'selected':''}>${label}</option>`).join('')}</select><button class="action-button action-button--secondary" type="submit">Status speichern</button></form>`:''}</div>
     </article>`;
   }).join('');
 
-  const checkHtml=checks.map((check)=>`<div class="inline-alert ${check.level==='ok'?'inline-alert--success':''}"><strong>${check.level==='ok'?'OK':'Offener Punkt'}</strong><span>${escapeHtml(check.text)}</span></div>`).join('');
+  const checkHtml=checks.map((check)=>`<div class="inline-alert ${check.level==='ok'?'inline-alert--success':''}"><strong>${check.level==='ok'?'OK':escapeHtml(t('Offener Punkt'))}</strong><span>${escapeHtml(t(check.text))}</span></div>`).join('');
 
   const ruleAlert=rule
     ? `<div class="inline-alert ${rule.status==='official'?'inline-alert--success':''}"><strong>Regelversion ${escapeHtml(rule.version)}</strong><span>${escapeHtml(rule.notes||'')}${rule.source_url?` · <a href="${escapeHtml(rule.source_url)}" target="_blank" rel="noreferrer">Offizielle SG-Unterlagen</a>`:''}</span></div>`
@@ -227,7 +228,7 @@ export function renderTaxAdvisor({
 
     <div class="metric-grid" style="margin-top:16px">
       ${metricCard('Vollständigkeit',`${completeness}%`,`${completeSections} von ${TAX_SECTIONS.length} Bereichen abgeschlossen`,completeness===100?'positive':completeness>=60?'warning':'')}
-      ${metricCard('Steuerrelevante Buchungen',String(taxTransactions.length),`${money(markedExpense,{currency:baseCurrency,locale})} markierte Kosten · ${fxLabel(fxRates,baseCurrency)}`)}
+      ${metricCard('Steuerrelevante Buchungen',String(taxTransactions.length),`${money(markedExpense,{currency:baseCurrency,locale})} ${t('markierte Kosten')} · ${t(fxLabel(fxRates,baseCurrency))}`)}
       ${metricCard('Belege',String(taxDocuments.length),missingReceipts.length?`${missingReceipts.length} fehlen`:'aktuell vollständig',missingReceipts.length?'warning':'positive')}
       ${metricCard('Steuerkonto',money(selectedLedger.paid,{currency:taxCase?.currency||'CHF',locale}),selectedLedger.known?`noch offen ${money(selectedLedger.open,{currency:taxCase?.currency||'CHF',locale})}`:'offener Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
     </div>
