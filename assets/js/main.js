@@ -2,7 +2,7 @@ import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
-import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue } from './app/format.js';
+import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, suggestKnownCategoryName } from './app/csv-import.js';
@@ -964,8 +964,24 @@ async function handleForm(form) {
     const accountId=formValue(data,'accountId');
     const account=runtime.accounts.find((a)=>a.account_id===accountId);
     if (!account) throw new Error('Konto wurde nicht gefunden.');
-    const patch={ name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), currency:formValue(data,'currency'), visibility:formValue(data,'visibility')||'private' };
+    const nextCurrency=formValue(data,'currency')||account.currency;
     const correction=formValue(data,'balanceCorrection');
+    if(nextCurrency!==account.currency){
+      const linked=
+        runtime.transactions.some((row)=>row.account_id===accountId)
+        || runtime.recurringRules.some((row)=>row.account_id===accountId||row.destination_account_id===accountId)
+        || runtime.bills.some((row)=>row.account_id===accountId)
+        || runtime.contracts.some((row)=>row.account_id===accountId)
+        || runtime.goals.some((row)=>row.account_id===accountId)
+        || runtime.debts.some((row)=>row.payment_account_id===accountId)
+        || runtime.debtPayments.some((row)=>row.payment_account_id===accountId)
+        || runtime.receivables.some((row)=>row.source_account_id===accountId)
+        || runtime.receivablePayments.some((row)=>row.payment_account_id===accountId)
+        || runtime.insurance.some((row)=>row.account_id===accountId);
+      if(linked) throw new Error('Die Kontowährung kann nicht geändert werden, solange Buchungen oder Verknüpfungen auf diesem Konto bestehen.');
+      if(correction==='') throw new Error('Bei einem Währungswechsel muss der aktuelle Kontostand neu angegeben werden.');
+    }
+    const patch={ name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), currency:nextCurrency, visibility:formValue(data,'visibility')||'private' };
     if (correction !== '') {
       const corrected=Number(correction);
       if (!Number.isFinite(corrected)) throw new Error('Ungültiger Kontostand.');
@@ -979,7 +995,7 @@ async function handleForm(form) {
   if (id === 'transaction-create') {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     const amount = Math.abs(numberValue(data,'amount')) * (formValue(data,'direction')==='expense' ? -1 : 1);
-    const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
+    const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
     if (moduleEnabled('tax')) { payload.tax_relevant=formValue(data,'taxRelevant')==='true'; payload.tax_category=nullValue(data,'taxCategory'); }
     await financeApi.createTransaction(payload);
     await refresh('Transaktion gespeichert.'); return;
@@ -992,7 +1008,7 @@ async function handleForm(form) {
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
-    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
     if (moduleEnabled('tax')) { patch.tax_relevant=formValue(data,'taxRelevant')==='true'; patch.tax_category=nullValue(data,'taxCategory'); }
     await financeApi.updateTransaction(transactionId,patch);
     let recurringSaved = false;
@@ -1016,7 +1032,7 @@ async function handleForm(form) {
     const toAmount=from.currency===to.currency ? fromAmount : Math.abs(Number(enteredToAmount));
     if (!(fromAmount>0)) throw new Error('Der Abgangsbetrag muss grösser als 0 sein.');
     if (from.currency!==to.currency && (!enteredToAmount || !Number.isFinite(toAmount) || !(toAmount>0))) throw new Error(`Für ${from.currency} → ${to.currency} muss der tatsächlich gutgeschriebene Zielbetrag angegeben werden.`);
-    await financeApi.createTransfer({ p_household_id:h, p_from_account_id:from.account_id, p_to_account_id:to.account_id, p_from_amount:fromAmount, p_to_amount:toAmount, p_occurred_at:new Date(formValue(data,'occurredAt')).toISOString(), p_description:formValue(data,'description')||'Umbuchung' });
+    await financeApi.createTransfer({ p_household_id:h, p_from_account_id:from.account_id, p_to_account_id:to.account_id, p_from_amount:fromAmount, p_to_amount:toAmount, p_occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), p_description:formValue(data,'description')||'Umbuchung' });
     await refresh(from.currency===to.currency?'Umbuchung gespeichert.':'Fremdwährungs-Umbuchung mit beiden Originalbeträgen gespeichert.'); return;
   }
 
@@ -1353,7 +1369,15 @@ async function handleForm(form) {
     const goalId=formValue(data,'goalId'); const sourceType=formValue(data,'sourceType');
     const payload={ household_id:h, goal_id:goalId, source_type:sourceType, label:nullValue(data,'label'), active:true };
     if(sourceType==='fixed'){ const amount=numberValue(data,'amount',-1); if(amount<0) throw new Error('Bitte einen gültigen Monatsbetrag eingeben.'); payload.amount=amount; payload.recurring_rule_id=null; }
-    else if(sourceType==='recurring_rule'){ const recurringRuleId=formValue(data,'recurringRuleId'); if(!recurringRuleId) throw new Error('Bitte eine wiederkehrende Zahlung wählen.'); payload.amount=null; payload.recurring_rule_id=recurringRuleId; }
+    else if(sourceType==='recurring_rule'){
+      const recurringRuleId=formValue(data,'recurringRuleId');
+      if(!recurringRuleId) throw new Error('Bitte eine wiederkehrende Zahlung wählen.');
+      const rule=runtime.recurringRules.find((row)=>row.id===recurringRuleId);
+      const goal=runtime.goals.find((row)=>row.id===goalId);
+      if(!rule || rule.direction!=='transfer') throw new Error('Als Sparziel-Finanzierung können nur geplante Umbuchungen verwendet werden.');
+      if(goal?.account_id && rule.destination_account_id!==goal.account_id) throw new Error('Die Umbuchung muss auf das mit dem Sparziel verknüpfte Konto eingehen.');
+      payload.amount=null; payload.recurring_rule_id=recurringRuleId;
+    }
     else if(sourceType==='surplus'){ payload.amount=null; payload.recurring_rule_id=null; payload.label='Monatsüberschuss'; }
     else throw new Error('Unbekannte Finanzierungsquelle.');
     await financeApi.createGoalSource(payload); await refresh('Finanzierungsquelle hinzugefügt.'); return;
@@ -1577,6 +1601,23 @@ async function handleForm(form) {
     }
   }
 }
+
+async function deleteLinkedDocuments(objectType, objectId) {
+  const linked=(runtime.documents||[]).filter((doc)=>doc.object_type===objectType&&doc.object_id===objectId);
+  for(const doc of linked) await financeApi.deleteDocument(doc);
+}
+
+const documentObjectTypeByTable={
+  bills:'bill',
+  contracts:'contract',
+  debts:'debt',
+  legal_cases:'legal',
+  properties:'property',
+  vehicles:'vehicle',
+  insurance_policies:'insurance',
+  investments:'investment',
+  pension_accounts:'pension',
+};
 
 const deleteMap = {
   categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
@@ -1857,7 +1898,14 @@ async function handleAction(target) {
     if (!tx) throw new Error('Transaktion wurde nicht gefunden.');
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden im Zahlungsverlauf unter Schulden & Kredite storniert.');
     if (!confirm(t(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?'))) return;
-    if (tx.transfer_group_id) await financeApi.deleteTransfer(runtime.household.id,tx.transfer_group_id); else await financeApi.deleteTransaction(tx.id);
+    if (tx.transfer_group_id) {
+      const groupTransactions=runtime.transactions.filter((row)=>row.transfer_group_id===tx.transfer_group_id);
+      for(const row of groupTransactions) await deleteLinkedDocuments('transaction',row.id);
+      await financeApi.deleteTransfer(runtime.household.id,tx.transfer_group_id);
+    } else {
+      await deleteLinkedDocuments('transaction',tx.id);
+      await financeApi.deleteTransaction(tx.id);
+    }
     await refresh(tx.transfer_group_id?'Umbuchung gelöscht.':'Transaktion gelöscht.'); return;
   }
   if (action === 'delete') {
@@ -1892,6 +1940,8 @@ async function handleAction(target) {
     if (table==='documents') {
       const doc=runtime.documents.find((d)=>d.id===id); if (doc) await financeApi.deleteDocument(doc);
     } else {
+      const objectType=documentObjectTypeByTable[table];
+      if(objectType) await deleteLinkedDocuments(objectType,id);
       const fn=deleteMap[table]; if (!fn) throw new Error('Löschen für diesen Datentyp ist nicht definiert.'); await fn(id);
     }
     await refresh('Eintrag gelöscht.'); return;
