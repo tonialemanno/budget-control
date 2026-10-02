@@ -1900,11 +1900,11 @@ async function handleAction(target) {
     if (!confirm(t(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?'))) return;
     if (tx.transfer_group_id) {
       const groupTransactions=runtime.transactions.filter((row)=>row.transfer_group_id===tx.transfer_group_id);
-      for(const row of groupTransactions) await deleteLinkedDocuments('transaction',row.id);
       await financeApi.deleteTransfer(runtime.household.id,tx.transfer_group_id);
+      for(const row of groupTransactions) await deleteLinkedDocuments('transaction',row.id);
     } else {
-      await deleteLinkedDocuments('transaction',tx.id);
       await financeApi.deleteTransaction(tx.id);
+      await deleteLinkedDocuments('transaction',tx.id);
     }
     await refresh(tx.transfer_group_id?'Umbuchung gelöscht.':'Transaktion gelöscht.'); return;
   }
@@ -1941,8 +1941,10 @@ async function handleAction(target) {
       const doc=runtime.documents.find((d)=>d.id===id); if (doc) await financeApi.deleteDocument(doc);
     } else {
       const objectType=documentObjectTypeByTable[table];
+      const fn=deleteMap[table];
+      if (!fn) throw new Error('Löschen für diesen Datentyp ist nicht definiert.');
+      await fn(id);
       if(objectType) await deleteLinkedDocuments(objectType,id);
-      const fn=deleteMap[table]; if (!fn) throw new Error('Löschen für diesen Datentyp ist nicht definiert.'); await fn(id);
     }
     await refresh('Eintrag gelöscht.'); return;
   }
