@@ -1012,7 +1012,8 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Steuerdaten bearbeiten": "Modifica dati fiscali",
   "ohne Schuldentilgung": "senza rimborso del capitale",
   "Bankbewegungen": "movimenti bancari",
-  "Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.": "Contrassegnato come fiscalmente rilevante e collegato all’anno fiscale."}),
+  "Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.": "Contrassegnato come fiscalmente rilevante e collegato all’anno fiscale.",
+  "Transaktion öffnen": "Apri movimento"}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -2026,7 +2027,8 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Steuerdaten bearbeiten": "Edit tax data",
   "ohne Schuldentilgung": "excluding debt principal",
   "Bankbewegungen": "bank movements",
-  "Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.": "Marked as tax-relevant and linked to the tax year."})
+  "Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.": "Marked as tax-relevant and linked to the tax year.",
+  "Transaktion öffnen": "Open transaction"})
 });
 
 export const UI_PATTERNS = Object.freeze({
