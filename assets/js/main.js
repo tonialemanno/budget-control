@@ -114,7 +114,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -534,6 +534,7 @@ function render() {
     adminQuery: uiState.adminQuery,
     adminPage: uiState.adminPage,
     adminExpandedUserId: uiState.adminExpandedUserId,
+    demoCredentials: uiState.demoCredentials,
     importQuery: uiState.importQuery,
     importCategory: uiState.importCategory,
     merchantQuery: uiState.merchantQuery,
@@ -902,7 +903,7 @@ async function handleForm(form) {
   const h = runtime.household?.id;
   const currency = runtime.household?.base_currency || 'CHF';
 
-  if (!['setup-create','password-change','admin-user-create'].includes(id)) {
+  if (!['setup-create','password-change','admin-user-create','admin-demo-create'].includes(id)) {
     if (id === 'family-add') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder verwalten.'); }
     else if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   }
@@ -1501,6 +1502,15 @@ async function handleForm(form) {
     if (p1.length<8) throw new Error('Das Passwort muss mindestens 8 Zeichen lang sein.');
     if (p1!==p2) throw new Error('Die Passwörter stimmen nicht überein.');
     await backend.updatePassword(p1); form.reset(); showToast('Passwort geändert.'); return;
+  }
+  if (id === 'admin-demo-create') {
+    if (!runtime.adminRole) throw new Error('Nur App-Admins dürfen Demo-Instanzen erstellen.');
+    const result=await backend.adminCreateDemo({ email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH' });
+    uiState.demoCredentials={ email:result?.email||formValue(data,'email'), password:result?.password||'' };
+    runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+    render();
+    showToast(result?.reset?'Demo-Instanz zurückgesetzt.':'Demo-Instanz erstellt.');
+    return;
   }
   if (id === 'admin-user-create') {
     await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH', password:formValue(data,'password') });
@@ -2152,6 +2162,12 @@ async function handleAction(target) {
   if (action === 'admin-password') {
     const password=prompt(t('Neues temporäres Passwort (mind. 8 Zeichen):')); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
+  }
+  if (action === 'admin-demo-copy') {
+    const value=`E-Mail: ${target.dataset.email||''}\nPasswort: ${target.dataset.password||''}`;
+    await navigator.clipboard.writeText(value);
+    showToast('Demo-Zugang kopiert.');
+    return;
   }
 }
 
