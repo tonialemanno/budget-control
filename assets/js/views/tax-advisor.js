@@ -121,7 +121,7 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
   insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false,
-  taxRuleVersions = [], taxCases = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
+  taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
@@ -172,6 +172,9 @@ export function renderTaxAdvisor({
   const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments);
   const selectedObligations=(taxObligations||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPayments=(taxPayments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
+  const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
+  const selectedChildren=(taxChildren||[]).filter((row)=>row.tax_case_id===taxCase?.id);
+  const selectedEmployments=(taxEmployments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const checks=taxChecks({year,taxCase,rule,accounts,transactions,documents,pensions,debts,receivables,investments,properties,vehicles,taxItems});
 
   const transactionRows=taxTransactions.map((tx)=>{
@@ -204,6 +207,63 @@ export function renderTaxAdvisor({
     <td>${dateLabel(row.paid_at,locale)}</td><td><strong>${escapeHtml(row.payment_type)}</strong><div class="table-meta">${escapeHtml(row.reference||'')}</div></td>
     <td>${money(row.amount,{currency:row.currency,locale})}</td><td>${canWrite?`<button class="table-action table-action--danger" type="button" data-action="tax-payment-delete" data-id="${row.id}">Löschen</button>`:''}</td>
   </tr>`);
+
+  const personRows=selectedPeople.map((person)=>`<tr>
+    <td>Person ${person.person_no}</td>
+    <td><strong>${escapeHtml(`${person.first_name} ${person.last_name}`)}</strong><div class="table-meta">${escapeHtml(person.role||'')}</div></td>
+    <td>${person.birth_date?dateLabel(person.birth_date,locale):'—'}</td>
+    <td>${escapeHtml([person.occupation,person.employer_name].filter(Boolean).join(' · ')||'—')}</td>
+    <td>${canWrite?`<button class="table-action table-action--danger" type="button" data-action="tax-person-delete" data-id="${person.id}">Löschen</button>`:''}</td>
+  </tr>`);
+
+  const childRows=selectedChildren.map((child)=>`<tr>
+    <td><strong>${escapeHtml(`${child.first_name} ${child.last_name}`)}</strong><div class="table-meta">${escapeHtml(child.assignment_status||'review')}</div></td>
+    <td>${dateLabel(child.birth_date,locale)}</td>
+    <td>${escapeHtml(child.school_or_training||child.education_status||'—')}${child.training_end?`<div class="table-meta">bis ${dateLabel(child.training_end,locale)}</div>`:''}</td>
+    <td>${money(num(child.childcare_costs),{currency:child.currency||'CHF',locale})}</td>
+    <td>${canWrite?`<button class="table-action table-action--danger" type="button" data-action="tax-child-delete" data-id="${child.id}">Löschen</button>`:''}</td>
+  </tr>`);
+
+  const employmentRows=selectedEmployments.map((job)=>{
+    const commuteDays=Math.max(0,num(job.work_days)-num(job.homeoffice_days)-num(job.vacation_days)-num(job.sick_days)-num(job.field_service_days));
+    const person=selectedPeople.find((row)=>row.id===job.tax_person_id);
+    return `<tr>
+      <td><strong>${escapeHtml(job.employer_name)}</strong><div class="table-meta">${escapeHtml(job.work_location||'')}${person?` · ${escapeHtml(person.first_name)}`:''}</div></td>
+      <td>${job.period_from?dateLabel(job.period_from,locale):'—'} – ${job.period_to?dateLabel(job.period_to,locale):'—'}</td>
+      <td>${money(num(job.gross_income),{currency:job.currency||'CHF',locale})}</td>
+      <td><strong>${commuteDays}</strong><div class="table-meta">${num(job.homeoffice_days)} Homeoffice · ${num(job.field_service_days)} Aussendienst</div></td>
+      <td>${num(job.commuting_distance_km)} km<div class="table-meta">${escapeHtml(job.transport_mode||'—')}</div></td>
+      <td>${canWrite?`<button class="table-action table-action--danger" type="button" data-action="tax-employment-delete" data-id="${job.id}">Löschen</button>`:''}</td>
+    </tr>`;
+  });
+
+  const personForm=(personNo)=>{
+    const person=selectedPeople.find((row)=>Number(row.person_no)===personNo)||{};
+    return `<form class="card card-padding" data-form="tax-person-create">
+      <input type="hidden" name="taxCaseId" value="${taxCase.id}"><input type="hidden" name="personNo" value="${personNo}">
+      <div class="card-heading"><div><h3 class="card-title">Person ${personNo}</h3><p class="card-subtitle">${personNo===1?'Hauptperson':'Partner/in · falls relevant'}</p></div></div>
+      <div class="form-grid form-grid--2">
+        <label class="field"><span>Rolle</span><select class="text-control" name="role"><option value="taxpayer" ${person.role!=='partner'?'selected':''}>Steuerpflichtige Person</option><option value="partner" ${person.role==='partner'?'selected':''}>Partner/in</option></select></label>
+        <label class="field"><span>Geburtsdatum</span><input class="text-control" type="date" name="birthDate" value="${escapeHtml(person.birth_date||'')}"></label>
+        <label class="field"><span>Vorname</span><input class="text-control" name="firstName" value="${escapeHtml(person.first_name||'')}" required></label>
+        <label class="field"><span>Nachname</span><input class="text-control" name="lastName" value="${escapeHtml(person.last_name||'')}" required></label>
+        <label class="field form-grid-span"><span>Adresse</span><input class="text-control" name="addressLine" value="${escapeHtml(person.address_line||'')}"></label>
+        <label class="field"><span>PLZ</span><input class="text-control" name="postalCode" value="${escapeHtml(person.postal_code||'')}"></label>
+        <label class="field"><span>Ort</span><input class="text-control" name="city" value="${escapeHtml(person.city||'')}"></label>
+        <label class="field"><span>Land</span><input class="text-control" name="countryCode" value="${escapeHtml(person.country_code||'CH')}" maxlength="2"></label>
+        <label class="field"><span>Zuzug</span><input class="text-control" type="date" name="moveInDate" value="${escapeHtml(person.move_in_date||'')}"></label>
+        <label class="field"><span>Wegzug</span><input class="text-control" type="date" name="moveOutDate" value="${escapeHtml(person.move_out_date||'')}"></label>
+        <label class="field"><span>Zivilstand</span><input class="text-control" name="maritalStatus" value="${escapeHtml(person.marital_status||taxCase.marital_status||'')}"></label>
+        <label class="field"><span>Konfession</span><input class="text-control" name="denomination" value="${escapeHtml(person.denomination||taxCase.denomination||'')}"></label>
+        <label class="field"><span>Beruf</span><input class="text-control" name="occupation" value="${escapeHtml(person.occupation||'')}"></label>
+        <label class="field"><span>Erwerbsart</span><select class="text-control" name="employmentType"><option value="">—</option><option value="employee" ${person.employment_type==='employee'?'selected':''}>unselbständig</option><option value="self_employed" ${person.employment_type==='self_employed'?'selected':''}>selbständig</option><option value="not_employed" ${person.employment_type==='not_employed'?'selected':''}>nicht erwerbstätig</option><option value="retired" ${person.employment_type==='retired'?'selected':''}>Rente</option><option value="other" ${person.employment_type==='other'?'selected':''}>andere</option></select></label>
+        <label class="field"><span>Arbeitgeber</span><input class="text-control" name="employerName" value="${escapeHtml(person.employer_name||'')}"></label>
+        <label class="field"><span>Gemeinsame Besteuerung</span><select class="text-control" name="jointTaxation"><option value="false" ${!person.joint_taxation?'selected':''}>Nein</option><option value="true" ${person.joint_taxation?'selected':''}>Ja</option></select></label>
+        <label class="field form-grid-span"><span>Notizen</span><textarea class="text-control" name="notes" rows="2">${escapeHtml(person.notes||'')}</textarea></label>
+      </div>
+      ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Person speichern</button></div>':''}
+    </form>`;
+  };
 
   const sectionCards=TAX_SECTIONS.map((section)=>{
     const row=sectionRows.get(section.key);
@@ -263,7 +323,77 @@ export function renderTaxAdvisor({
 
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuerdossier ${year}</h3><p class="card-subtitle">Aufbau entlang der SG-Deklaration und der eTax-Logik.</p></div></div><div class="stack">${sectionCards}</div></article>
 
-    ${taxCase?`<div class="grid-main-aside" style="margin-top:16px">
+    ${taxCase?`
+    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Personen & Haushalt</h3><p class="card-subtitle">Steuerdomizil, Personalien, Partner und Kinder getrennt vom allgemeinen Haushaltsprofil.</p></div></div>
+      <div class="grid-main-aside">${personForm(1)}${personForm(2)}</div>
+      <div style="margin-top:14px">${dataTable({headers:['Rolle','Person','Geburtsdatum','Beruf / Arbeitgeber',''],rows:personRows,emptyText:'Noch keine Steuerpersonen erfasst.'})}</div>
+      <div class="grid-main-aside" style="margin-top:14px">
+        <form class="card card-padding" id="tax-child-create" data-form="tax-child-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
+          <div class="card-heading"><div><h3 class="card-title">Kind erfassen</h3><p class="card-subtitle">Kinder- und Ausbildungsdaten mit steuerlicher Zuordnung.</p></div></div>
+          <div class="form-grid form-grid--2">
+            <label class="field"><span>Vorname</span><input class="text-control" name="firstName" required></label>
+            <label class="field"><span>Nachname</span><input class="text-control" name="lastName" required></label>
+            <label class="field"><span>Geburtsdatum</span><input class="text-control" type="date" name="birthDate" required></label>
+            <label class="field"><span>Wohnort</span><input class="text-control" name="residenceCity"></label>
+            <label class="field"><span>Land</span><input class="text-control" name="residenceCountry" value="CH"></label>
+            <label class="field"><span>Ausbildung</span><select class="text-control" name="educationStatus"><option value="none">Keine</option><option value="preschool">Vorschule</option><option value="school">Schule</option><option value="vocational">Berufslehre</option><option value="higher">Höhere Ausbildung</option><option value="other">Andere</option></select></label>
+            <label class="field"><span>Schule / Lehrfirma</span><input class="text-control" name="schoolOrTraining"></label>
+            <label class="field"><span>Ausbildung bis</span><input class="text-control" type="date" name="trainingEnd"></label>
+            <label class="field"><span>Obhut</span><input class="text-control" name="custody"></label>
+            <label class="field"><span>Sorgerecht</span><input class="text-control" name="parentalAuthority"></label>
+            <label class="field"><span>Unterhalt bezahlt</span><input class="text-control" type="number" step="0.01" min="0" name="maintenancePaid" value="0"></label>
+            <label class="field"><span>Unterhalt erhalten</span><input class="text-control" type="number" step="0.01" min="0" name="maintenanceReceived" value="0"></label>
+            <label class="field"><span>Drittbetreuung</span><input class="text-control" type="number" step="0.01" min="0" name="childcareCosts" value="0"></label>
+            <label class="field"><span>Vermögen Kind</span><input class="text-control" type="number" step="0.01" min="0" name="assetsValue" value="0"></label>
+            <label class="field"><span>Zuordnung</span><select class="text-control" name="assignmentStatus"><option value="review">Prüfen</option><option value="confirmed">Bestätigt</option><option value="unresolved">Steuerliche Zuordnung ungeklärt</option></select></label>
+            <input type="hidden" name="currency" value="CHF">
+            <label class="field form-grid-span"><span>Notizen</span><textarea class="text-control" name="notes" rows="2"></textarea></label>
+          </div>
+          ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Kind speichern</button></div>':''}
+        </form>
+        <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Kinder im Steuerfall</h3></div></div>${dataTable({headers:['Kind','Geburt','Ausbildung','Drittbetreuung',''],rows:childRows,emptyText:'Noch keine Kinder erfasst.'})}</article>
+      </div>
+    </article>
+
+    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Arbeit & Berufskosten</h3><p class="card-subtitle">Arbeitstage werden von Homeoffice, Ferien, Krankheit und Aussendienst getrennt, damit Pendeltage nicht blind geschätzt werden.</p></div></div>
+      <div class="grid-main-aside">
+        <form class="card card-padding" id="tax-employment-create" data-form="tax-employment-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
+          <div class="form-grid form-grid--2">
+            <label class="field"><span>Person</span><select class="text-control" name="taxPersonId"><option value="">—</option>${selectedPeople.map((p)=>`<option value="${p.id}">Person ${p.person_no} · ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</option>`).join('')}</select></label>
+            <label class="field"><span>Arbeitgeber</span><input class="text-control" name="employerName" required></label>
+            <label class="field"><span>Arbeitsort</span><input class="text-control" name="workLocation"></label>
+            <label class="field"><span>Verkehrsmittel</span><input class="text-control" name="transportMode" placeholder="ÖV / Auto / Fahrrad"></label>
+            <label class="field"><span>Von</span><input class="text-control" type="date" name="periodFrom" value="${year}-01-01"></label>
+            <label class="field"><span>Bis</span><input class="text-control" type="date" name="periodTo" value="${year}-12-31"></label>
+            <label class="field"><span>Bruttolohn</span><input class="text-control" type="number" step="0.01" name="grossIncome"></label>
+            <label class="field"><span>Nettolohn</span><input class="text-control" type="number" step="0.01" name="netIncome"></label>
+            <label class="field"><span>Quellensteuer</span><input class="text-control" type="number" step="0.01" min="0" name="withholdingTax" value="0"></label>
+            <label class="field"><span>Bonus</span><input class="text-control" type="number" step="0.01" min="0" name="bonus" value="0"></label>
+            <label class="field"><span>Provisionen</span><input class="text-control" type="number" step="0.01" min="0" name="commission" value="0"></label>
+            <label class="field"><span>VR-/Sitzungsgelder</span><input class="text-control" type="number" step="0.01" min="0" name="boardFees" value="0"></label>
+            <label class="field"><span>Arbeitstage</span><input class="text-control" type="number" min="0" name="workDays" value="220"></label>
+            <label class="field"><span>Homeoffice-Tage</span><input class="text-control" type="number" min="0" name="homeofficeDays" value="0"></label>
+            <label class="field"><span>Ferientage</span><input class="text-control" type="number" min="0" name="vacationDays" value="0"></label>
+            <label class="field"><span>Krankheitstage</span><input class="text-control" type="number" min="0" name="sickDays" value="0"></label>
+            <label class="field"><span>Aussendiensttage</span><input class="text-control" type="number" min="0" name="fieldServiceDays" value="0"></label>
+            <label class="field"><span>Distanz einfach (km)</span><input class="text-control" type="number" step="0.1" min="0" name="commutingDistanceKm" value="0"></label>
+            <label class="field"><span>Verbilligte Verpflegung</span><select class="text-control" name="subsidizedMeals"><option value="">Unbekannt</option><option value="false">Nein</option><option value="true">Ja</option></select></label>
+            <label class="field"><span>Wochenaufenthalter</span><select class="text-control" name="weeklyResident"><option value="false">Nein</option><option value="true">Ja</option></select></label>
+            <label class="field"><span>Unterkunft</span><input class="text-control" type="number" step="0.01" min="0" name="lodgingCost" value="0"></label>
+            <label class="field"><span>Heimfahrten</span><input class="text-control" type="number" step="0.01" min="0" name="homeTripCost" value="0"></label>
+            <label class="field"><span>Weiterbildung</span><input class="text-control" type="number" step="0.01" min="0" name="continuingEducationCost" value="0"></label>
+            <label class="field"><span>Arbeitgeberanteil</span><input class="text-control" type="number" step="0.01" min="0" name="employerContribution" value="0"></label>
+            <label class="field"><span>Arbeitsmittel</span><input class="text-control" type="number" step="0.01" min="0" name="workEquipmentCost" value="0"></label>
+            <input type="hidden" name="currency" value="CHF">
+            <label class="field form-grid-span"><span>Notizen</span><textarea class="text-control" name="notes" rows="2"></textarea></label>
+          </div>
+          ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Arbeitsstelle speichern</button></div>':''}
+        </form>
+        <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Arbeitsstellen ${year}</h3><p class="card-subtitle">Pendeltage = Arbeitstage minus Homeoffice, Ferien, Krankheit und Aussendienst.</p></div></div>${dataTable({headers:['Arbeitgeber','Zeitraum','Brutto','Pendeltage','Distanz',''],rows:employmentRows,emptyText:'Noch keine Arbeitsstelle erfasst.'})}</article>
+      </div>
+    </article>
+
+    <div class="grid-main-aside" style="margin-top:16px">
       <form class="card card-padding" id="tax-item-create" data-form="tax-item-create">
         <div class="card-heading"><div><h3 class="card-title">Steuerposition erfassen</h3><p class="card-subtitle">Tax-spezifische Ergänzung; bestehende Finance-Daten werden referenziert statt dupliziert.</p></div></div>
         <input type="hidden" name="taxCaseId" value="${taxCase.id}">
