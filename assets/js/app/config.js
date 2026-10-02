@@ -48,7 +48,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'budget', label: 'Budget', mobileLabel: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
   { route: 'bills', label: 'Rechnungen & Verträge', mobileLabel: 'Rechnungen', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals' },
-  { route: 'tax-advisor', label: 'Steuerberater', icon: 'receipt', group: 'Planung', module: 'tax' },
+  { route: 'tax-advisor', label: 'Steuern', icon: 'receipt', group: 'Planung', module: 'tax' },
 
   { route: 'debts', label: 'Schulden & Kredite', icon: 'credit-card', group: 'Verbindlichkeiten', module: 'debts' },
   { route: 'receivables', label: 'Forderungen', icon: 'banknote', group: 'Verbindlichkeiten', module: 'debts' },
@@ -81,7 +81,7 @@ export const PAGE_META = Object.freeze({
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },
   bills: { title: 'Rechnungen & Verträge', eyebrow: 'Rechnungen & Verträge' },
   goals: { title: 'Sparziele', eyebrow: 'Sparen & Ziele' },
-  'tax-advisor': { title: 'Steuerberater', eyebrow: 'Steuern & Export' },
+  'tax-advisor': { title: 'Steuern', eyebrow: 'Tax Center · CH / SG' },
   debts: { title: 'Schulden & Kredite', eyebrow: 'Schulden & Kredite' },
   receivables: { title: 'Forderungen', eyebrow: 'Verliehenes Geld' },
   legal: { title: 'Mahnung / Betreibung', eyebrow: 'Forderungen' },
