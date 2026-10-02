@@ -1,8 +1,9 @@
 function releaseChannel() {
   if (typeof location === 'undefined') return 'stable';
   const host = String(location.hostname || '').toLowerCase();
-  if (host.startsWith('beta.')) return 'beta';
   if (host === 'localhost' || host === '127.0.0.1') return 'local';
+  if (host.startsWith('beta.')) return 'beta';
+  if (host.endsWith('.aione-test.pages.dev') && host !== 'aione-test.pages.dev') return 'beta';
   return 'stable';
 }
 
