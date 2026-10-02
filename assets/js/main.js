@@ -2081,7 +2081,7 @@ async function handleAction(target) {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const year=Number(target.dataset.year)||uiState.taxYear;
     const taxCase=runtime.taxCases.find((row)=>Number(row.tax_year)===year&&row.country_code==='CH'&&row.canton_code==='SG')||null;
-    const taxTransactions=runtime.transactions.filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
+    const taxTransactions=runtime.transactions.filter((tx)=>tx.tax_relevant&&transactionTaxYear(tx)===year);
     const escapeCsv=(v)=>`"${String(v??'').replaceAll('"','""')}"`;
     const paymentMap=buildDebtPaymentTransactionMap(runtime.debtPayments);
     const rows=[];
