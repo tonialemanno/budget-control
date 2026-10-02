@@ -1,7 +1,7 @@
 import { financeApi } from './finance-api.js';
 import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
 import { normalizeMerchantKey } from './csv-import.js';
-import { dateInputValue } from './format.js';
+import { dateInputValue, financeEventTimestamp } from './format.js';
 
 const state = {
   file: null,
@@ -323,7 +323,7 @@ async function saveReceipt(form) {
         account_id: account.account_id,
         category_id: categoryId,
         merchant_id: merchant?.id || null,
-        occurred_at: new Date(`${receiptDate}T12:00:00`).toISOString(),
+        occurred_at: financeEventTimestamp(receiptDate),
         amount: -amount,
         currency,
         description: merchantName,
