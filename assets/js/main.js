@@ -112,6 +112,9 @@ const runtime = {
   documents: [],
   taxRuleVersions: [],
   taxCases: [],
+  taxPeople: [],
+  taxChildren: [],
+  taxEmployments: [],
   taxCaseSections: [],
   taxItems: [],
   taxObligations: [],
@@ -481,6 +484,9 @@ async function loadFinanceData() {
     () => financeApi.listMasterDataHouseholds().catch(()=>[]),
     () => financeApi.listTaxRuleVersions().catch(()=>[]),
     () => financeApi.listTaxCases(h).catch(()=>[]),
+    () => financeApi.listTaxPeople(h).catch(()=>[]),
+    () => financeApi.listTaxChildren(h).catch(()=>[]),
+    () => financeApi.listTaxEmployments(h).catch(()=>[]),
     () => financeApi.listTaxCaseSections(h).catch(()=>[]),
     () => financeApi.listTaxItems(h).catch(()=>[]),
     () => financeApi.listTaxObligations(h).catch(()=>[]),
@@ -494,7 +500,7 @@ async function loadFinanceData() {
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
     runtime.countryMasterCategories, runtime.countryMasterMerchants, runtime.masterDataHouseholds,
-    runtime.taxRuleVersions, runtime.taxCases, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
+    runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
   ] = results.map((value) => value || (value === null ? null : []));
 }
 async function loadContext() {
@@ -1568,6 +1574,57 @@ async function handleForm(form) {
     uiState.taxYear=year;
     await refresh('Steuerfall gespeichert.'); return;
   }
+  if (id === 'tax-person-create') {
+    if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+    const caseId=formValue(data,'taxCaseId');
+    const taxCase=runtime.taxCases.find((row)=>row.id===caseId); if(!taxCase) throw new Error('Steuerfall wurde nicht gefunden.');
+    const payload={
+      household_id:h,tax_case_id:caseId,person_no:numberValue(data,'personNo'),role:formValue(data,'role')||'taxpayer',
+      first_name:formValue(data,'firstName'),last_name:formValue(data,'lastName'),birth_date:nullValue(data,'birthDate'),
+      address_line:nullValue(data,'addressLine'),postal_code:nullValue(data,'postalCode'),city:nullValue(data,'city'),
+      country_code:formValue(data,'countryCode')||'CH',move_in_date:nullValue(data,'moveInDate'),move_out_date:nullValue(data,'moveOutDate'),
+      marital_status:nullValue(data,'maritalStatus'),denomination:nullValue(data,'denomination'),occupation:nullValue(data,'occupation'),
+      employment_type:nullValue(data,'employmentType'),employer_name:nullValue(data,'employerName'),
+      joint_taxation:formValue(data,'jointTaxation')==='true',notes:nullValue(data,'notes'),
+    };
+    const existing=runtime.taxPeople.find((row)=>row.tax_case_id===caseId&&Number(row.person_no)===payload.person_no);
+    if(existing) await financeApi.updateTaxPerson(existing.id,payload); else await financeApi.createTaxPerson(payload);
+    await refresh('Steuerperson gespeichert.'); return;
+  }
+  if (id === 'tax-child-create') {
+    if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+    const caseId=formValue(data,'taxCaseId');
+    if(!runtime.taxCases.some((row)=>row.id===caseId)) throw new Error('Steuerfall wurde nicht gefunden.');
+    await financeApi.createTaxChild({
+      household_id:h,tax_case_id:caseId,first_name:formValue(data,'firstName'),last_name:formValue(data,'lastName'),
+      birth_date:formValue(data,'birthDate'),residence_country:formValue(data,'residenceCountry')||'CH',
+      residence_city:nullValue(data,'residenceCity'),custody:nullValue(data,'custody'),parental_authority:nullValue(data,'parentalAuthority'),
+      education_status:formValue(data,'educationStatus')||'none',school_or_training:nullValue(data,'schoolOrTraining'),training_end:nullValue(data,'trainingEnd'),
+      maintenance_paid:numberValue(data,'maintenancePaid',0),maintenance_received:numberValue(data,'maintenanceReceived',0),
+      childcare_costs:numberValue(data,'childcareCosts',0),assets_value:numberValue(data,'assetsValue',0),
+      currency:formValue(data,'currency')||'CHF',assignment_status:formValue(data,'assignmentStatus')||'review',notes:nullValue(data,'notes'),
+    });
+    await refresh('Kind im Steuerfall gespeichert.'); return;
+  }
+  if (id === 'tax-employment-create') {
+    if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+    const caseId=formValue(data,'taxCaseId');
+    if(!runtime.taxCases.some((row)=>row.id===caseId)) throw new Error('Steuerfall wurde nicht gefunden.');
+    await financeApi.createTaxEmployment({
+      household_id:h,tax_case_id:caseId,tax_person_id:nullValue(data,'taxPersonId'),employer_name:formValue(data,'employerName'),
+      work_location:nullValue(data,'workLocation'),period_from:nullValue(data,'periodFrom'),period_to:nullValue(data,'periodTo'),
+      gross_income:nullValue(data,'grossIncome')?numberValue(data,'grossIncome'):null,net_income:nullValue(data,'netIncome')?numberValue(data,'netIncome'):null,
+      withholding_tax:numberValue(data,'withholdingTax',0),bonus:numberValue(data,'bonus',0),commission:numberValue(data,'commission',0),board_fees:numberValue(data,'boardFees',0),
+      currency:formValue(data,'currency')||'CHF',work_days:numberValue(data,'workDays',0),homeoffice_days:numberValue(data,'homeofficeDays',0),
+      vacation_days:numberValue(data,'vacationDays',0),sick_days:numberValue(data,'sickDays',0),field_service_days:numberValue(data,'fieldServiceDays',0),
+      commuting_distance_km:numberValue(data,'commutingDistanceKm',0),transport_mode:nullValue(data,'transportMode'),
+      subsidized_meals:formValue(data,'subsidizedMeals')===''?null:formValue(data,'subsidizedMeals')==='true',
+      weekly_resident:formValue(data,'weeklyResident')==='true',lodging_cost:numberValue(data,'lodgingCost',0),home_trip_cost:numberValue(data,'homeTripCost',0),
+      continuing_education_cost:numberValue(data,'continuingEducationCost',0),employer_contribution:numberValue(data,'employerContribution',0),
+      work_equipment_cost:numberValue(data,'workEquipmentCost',0),notes:nullValue(data,'notes'),
+    });
+    await refresh('Arbeitsstelle gespeichert.'); return;
+  }
   if (id === 'tax-item-create') {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
     const caseId=formValue(data,'taxCaseId');
@@ -1723,7 +1780,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -1916,6 +1973,18 @@ async function handleAction(target) {
     const year=Number(target.dataset.year)||uiState.taxYear;
     await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:'SG'});
     uiState.taxYear=year; await refresh(`Steuerfall ${year} angelegt.`); return;
+  }
+  if (action === 'tax-person-delete') {
+    if(!confirm(t('Steuerperson wirklich löschen?'))) return;
+    await financeApi.deleteTaxPerson(target.dataset.id); await refresh('Steuerperson gelöscht.'); return;
+  }
+  if (action === 'tax-child-delete') {
+    if(!confirm(t('Kind aus dem Steuerfall löschen?'))) return;
+    await financeApi.deleteTaxChild(target.dataset.id); await refresh('Kind aus dem Steuerfall gelöscht.'); return;
+  }
+  if (action === 'tax-employment-delete') {
+    if(!confirm(t('Arbeitsstelle aus dem Steuerfall löschen?'))) return;
+    await financeApi.deleteTaxEmployment(target.dataset.id); await refresh('Arbeitsstelle gelöscht.'); return;
   }
   if (action === 'tax-item-delete') {
     if(!confirm(t('Steuerposition wirklich löschen?'))) return;
