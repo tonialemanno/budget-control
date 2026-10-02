@@ -130,7 +130,7 @@ async function invokeFunction(name, { method = 'POST', body } = {}) {
 async function storageUpload(bucket, path, file) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -139,7 +139,7 @@ async function storageUpload(bucket, path, file) {
       'x-upsert': 'false',
     },
     body: file,
-  });
+  }, 45000);
   return parseResponse(response);
 }
 
@@ -147,7 +147,7 @@ async function storageUpload(bucket, path, file) {
 async function storageDelete(bucket, paths) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
     method: 'DELETE',
     headers: {
       apikey: SUPABASE_KEY,
@@ -155,16 +155,16 @@ async function storageDelete(bucket, paths) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ prefixes: paths }),
-  });
+  }, 30000);
   return parseResponse(response);
 }
 
 async function storageDownload(bucket, path) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${path}`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${active.access_token}` },
-  });
+  }, 45000);
   if (!response.ok) throw new Error(`Dokument konnte nicht geladen werden (${response.status}).`);
   return response.blob();
 }
