@@ -120,7 +120,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -1577,13 +1577,21 @@ async function handleForm(form) {
     const reimbursement=numberValue(data,'reimbursementAmount',0);
     let deductible=nullValue(data,'deductibleAmount')?numberValue(data,'deductibleAmount'):null;
     if(deductible===null && gross!==null) deductible=Math.max(0,gross-reimbursement);
+    const sourceRef=nullValue(data,'sourceRef');
+    let sourceType=null,sourceId=null;
+    if(sourceRef){
+      const splitAt=sourceRef.indexOf(':');
+      if(splitAt<=0) throw new Error('Ungültige Finance-Quelle.');
+      sourceType=sourceRef.slice(0,splitAt); sourceId=sourceRef.slice(splitAt+1);
+    }
     await financeApi.createTaxItem({
       household_id:h,tax_case_id:caseId,section_key:formValue(data,'sectionKey'),item_type:formValue(data,'itemType')||'manual',
       title:formValue(data,'title'),person_label:nullValue(data,'personLabel'),country_code:formValue(data,'countryCode')||'CH',
       canton_code:nullValue(data,'cantonCode'),occurred_on:nullValue(data,'occurredOn'),
       amount:nullValue(data,'amount')?numberValue(data,'amount'):null,gross_amount:gross,reimbursement_amount:reimbursement,
       deductible_amount:deductible,deductible_percentage:nullValue(data,'deductiblePercentage')?numberValue(data,'deductiblePercentage'):null,
-      currency:formValue(data,'currency')||taxCase.currency||'CHF',verification_status:formValue(data,'verificationStatus')||'unverified',
+      currency:formValue(data,'currency')||taxCase.currency||'CHF',source_type:sourceType,source_id:sourceId,
+      verification_status:formValue(data,'verificationStatus')||'unverified',
       advisor_note:nullValue(data,'advisorNote'),metadata:{ notes:nullValue(data,'notes')||null },
     });
     await refresh('Steuerposition gespeichert.'); return;
@@ -1715,7 +1723,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-item-delete','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -1911,7 +1919,16 @@ async function handleAction(target) {
   }
   if (action === 'tax-item-delete') {
     if(!confirm(t('Steuerposition wirklich löschen?'))) return;
+    await deleteLinkedDocuments('tax_item',target.dataset.id);
     await financeApi.deleteTaxItem(target.dataset.id); await refresh('Steuerposition gelöscht.'); return;
+  }
+  if (action === 'tax-item-document') {
+    if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
+    const item=runtime.taxItems.find((row)=>row.id===target.dataset.id);
+    if(!item) throw new Error('Steuerposition wurde nicht gefunden.');
+    uiState.taxItemDocumentId=item.id;
+    document.querySelector('#taxItemDocumentInput')?.click();
+    return;
   }
   if (action === 'tax-obligation-delete') {
     if(!confirm(t('Steuerforderung wirklich löschen?'))) return;
@@ -2467,6 +2484,32 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'budgetScopeType') { const merchant=document.querySelector('#budgetMerchantField'); const category=document.querySelector('#budgetCategoryField'); if(merchant) merchant.hidden=target.value!=='merchant'; if(category) category.hidden=target.value==='merchant'; return; }
+    if (target.id === 'taxItemDocumentInput') {
+      const file=target.files?.[0]; const itemId=uiState.taxItemDocumentId; if(!file||!itemId) return;
+      if (file.size > 10*1024*1024) throw new Error('Die Datei ist grösser als 10 MB.');
+      const item=runtime.taxItems.find((row)=>row.id===itemId); if(!item) throw new Error('Steuerposition wurde nicht gefunden.');
+      const taxCase=runtime.taxCases.find((row)=>row.id===item.tax_case_id); if(!taxCase) throw new Error('Steuerfall wurde nicht gefunden.');
+      const path=await financeApi.uploadDocument(runtime.household.id,file);
+      await financeApi.createDocument({
+        household_id:runtime.household.id,object_type:'tax_item',object_id:item.id,name:file.name,storage_path:path,
+        mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:item.occurred_on||dateInputValue(),
+        notes:'Beleg zur Steuerposition',tax_relevant:true,tax_year:taxCase.tax_year,tax_category:item.section_key,
+      });
+      uiState.taxItemDocumentId=null; target.value='';
+      await refresh('Steuerbeleg gespeichert und mit der Position verknüpft.'); return;
+    }
+    if (target.id === 'taxPaymentTransaction') {
+      const option=target.selectedOptions?.[0];
+      if(option?.value){
+        const amount=document.querySelector('#taxPaymentAmount');
+        const date=document.querySelector('#taxPaymentDate');
+        const type=document.querySelector('#taxPaymentType');
+        if(amount) amount.value=option.dataset.amount||'';
+        if(date) date.value=option.dataset.date||date.value;
+        if(type) type.value=option.dataset.type||type.value;
+      }
+      return;
+    }
     if (target.id === 'taxReceiptInput') {
       const file=target.files?.[0]; const txId=uiState.taxReceiptTxId; if(!file||!txId) return;
       if (file.size > 10*1024*1024) throw new Error('Die Datei ist grösser als 10 MB.');
