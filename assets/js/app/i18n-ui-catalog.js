@@ -891,7 +891,15 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Eingereicht": "Presentato",
   "Veranlagt": "Accertato",
   "Definitiv": "Definitivo",
-  "Nicht relevant": "Non pertinente"}),
+  "Nicht relevant": "Non pertinente",
+  "Säule-3a-Position vorhanden, aber keine Bescheinigung/Steuerposition bestätigt.": "Posizione del pilastro 3a presente, ma nessuna attestazione/posizione fiscale è stata confermata.",
+  "Schulden vorhanden, aber noch kein 31.12.-Schuldsaldo/Jahreszinsnachweis im Dossier.": "Debiti presenti, ma nel dossier manca ancora il saldo al 31.12. o l’attestazione annuale degli interessi.",
+  "Investmentpositionen vorhanden, aber Depot-/Steuerbescheinigung noch nicht bestätigt.": "Posizioni d’investimento presenti, ma l’attestazione del deposito/fiscale non è ancora confermata.",
+  "Liegenschaften vorhanden, aber der Steuerbereich Liegenschaften ist noch ohne Position.": "Immobili presenti, ma la sezione fiscale Immobili non contiene ancora una posizione.",
+  "Fahrzeuge vorhanden, aber kein 31.12.-Steuerwert im Dossier erfasst.": "Veicoli presenti, ma nel dossier non è ancora registrato alcun valore fiscale al 31.12.",
+  "Offene Forderungen vorhanden. Prüfen, ob sie per 31.12. im Guthaben-/Vermögensbereich erfasst sind.": "Sono presenti crediti aperti. Verificare che siano registrati al 31.12. nell’area crediti/patrimonio.",
+  "Erwerbseinkommen erkannt, aber kein Lohnausweis im Steuerdossier bestätigt.": "Reddito da attività riconosciuto, ma nessun certificato di salario è confermato nel dossier fiscale.",
+  "Schulden": "Debiti"}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -1784,7 +1792,15 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Eingereicht": "Filed",
   "Veranlagt": "Assessed",
   "Definitiv": "Final",
-  "Nicht relevant": "Not applicable"})
+  "Nicht relevant": "Not applicable",
+  "Säule-3a-Position vorhanden, aber keine Bescheinigung/Steuerposition bestätigt.": "A pillar 3a position exists, but no certificate/tax item has been confirmed.",
+  "Schulden vorhanden, aber noch kein 31.12.-Schuldsaldo/Jahreszinsnachweis im Dossier.": "Debts exist, but no 31 Dec debt balance or annual interest statement is in the dossier yet.",
+  "Investmentpositionen vorhanden, aber Depot-/Steuerbescheinigung noch nicht bestätigt.": "Investment positions exist, but the portfolio/tax statement has not yet been confirmed.",
+  "Liegenschaften vorhanden, aber der Steuerbereich Liegenschaften ist noch ohne Position.": "Real estate exists, but the Real estate tax section does not yet contain an item.",
+  "Fahrzeuge vorhanden, aber kein 31.12.-Steuerwert im Dossier erfasst.": "Vehicles exist, but no 31 Dec tax value has been recorded in the dossier.",
+  "Offene Forderungen vorhanden. Prüfen, ob sie per 31.12. im Guthaben-/Vermögensbereich erfasst sind.": "Open receivables exist. Check that they are recorded at 31 Dec in the receivables/assets section.",
+  "Erwerbseinkommen erkannt, aber kein Lohnausweis im Steuerdossier bestätigt.": "Employment income detected, but no salary certificate has been confirmed in the tax dossier.",
+  "Schulden": "Debts"})
 });
 
 export const UI_PATTERNS = Object.freeze({
@@ -1796,8 +1812,6 @@ export const UI_PATTERNS = Object.freeze({
     [/^(.+) markierte Kosten · (.+)$/, '$1 costi contrassegnati · $2'],
     [/^Steuer-Check (\d{4})$/, 'Controllo fiscale $1'],
     [/^Steuerdossier (\d{4})$/, 'Dossier fiscale $1'],
-    [/^(\d+) Positionen · (.+)$/, '$1 posizioni · $2'],
-    [/^(\d+) Position · (.+)$/, '$1 posizione · $2'],
     [/^31\.12\.-Salden: (\d+) von (\d+) Konten im Steuerdossier dokumentiert\.$/, 'Saldi al 31.12.: $1 di $2 conti documentati nel dossier fiscale.'],
     [/^(\d+) steuerrelevante Buchung(?:en)? ohne verknüpften Beleg\.$/, '$1 movimenti fiscalmente rilevanti senza documento collegato.'],
     [/^Regelversion (.+) ist als teilweise veröffentlicht markiert\. Betragslimiten nicht automatisch als definitiv behandeln\.$/, 'La versione delle regole $1 è indicata come pubblicata parzialmente. Non considerare automaticamente definitivi i limiti di importo.'],
@@ -1883,8 +1897,6 @@ export const UI_PATTERNS = Object.freeze({
     [/^(.+) markierte Kosten · (.+)$/, '$1 marked costs · $2'],
     [/^Steuer-Check (\d{4})$/, 'Tax check $1'],
     [/^Steuerdossier (\d{4})$/, 'Tax dossier $1'],
-    [/^(\d+) Positionen · (.+)$/, '$1 items · $2'],
-    [/^(\d+) Position · (.+)$/, '$1 item · $2'],
     [/^31\.12\.-Salden: (\d+) von (\d+) Konten im Steuerdossier dokumentiert\.$/, '31 Dec balances: $1 of $2 accounts documented in the tax dossier.'],
     [/^(\d+) steuerrelevante Buchung(?:en)? ohne verknüpften Beleg\.$/, '$1 tax-relevant transactions without a linked document.'],
     [/^Regelversion (.+) ist als teilweise veröffentlicht markiert\. Betragslimiten nicht automatisch als definitiv behandeln\.$/, 'Rule version $1 is marked as partially published. Do not automatically treat amount limits as final.'],
