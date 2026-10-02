@@ -2013,12 +2013,39 @@ async function handleAction(target) {
   }
   if (action === 'tax-export-csv') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
-    const year=Number(target.dataset.year)||uiState.taxYear; const rows=runtime.transactions.filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
-    const header=['Datum','Beschreibung','Kategorie','Steuerkategorie','Betrag','Währung','Kostenanteil Basiswährung','Basiswährung','Belege'];
+    const year=Number(target.dataset.year)||uiState.taxYear;
+    const taxCase=runtime.taxCases.find((row)=>Number(row.tax_year)===year&&row.country_code==='CH'&&row.canton_code==='SG')||null;
+    const taxTransactions=runtime.transactions.filter((tx)=>tx.tax_relevant&&new Date(tx.occurred_at).getFullYear()===year);
     const escapeCsv=(v)=>`"${String(v??'').replaceAll('"','""')}"`;
     const paymentMap=buildDebtPaymentTransactionMap(runtime.debtPayments);
-    const lines=[header,...rows.map((tx)=>{ const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | '); const base=consumptionExpenseBase(tx,paymentMap,runtime.household.base_currency,runtime.fxRates); return [dateInputValue(new Date(tx.occurred_at)),tx.description,tx.categories?.name||(tx.cashflow_type==='debt_payment'?'Schuldentilgung':''),tx.tax_category||'',tx.amount,tx.currency,base.toFixed(2),runtime.household.base_currency,docs]; })].map((row)=>row.map(escapeCsv).join(';')).join('\n');
-    const blob=new Blob(['\ufeff'+lines],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`steuerberater-${year}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast(`Steuerexport ${year} erstellt.`); return;
+    const rows=[];
+    const push=(type,section,date,title,gross,reimbursement,deductible,currency,status,source,notes)=>rows.push([type,section,date,title,gross,reimbursement,deductible,currency,status,source,notes]);
+    if(taxCase){
+      push('STEUERFALL','case',taxCase.tax_period_to||`${year}-12-31`,`CH/SG · ${taxCase.municipality||''}`,taxCase.assessed_tax_amount??taxCase.expected_tax_amount??'',0,'',taxCase.currency||'CHF',taxCase.status,taxCase.tax_rule_versions?.version||'',taxCase.notes||'');
+      for(const p of runtime.taxPeople.filter((row)=>row.tax_case_id===taxCase.id)) push('PERSON','persons_household',p.birth_date,`Person ${p.person_no} · ${p.first_name} ${p.last_name}`,'','','',taxCase.currency||'CHF',p.role,p.employer_name||'',p.notes||'');
+      for(const child of runtime.taxChildren.filter((row)=>row.tax_case_id===taxCase.id)) push('KIND','children',child.birth_date,`${child.first_name} ${child.last_name}`,child.assets_value,child.maintenance_received,child.childcare_costs,child.currency,child.assignment_status,child.school_or_training||'',child.notes||'');
+      for(const job of runtime.taxEmployments.filter((row)=>row.tax_case_id===taxCase.id)){
+        const commute=Math.max(0,Number(job.work_days||0)-Number(job.homeoffice_days||0)-Number(job.vacation_days||0)-Number(job.sick_days||0)-Number(job.field_service_days||0));
+        push('ARBEIT','income',job.period_to||job.period_from,job.employer_name,job.gross_income,'',job.withholding_tax,job.currency,'',job.work_location||'',`Pendeltage ${commute}; Homeoffice ${job.homeoffice_days||0}; Distanz ${job.commuting_distance_km||0} km; Weiterbildung ${job.continuing_education_cost||0}; Arbeitsmittel ${job.work_equipment_cost||0}`);
+      }
+      for(const item of runtime.taxItems.filter((row)=>row.tax_case_id===taxCase.id)){
+        const docs=runtime.documents.filter((d)=>d.object_type==='tax_item'&&d.object_id===item.id).map((d)=>d.name).join(' | ');
+        push('POSITION',item.section_key,item.occurred_on,item.title,item.gross_amount??item.amount??'',item.reimbursement_amount,item.deductible_amount,item.currency,item.verification_status,item.source_type&&item.source_id?`${item.source_type}:${item.source_id}`:'',`${item.advisor_note||''}${docs?` · Belege: ${docs}`:''}`);
+      }
+      for(const row of runtime.taxObligations.filter((entry)=>entry.tax_case_id===taxCase.id)) push('STEUERFORDERUNG','tax_account',row.due_date,row.label,row.amount,0,'',row.currency,row.status,row.obligation_type,row.reference||'');
+      for(const row of runtime.taxPayments.filter((entry)=>entry.tax_case_id===taxCase.id)) push('STEUERZAHLUNG','tax_account',row.paid_at,row.payment_type,row.amount,0,'',row.currency,'',row.transaction_id?`transaction:${row.transaction_id}`:'',row.reference||'');
+    }
+    for(const tx of taxTransactions){
+      const docs=runtime.documents.filter((d)=>d.object_type==='transaction'&&d.object_id===tx.id).map((d)=>d.name).join(' | ');
+      const base=consumptionExpenseBase(tx,paymentMap,runtime.household.base_currency,runtime.fxRates);
+      push('BUCHUNG',tx.tax_category||tx.categories?.name||'',dateInputValue(new Date(tx.occurred_at)),tx.description,tx.amount,0,base.toFixed(2),tx.currency,tx.status,`transaction:${tx.id}`,docs);
+    }
+    for(const doc of runtime.documents.filter((d)=>d.tax_relevant&&Number(d.tax_year||new Date(d.document_date||d.created_at).getFullYear())===year)){
+      push('DOKUMENT',doc.tax_category||'',doc.document_date||dateInputValue(new Date(doc.created_at)),doc.name,'','','','',doc.object_type||'',doc.object_id||'',doc.notes||'');
+    }
+    const header=['Typ','Bereich','Datum/Stichtag','Bezeichnung','Brutto/Betrag','Erstattung','Abziehbar/Basis','Währung','Status','Quelle/Referenz','Notiz/Belege'];
+    const lines=[header,...rows].map((row)=>row.map(escapeCsv).join(';')).join('\n');
+    const blob=new Blob(['\ufeff'+lines],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Steuerdossier_SG_${year}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast(`Steuerdossier ${year} als CSV erstellt.`); return;
   }
   if (action === 'goal-edit') {
     const g=runtime.goals.find((row)=>row.id===target.dataset.id); if(!g) throw new Error('Sparziel wurde nicht gefunden.');
