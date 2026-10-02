@@ -4,6 +4,46 @@ import { icon } from '../app/icons.js';
 
 const PAGE_SIZE=20;
 
+const ACTIVITY_MODULE_LABELS={
+  overview:'Übersicht',
+  accounts:'Konten',
+  transactions:'Transaktionen',
+  categories:'Kategorien',
+  merchants:'Händler',
+  imports:'Import',
+  'import-history':'Import-Historie',
+  recurring:'Wiederkehrend',
+  'fixed-costs':'Fixkosten',
+  documents:'Dokumente',
+  budget:'Budget',
+  bills:'Rechnungen',
+  goals:'Ziele',
+  'tax-advisor':'Steuern',
+  debts:'Schulden & Kredite',
+  receivables:'Forderungen',
+  legal:'Rechtliches',
+  family:'Familie',
+  wealth:'Vermögen',
+  property:'Liegenschaften',
+  vehicles:'Fahrzeuge',
+  insurance:'Versicherungen',
+  investments:'Investments',
+  pension:'Vorsorge',
+  intelligence:'Finance Intelligence',
+  settings:'Einstellungen',
+  other:'Sonstiges',
+};
+const ACTIVITY_ACTION_LABELS={create:'erstellt',update:'geändert',delete:'gelöscht'};
+
+function activityModuleLabel(key){ return ACTIVITY_MODULE_LABELS[key]||key||'Unbekannt'; }
+function activityActionLabel(key){ return ACTIVITY_ACTION_LABELS[key]||key||'aktiv'; }
+function activityDateTime(value){
+  if(!value) return 'noch nie';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return 'unbekannt';
+  return new Intl.DateTimeFormat('de-CH',{dateStyle:'short',timeStyle:'short'}).format(d);
+}
+
 function matchesUser(user,query){
   const needle=String(query||'').trim().toLowerCase();
   if(!needle) return true;
@@ -38,13 +78,38 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
   const rows=visibleUsers.map((user)=>{
     const expanded=adminExpandedUserId===user.id;
     const presence=presenceState(user);
+    const activity=user.activity||{};
+    const lastActivity=activity.last_at?activityDateTime(activity.last_at):'noch keine Eintragung';
+    const lastActivityModule=activity.last_module?activityModuleLabel(activity.last_module):'—';
+    const lastRoute=user.presence?.route?activityModuleLabel(user.presence.route):'—';
+    const activityModules=(activity.modules||[]).slice(0,8);
+    const recentActivity=(activity.recent||[]).slice(0,8);
     return `<article class="card admin-user-row ${expanded?'admin-user-row--expanded':''}">
       <div class="admin-user-summary">
         <div class="admin-user-identity"><span class="profile-avatar">${escapeHtml((user.display_name||user.email||'B').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(user.display_name||'Ohne Anzeigename')}</strong><span>${escapeHtml(user.email||'')}</span></div></div>
-        <div class="admin-user-meta"><span>Live <strong>${presence.online?statusPill('active','Online'):escapeHtml(presence.label)}</strong><small class="table-meta">${escapeHtml(presence.detail)}</small></span><span>Letzter Login <strong>${user.last_sign_in_at?dateLabel(user.last_sign_in_at):'noch nie'}</strong></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
+        <div class="admin-user-meta"><span>Live <strong>${presence.online?statusPill('active','Online'):escapeHtml(presence.label)}</strong><small class="table-meta">${escapeHtml(presence.detail)}</small></span><span>Letzter Login <strong>${user.last_sign_in_at?dateLabel(user.last_sign_in_at):'noch nie'}</strong></span><span>Letzte Eintragung <strong>${escapeHtml(lastActivity)}</strong><small class="table-meta">${escapeHtml(lastActivityModule)}</small></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
         <button class="table-action" type="button" data-action="admin-user-toggle-details" data-user-id="${user.id}">${expanded?'Schliessen':'Details'}</button>
       </div>
-      ${expanded?`<div class="admin-user-details"><div class="card-heading"><div><h3 class="card-title">Benutzer & Zugriff</h3><p class="card-subtitle">Sprache und Module dieses Benutzers verwalten.</p></div></div><div class="settings-row"><div class="settings-row-copy"><strong>Sprache & Region</strong><span>Sprache der Oberfläche sowie Datums-, Zahlen- und Regionsformat.</span></div><select class="select-control" data-action="admin-set-locale" data-user-id="${user.id}"><option value="de-CH" ${user.locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option><option value="de-DE" ${user.locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option><option value="it-CH" ${user.locale==='it-CH'?'selected':''}>Italiano · Svizzera</option><option value="it-IT" ${user.locale==='it-IT'?'selected':''}>Italiano · Italia</option><option value="en-CH" ${user.locale==='en-CH'?'selected':''}>English · Switzerland</option><option value="en-GB" ${user.locale==='en-GB'?'selected':''}>English · United Kingdom</option></select></div><div class="admin-module-grid">${moduleList.map((m)=>`<label class="module-toggle"><input type="checkbox" data-action="admin-toggle-module" data-user-id="${user.id}" data-module-key="${m.key}" ${user.modules?.[m.key]===true?'checked':''}><span><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.group_name||'')}</small></span></label>`).join('')}</div><div class="card-footer-actions"><button class="table-action" type="button" data-action="admin-password" data-user-id="${user.id}">Passwort setzen</button></div></div>`:''}
+      ${expanded?`<div class="admin-user-details">
+        <div class="card activity-audit-card" style="margin-bottom:16px">
+          <div class="card-heading"><div><h3 class="card-title">Nutzung & Aktivität</h3><p class="card-subtitle">Nur Metadaten: Bereich, Aktion und Zeitpunkt. Keine Beträge, Beschreibungen, Händler oder Inhalte.</p></div></div>
+          <div class="metric-grid">
+            <div class="metric-card"><span>Letzte Eintragung</span><strong>${escapeHtml(lastActivity)}</strong><small>${escapeHtml(lastActivityModule)} · ${escapeHtml(activityActionLabel(activity.last_action))}</small></div>
+            <div class="metric-card"><span>Letzter App-Bereich</span><strong>${escapeHtml(lastRoute)}</strong><small>${user.presence?.last_seen_at?escapeHtml(activityDateTime(user.presence.last_seen_at)):'noch kein Live-Signal'}</small></div>
+            <div class="metric-card"><span>Aktivitäten · 30 Tage</span><strong>${Number(activity.last_30_days||0)}</strong><small>zusammengefasste Änderungen</small></div>
+          </div>
+          <div class="grid-main-aside" style="margin-top:14px">
+            <div>
+              <h4 class="card-title">Bereiche · letzte 30 Tage</h4>
+              <div class="stack" style="margin-top:8px">${activityModules.length?activityModules.map((entry)=>`<div class="settings-row"><div class="settings-row-copy"><strong>${escapeHtml(activityModuleLabel(entry.module_key))}</strong><span>zuletzt ${escapeHtml(activityDateTime(entry.last_at))}</span></div><span class="status-pill status-pill--active">${Number(entry.count||0)}×</span></div>`).join(''):'<p class="card-subtitle">Keine Eintragungen in den letzten 30 Tagen.</p>'}</div>
+            </div>
+            <div>
+              <h4 class="card-title">Letzte Aktivitäten</h4>
+              <div class="stack" style="margin-top:8px">${recentActivity.length?recentActivity.map((entry)=>`<div class="settings-row"><div class="settings-row-copy"><strong>${escapeHtml(activityModuleLabel(entry.module_key))}</strong><span>${escapeHtml(activityActionLabel(entry.action_kind))}</span></div><small class="table-meta">${escapeHtml(activityDateTime(entry.occurred_at))}</small></div>`).join(''):'<p class="card-subtitle">Noch keine Eintragung protokolliert.</p>'}</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-heading"><div><h3 class="card-title">Benutzer & Zugriff</h3><p class="card-subtitle">Sprache und Module dieses Benutzers verwalten.</p></div></div><div class="settings-row"><div class="settings-row-copy"><strong>Sprache & Region</strong><span>Sprache der Oberfläche sowie Datums-, Zahlen- und Regionsformat.</span></div><select class="select-control" data-action="admin-set-locale" data-user-id="${user.id}"><option value="de-CH" ${user.locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option><option value="de-DE" ${user.locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option><option value="it-CH" ${user.locale==='it-CH'?'selected':''}>Italiano · Svizzera</option><option value="it-IT" ${user.locale==='it-IT'?'selected':''}>Italiano · Italia</option><option value="en-CH" ${user.locale==='en-CH'?'selected':''}>English · Switzerland</option><option value="en-GB" ${user.locale==='en-GB'?'selected':''}>English · United Kingdom</option></select></div><div class="admin-module-grid">${moduleList.map((m)=>`<label class="module-toggle"><input type="checkbox" data-action="admin-toggle-module" data-user-id="${user.id}" data-module-key="${m.key}" ${user.modules?.[m.key]===true?'checked':''}><span><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.group_name||'')}</small></span></label>`).join('')}</div><div class="card-footer-actions"><button class="table-action" type="button" data-action="admin-password" data-user-id="${user.id}">Passwort setzen</button></div></div>`:''}
     </article>`;
   }).join('');
 
