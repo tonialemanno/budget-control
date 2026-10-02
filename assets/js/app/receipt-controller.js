@@ -2,6 +2,7 @@ import { financeApi } from './finance-api.js';
 import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue, financeEventTimestamp } from './format.js';
+import { getLocale, t } from './i18n.js';
 
 const state = {
   file: null,
@@ -43,7 +44,7 @@ function resetState({ hide = true } = {}) {
 }
 
 function formatMoney(value, currency = 'CHF') {
-  try { return new Intl.NumberFormat('de-CH', { style: 'currency', currency }).format(Number(value || 0)); }
+  try { return new Intl.NumberFormat(getLocale(), { style: 'currency', currency }).format(Number(value || 0)); }
   catch { return `${Number(value || 0).toFixed(2)} ${currency}`; }
 }
 
@@ -51,15 +52,15 @@ function setProgress(status, progress = 0) {
   const statusNode = document.querySelector('#receiptOcrStatus');
   const textNode = document.querySelector('#receiptOcrProgressText');
   const bar = document.querySelector('#receiptOcrProgressBar');
-  if (statusNode) statusNode.textContent = status || 'Analyse';
-  if (textNode) textNode.textContent = progress >= 1 ? 'Analyse abgeschlossen' : `${Math.round(Math.max(0, Math.min(1, progress)) * 100)} %`;
+  if (statusNode) statusNode.textContent = t(status || 'Analyse');
+  if (textNode) textNode.textContent = progress >= 1 ? t('Analyse abgeschlossen') : `${Math.round(Math.max(0, Math.min(1, progress)) * 100)} %`;
   if (bar) bar.style.width = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
 }
 
 async function loadContext() {
   const households = await financeApi.listHouseholds();
   const household = households?.[0];
-  if (!household) throw new Error('Haushalt wurde nicht gefunden.');
+  if (!household) throw new Error(t('Haushalt wurde nicht gefunden.'));
   const [accounts, categories, merchants, transactions, documents] = await Promise.all([
     financeApi.listAccounts(household.id),
     financeApi.listCategories(household.id),
@@ -123,11 +124,11 @@ function refreshMatches({ chooseBest = false } = {}) {
   const select = document.querySelector('#receiptMatch');
   if (select) {
     const previous = select.value;
-    select.replaceChildren(new Option('Bitte wählen', ''));
+    select.replaceChildren(new Option(t('Bitte wählen'), ''));
     for (const match of state.matches) {
       const tx = match.tx;
       const date = dateInputValue(new Date(tx.occurred_at));
-      const label = `${date} · ${tx.accounts?.name || 'Konto'} · ${tx.merchants?.name || tx.counterparty || tx.description} · ${formatMoney(Math.abs(Number(tx.amount)), tx.currency)}`;
+      const label = `${date} · ${tx.accounts?.name || t('Konto')} · ${tx.merchants?.name || tx.counterparty || tx.description} · ${formatMoney(Math.abs(Number(tx.amount)), tx.currency)}`;
       select.add(new Option(label, tx.id));
     }
     if (previous && state.matches.some((entry) => entry.tx.id === previous)) select.value = previous;
@@ -139,10 +140,10 @@ function refreshMatches({ chooseBest = false } = {}) {
   if (alert) {
     if (high.length === 1) {
       alert.hidden = false;
-      alert.innerHTML = '<strong>Passende Bankbuchung gefunden.</strong><span>Finance kann den Beleg verknüpfen, statt eine zweite Ausgabe anzulegen.</span>';
+      alert.innerHTML = `<strong>${t('Passende Bankbuchung gefunden.')}</strong><span>${t('Finance kann den Beleg verknüpfen, statt eine zweite Ausgabe anzulegen.')}</span>`;
     } else if (state.matches.length) {
       alert.hidden = false;
-      alert.innerHTML = '<strong>Mögliche Bankbuchung gefunden.</strong><span>Bitte prüfen. Finance verknüpft unklare Treffer nicht automatisch.</span>';
+      alert.innerHTML = `<strong>${t('Mögliche Bankbuchung gefunden.')}</strong><span>${t('Bitte prüfen. Finance verknüpft unklare Treffer nicht automatisch.')}</span>`;
     } else {
       alert.hidden = true;
       alert.textContent = '';
@@ -187,8 +188,8 @@ async function detectGeoCurrency(fallbackCurrency='CHF') {
 
 async function analyzeFile(file) {
   if (!file) return;
-  if (!String(file.type || '').startsWith('image/')) throw new Error('Bitte ein Foto oder Bild des Belegs auswählen.');
-  if (file.size > 10 * 1024 * 1024) throw new Error('Das Belegfoto ist grösser als 10 MB.');
+  if (!String(file.type || '').startsWith('image/')) throw new Error(t('Bitte ein Foto oder Bild des Belegs auswählen.'));
+  if (file.size > 10 * 1024 * 1024) throw new Error(t('Das Belegfoto ist grösser als 10 MB.'));
 
   resetState({ hide: false });
   const generation = state.generation;
@@ -199,19 +200,19 @@ async function analyzeFile(file) {
   if (preview) preview.src = state.previewUrl;
   form?.removeAttribute('hidden');
   form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setProgress('Beleg wird vorbereitet', 0.03);
+  setProgress(t('Beleg wird vorbereitet'), 0.03);
 
   state.context = await loadContext();
   state.geo = await detectGeoCurrency(state.context.household.base_currency || 'CHF');
   const presetCurrency=document.querySelector('#receiptCurrency');
   if(presetCurrency) presetCurrency.value=state.geo.currency;
   const accountHint=document.querySelector('#receiptAccountHint');
-  if(accountHint && state.geo.country) accountHint.textContent=`Standort ${state.geo.country}: ${state.geo.currency} vorgeschlagen. Eine erkannte Belegwährung hat Vorrang.`;
+  if(accountHint && state.geo.country) accountHint.textContent=`${t('Standort')} ${state.geo.country}: ${state.geo.currency} ${t('vorgeschlagen. Eine erkannte Belegwährung hat Vorrang.')}`;
   let analysisResult;
   try {
     analysisResult = await analyzeReceiptImage(file, {
       fallbackCurrency: state.geo.currency,
-      onProgress: ({ status, progress }) => setProgress(status === 'recognizing text' ? 'Text wird erkannt' : status, progress),
+      onProgress: ({ status, progress }) => setProgress(status === 'recognizing text' ? t('Text wird erkannt') : status, progress),
     });
   } catch (error) {
     if (generation !== state.generation) return;
@@ -219,7 +220,7 @@ async function analyzeFile(file) {
       merchant: '', amount: null, currency: state.geo?.currency || state.context.household.base_currency || 'CHF',
       date: dateInputValue(), suggestedCategoryName: null, rawText: '', confidence: 0, ocrConfidence: 0,
     };
-    toast(`OCR nicht verfügbar: ${String(error?.message || error)}. Du kannst den Beleg trotzdem manuell erfassen.`, 'error');
+    toast(`${t('OCR nicht verfügbar')}: ${String(error?.message || error)}. ${t('Du kannst den Beleg trotzdem manuell erfassen.')}`, 'error');
   }
   if (generation !== state.generation) return;
   state.analysis = analysisResult;
@@ -246,7 +247,7 @@ async function analyzeFile(file) {
     const alert = document.querySelector('#receiptMatchAlert');
     if (alert && alert.hidden) {
       alert.hidden = false;
-      alert.innerHTML = '<strong>Bitte kurz prüfen.</strong><span>Nicht alle Belegdaten konnten eindeutig erkannt werden. Korrigiere die Felder vor dem Speichern.</span>';
+      alert.innerHTML = `<strong>${t('Bitte kurz prüfen.')}</strong><span>${t('Nicht alle Belegdaten konnten eindeutig erkannt werden. Korrigiere die Felder vor dem Speichern.')}</span>`;
     }
   }
 }
@@ -270,7 +271,7 @@ async function ensureMerchant(context, merchantName, categoryId, remember) {
 
 async function saveReceipt(form) {
   if (state.busy) return;
-  if (!state.file) throw new Error('Bitte zuerst einen Beleg fotografieren oder auswählen.');
+  if (!state.file) throw new Error(t('Bitte zuerst einen Beleg fotografieren oder auswählen.'));
   state.busy = true;
   const submit = form.querySelector('[type="submit"]');
   if (submit) submit.disabled = true;
@@ -290,10 +291,10 @@ async function saveReceipt(form) {
     const remember = data.get('rememberMerchant') === 'on';
     const mode = String(data.get('mode') || 'new');
 
-    if (!merchantName) throw new Error('Bitte den Händler angeben.');
-    if (!(amount > 0)) throw new Error('Bitte einen gültigen Betrag angeben.');
+    if (!merchantName) throw new Error(t('Bitte den Händler angeben.'));
+    if (!(amount > 0)) throw new Error(t('Bitte einen gültigen Betrag angeben.'));
     if (!receiptDate) throw new Error('Bitte das Belegdatum angeben.');
-    if (categoryId && !context.categories.some((row) => row.id === categoryId && row.kind === 'expense')) throw new Error('Bitte eine Ausgabenkategorie auswählen.');
+    if (categoryId && !context.categories.some((row) => row.id === categoryId && row.kind === 'expense')) throw new Error(t('Bitte eine Ausgabenkategorie auswählen.'));
 
     const merchant = await ensureMerchant(context, merchantName, categoryId, remember);
     let transaction;
@@ -302,21 +303,21 @@ async function saveReceipt(form) {
     if (mode === 'link') {
       const transactionId = String(data.get('transactionId') || '');
       transaction = context.transactions.find((row) => row.id === transactionId);
-      if (!transaction) throw new Error('Bitte eine passende Bankbuchung auswählen.');
+      if (!transaction) throw new Error(t('Bitte eine passende Bankbuchung auswählen.'));
       const amountOk = Math.abs(Math.abs(Number(transaction.amount)) - amount) <= Math.max(0.02, amount * 0.002);
       if (transaction.status !== 'booked' || Number(transaction.amount) >= 0 || transaction.transfer_group_id || transaction.cashflow_type === 'debt_payment' || transaction.currency !== currency || !amountOk) {
-        throw new Error('Die ausgewählte Bankbuchung passt nicht sicher zu diesem Beleg.');
+        throw new Error(t('Die ausgewählte Bankbuchung passt nicht sicher zu diesem Beleg.'));
       }
       linked = true;
     } else {
       const accountId = String(data.get('accountId') || '');
       const account = context.accounts.find((row) => row.account_id === accountId);
-      if (!account) throw new Error('Bitte ein Zahlungskonto auswählen.');
-      if (account.currency !== currency) throw new Error('Kontowährung und Belegwährung müssen übereinstimmen.');
+      if (!account) throw new Error(t('Bitte ein Zahlungskonto auswählen.'));
+      if (account.currency !== currency) throw new Error(t('Kontowährung und Belegwährung müssen übereinstimmen.'));
 
       const duplicates = findReceiptMatches({ transactions: context.transactions.filter((tx) => !context.receiptTransactionIds?.has(tx.id)), amount, currency, date: receiptDate, merchant: merchantName, limit: 6 });
       const safe = duplicates.filter((entry) => entry.highConfidence);
-      if (safe.length === 1 && !confirm('Es gibt bereits eine sehr ähnliche Bankbuchung. Trotzdem eine neue Ausgabe anlegen?')) return;
+      if (safe.length === 1 && !confirm(t('Es gibt bereits eine sehr ähnliche Bankbuchung. Trotzdem eine neue Ausgabe anlegen?'))) return;
 
       transaction = await financeApi.createTransaction({
         household_id: context.household.id,
@@ -365,7 +366,7 @@ async function saveReceipt(form) {
     }
 
     resetState();
-    toast(linked ? 'Beleg mit der vorhandenen Bankbuchung verknüpft.' : 'Beleg erkannt und Ausgabe gespeichert.');
+    toast(t(linked ? 'Beleg mit der vorhandenen Bankbuchung verknüpft.' : 'Beleg erkannt und Ausgabe gespeichert.'));
     // main.js owns the in-memory finance context. A short reload is the cleanest
     // way to refresh that context without duplicating its private state here.
     window.setTimeout(() => window.location.reload(), 550);
@@ -405,7 +406,7 @@ document.addEventListener('change', async (event) => {
       refreshMatches();
     }
   } catch (error) {
-    setProgress('Analyse fehlgeschlagen', 0);
+    setProgress(t('Analyse fehlgeschlagen'), 0);
     toast(String(error?.message || error), 'error');
   }
 });
