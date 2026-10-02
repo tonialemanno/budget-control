@@ -697,7 +697,10 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Die Kontowährung kann nicht geändert werden, solange Buchungen oder Verknüpfungen auf diesem Konto bestehen.": "La valuta del conto non può essere modificata finché esistono movimenti o collegamenti su questo conto.",
   "Bei einem Währungswechsel muss der aktuelle Kontostand neu angegeben werden.": "In caso di cambio valuta è necessario indicare nuovamente il saldo attuale del conto.",
   "Als Sparziel-Finanzierung können nur geplante Umbuchungen verwendet werden.": "Come finanziamento di un obiettivo di risparmio possono essere utilizzati solo trasferimenti pianificati.",
-  "Die Umbuchung muss auf das mit dem Sparziel verknüpfte Konto eingehen.": "Il trasferimento deve essere accreditato sul conto collegato all’obiettivo di risparmio."}),
+  "Die Umbuchung muss auf das mit dem Sparziel verknüpfte Konto eingehen.": "Il trasferimento deve essere accreditato sul conto collegato all’obiettivo di risparmio.",
+  "Dokumentart": "Tipo di documento",
+  "Private Dokumentablage mit Foto/PDF-Upload, Vorschau, Dokumentart und eigener Steuerablage.": "Archivio documenti privato con caricamento foto/PDF, anteprima, tipo di documento e archivio fiscale dedicato.",
+  "Mahn-/Betreibungsfall": "Caso di sollecito/esecuzione"}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -1396,7 +1399,10 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Die Kontowährung kann nicht geändert werden, solange Buchungen oder Verknüpfungen auf diesem Konto bestehen.": "The account currency cannot be changed while transactions or links exist on this account.",
   "Bei einem Währungswechsel muss der aktuelle Kontostand neu angegeben werden.": "When changing currency, the current account balance must be entered again.",
   "Als Sparziel-Finanzierung können nur geplante Umbuchungen verwendet werden.": "Only planned transfers can be used as savings-goal funding.",
-  "Die Umbuchung muss auf das mit dem Sparziel verknüpfte Konto eingehen.": "The transfer must be credited to the account linked to the savings goal."})
+  "Die Umbuchung muss auf das mit dem Sparziel verknüpfte Konto eingehen.": "The transfer must be credited to the account linked to the savings goal.",
+  "Dokumentart": "Document type",
+  "Private Dokumentablage mit Foto/PDF-Upload, Vorschau, Dokumentart und eigener Steuerablage.": "Private document archive with photo/PDF upload, preview, document type and dedicated tax archive.",
+  "Mahn-/Betreibungsfall": "Reminder/debt-enforcement case"})
 });
 
 export const UI_PATTERNS = Object.freeze({
