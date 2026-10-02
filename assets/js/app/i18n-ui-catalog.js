@@ -991,7 +991,8 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Kind im Steuerfall gespeichert.": "Figlio salvato nel caso fiscale.",
   "Arbeitsstelle gespeichert.": "Posto di lavoro salvato.",
   "Steuerbeleg gespeichert und mit der Position verknüpft.": "Documento fiscale salvato e collegato alla posizione.",
-  "Ungültige Finance-Quelle.": "Fonte Finance non valida."}),
+  "Ungültige Finance-Quelle.": "Fonte Finance non valida.",
+  "CH · St.Gallen · versioniert pro Steuerjahr": "CH · San Gallo · versionato per anno fiscale"}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -1984,11 +1985,13 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Kind im Steuerfall gespeichert.": "Child saved in tax case.",
   "Arbeitsstelle gespeichert.": "Employment saved.",
   "Steuerbeleg gespeichert und mit der Position verknüpft.": "Tax document saved and linked to the item.",
-  "Ungültige Finance-Quelle.": "Invalid Finance source."})
+  "Ungültige Finance-Quelle.": "Invalid Finance source.",
+  "CH · St.Gallen · versioniert pro Steuerjahr": "CH · St.Gallen · versioned by tax year"})
 });
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^noch offen (.+)$/, 'ancora aperto $1'],
     [/^Steuerjahr (\d{4})$/, 'Anno fiscale $1'],
     [/^Steuerfall (\d{4})$/, 'Caso fiscale $1'],
     [/^Steuerfall (\d{4}) ist noch nicht angelegt\.$/, 'Il caso fiscale $1 non è ancora stato creato.'],
@@ -2074,6 +2077,7 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^noch offen (.+)$/, 'still open $1'],
     [/^Steuerjahr (\d{4})$/, 'Tax year $1'],
     [/^Steuerfall (\d{4})$/, 'Tax case $1'],
     [/^Steuerfall (\d{4}) ist noch nicht angelegt\.$/, 'Tax case $1 has not been created yet.'],
