@@ -892,6 +892,8 @@ function renderImportReview() {
 function openTransactionEditor(tx, { recurring = false } = {}) {
   if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
   if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
+  if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
+  if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
   document.querySelector('#transactionEditId').value=tx.id;
   document.querySelector('#transactionEditDirection').value=Number(tx.amount)<0?'expense':'income';
   document.querySelector('#transactionEditAmount').value=Math.abs(Number(tx.amount));
@@ -1005,6 +1007,8 @@ async function handleForm(form) {
     const tx=runtime.transactions.find((row)=>row.id===transactionId);
     if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
+    if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
+    if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
@@ -1799,6 +1803,8 @@ async function handleAction(target) {
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
     if(tx.cashflow_type==='debt_payment') throw new Error('Eine Schuldzahlung kann nicht in eine Umbuchung umgewandelt werden.');
+    if(tx.cashflow_type==='receivable_principal') throw new Error('Eine Forderungsbuchung kann nicht in eine Umbuchung umgewandelt werden.');
+    if(runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Eine bezahlte Rechnungsbuchung kann nicht in eine Umbuchung umgewandelt werden.');
     let toAmount=null; if(tx.currency!==to.currency){ const entered=prompt(t(`Wie viel ${to.currency} wurden tatsächlich in ${to.name} gelegt?`),String(Math.abs(Number(tx.amount)))); if(entered===null) return; toAmount=Number(entered); if(!Number.isFinite(toAmount)||toAmount<=0) throw new Error('Ungültiger Zielbetrag.'); }
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
@@ -1897,6 +1903,8 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if (!tx) throw new Error('Transaktion wurde nicht gefunden.');
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden im Zahlungsverlauf unter Schulden & Kredite storniert.');
+    if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen korrigiert oder storniert.');
+    if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung gehört zu einer bezahlten Rechnung. Bitte zuerst die Rechnungszahlung zurücknehmen.');
     if (!confirm(t(tx.transfer_group_id?'Die gesamte Umbuchung mit beiden Buchungsseiten löschen?':'Diese Transaktion wirklich löschen?'))) return;
     if (tx.transfer_group_id) {
       const groupTransactions=runtime.transactions.filter((row)=>row.transfer_group_id===tx.transfer_group_id);
