@@ -680,7 +680,20 @@ export const UI_TRANSLATIONS = Object.freeze({
   "VD · Waadt": "VD · Vaud",
   "VS · Wallis": "VS · Vallese",
   "ZG · Zug": "ZG · Zugo",
-  "ZH · Zürich": "ZH · Zurigo"}),
+  "ZH · Zürich": "ZH · Zurigo",
+  "Demo-Instanz": "Istanza demo",
+  "Isolierter Demo-Haushalt mit synthetischen Daten und allen Modulen.": "Nucleo demo isolato con dati sintetici e tutti i moduli.",
+  "Demo-E-Mail": "E-mail demo",
+  "Sprache": "Lingua",
+  "Erstellt oder setzt nur die Demo-Instanz zurück. Echte Benutzer- und Finanzdaten werden nicht kopiert oder verändert.": "Crea o ripristina solo l’istanza demo. I dati reali di utenti e finanze non vengono copiati né modificati.",
+  "Demo erstellen / zurücksetzen": "Crea / ripristina demo",
+  "Demo-Zugang bereit": "Accesso demo pronto",
+  "Die Zugangsdaten wurden neu gesetzt. Beim nächsten Zurücksetzen wird ein neues Passwort erzeugt.": "Le credenziali sono state reimpostate. Al prossimo ripristino verrà generata una nuova password.",
+  "Zugang kopieren": "Copia accesso",
+  "Demo-Zugang kopiert.": "Accesso demo copiato.",
+  "Demo-Instanz zurückgesetzt.": "Istanza demo ripristinata.",
+  "Demo-Instanz erstellt.": "Istanza demo creata.",
+  "Nur App-Admins dürfen Demo-Instanzen erstellen.": "Solo gli amministratori dell’app possono creare istanze demo."}),
   en: Object.freeze({
   "Suchen": "Search",
   "Zeitraum": "Period",
@@ -1362,7 +1375,20 @@ export const UI_TRANSLATIONS = Object.freeze({
   "VD · Waadt": "VD · Vaud",
   "VS · Wallis": "VS · Valais",
   "ZG · Zug": "ZG · Zug",
-  "ZH · Zürich": "ZH · Zurich"})
+  "ZH · Zürich": "ZH · Zurich",
+  "Demo-Instanz": "Demo instance",
+  "Isolierter Demo-Haushalt mit synthetischen Daten und allen Modulen.": "Isolated demo household with synthetic data and all modules.",
+  "Demo-E-Mail": "Demo email",
+  "Sprache": "Language",
+  "Erstellt oder setzt nur die Demo-Instanz zurück. Echte Benutzer- und Finanzdaten werden nicht kopiert oder verändert.": "Creates or resets only the demo instance. Real user and financial data is not copied or changed.",
+  "Demo erstellen / zurücksetzen": "Create / reset demo",
+  "Demo-Zugang bereit": "Demo access ready",
+  "Die Zugangsdaten wurden neu gesetzt. Beim nächsten Zurücksetzen wird ein neues Passwort erzeugt.": "The credentials were reset. A new password will be generated on the next reset.",
+  "Zugang kopieren": "Copy access",
+  "Demo-Zugang kopiert.": "Demo access copied.",
+  "Demo-Instanz zurückgesetzt.": "Demo instance reset.",
+  "Demo-Instanz erstellt.": "Demo instance created.",
+  "Nur App-Admins dürfen Demo-Instanzen erstellen.": "Only app admins may create demo instances."})
 });
 
 export const UI_PATTERNS = Object.freeze({
