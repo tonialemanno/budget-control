@@ -20,7 +20,7 @@ const baseTx=(id,amount,cashflow='standard')=>({
 const receivable=baseTx('recv1',-300,'receivable_principal');
 let html=renderTransactions({
   accounts,transactions:[receivable],bills:[],debtPayments:[],household,profile,
-  fxRates:{},canWrite:true,moduleAccess:{tax:true},
+  fxRates:{},canWrite:true,moduleAccess:{tax:true},transactionView:'details',transactionPeriod:'all',
 });
 assert.match(html,/Forderung anzeigen/);
 assert.doesNotMatch(html,/data-action="transaction-edit"/);
@@ -30,7 +30,7 @@ assert.doesNotMatch(html,/data-action="transaction-delete"/);
 const billTx=baseTx('billtx',-120,'standard');
 html=renderTransactions({
   accounts,transactions:[billTx],bills:[{id:'b1',status:'paid',paid_transaction_id:'billtx'}],
-  debtPayments:[],household,profile,fxRates:{},canWrite:true,moduleAccess:{tax:true},
+  debtPayments:[],household,profile,fxRates:{},canWrite:true,moduleAccess:{tax:true},transactionView:'details',transactionPeriod:'all',
 });
 assert.match(html,/Rechnung anzeigen/);
 assert.doesNotMatch(html,/data-action="transaction-edit"/);
@@ -39,7 +39,7 @@ assert.doesNotMatch(html,/data-action="transaction-delete"/);
 const normalTx=baseTx('normal1',-75,'standard');
 html=renderTransactions({
   accounts,transactions:[normalTx],bills:[],debtPayments:[],household,profile,
-  fxRates:{},canWrite:true,moduleAccess:{tax:true},
+  fxRates:{},canWrite:true,moduleAccess:{tax:true},transactionView:'details',transactionPeriod:'all',
 });
 assert.match(html,/data-action="transaction-edit"/);
 assert.match(html,/data-action="transaction-delete"/);
