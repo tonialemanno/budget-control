@@ -30,7 +30,7 @@ export function matchesRecurringExpense(tx, rules) {
     if(rule.next_date && !occurrenceNear(rule,tx.occurred_at,3)) return false;
     const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
     const merchantMatch=Boolean(rule.merchant_id && tx.merchant_id && rule.merchant_id===tx.merchant_id);
-    const categoryMatch=Boolean(rule.category_id && tx.category_id && rule.category_id===tx.category_id);
+    const categoryMatch=Boolean(rule.category_id && tx.category_id && (rule.category_id===tx.category_id || rule.category_id===tx.categories?.parent_id));
     const textMatch=Boolean(ruleText && txText && (txText.includes(ruleText)||ruleText.includes(txText)));
     return merchantMatch || categoryMatch || textMatch;
   });
@@ -39,7 +39,7 @@ export function matchesRecurringExpense(tx, rules) {
 export function budgetCoversTransaction(tx, budgets) {
   return budgets.some((budget)=>{
     if(budget.merchant_id) return Boolean(tx.merchant_id && budget.merchant_id===tx.merchant_id);
-    if(budget.category_id) return Boolean(tx.category_id && budget.category_id===tx.category_id);
+    if(budget.category_id) return Boolean(tx.category_id && (budget.category_id===tx.category_id || budget.category_id===tx.categories?.parent_id));
     return false;
   });
 }

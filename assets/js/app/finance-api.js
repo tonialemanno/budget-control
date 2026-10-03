@@ -61,7 +61,7 @@ export const financeApi = Object.freeze({
   listCategorizationRules(householdId) { return listByHousehold('categorization_rules', householdId, { select: '*,categories(name,kind)', order: 'priority.asc,created_at.asc' }); },
   createCategorizationRule: (payload) => insert('categorization_rules', payload), deleteCategorizationRule: (id) => remove('categorization_rules', id),
   async listTransactions(householdId) {
-    const select = 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,cashflow_type,accounts(name),categories(name,kind),merchants(name,normalized_key,default_category_id)';
+    const select = 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,tax_year,tax_section_key,tax_treatment,cashflow_type,accounts(name),categories(name,kind,parent_id),merchants(name,normalized_key,default_category_id)';
     const pageSize = 1000; const rows = [];
     for (let offset = 0; ; offset += pageSize) { const page = await listByHousehold('transactions', householdId, { select, order: 'occurred_at.desc,created_at.desc', limit: pageSize, extra: { offset: String(offset) } }); rows.push(...(page || [])); if (!page || page.length < pageSize) break; }
     return rows;
@@ -163,8 +163,11 @@ export const financeApi = Object.freeze({
   createReceivable({ householdId, debtor, reason, originalAmount, currency, lentAt, dueDate=null, notes=null, sourceAccountId=null, createTransaction=false }) {
     return backend.rpc('create_receivable_v2', { p_household_id:householdId, p_debtor:debtor, p_reason:reason, p_original_amount:originalAmount, p_currency:currency, p_lent_at:lentAt, p_due_date:dueDate, p_notes:notes, p_source_account_id:sourceAccountId, p_create_transaction:createTransaction });
   },
-  recordReceivablePayment({ householdId, receivableId, amount, paidAt, note=null, paymentAccountId=null, createTransaction=false }) {
-    return backend.rpc('record_receivable_payment_v2', { p_household_id:householdId, p_receivable_id:receivableId, p_amount:amount, p_paid_at:paidAt, p_note:note, p_payment_account_id:paymentAccountId, p_create_transaction:createTransaction });
+  recordReceivablePayment({ householdId, receivableId, amount, paidAt, note=null, source='created_transaction', paymentAccountId=null, transactionId=null }) {
+    return backend.rpc('record_receivable_payment_v3', {
+      p_household_id:householdId, p_receivable_id:receivableId, p_amount:amount, p_paid_at:paidAt,
+      p_note:note, p_source:source, p_payment_account_id:paymentAccountId, p_transaction_id:transactionId
+    });
   },
   reverseReceivablePayment: (paymentId) => backend.rpc('reverse_receivable_payment_v2', { p_payment_id:paymentId }),
   deleteReceivable: ({ householdId, receivableId }) => backend.rpc('delete_receivable_v2', { p_household_id:householdId, p_receivable_id:receivableId }),
@@ -195,7 +198,14 @@ export const financeApi = Object.freeze({
   listTaxObligations(householdId) { return listByHousehold('tax_obligations', householdId, { order: 'due_date.asc.nullslast,created_at.asc', limit: 1000 }); },
   createTaxObligation: (payload) => insert('tax_obligations', payload), updateTaxObligation: (id, patch) => update('tax_obligations', id, patch), deleteTaxObligation: (id) => remove('tax_obligations', id),
   listTaxPayments(householdId) { return listByHousehold('tax_payments', householdId, { order: 'paid_at.desc,created_at.desc', limit: 1000 }); },
-  createTaxPayment: (payload) => insert('tax_payments', payload), deleteTaxPayment: (id) => remove('tax_payments', id),
+  createTaxPayment: (payload) => insert('tax_payments', payload),
+  recordTaxPayment: ({ householdId, taxCaseId, obligationId = null, paymentType = 'payment', amount, paidAt, reference = null, notes = null, source = 'created_transaction', accountId = null, transactionId = null }) => backend.rpc('record_tax_payment_v2', {
+    p_household_id:householdId, p_tax_case_id:taxCaseId, p_obligation_id:obligationId,
+    p_payment_type:paymentType, p_amount:amount, p_paid_at:paidAt, p_reference:reference,
+    p_notes:notes, p_source:source, p_account_id:accountId, p_transaction_id:transactionId,
+  }),
+  reverseTaxPayment: ({ householdId, paymentId }) => backend.rpc('reverse_tax_payment_v2', { p_household_id:householdId, p_payment_id:paymentId }),
+  deleteTaxPayment: (id) => remove('tax_payments', id),
   listDocuments(householdId) { return listByHousehold('documents', householdId, { order: 'created_at.desc', limit: 200 }); }, createDocument: (payload) => insert('documents', payload), updateDocument: (id, patch) => update('documents', id, patch),
   deleteDocument: async (document) => { if (document?.storage_path) await backend.storageDelete('finance-documents', [document.storage_path]); return remove('documents', document.id); },
   uploadDocument(householdId, file) { const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-120); const path = `${householdId}/${crypto.randomUUID()}-${safeName}`; return backend.storageUpload('finance-documents', path, file).then(() => path); },

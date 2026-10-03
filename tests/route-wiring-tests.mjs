@@ -9,7 +9,7 @@ for(const item of NAV_ITEMS){
   assert.ok(MODULES[item.module],`NAV route ${item.route} references unknown module ${item.module}`);
 }
 
-for(const route of ['settings','categories','merchants','import-history']){
+for(const route of ['settings','profile','setup','categories','merchants','import-history']){
   assert.ok(PAGE_META[route],`internal route ${route} needs PAGE_META`);
   assert.ok(knownRoutes.has(route),`internal route ${route} needs a renderer`);
 }

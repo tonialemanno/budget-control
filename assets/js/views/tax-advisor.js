@@ -209,11 +209,14 @@ export function renderTaxAdvisor({
   }
   const linkedTaxTransactionIds=new Set((taxPayments||[]).map((row)=>row.transaction_id).filter(Boolean));
   const paidBillTransactionIds=new Set((bills||[]).filter((row)=>row.status==='paid'&&row.paid_transaction_id).map((row)=>row.paid_transaction_id));
+  const taxPaymentCurrency=taxCase?.currency||baseCurrency;
   const taxPaymentCandidates=(transactions||[]).filter((tx)=>
     tx.status==='booked' && !tx.transfer_group_id && tx.cashflow_type==='standard' &&
+    tx.currency===taxPaymentCurrency &&
     !linkedTaxTransactionIds.has(tx.id) && !paidBillTransactionIds.has(tx.id) &&
     (effectiveTaxYear(tx)===year || (!tx.tax_relevant && new Date(tx.occurred_at).getFullYear()===year))
   );
+  const taxPaymentAccounts=(accounts||[]).filter((account)=>account.currency===taxPaymentCurrency);
   const sourceOptions=[
     ...accounts.map((row)=>({value:`account:${row.account_id}`,label:`Konto · ${row.name}`})),
     ...debts.map((row)=>({value:`debt:${row.id}`,label:`Schuld · ${row.name||row.creditor}`})),
@@ -497,8 +500,20 @@ export function renderTaxAdvisor({
           ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Forderung speichern</button></div>':''}
         </form>
         <form class="card card-padding" id="tax-payment-create" data-form="tax-payment-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
-          <div class="card-heading"><div><h3 class="card-title">Zahlung / Rückerstattung</h3></div></div>
-          <div class="form-grid"><label class="field"><span>Art</span><select class="text-control" id="taxPaymentType" name="paymentType"><option value="payment">Zahlung</option><option value="refund">Rückerstattung</option><option value="interest_payment">Zinszahlung</option><option value="interest_credit">Zinsgutschrift</option></select></label><label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}">${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label><label class="field"><span>Kontobuchung</span><select class="text-control" id="taxPaymentTransaction" name="transactionId"><option value="">— keine / manuell —</option>${taxPaymentCandidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(num(tx.amount))}" data-type="${num(tx.amount)<0?'payment':'refund'}" data-date="${dateInputValue(new Date(tx.occurred_at))}">${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.description)} · ${money(tx.amount,{currency:tx.currency,locale})}</option>`).join('')}</select><small>Optional mit einer bestehenden Bankbuchung verknüpfen.</small></label><label class="field"><span>Betrag</span><input class="text-control" id="taxPaymentAmount" type="number" step="0.01" min="0" name="amount" required></label><label class="field"><span>Bezahlt am</span><input class="text-control" id="taxPaymentDate" type="date" name="paidAt" value="${dateInputValue()}" required></label><label class="field"><span>Referenz</span><input class="text-control" name="reference"></label><input type="hidden" name="currency" value="${escapeHtml(taxCase.currency||'CHF')}"></div>
+          <div class="card-heading"><div><h3 class="card-title">Zahlung / Rückerstattung</h3><p class="card-subtitle">Eine Zahlung wird mit dem Konto und dem Steuerdossier als derselbe wirtschaftliche Vorgang verknüpft.</p></div></div>
+          <div class="form-grid">
+            <label class="field"><span>Art</span><select class="text-control" id="taxPaymentType" name="paymentType"><option value="payment">Zahlung</option><option value="refund">Rückerstattung</option><option value="interest_payment">Zinszahlung</option><option value="interest_credit">Zinsgutschrift</option></select></label>
+            <label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}">${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label>
+            <label class="field"><span>Verbuchen über</span><select class="text-control" id="taxPaymentSource" name="source"><option value="created_transaction">Kontobuchung erstellen</option><option value="linked_transaction">Bestehende Kontobuchung verknüpfen</option><option value="history_only">Nur im Steuerdossier erfassen</option></select></label>
+            <label class="field" id="taxPaymentAccountField"><span>Zahlungskonto</span><select class="text-control" id="taxPaymentAccount" name="accountId"><option value="">Bitte wählen</option>${taxPaymentAccounts.map((account)=>`<option value="${account.account_id}">${escapeHtml(account.name)} · ${escapeHtml(account.currency)}</option>`).join('')}</select><small>Finance erstellt die Kontobewegung automatisch.</small></label>
+            <label class="field" id="taxPaymentTransactionField" hidden><span>Kontobuchung</span><select class="text-control" id="taxPaymentTransaction" name="transactionId"><option value="">Bitte wählen</option>${taxPaymentCandidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(num(tx.amount))}" data-type="${num(tx.amount)<0?'payment':'refund'}" data-date="${dateInputValue(new Date(tx.occurred_at))}">${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.description)} · ${money(tx.amount,{currency:tx.currency,locale})}</option>`).join('')}</select><small>Die vorhandene Bankbuchung wird steuerlich markiert und verknüpft.</small></label>
+            <div class="inline-alert" id="taxPaymentHistoryInfo" hidden><strong>Nur Verlauf.</strong><span>Es wird kein Kontostand verändert. Nutze das nur für Zahlungen, die ausserhalb von Finance bereits verbucht wurden.</span></div>
+            <label class="field"><span>Betrag</span><input class="text-control" id="taxPaymentAmount" type="number" step="0.01" min="0.01" name="amount" required></label>
+            <label class="field"><span>Bezahlt am</span><input class="text-control" id="taxPaymentDate" type="date" name="paidAt" value="${dateInputValue()}" required></label>
+            <label class="field"><span>Referenz</span><input class="text-control" name="reference"></label>
+            <label class="field"><span>Notiz</span><input class="text-control" name="notes"></label>
+            <input type="hidden" name="currency" value="${escapeHtml(taxPaymentCurrency)}">
+          </div>
           ${canWrite?'<div class="form-actions"><button class="action-button action-button--primary" type="submit">Zahlung speichern</button></div>':''}
         </form>
       </div>
