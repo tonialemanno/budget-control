@@ -153,20 +153,24 @@ export async function createReceivableMovement({
 }
 
 export async function recordReceivableMovement({
-  api, householdId, receivable, amount, paidAt, note = null, paymentAccountId = null, createTransaction = true,
+  api, householdId, receivable, amount, paidAt, note = null,
+  source = 'created_transaction', paymentAccountId = null, transactionId = null,
 }) {
   required(receivable?.id, 'Forderung wurde nicht gefunden.');
   const value = positive(amount, 'Bitte einen gültigen Rückzahlungsbetrag eingeben.');
   if (value > Number(receivable.outstanding_amount || 0) + 0.005) throw new Error('Die Rückzahlung ist höher als der offene Betrag.');
-  if (createTransaction) required(paymentAccountId, 'Bitte ein Zahlungskonto auswählen.');
+  if (source === 'created_transaction') required(paymentAccountId, 'Bitte ein Eingangskonto auswählen.');
+  if (source === 'linked_transaction') required(transactionId, 'Bitte eine bestehende Kontobuchung auswählen.');
+  if (!['created_transaction','linked_transaction','history_only'].includes(source)) throw new Error('Unbekannte Zahlungsart.');
   return api.recordReceivablePayment({
     householdId,
     receivableId: receivable.id,
     amount: value,
     paidAt,
     note,
-    paymentAccountId: createTransaction ? paymentAccountId : null,
-    createTransaction: Boolean(createTransaction),
+    source,
+    paymentAccountId: source === 'created_transaction' ? paymentAccountId : null,
+    transactionId: source === 'linked_transaction' ? transactionId : null,
   });
 }
 
