@@ -1,4 +1,5 @@
 import { MODULES } from '../app/config.js';
+import { buildSetupStatus } from '../app/setup-model.js';
 import { pageHeader, statusPill } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
@@ -20,7 +21,8 @@ export function renderSettings({
   theme='auto', depth='standard', moduleAccess={}, productModules=[], profile, household, user, adminRole, householdRole,
   hiddenModules=[], privacyEnabled=false, canWrite=false, canAdminHousehold=false,
   masterDataHouseholds=[], countryMasterCategories=[], countryMasterMerchants=[],
-  accounts=[], categories=[], merchants=[], categorizationRules=[],
+  accounts=[], categories=[], merchants=[], categorizationRules=[], recurringRules=[],
+  budgets=[], goals=[], debts=[], receivables=[], taxCases=[],
 } = {}) {
   const hidden = new Set(hiddenModules || []);
   const catalog = (productModules || []).filter((module)=>module.key !== 'admin');
@@ -34,7 +36,10 @@ export function renderSettings({
   const sourceOptions=sourceHouseholds.map((row)=>`<option value="${row.id}" ${adminRole && row.id===household?.id?'selected':''}>${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
   const targetOptions=eligibleHouseholds.map((row)=>`<option value="${row.id}" ${row.id===household?.id?'selected':''}>${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
   const standardLabel=`${countryCode}-Standard`;
-  const setupReady=accounts.length>0 && categories.length>=5 && merchants.length>=3;
+  const setupState=buildSetupStatus({
+    accounts,categories,merchants,categorizationRules,recurringRules,budgets,goals,debts,receivables,taxCases,household,profile,
+  });
+  const setupReady=setupState.completed||setupState.ready;
 
   return `
     ${pageHeader({title:'Einstellungen',subtitle:'Sprache, Währung, Darstellung, Kategorien, Sicherheit, Module und Administration an einem Ort.'})}
@@ -42,7 +47,7 @@ export function renderSettings({
     <div class="settings-section-label">Einrichtung</div>
     <div class="settings-nav-grid">
       ${settingsLink({href:'#/profile',iconName:'user',title:'Mein Profil',text:'Login, Rolle und persönlicher Zugriff'})}
-      ${settingsLink({href:'#/setup',iconName:'sparkles',title:'Finance einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':'offen'})}
+      ${settingsLink({href:'#/setup',iconName:'sparkles',title:'Finance einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':`${setupState.preparationDone}/8`})}
       ${settingsLink({href:'#/accounts',iconName:'wallet',title:'Konten & Währungen',text:`Basis ${household?.base_currency||'CHF'} · Konten dürfen eigene Währungen führen`,badge:`${accounts.length} Konten`})}
       ${settingsLink({href:'#/categories',iconName:'layout-grid',title:'Kategorien & Unterkategorien',text:'Deine persönliche Finanzstruktur',badge:`${categories.length} Kategorien`})}
       ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}

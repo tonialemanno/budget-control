@@ -10,6 +10,7 @@ import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
+import { buildSetupStatus } from './app/setup-model.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 import {
   createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
@@ -256,8 +257,11 @@ function resolveRoute() {
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
   if (onboardingPending) {
-    const setupRoutes = new Set(['setup','accounts','categories','merchants','settings']);
-    return setupRoutes.has(requested) ? requested : 'setup';
+    const setupCoreRoutes = new Set(['setup','accounts','categories','merchants','settings','fixed-costs','recurring','imports','documents']);
+    if (setupCoreRoutes.has(requested)) return requested;
+    const setupOptionalRoutes = new Set(['budget','goals','debts','receivables','tax-advisor']);
+    if (setupOptionalRoutes.has(requested) && allowed.has(requested)) return requested;
+    return 'setup';
   }
   return allowed.has(requested) ? requested : 'overview';
 }
@@ -1184,6 +1188,7 @@ async function handleForm(form) {
       base_currency: baseCurrency,
       locale,
       onboarding_completed_at: null,
+      preferences:{...profilePreferences(),setup_reviewed:[],setup_completed_version:null},
     });
     const createdHousehold = await financeApi.createHousehold({
       name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id
@@ -1194,10 +1199,18 @@ async function handleForm(form) {
     return;
   }
   if (id === 'setup-complete') {
-    const parents=runtime.categories.filter((row)=>!row.parent_id);
-    if (!runtime.accounts.length) throw new Error('Bitte zuerst mindestens ein Konto oder eine Geldbörse einrichten.');
-    if (parents.length < 5 || runtime.merchants.length < 3) throw new Error('Bitte zuerst Kategorien und Händler einrichten.');
-    runtime.profile = await financeApi.updateProfile(runtime.user.id, { onboarding_completed_at:new Date().toISOString() });
+    const setup=buildSetupStatus({...runtime,profile:runtime.profile,household:runtime.household});
+    if (!setup.states.accounts) throw new Error('Bitte zuerst mindestens ein Konto oder eine Geldbörse einrichten.');
+    if (!setup.states.balances) throw new Error('Bitte die aktuellen Kontostände prüfen.');
+    if (!setup.states.categories) throw new Error('Bitte zuerst die Hauptkategorien einrichten.');
+    if (!setup.states.subcategories) throw new Error('Bitte zuerst Unterkategorien einrichten.');
+    if (!setup.states.automation) throw new Error('Bitte Händler oder automatische Zuordnungsregeln einrichten.');
+    if (!setup.states.recurring) throw new Error('Bitte wiederkehrende Einnahmen und Fixkosten einrichten oder bewusst auf später setzen.');
+    if (!setup.states.modules) throw new Error('Bitte optionale Module prüfen oder bewusst auf später setzen.');
+    runtime.profile = await financeApi.updateProfile(runtime.user.id, {
+      onboarding_completed_at:new Date().toISOString(),
+      preferences:{...profilePreferences(),setup_completed_version:2},
+    });
     await refresh('Einrichtung abgeschlossen. Finance ist bereit.');
     location.hash = '#/overview';
     return;
@@ -2107,6 +2120,19 @@ async function handleAction(target) {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
     if (!created) { showToast('Die empfohlene Struktur ist bereits vorhanden.'); return; }
     await refresh(`Empfohlene Struktur ergänzt: ${created} Einträge aktualisiert oder angelegt.`); return;
+  }
+  if (action === 'setup-review') {
+    if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+    const key=String(target.dataset.key||'').trim();
+    if (!['recurring','modules'].includes(key)) throw new Error('Unbekannter Einrichtungsschritt.');
+    const reviewed=new Set(Array.isArray(profilePreferences().setup_reviewed)?profilePreferences().setup_reviewed:[]);
+    reviewed.add(key);
+    await saveUserPreferences({setup_reviewed:[...reviewed]});
+    render();
+    showToast(key==='recurring'
+      ? 'Wiederkehrende Einnahmen und Fixkosten kannst du später ergänzen.'
+      : 'Optionale Module kannst du später jederzeit einrichten.');
+    return;
   }
   if (action === 'categorization-open') {
     if (!runtime.categories.length) {

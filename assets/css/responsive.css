@@ -614,16 +614,52 @@
   .settings-inline-control { width:100%; flex-direction:column; align-items:stretch; }
   .settings-inline-control .action-button { width:100%; }
 
-  .setup-progress-card { padding:16px; }
+  .setup-progress-card--wizard { padding:16px; }
   .setup-progress-head h3 { font-size:18px; }
   .setup-progress-head > strong { font-size:22px; }
-  .setup-step { grid-template-columns:auto minmax(0,1fr); gap:11px; padding:14px; border-radius:18px; }
-  .setup-step-action { grid-column:1 / -1; padding-left:53px; }
-  .setup-step-action .action-button { width:100%; }
-  .setup-finish { align-items:stretch; flex-direction:column; padding:16px; }
-  .setup-finish .action-button,
-  .setup-finish form { width:100%; }
-  .setup-finish form .action-button { width:100%; }
+  .setup-progress-meta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .setup-progress-meta span { justify-content:center; padding:6px 4px; font-size:9px; }
+
+  .setup-wizard { gap:8px; }
+  .setup-wizard-step {
+    grid-template-columns:46px minmax(0,1fr);
+    min-height:0;
+    border-radius:18px;
+  }
+  .setup-wizard-marker { padding-top:16px; }
+  .setup-step-number {
+    width:34px;
+    height:34px;
+    border-radius:11px;
+    box-shadow:0 0 0 4px var(--surface);
+  }
+  .setup-step-number svg { width:17px; height:17px; }
+  .setup-wizard-line { top:45px; bottom:-24px; }
+  .setup-wizard-body {
+    align-items:stretch;
+    flex-direction:column;
+    gap:12px;
+    padding:14px 13px 14px 2px;
+  }
+  .setup-wizard-title-row { grid-template-columns:36px minmax(0,1fr); gap:9px; }
+  .setup-wizard-icon { width:36px; height:36px; border-radius:11px; }
+  .setup-wizard-labels > strong { font-size:13px; }
+  .setup-wizard-title-row p { font-size:10px; }
+  .setup-wizard-actions {
+    width:100%;
+    max-width:none;
+    justify-content:stretch;
+  }
+  .setup-wizard-actions > .action-button,
+  .setup-wizard-actions > button,
+  .setup-wizard-actions > form,
+  .setup-wizard-actions > form .action-button { width:100%; }
+  .setup-module-links {
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .setup-module-links a { justify-content:center; text-align:center; }
 
   .category-tree-head { padding:14px; grid-template-columns:auto minmax(0,1fr); }
   .category-tree-head > .table-actions { grid-column:1 / -1; padding-left:54px; }
