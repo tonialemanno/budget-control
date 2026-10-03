@@ -34,16 +34,20 @@ export function monthSeries({
 
 export function categorySpending({
   transactions = [], debtPayments = [], categories = [], baseCurrency = 'CHF', fxRates = null,
-  now = new Date(), limit = 5, includeOther = true,
+  now = new Date(), limit = 5, includeOther = true, periodDays = null,
 } = {}) {
   const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
   const month = localMonthKey(now);
+  const rangeStart = periodDays
+    ? new Date(now.getFullYear(),now.getMonth(),now.getDate()-Math.max(0,Number(periodDays)-1),0,0,0,0)
+    : null;
   const parentById = new Map(categories.map((c)=>[c.id,c]));
   const totals = new Map();
 
   for (const tx of transactions) {
     const occurred = new Date(tx.occurred_at);
-    if (tx.status!=='booked' || tx.transfer_group_id || occurred>now || localMonthKey(tx.occurred_at)!==month) continue;
+    if (tx.status!=='booked' || tx.transfer_group_id || occurred>now) continue;
+    if (rangeStart ? occurred<rangeStart : localMonthKey(tx.occurred_at)!==month) continue;
     const value = consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
     if (!(value>0)) continue;
     const category = parentById.get(tx.category_id);
@@ -68,9 +72,27 @@ export function categorySpending({
   return visible.map((row)=>({...row,share:total>0?row.value/total*100:0,total}));
 }
 
+export function effectiveBudgetSet(budgets = [], month) {
+  const target=String(month||'').slice(0,7);
+  const current=budgets.filter((row)=>String(row.month_start||'').slice(0,7)===target);
+  if(current.length) return { rows:current, sourceMonth:target, inherited:false };
+
+  const previousMonths=[...new Set(
+    budgets
+      .map((row)=>String(row.month_start||'').slice(0,7))
+      .filter((value)=>/^\d{4}-\d{2}$/.test(value)&&value<target)
+  )].sort().reverse();
+  const sourceMonth=previousMonths[0]||null;
+  const rows=sourceMonth
+    ? budgets.filter((row)=>String(row.month_start||'').slice(0,7)===sourceMonth)
+    : [];
+  return { rows, sourceMonth, inherited:Boolean(sourceMonth&&rows.length) };
+}
+
 export function budgetSummary({ budgets = [], transactions = [], debtPayments = [], categories = [], merchants = [], baseCurrency='CHF', fxRates=null, now=new Date() }={}) {
   const month=localMonthKey(now);
-  const rows=budgets.filter((b)=>String(b.month_start||'').slice(0,7)===month);
+  const effective=effectiveBudgetSet(budgets,month);
+  const rows=effective.rows;
   const total=rows.reduce((sum,b)=>sum+base(Number(b.amount||0),b.currency||baseCurrency,baseCurrency,fxRates),0);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   let spent=0;
@@ -85,7 +107,15 @@ export function budgetSummary({ budgets = [], transactions = [], debtPayments = 
       : budget.category_id===tx.category_id || budget.category_id===category?.parent_id);
     if(covered) spent+=amount;
   }
-  return { total, spent, remaining:Math.max(0,total-spent), percent:total>0?clampPercent(spent/total*100):0, count:rows.length };
+  return {
+    total,
+    spent,
+    remaining:Math.max(0,total-spent),
+    percent:total>0?clampPercent(spent/total*100):0,
+    count:rows.length,
+    sourceMonth:effective.sourceMonth,
+    inherited:effective.inherited,
+  };
 }
 
 export function goalSummaries(goals = []) {
