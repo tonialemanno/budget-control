@@ -649,15 +649,20 @@ function renderSetup() {
   document.title = `${t('Einrichtung')} · Finance`;
   const displayName = runtime.profile?.display_name || '';
   pageContent.innerHTML = `
-    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Finance Core</h2><p class="page-subtitle">Lege Land, Basiswährung und Haushalt fest. Danach stehen dir alle freigeschalteten Module zur Verfügung.</p></header>
+    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Finance Core</h2><p class="page-subtitle">Lege zuerst Sprache, Land, Basiswährung und Haushalt fest. Danach führt dich Finance durch Konten, Kategorien und Händler.</p></header>
     <form class="card card-padding setup-card" id="setup-create" data-form="setup-create">
       <div class="form-grid form-grid--2">
         <label class="field"><span>Anzeigename</span><input class="text-control" name="displayName" value="${escapeHtml(displayName)}" required></label>
         <label class="field"><span>Haushalt</span><input class="text-control" name="householdName" value="Privat" required></label>
+        <label class="field"><span>Sprache & Region</span><select class="text-control" name="locale" id="setupLocale">
+          <option value="de-CH">Deutsch · Schweiz</option><option value="de-DE">Deutsch · Deutschland</option>
+          <option value="it-CH">Italiano · Svizzera</option><option value="it-IT">Italiano · Italia</option>
+          <option value="en-CH">English · Switzerland</option><option value="en-GB">English · United Kingdom</option>
+        </select></label>
         <label class="field"><span>Land</span><select class="text-control" name="countryCode" id="setupCountry"><option value="CH">Schweiz</option><option value="DE">Deutschland</option></select></label>
-        <label class="field"><span>Basiswährung</span><select class="text-control" name="baseCurrency" id="setupCurrency"><option value="CHF">CHF</option><option value="EUR">EUR</option></select></label>
+        <label class="field"><span>Basiswährung</span><select class="text-control" name="baseCurrency" id="setupCurrency"><option value="CHF">CHF</option><option value="EUR">EUR</option></select><small>Konten können später unabhängig davon CHF, EUR, USD oder GBP führen.</small></label>
       </div>
-      <div class="form-actions"><button class="action-button action-button--primary" type="submit">Finance Core starten</button></div>
+      <div class="form-actions"><button class="action-button action-button--primary" type="submit">Weiter zur Einrichtung</button></div>
     </form>`;
   document.querySelector('#setupCountry')?.addEventListener('change', (event) => {
     const currency = document.querySelector('#setupCurrency');
@@ -1148,14 +1153,29 @@ async function handleForm(form) {
   if (id === 'setup-create') {
     const countryCode = formValue(data,'countryCode');
     const baseCurrency = formValue(data,'baseCurrency');
+    const locale = formValue(data,'locale') || (countryCode === 'DE' ? 'de-DE' : 'de-CH');
     runtime.profile = await financeApi.updateProfile(runtime.user.id, {
-      display_name: formValue(data,'displayName'), country_code: countryCode, base_currency: baseCurrency,
-      locale: countryCode === 'DE' ? 'de-DE' : 'de-CH', onboarding_completed_at: new Date().toISOString(),
+      display_name: formValue(data,'displayName'),
+      country_code: countryCode,
+      base_currency: baseCurrency,
+      locale,
+      onboarding_completed_at: null,
     });
-    const createdHousehold = await financeApi.createHousehold({ name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id });
+    const createdHousehold = await financeApi.createHousehold({
+      name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id
+    });
     await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
-    await refresh('Finance Core wurde eingerichtet.');
+    await refresh('Grunddaten gespeichert. Richte jetzt dein erstes Konto ein.');
     location.hash = '#/setup';
+    return;
+  }
+  if (id === 'setup-complete') {
+    const parents=runtime.categories.filter((row)=>!row.parent_id);
+    if (!runtime.accounts.length) throw new Error('Bitte zuerst mindestens ein Konto oder eine Geldbörse einrichten.');
+    if (parents.length < 5 || runtime.merchants.length < 3) throw new Error('Bitte zuerst Kategorien und Händler einrichten.');
+    runtime.profile = await financeApi.updateProfile(runtime.user.id, { onboarding_completed_at:new Date().toISOString() });
+    await refresh('Einrichtung abgeschlossen. Finance ist bereit.');
+    location.hash = '#/overview';
     return;
   }
 
