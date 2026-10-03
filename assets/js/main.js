@@ -432,6 +432,7 @@ async function logoutCurrentUser() {
   stopLiveTimers();
   closeProfileMenu();
   closeMobileNav();
+  closeQuickAdd();
   await backend.signOut();
   runtime.session = null;
   runtime.user = null;
@@ -769,6 +770,7 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
     const normalizedKey=normalizeMerchantKey(merchantName);
     const current=merchants.find((merchant)=>merchant.normalized_key===normalizedKey);
     if (current?.default_category_id===target.id) continue;
+    if (current?.default_category_id && current.default_category_id !== target.parent_id) continue;
     await financeApi.upsertMerchant({
       household_id:householdId,
       normalized_key:normalizedKey,
