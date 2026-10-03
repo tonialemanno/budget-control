@@ -1,5 +1,5 @@
 import { metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { escapeHtml, money, shortDate } from '../app/format.js';
+import { escapeHtml, money, monthLabel, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
@@ -35,7 +35,7 @@ export function renderOverview({
   const actualTransactions=transactions.filter((tx)=>tx.status==='booked' && new Date(tx.occurred_at)<=now);
   const budget=budgetSummary({budgets,transactions,debtPayments,categories,baseCurrency:currency,fxRates,now});
   const months=monthSeries({transactions,debtPayments,baseCurrency:currency,fxRates,now,months:6});
-  const categoriesSpent=categorySpending({transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5});
+  const categoriesSpent=categorySpending({transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5,periodDays:30});
   const accountRows=accountShare(accounts,currency,fxRates).slice(0,4);
   const categoryTotal=categoriesSpent[0]?.total||0;
 
@@ -76,7 +76,7 @@ export function renderOverview({
       </article>
 
       <article class="card card-padding budget-ring-card">
-        <div class="card-heading"><div><h3 class="card-title">Monatsbudget</h3><p class="card-subtitle">${budget.count?'Aus deinen Budgetregeln':'Noch kein Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Öffnen</a></div>
+        <div class="card-heading"><div><h3 class="card-title">Monatsbudget</h3><p class="card-subtitle">${budget.count ? (budget.inherited ? `Vorlage aus ${monthLabel(`${budget.sourceMonth}-01`,locale)} · für diesen Monat weitergerechnet` : 'Aus deinen Budgetregeln') : 'Noch kein Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Öffnen</a></div>
         <div class="budget-ring-wrap">
           <div class="budget-ring" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>genutzt</span></div></div>
           <div class="budget-ring-copy">
@@ -92,7 +92,7 @@ export function renderOverview({
     <div class="dashboard-chart-grid">
       <article class="card card-padding dashboard-donut-card">
         <div class="card-heading">
-          <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Dieser Monat · echte Konsumausgaben</p></div>
+          <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Letzte 30 Tage · echte Konsumausgaben</p></div>
           <a class="card-link" href="#/transactions">Details</a>
         </div>
         ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
