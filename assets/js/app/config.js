@@ -97,6 +97,6 @@ export const PAGE_META = Object.freeze({
   investments: { title: 'Investments', eyebrow: 'Planung' },
   pension: { title: 'Vorsorge', eyebrow: 'Planung' },
   intelligence: { title: 'Finance Intelligence', eyebrow: 'Planung' },
-  settings: { title: 'Mehr', eyebrow: 'Finance' },
+  settings: { title: 'Einstellungen', eyebrow: 'Finance' },
   admin: { title: 'Administration', eyebrow: 'System' },
 });
