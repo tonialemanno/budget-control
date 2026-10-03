@@ -18,7 +18,10 @@ assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Umbuchungen \/ Monat/
 assert.match(read('assets/js/views/overview.js'), /Einnahmen · Monat/);
 assert.match(read('assets/js/views/overview.js'), /Ausgaben · Monat/);
 assert.match(read('assets/js/views/overview.js'), /budget-ring/);
-assert.match(read('assets/js/views/overview.js'), /month-bars/);
+assert.match(read('assets/js/views/overview.js'), /renderCashflowChart/);
+assert.match(read('assets/js/views/overview.js'), /renderExpenseDonut/);
+assert.match(read('assets/js/app/charts.js'), /cashflow-svg/);
+assert.match(read('assets/js/app/charts.js'), /donut-svg/);
 assert.match(read('assets/js/views/planning.js'), /Fixkosten/);
 assert.match(read('assets/js/views/planning.js'), /Daueraufträge & Automatik/);
 assert.match(read('assets/js/main.js'), /destination_account_id/);
