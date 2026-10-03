@@ -33,12 +33,14 @@ export function monthSeries({
 }
 
 export function categorySpending({
-  transactions = [], debtPayments = [], categories = [], baseCurrency = 'CHF', fxRates = null, now = new Date(), limit = 5,
+  transactions = [], debtPayments = [], categories = [], baseCurrency = 'CHF', fxRates = null,
+  now = new Date(), limit = 5, includeOther = true,
 } = {}) {
   const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
   const month = localMonthKey(now);
   const parentById = new Map(categories.map((c)=>[c.id,c]));
   const totals = new Map();
+
   for (const tx of transactions) {
     const occurred = new Date(tx.occurred_at);
     if (tx.status!=='booked' || tx.transfer_group_id || occurred>now || localMonthKey(tx.occurred_at)!==month) continue;
@@ -50,9 +52,20 @@ export function categorySpending({
     const label = parent?.name || 'Ohne Kategorie';
     totals.set(key,{ key,label,value:(totals.get(key)?.value||0)+value });
   }
-  const rows=[...totals.values()].sort((a,b)=>b.value-a.value).slice(0,limit);
-  const total=rows.reduce((sum,row)=>sum+row.value,0);
-  return rows.map((row)=>({...row,share:total>0?row.value/total*100:0}));
+
+  const allRows=[...totals.values()].sort((a,b)=>b.value-a.value);
+  const total=allRows.reduce((sum,row)=>sum+row.value,0);
+  const visible=allRows.slice(0,Math.max(1,limit));
+  const hidden=allRows.slice(visible.length);
+  if (includeOther && hidden.length) {
+    visible.push({
+      key:'other',
+      label:'Sonstiges',
+      value:hidden.reduce((sum,row)=>sum+row.value,0),
+    });
+  }
+
+  return visible.map((row)=>({...row,share:total>0?row.value/total*100:0,total}));
 }
 
 export function budgetSummary({ budgets = [], transactions = [], debtPayments = [], categories = [], merchants = [], baseCurrency='CHF', fxRates=null, now=new Date() }={}) {
