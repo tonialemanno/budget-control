@@ -1048,6 +1048,15 @@ function showTaxPaymentSource(source) {
   if(historyInfo) historyInfo.hidden=source!=='history_only';
 }
 
+function showReceivablePaymentSource(source) {
+  const accountField=document.querySelector('#receivablePaymentAccountField');
+  const transactionField=document.querySelector('#receivablePaymentTransactionField');
+  const historyInfo=document.querySelector('#receivablePaymentHistoryInfo');
+  if(accountField) accountField.hidden=source!=='created_transaction';
+  if(transactionField) transactionField.hidden=source!=='linked_transaction';
+  if(historyInfo) historyInfo.hidden=source!=='history_only';
+}
+
 function addMonthsToDate(isoDate, months = 1) {
   const date = new Date(isoDate || Date.now());
   if (Number.isNaN(date.getTime())) return dateInputValue();
@@ -1701,14 +1710,20 @@ async function handleForm(form) {
     const receivableId=formValue(data,'receivableId');
     const receivable=runtime.receivables.find((row)=>row.id===receivableId);
     if(!receivable) throw new Error('Forderung wurde nicht gefunden.');
+    const source=formValue(data,'source')||'created_transaction';
     const paymentAccountId=nullValue(data,'paymentAccountId');
+    const transactionId=nullValue(data,'transactionId');
     await recordReceivableMovement({
       api:financeApi, householdId:h, receivable, amount:numberValue(data,'amount',-1),
       paidAt:formValue(data,'paidAt')||dateInputValue(), note:nullValue(data,'note'),
-      paymentAccountId, createTransaction:Boolean(paymentAccountId),
+      source, paymentAccountId, transactionId,
     });
     uiState.receivableExpandedId=receivableId;
-    await refresh(paymentAccountId?'Rückzahlung und Kontoeingang gespeichert.':'Rückzahlung im Forderungsverlauf gespeichert.');
+    await refresh(source==='created_transaction'
+      ? 'Rückzahlung und Kontoeingang gemeinsam gespeichert.'
+      : source==='linked_transaction'
+        ? 'Rückzahlung mit bestehendem Kontoeingang verknüpft.'
+        : 'Rückzahlung nur im Forderungsverlauf gespeichert.');
     return;
   }
   if (id === 'debt-create' || id === 'debt-edit') {
@@ -2289,8 +2304,9 @@ async function handleAction(target) {
     await financeApi.deleteTaxObligation(target.dataset.id); await refresh('Steuerforderung gelöscht.'); return;
   }
   if (action === 'tax-payment-delete') {
-    if(!confirm(t('Steuerzahlung wirklich löschen?'))) return;
-    await financeApi.deleteTaxPayment(target.dataset.id); await refresh('Steuerzahlung gelöscht.'); return;
+    if(!confirm(t('Steuerzahlung wirklich stornieren? Eine von Finance erstellte Kontobuchung wird ebenfalls zurückgenommen.'))) return;
+    await financeApi.reverseTaxPayment({householdId:runtime.household.id,paymentId:target.dataset.id});
+    await refresh('Steuerzahlung storniert und verknüpfte Kontobewegung korrekt zurückgenommen.'); return;
   }
   if (action === 'tax-receipt') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
@@ -2530,6 +2546,7 @@ async function handleAction(target) {
     document.querySelector('#receivablePaymentDate').value=dateInputValue();
     document.querySelector('#receivablePaymentAmount').value=Number(receivable.outstanding_amount||0).toFixed(2);
     document.querySelector('#receivablePaymentNote').value='';
+    const sourceSelect=document.querySelector('#receivablePaymentSource');
     const accountSelect=document.querySelector('#receivablePaymentAccount');
     if(accountSelect){
       accountSelect.value=receivable.source_account_id||'';
@@ -2541,6 +2558,24 @@ async function handleAction(target) {
       });
       if(accountSelect.value&&accountSelect.selectedOptions[0]?.disabled) accountSelect.value='';
     }
+    const transactionSelect=document.querySelector('#receivablePaymentTransaction');
+    if(transactionSelect){
+      transactionSelect.value='';
+      [...transactionSelect.options].forEach((option)=>{
+        if(!option.value) return;
+        const currencyMatches=option.dataset.currency===receivable.currency;
+        const amountMatches=Math.abs(Number(option.dataset.amount||0)-Number(receivable.outstanding_amount||0))<=0.005;
+        option.hidden=!(currencyMatches&&amountMatches);
+        option.disabled=!(currencyMatches&&amountMatches);
+      });
+    }
+    const defaultSource=accountSelect&&[...accountSelect.options].some((option)=>option.value&&!option.disabled)
+      ? 'created_transaction'
+      : transactionSelect&&[...transactionSelect.options].some((option)=>option.value&&!option.disabled)
+        ? 'linked_transaction'
+        : 'history_only';
+    if(sourceSelect) sourceSelect.value=defaultSource;
+    showReceivablePaymentSource(defaultSource);
     const form=document.querySelector('#receivable-payment-create');
     form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
     return;
@@ -2817,6 +2852,17 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
     if (target.id === 'billPaymentSource') { showBillPaymentSource(target.value); return; }
     if (target.id === 'taxPaymentSource') { showTaxPaymentSource(target.value); return; }
+    if (target.id === 'receivablePaymentSource') { showReceivablePaymentSource(target.value); return; }
+    if (target.id === 'receivablePaymentTransaction') {
+      const option=target.selectedOptions[0];
+      const amount=document.querySelector('#receivablePaymentAmount');
+      const date=document.querySelector('#receivablePaymentDate');
+      if(option?.value){
+        if(amount&&option.dataset.amount) amount.value=option.dataset.amount;
+        if(date&&option.dataset.date) date.value=option.dataset.date;
+      }
+      return;
+    }
     if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
       const merchant=runtime.merchants.find((row)=>row.id===target.value);
       const category=target.closest('form')?.querySelector('[name="categoryId"]');
