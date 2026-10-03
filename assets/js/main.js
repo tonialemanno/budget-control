@@ -1960,6 +1960,14 @@ async function handleForm(form) {
     uiState.taxYear=numberValue(data,'taxYear',new Date().getFullYear());
     await refresh('Steuerprofil gespeichert.'); return;
   }
+  if (id === 'household-preferences') {
+    if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen die Basiswährung ändern.');
+    const baseCurrency=formValue(data,'baseCurrency');
+    if (!['CHF','EUR'].includes(baseCurrency)) throw new Error('Ungültige Basiswährung.');
+    runtime.household=await financeApi.updateHousehold(h,{base_currency:baseCurrency});
+    await refresh('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
+    return;
+  }
   if (id === 'password-change') {
     const p1 = formValue(data,'password'); const p2 = formValue(data,'passwordConfirm');
     if (p1.length<8) throw new Error('Das Passwort muss mindestens 8 Zeichen lang sein.');
