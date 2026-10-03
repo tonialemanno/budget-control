@@ -1188,6 +1188,7 @@ async function handleForm(form) {
       base_currency: baseCurrency,
       locale,
       onboarding_completed_at: null,
+      preferences:{...profilePreferences(),setup_reviewed:[],setup_completed_version:null},
     });
     const createdHousehold = await financeApi.createHousehold({
       name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id
