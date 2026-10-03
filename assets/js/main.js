@@ -13,6 +13,9 @@ import { buildCategorizationGroups } from './app/categorization.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 
 import { renderOverview } from './views/overview.js';
+import { renderMoney } from './views/money.js';
+import { renderPlanning } from './views/planning.js';
+import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
 import { renderCategories } from './views/categories.js';
@@ -42,6 +45,9 @@ import { renderAdmin } from './views/admin.js';
 
 const views = {
   overview: renderOverview,
+  money: renderMoney,
+  planning: renderPlanning,
+  setup: renderSetupGuide,
   accounts: renderAccounts,
   transactions: renderTransactions,
   categories: renderCategories,
@@ -136,6 +142,8 @@ const themeButton = document.querySelector('#themeButton');
 const privacyButton = document.querySelector('#privacyButton');
 const mobileMenuButton = document.querySelector('#mobileMenuButton');
 const mobileScrim = document.querySelector('#mobileScrim');
+const quickAddSheet = document.querySelector('#quickAddSheet');
+const quickAddScrim = document.querySelector('#quickAddScrim');
 const mobileLogoutButton = document.querySelector('#mobileLogoutButton');
 const profileButton = document.querySelector('#profileButton');
 const profileAvatar = document.querySelector('#profileAvatar');
@@ -205,23 +213,30 @@ function enabledNavItems() {
 }
 
 function renderNavigation() {
-  const grouped = enabledNavItems().reduce((acc, item) => {
-    (acc[item.group] ||= []).push(item);
-    return acc;
-  }, {});
+  const primary = enabledNavItems().filter((item) => item.primary);
+  desktopNav.innerHTML = `
+    <div class="nav-group-label">${escapeHtml(t('Finance'))}</div>
+    ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
+  `;
 
-  desktopNav.innerHTML = Object.entries(grouped).map(([group, links]) => `
-    <div class="nav-group-label">${escapeHtml(t(group))}</div>
-    ${links.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
-  `).join('');
+  mobileNav.innerHTML = `
+    <a href="#/overview" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
+    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
+    <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
+    <a href="#/planning" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
+    <a href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Mehr'))}</span></a>
+  `;
+}
 
-  mobileNav.innerHTML = enabledNavItems().filter((item) => item.mobile).slice(0, 5)
-    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.mobileLabel || item.label))}</span></a>`).join('');
+function routeSection(route) {
+  if (['settings','categories','merchants','setup','admin'].includes(route)) return 'settings';
+  if (route === 'import-history') return 'money';
+  return NAV_ITEMS.find((item) => item.route === route)?.section || route;
 }
 
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
-  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
+  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   return allowed.has(requested) ? requested : 'overview';
 }
@@ -241,6 +256,79 @@ function closeMobileNav() {
   document.body.classList.remove('mobile-nav-open');
   mobileMenuButton?.setAttribute('aria-expanded', 'false');
   if (mobileScrim) mobileScrim.hidden = true;
+}
+
+function quickAddSheetHtml() {
+  const transferOption = runtime.accounts.length > 1
+    ? `<a class="quick-add-option" href="#/transactions?create=transfer"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
+    : `<button class="quick-add-option" type="button" disabled><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Mindestens 2 Konten nötig</small></button>`;
+  const debtOptions = moduleEnabled('debts') ? `
+    <a class="quick-add-option" href="#/debts?create=debt"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
+    <a class="quick-add-option" href="#/receivables?create=receivable"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
+  ` : '';
+  return `
+    <div class="quick-add-handle" aria-hidden="true"></div>
+    <div class="quick-add-head"><div><strong>Hinzufügen</strong><span>Was möchtest du erfassen?</span></div><button class="icon-button" type="button" data-quick-add-close aria-label="Schliessen">×</button></div>
+    <div class="quick-add-grid">
+      <a class="quick-add-option" href="#/transactions?create=expense"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
+      <a class="quick-add-option" href="#/transactions?create=income"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
+      <a class="quick-add-option" href="#/transactions?create=receipt"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
+      ${transferOption}
+      ${debtOptions}
+    </div>
+  `;
+}
+
+function openQuickAdd() {
+  if (!runtime.household || !canWriteHousehold()) {
+    showToast('Du hast für diesen Haushalt nur Leserechte.', 'error');
+    return;
+  }
+  if (!quickAddSheet || !quickAddScrim) return;
+  quickAddSheet.innerHTML = quickAddSheetHtml();
+  translateElement(quickAddSheet);
+  quickAddSheet.hidden = false;
+  quickAddScrim.hidden = false;
+  document.body.classList.add('quick-add-open');
+}
+
+function closeQuickAdd() {
+  if (quickAddSheet) quickAddSheet.hidden = true;
+  if (quickAddScrim) quickAddScrim.hidden = true;
+  document.body.classList.remove('quick-add-open');
+}
+
+function applyRouteIntent(route) {
+  if (!canWriteHousehold()) return;
+  const query = (location.hash.split('?')[1] || '').trim();
+  if (!query) return;
+  const params = new URLSearchParams(query);
+  const create = params.get('create');
+  if (!create) return;
+
+  history.replaceState(null, '', `#/${route}`);
+
+  if (route === 'transactions' && create === 'receipt') {
+    requestAnimationFrame(() => pageContent.querySelector('[data-action="receipt-camera"]')?.click());
+    return;
+  }
+
+  const formId = ({
+    accounts: { account: 'account-create' },
+    transactions: { expense: 'transaction-create', income: 'transaction-create', transaction: 'transaction-create', transfer: 'transfer-create' },
+    debts: { debt: 'debt-create' },
+    receivables: { receivable: 'receivable-create' },
+  })[route]?.[create];
+
+  if (!formId) return;
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.removeAttribute('hidden');
+  if (formId === 'transaction-create' && ['expense','income'].includes(create)) {
+    const direction = form.querySelector('[name="direction"]');
+    if (direction) direction.value = create;
+  }
+  requestAnimationFrame(() => form.scrollIntoView({ behavior:'smooth', block:'start' }));
 }
 
 function syncMobileScrollState() {
@@ -590,12 +678,16 @@ function render() {
     taxYear: uiState.taxYear,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
+  const section = routeSection(route);
+  mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   translateElement(pageContent);
   closeMobileNav();
+  closeQuickAdd();
   closeProfileMenu();
   applyPrivacyUI();
   window.scrollTo({ top: 0, behavior: 'auto' });
+  applyRouteIntent(route);
   if (route==='transactions' && uiState.pendingTransactionEditId) {
     const pendingId=uiState.pendingTransactionEditId;
     uiState.pendingTransactionEditId=null;
@@ -636,16 +728,57 @@ function nullValue(data, key) { const v = formValue(data,key); return v || null;
 
 async function seedStarterCategoriesForHousehold(householdId, countryCode, existingCategories = []) {
   const cfg = countryConfig(countryCode || 'CH');
-  const existing = new Set(existingCategories.map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
-  const missing = cfg.starterCategories.filter(([name,kind])=>!existing.has(`${kind}:${name.toLowerCase()}`));
-  if (!missing.length) return 0;
-  await financeApi.createCategories(missing.map(([name,kind],index)=>({
-    household_id: householdId,
-    name,
-    kind,
-    sort_order: (index + 1) * 10,
-  })));
-  return missing.length;
+  let changed = 0;
+
+  const masterResult = await financeApi.installCountryMasterData(householdId).catch(()=>null);
+  changed += Number(masterResult?.categories_created||0) + Number(masterResult?.merchants_created||0) + Number(masterResult?.merchants_linked||0);
+
+  let categories = existingCategories.length ? existingCategories : await financeApi.listCategories(householdId);
+  const parentKeys = new Set(categories.filter((category)=>!category.parent_id).map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
+  const missingParents = (cfg.starterCategories || []).filter(([name,kind])=>!parentKeys.has(`${kind}:${name.toLowerCase()}`));
+  if (missingParents.length) {
+    await financeApi.createCategories(missingParents.map(([name,kind],index)=>({
+      household_id:householdId, name, kind, sort_order:(index+1)*10,
+    })));
+    changed += missingParents.length;
+    categories = await financeApi.listCategories(householdId);
+  } else if (masterResult) {
+    categories = await financeApi.listCategories(householdId);
+  }
+
+  const childKeys = new Set(categories.filter((category)=>category.parent_id).map((category)=>`${category.parent_id}:${String(category.name||'').toLowerCase()}`));
+  const childRows = [];
+  for (const [name,parentName,kind] of (cfg.starterSubcategories || [])) {
+    const parent = categories.find((category)=>!category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
+    if (!parent) continue;
+    const key=`${parent.id}:${name.toLowerCase()}`;
+    if (childKeys.has(key)) continue;
+    childRows.push({ household_id:householdId, parent_id:parent.id, name, kind, sort_order:(childRows.length+1)*10 });
+    childKeys.add(key);
+  }
+  if (childRows.length) {
+    await financeApi.createCategories(childRows);
+    changed += childRows.length;
+    categories = await financeApi.listCategories(householdId);
+  }
+
+  const merchants = await financeApi.listMerchants(householdId);
+  for (const [merchantName,targetCategoryName] of (cfg.starterMerchantCategories || [])) {
+    const target = categories.find((category)=>category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
+    if (!target) continue;
+    const normalizedKey=normalizeMerchantKey(merchantName);
+    const current=merchants.find((merchant)=>merchant.normalized_key===normalizedKey);
+    if (current?.default_category_id===target.id) continue;
+    await financeApi.upsertMerchant({
+      household_id:householdId,
+      normalized_key:normalizedKey,
+      name:current?.name || merchantName,
+      default_category_id:target.id,
+    });
+    changed += 1;
+  }
+
+  return changed;
 }
 
 function currentCategorizationGroups() {
@@ -989,10 +1122,9 @@ async function handleForm(form) {
       locale: countryCode === 'DE' ? 'de-DE' : 'de-CH', onboarding_completed_at: new Date().toISOString(),
     });
     const createdHousehold = await financeApi.createHousehold({ name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id });
-    if(countryCode==='CH') await financeApi.installCountryMasterData(createdHousehold.id);
-    else await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
+    await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
     await refresh('Finance Core wurde eingerichtet.');
-    location.hash = '#/overview';
+    location.hash = '#/setup';
     return;
   }
 
@@ -1871,8 +2003,8 @@ async function handleAction(target) {
 
   if (action === 'starter-categories') {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
-    if (!created) { showToast('Starter-Kategorien sind bereits vorhanden.'); return; }
-    await refresh(`${created} Starter-Kategorien angelegt.`); return;
+    if (!created) { showToast('Die empfohlene Struktur ist bereits vorhanden.'); return; }
+    await refresh(`Empfohlene Struktur ergänzt: ${created} Einträge aktualisiert oder angelegt.`); return;
   }
   if (action === 'categorization-open') {
     if (!runtime.categories.length) {
@@ -2781,6 +2913,13 @@ themeButton?.addEventListener('click',cycleTheme);
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
+mobileNav?.addEventListener('click',(event)=>{ if (event.target.closest('#mobileQuickAddButton')) { event.preventDefault(); openQuickAdd(); } });
+quickAddScrim?.addEventListener('click',closeQuickAdd);
+quickAddSheet?.addEventListener('click',(event)=>{
+  if (event.target.closest('[data-quick-add-close]')) { closeQuickAdd(); return; }
+  if (event.target.closest('a.quick-add-option')) closeQuickAdd();
+});
+document.addEventListener('keydown',(event)=>{ if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
 mobileLogoutButton?.addEventListener('click',async()=>{ try { await logoutCurrentUser(); } catch (error) { showToast(humanError(error),'error'); } });
 profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); toggleProfileMenu(); });
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
