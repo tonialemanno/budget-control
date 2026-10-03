@@ -12,5 +12,19 @@ export const CH = Object.freeze({
   ],
   legalStatuses: ['offen','Mahnung','Zahlungsbefehl','Rechtsvorschlag','Fortsetzung','Pfändung','Verlustschein','abgeschlossen'],
   starterCategories: [['Lohn','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Sparen','expense'],['Sonstiges','expense']],
+  starterSubcategories: [
+    ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],
+    ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
+    ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
+    ['Unterhaltung','Freizeit','expense'],['Ferien','Freizeit','expense'],
+    ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
+    ['Apotheke','Gesundheit','expense'],['Arzt & Zahnarzt','Gesundheit','expense'],
+  ],
+  starterMerchantRules: [
+    ['Coop','Supermarkt'],['Migros','Supermarkt'],['Denner','Supermarkt'],['Aldi','Supermarkt'],['Lidl','Supermarkt'],
+    ['McDonald','Restaurant & Take-away'],['Burger King','Restaurant & Take-away'],
+    ['SBB','ÖV'],['Shell','Tanken'],['Migrol','Tanken'],
+    ['Netflix','Streaming'],['Spotify','Streaming'],
+  ],
   pensionTypes: ['AHV','Pensionskasse','Säule 3a','Säule 3b','Andere'],
 });
