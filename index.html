@@ -27,11 +27,11 @@
           <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 22.5V9.8c0-1.55 1.25-2.8 2.8-2.8h12.4A2.8 2.8 0 0 1 25 9.8v12.4a2.8 2.8 0 0 1-2.8 2.8H9.8A2.8 2.8 0 0 1 7 22.2Z"/><path d="M11 19.5h10M11 15.8h7M11 12.2h4"/></svg></span>
           <span>Finance</span>
         </a>
-        <span class="version-pill">V2.3</span>
+        <span class="version-pill" id="releaseVersionPill">V2.3 · STABLE</span>
       </div>
       <nav class="nav-list" id="desktopNav"></nav>
       <div class="sidebar-footer">
-        <div class="demo-note"><span class="status-dot status-dot--live" aria-hidden="true"></span><div><strong>Stable 2.3</strong><span>Echte Daten · Supabase</span></div></div>
+        <div class="demo-note"><span class="status-dot status-dot--live" aria-hidden="true"></span><div><strong id="releaseChannelLabel">Stable 2.3</strong><span id="releaseChannelCaption">Echte Daten · Supabase</span></div></div>
         <a class="nav-item nav-item--subtle" href="#/settings" data-route="settings"><span data-icon="settings"></span><span>Einstellungen</span></a>
         <button class="nav-item nav-item--subtle mobile-sidebar-logout" id="mobileLogoutButton" type="button"><span data-icon="log-out"></span><span>Abmelden</span></button>
       </div>
@@ -57,6 +57,8 @@
     </main>
     <nav class="mobile-tabbar" id="mobileNav" aria-label="Mobile Navigation"></nav>
     <div class="mobile-scrim" id="mobileScrim" hidden></div>
+    <div class="quick-add-scrim" id="quickAddScrim" hidden></div>
+    <section class="quick-add-sheet" id="quickAddSheet" hidden aria-label="Hinzufügen"></section>
   </div>
   <script src="./runtime-config.js"></script>
   <script src="./assets/js/boot-fallback.js"></script>

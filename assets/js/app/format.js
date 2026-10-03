@@ -60,6 +60,33 @@ export function dateInputValue(date = new Date()) {
   return local.toISOString().slice(0, 10);
 }
 
+export function financeEventTimestamp(value, now = new Date()) {
+  const raw = String(value || '').trim();
+  if (!raw) return now.toISOString();
+
+  const day = raw.slice(0, 10);
+  const today = dateInputValue(now);
+
+  // datetime-local fields carry a real user-selected time. Preserve it, except
+  // when the value is effectively "now" (inputs only have minute precision):
+  // using the actual current instant avoids falling a few seconds before a
+  // freshly-created account balance anchor.
+  if (raw.includes('T')) {
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return now.toISOString();
+    if (day === today && Math.abs(now.getTime() - date.getTime()) < 5 * 60_000) {
+      return now.toISOString();
+    }
+    return date.toISOString();
+  }
+
+  // Date-only finance events entered for today are real immediately. Historical
+  // and future dates use local noon to stay on the selected calendar day.
+  if (day === today) return now.toISOString();
+  const date = new Date(`${day}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? now.toISOString() : date.toISOString();
+}
+
 export function localMonthKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '';

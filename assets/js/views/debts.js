@@ -53,10 +53,11 @@ function debtFields(accounts, currency, { edit = false } = {}) {
     <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="notes" id="${prefix}Notes" rows="3" placeholder="optional"></textarea></label>`;
 }
 
-function paymentFields(accounts, transactions, debtPayments, currency, locale) {
+function paymentFields(accounts, transactions, debtPayments, bills, currency, locale) {
   const linkedIds = new Set(debtPayments.filter((p)=>!p.reversed_at&&p.transaction_id).map((p)=>p.transaction_id));
+  const paidBillIds = new Set(bills.filter((bill)=>bill.status==='paid'&&bill.paid_transaction_id).map((bill)=>bill.paid_transaction_id));
   const candidates = transactions
-    .filter((tx)=>tx.status==='booked' && Number(tx.amount)<0 && !tx.transfer_group_id && !linkedIds.has(tx.id))
+    .filter((tx)=>tx.status==='booked' && Number(tx.amount)<0 && !tx.transfer_group_id && tx.cashflow_type==='standard' && !linkedIds.has(tx.id) && !paidBillIds.has(tx.id))
     .slice(0,250);
   return `<input type="hidden" name="debtId" id="debtPaymentDebtId">
     <label class="field"><span>Datum</span><input class="text-control" name="paidAt" id="debtPaymentDate" type="date" value="${dateInputValue()}" required></label>
@@ -73,7 +74,7 @@ function paymentFields(accounts, transactions, debtPayments, currency, locale) {
 }
 
 export function renderDebts({
-  debts = [], debtPayments = [], accounts = [], transactions = [], recurringRules = [],
+  debts = [], debtPayments = [], accounts = [], transactions = [], recurringRules = [], bills = [],
   household, profile, fxRates, canWrite = false, debtExpandedId = null,
 } = {}) {
   const currency = household?.base_currency || 'CHF';
@@ -130,7 +131,7 @@ export function renderDebts({
     ${pageHeader({title:'Schulden & Kredite',subtitle:'Restschuld, Rate und tatsächliche Zahlungen getrennt führen. Tilgung verändert die Schuld, Zins und Gebühren sind Kosten.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="debt-create">${icon('plus')} Kredit / Schuld</button>`:''})}
     ${canWrite?formShell('debt-create','Neue Schuld / Kredit','Vertragliche Eckdaten und geplante Rate erfassen',debtFields(accounts,currency),{hidden:true,submitLabel:'Schuld speichern'}):''}
     ${canWrite?formShell('debt-edit','Schuld / Kredit bearbeiten','Rate, Restschuld, Rhythmus und Termine sauber korrigieren',debtFields(accounts,currency,{edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
-    ${canWrite?formShell('debt-payment-create','Zahlung erfassen','Zahlung in Tilgung, Zins und Gebühren aufteilen',paymentFields(accounts,transactions,debtPayments,currency,locale),{hidden:true,submitLabel:'Zahlung verbuchen'}):''}
+    ${canWrite?formShell('debt-payment-create','Zahlung erfassen','Zahlung in Tilgung, Zins und Gebühren aufteilen',paymentFields(accounts,transactions,debtPayments,bills,currency,locale),{hidden:true,submitLabel:'Zahlung verbuchen'}):''}
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Restschuld gesamt',money(outstanding,{currency,locale}),`${fxLabel(fxRates,currency)} · nicht bezahlte Schulden`)}
       ${metricCard('Geplante Raten / Monat',money(monthly,{currency,locale}),'auf Monatswert normalisiert')}

@@ -1,4 +1,8 @@
+import { pathToFileURL } from 'node:url';
 import {renderOverview} from '../assets/js/views/overview.js';
+import {renderMoney} from '../assets/js/views/money.js';
+import {renderPlanning} from '../assets/js/views/planning.js';
+import {renderSetupGuide} from '../assets/js/views/setup.js';
 import {renderAccounts} from '../assets/js/views/accounts.js';
 import {renderTransactions} from '../assets/js/views/transactions.js';
 import {renderCategories} from '../assets/js/views/categories.js';
@@ -24,10 +28,12 @@ import {renderInvestments} from '../assets/js/views/investments.js';
 import {renderPension} from '../assets/js/views/pension.js';
 import {renderIntelligence} from '../assets/js/views/intelligence.js';
 import {renderSettings} from '../assets/js/views/settings.js';
+import {renderProfile} from '../assets/js/views/profile.js';
 import {renderAdmin} from '../assets/js/views/admin.js';
 const now=new Date(), iso=now.toISOString(), day=iso.slice(0,10), month=iso.slice(0,7);
 const household={id:'h1',name:'Privat',base_currency:'CHF',country_code:'CH',tax_region_code:'SG'};
-const profile={user_id:'u1',display_name:'Test User',locale:'de-CH',preferences:{}};
+const user={id:'u1',email:'test@example.com',created_at:iso};
+const profile={user_id:'u1',display_name:'Test User',locale:'de-CH',preferences:{},created_at:iso,onboarding_completed_at:iso};
 const fxRates={base:'CHF',rates:{CHF:1,EUR:1.07,USD:1.25,GBP:1.4},updated_at:iso,source:'test'};
 const accounts=[
  {account_id:'a1',id:'a1',household_id:'h1',name:'Lohnkonto',account_type:'checking',currency:'CHF',current_balance:5000,visibility:'private'},
@@ -68,8 +74,19 @@ const householdMembers=[{user_id:'u1',email:'test@example.com',display_name:'Tes
 const moduleAccess={core:true,money:true,budget:true,bills:true,goals:true,tax:true,debts:true,legal:true,family:true,wealth:true,property:true,vehicles:true,insurance:true,investments:true,pension:true,intelligence:true};
 const productModules=Object.keys(moduleAccess).map((key,i)=>({key,label:key,group_name:'Test',sort_order:i,is_core:['core','money'].includes(key),is_available:true}));
 const adminUsers=[{id:'u1',email:'test@example.com',display_name:'Test User',created_at:iso,last_sign_in_at:iso,modules:moduleAccess},{id:'u2',email:'view@example.com',display_name:'Viewer',created_at:iso,last_sign_in_at:null,modules:{core:true,money:true}}];
-const base={household,profile,fxRates,accounts,categories,merchants,transactions,debtPayments,budgets,bills,contracts,recurringRules,goals,goalSources,debts,legalCases,legalEvents,assets,properties,vehicles,insurance,investments,investmentTransactions,pensions,documents,importBatches,categorizationRules,householdMembers,moduleAccess,productModules,adminUsers,canWrite:true,canAdminHousehold:true,householdRole:'owner',depth:'expert',taxYear:now.getFullYear(),transactionView:'details',transactionPeriod:'all',transactionQuery:'',transactionCategory:'all',transactionAccount:'all',transactionFrom:'',transactionTo:'',transactionPage:1,categorizationOpen:true,categorizationFilter:'action',categorizationPage:1,debtExpandedId:'d1',adminQuery:'',adminPage:1,adminExpandedUserId:'u1',hiddenModules:[],privacyEnabled:false};
-const tests={overview:renderOverview,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,'fixed-costs':renderFixedCosts,merchants:renderMerchants,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,receivables:renderReceivables,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,admin:renderAdmin};
-let fail=0;
-for (const [name,fn] of Object.entries(tests)) { try { const out=fn(base); if(typeof out!=='string'||!out.includes('<')) throw new Error('invalid html'); console.log('OK',name,out.length); } catch(e){fail++; console.error('FAIL',name,e.stack);} }
-if(fail) process.exit(1);
+export const base={user,household,profile,fxRates,accounts,categories,merchants,transactions,debtPayments,budgets,bills,contracts,recurringRules,goals,goalSources,debts,legalCases,legalEvents,assets,properties,vehicles,insurance,investments,investmentTransactions,pensions,documents,importBatches,categorizationRules,householdMembers,moduleAccess,productModules,adminUsers,canWrite:true,canAdminHousehold:true,householdRole:'owner',depth:'expert',taxYear:now.getFullYear(),transactionView:'details',transactionPeriod:'all',transactionQuery:'',transactionCategory:'all',transactionAccount:'all',transactionFrom:'',transactionTo:'',transactionPage:1,categorizationOpen:true,categorizationFilter:'action',categorizationPage:1,debtExpandedId:'d1',adminQuery:'',adminPage:1,adminExpandedUserId:'u1',hiddenModules:[],privacyEnabled:false};
+export const tests={overview:renderOverview,money:renderMoney,planning:renderPlanning,setup:renderSetupGuide,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,'fixed-costs':renderFixedCosts,merchants:renderMerchants,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,receivables:renderReceivables,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,profile:renderProfile,admin:renderAdmin};
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  let fail=0;
+  for (const [name,fn] of Object.entries(tests)) {
+    try {
+      const out=fn(base);
+      if(typeof out!=='string'||!out.includes('<')) throw new Error('invalid html');
+      console.log('OK',name,out.length);
+    } catch(e) {
+      fail++;
+      console.error('FAIL',name,e.stack);
+    }
+  }
+  if(fail) process.exit(1);
+}

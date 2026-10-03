@@ -3,6 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_KKcZR8y1gAmC2MESwNa6pA_JFtC92ps';
 const SESSION_KEY = 'finance-v2-session';
 
 let session = readSession();
+let refreshInFlight = null;
 
 function readSession() {
   try {
@@ -24,6 +25,19 @@ function saveSession(next) {
   return session;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Server antwortet nicht. Bitte erneut versuchen.');
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function parseResponse(response) {
   const text = await response.text();
   let data = null;
@@ -43,7 +57,7 @@ async function parseResponse(response) {
 async function authRequest(path, { method = 'POST', body, token } = {}) {
   const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -53,12 +67,20 @@ async function authRequest(path, { method = 'POST', body, token } = {}) {
 
 async function refreshSession() {
   if (!session?.refresh_token) return saveSession(null);
-  try {
-    const data = await authRequest('token?grant_type=refresh_token', { body: { refresh_token: session.refresh_token } });
-    return saveSession(data);
-  } catch {
-    return saveSession(null);
-  }
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const token = session?.refresh_token;
+      if (!token) return saveSession(null);
+      const data = await authRequest('token?grant_type=refresh_token', { body: { refresh_token: token } });
+      return saveSession(data);
+    } catch {
+      return saveSession(null);
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 async function ensureSession() {
@@ -78,7 +100,7 @@ async function rest(path, { method = 'GET', body, headers = {} } = {}) {
     ...headers,
   };
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -93,7 +115,7 @@ async function rpc(name, body = {}) {
 async function invokeFunction(name, { method = 'POST', body } = {}) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${name}`, {
     method,
     headers: {
       apikey: SUPABASE_KEY,
@@ -108,7 +130,7 @@ async function invokeFunction(name, { method = 'POST', body } = {}) {
 async function storageUpload(bucket, path, file) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_KEY,
@@ -117,7 +139,7 @@ async function storageUpload(bucket, path, file) {
       'x-upsert': 'false',
     },
     body: file,
-  });
+  }, 45000);
   return parseResponse(response);
 }
 
@@ -125,7 +147,7 @@ async function storageUpload(bucket, path, file) {
 async function storageDelete(bucket, paths) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
     method: 'DELETE',
     headers: {
       apikey: SUPABASE_KEY,
@@ -133,16 +155,16 @@ async function storageDelete(bucket, paths) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ prefixes: paths }),
-  });
+  }, 30000);
   return parseResponse(response);
 }
 
 async function storageDownload(bucket, path) {
   const active = await ensureSession();
   if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${path}`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${active.access_token}` },
-  });
+  }, 45000);
   if (!response.ok) throw new Error(`Dokument konnte nicht geladen werden (${response.status}).`);
   return response.blob();
 }
@@ -189,6 +211,7 @@ export const backend = Object.freeze({
 
   adminListUsers() { return invokeFunction('admin-users', { method: 'GET' }); },
   adminCreateUser(payload) { return invokeFunction('admin-users', { body: { action: 'create_user', ...payload } }); },
+  adminCreateDemo(payload = {}) { return invokeFunction('admin-users', { body: { action: 'create_demo', ...payload } }); },
   adminSetModule(payload) { return invokeFunction('admin-users', { body: { action: 'set_module', ...payload } }); },
   adminSetLocale(payload) { return invokeFunction('admin-users', { body: { action: 'set_locale', ...payload } }); },
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },

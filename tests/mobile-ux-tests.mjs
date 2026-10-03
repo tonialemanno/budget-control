@@ -11,16 +11,22 @@ assert.match(table, /<td data-label="Name">Strom<\/td>/);
 assert.match(table, /<td data-label="Betrag">CHF 100\.00<\/td>/);
 assert.match(table, /<td data-label=""><button>Öffnen<\/button><\/td>/);
 
-const mobileItems = NAV_ITEMS.filter((item) => item.mobile).slice(0, 5);
-assert.equal(mobileItems.length, 5);
-assert.deepEqual(mobileItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Konten', 'Buchungen', 'Budget', 'Rechnungen']);
+const primaryItems = NAV_ITEMS.filter((item) => item.primary);
+assert.deepEqual(primaryItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Geld', 'Planung']);
+assert.deepEqual(primaryItems.map((item) => item.section), ['overview', 'money', 'planning']);
 
 const css = fs.readFileSync(new URL('../assets/css/responsive.css', import.meta.url), 'utf8');
+const main = fs.readFileSync(new URL('../assets/js/main.js', import.meta.url), 'utf8');
+const index = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(css, /@media \(max-width: 660px\)/);
 assert.match(css, /env\(safe-area-inset-top\)/);
 assert.match(css, /env\(safe-area-inset-bottom\)/);
 assert.match(css, /font-size:\s*16px/);
 assert.match(css, /\.data-table thead \{ display: none; \}/);
 assert.match(css, /\.mobile-tabbar/);
+assert.match(css, /\.mobile-quick-add/);
+assert.match(main, /mobileQuickAddButton/);
+assert.match(main, /routeSection/);
+assert.match(index, /quickAddSheet/);
 
 console.log('mobile UX assertions OK');

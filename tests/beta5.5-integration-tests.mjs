@@ -15,10 +15,15 @@ assert.match(read('assets/js/main.js'), /fixed-cost-create/);
 assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Umbuchungen \/ Monat/);
-assert.match(read('assets/js/views/overview.js'), /Einnahmen \/ Monat/);
-assert.match(read('assets/js/views/overview.js'), /Fixe Ausgaben \/ Monat/);
-assert.match(read('assets/js/views/overview.js'), /Weitere geplante Ausgaben/);
-assert.match(read('assets/js/views/overview.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/views/overview.js'), /Einnahmen · Monat/);
+assert.match(read('assets/js/views/overview.js'), /Ausgaben · Monat/);
+assert.match(read('assets/js/views/overview.js'), /budget-ring/);
+assert.match(read('assets/js/views/overview.js'), /renderCashflowChart/);
+assert.match(read('assets/js/views/overview.js'), /renderExpenseDonut/);
+assert.match(read('assets/js/app/charts.js'), /cashflow-svg/);
+assert.match(read('assets/js/app/charts.js'), /donut-svg/);
+assert.match(read('assets/js/views/planning.js'), /Fixkosten/);
+assert.match(read('assets/js/views/planning.js'), /Daueraufträge & Automatik/);
 assert.match(read('assets/js/main.js'), /destination_account_id/);
 assert.equal(exists('assets/js/app/projections.js'), true);
 assert.match(read('assets/js/app/projections.js'), /projectedBalance/);
@@ -59,7 +64,7 @@ assert.match(read('assets/js/app/backend.js'), /adminSetLocale/);
 assert.match(read('supabase/functions/admin-users/index.ts'), /set_locale/);
 
 assert.match(read('assets/js/app/format.js'), /export function moneyText/);
-assert.match(read('assets/js/views/overview.js'), /moneyText\(snapshot\.unbudgetedFutureExpensesMonth/);
+assert.match(read('assets/js/app/finance-model.js'), /unbudgetedFutureExpensesMonth/);
 assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.unbudgetedFutureExpensesMonth/);
 assert.match(read('assets/js/views/transactions.js'), /Ø Ausgaben \/ Monat/);
 assert.match(read('assets/js/views/transactions.js'), /monthlyAverage/);
@@ -70,7 +75,8 @@ assert.match(read('assets/js/views/budget.js'), /budget-transaction-edit/);
 assert.match(read('assets/js/main.js'), /budgetExpandedMerchantId/);
 assert.match(read('assets/js/main.js'), /pendingTransactionEditId/);
 assert.match(read('assets/js/views/transactions.js'), /transactionEditMerchant/);
-assert.match(read('assets/js/main.js'), /merchant_id:nullValue\(data,'merchantId'\)/);
+assert.match(read('assets/js/main.js'), /createEconomicTransaction/);
+assert.match(read('assets/js/main.js'), /merchantDefaultCategory/);
 
 assert.match(read('supabase/migrations/20261001_finance_recurring_merchant_links.sql'), /merchant_id/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Händler \/ Empfänger/);
@@ -102,7 +108,7 @@ assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\
 assert.doesNotMatch(read('assets/js/app/config.js'), /route: 'merchants'/);
 assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler', eyebrow: 'Einstellungen' \}/);
 assert.match(read('assets/js/views/settings.js'), /Stammdaten/);
-assert.match(read('assets/js/views/settings.js'), /href="#\/merchants"/);
+assert.match(read('assets/js/views/settings.js'), /href:['"]#\/merchants/);
 
 assert.equal(exists('assets/js/app/recurrence.js'), true);
 assert.match(read('assets/js/views/recurring.js'), /effectiveNextDate/);
@@ -119,4 +125,19 @@ assert.match(read('assets/js/views/bills.js'), /contract-recurring-remove/);
 assert.match(read('assets/js/views/insurance.js'), /insurance-recurring-remove/);
 assert.match(read('assets/js/views/insurance.js'), /name="status"/);
 assert.match(read('assets/js/main.js'), /status:id==='insurance-edit'/);
-assert.match(read('assets/js/views/settings.js'), /Region & Format/);
+assert.match(read('assets/js/views/settings.js'), /Sprache & Region/);
+
+
+assert.equal(exists('assets/js/app/transaction-engine.js'), true);
+assert.equal(exists('assets/js/app/finance-insights.js'), true);
+assert.match(read('assets/js/app/transaction-engine.js'), /createEconomicTransaction/);
+assert.match(read('assets/js/app/transaction-engine.js'), /recordDebtMovement/);
+assert.match(read('assets/js/app/transaction-engine.js'), /recordReceivableMovement/);
+assert.match(read('assets/js/app/transaction-engine.js'), /recordTaxMovement/);
+assert.match(read('assets/js/app/finance-api.js'), /record_tax_payment_v2/);
+assert.match(read('assets/js/app/finance-api.js'), /record_receivable_payment_v3/);
+assert.match(read('supabase/migrations/20261003_finance_managed_payment_linkage.sql'), /reverse_tax_payment_v2/);
+assert.match(read('assets/js/views/settings.js'), /Mein Profil/);
+assert.match(read('assets/js/views/settings.js'), /Basiswährung/);
+assert.match(read('assets/js/main.js'), /onboarding_completed_at/);
+assert.match(read('assets/js/main.js'), /routeSection/);

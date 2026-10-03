@@ -17,6 +17,9 @@ export function renderMerchants({
   budgets = [],
   canWrite = false,
   merchantQuery = '',
+  adminRole = null,
+  household = null,
+  countryMasterMerchants = [],
 } = {}) {
   const expenseCategories=categories.filter((category)=>category.kind==='expense');
   const categoryOptions=expenseCategories.map((category)=>`<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('');
@@ -43,16 +46,23 @@ export function renderMerchants({
   const rows=filtered.map((merchant)=>{
     const category=categories.find((c)=>c.id===merchant.default_category_id);
     const usage=usageLabel(merchant,transactions,recurringRules,budgets);
+    const isCountryStandard=countryMasterMerchants.some((row)=>row.normalized_key===merchant.normalized_key);
+    const standardMeta=isCountryStandard
+      ? `<div class="table-meta">${escapeHtml(household?.country_code||'CH')}-Standard</div>`
+      : `<div class="table-meta">${escapeHtml(merchant.normalized_key||'')}</div>`;
+    const promoteAction=adminRole && !isCountryStandard && merchant.default_category_id
+      ? `<button class="table-action" type="button" data-action="merchant-promote-master" data-id="${merchant.id}">Für ${escapeHtml(household?.country_code||'CH')} freigeben</button>`
+      : '';
     const usageParts=[
       `${usage.txCount} Buchung${usage.txCount===1?'':'en'}`,
       usage.fixedCount?`${usage.fixedCount} Fixkosten`:'',
       usage.budgetCount?`${usage.budgetCount} Budget${usage.budgetCount===1?'':'s'}`:'',
     ].filter(Boolean).join(' · ');
     return `<tr>
-      <td><strong>${escapeHtml(merchant.name)}</strong><div class="table-meta">${escapeHtml(merchant.normalized_key||'')}</div></td>
+      <td><strong>${escapeHtml(merchant.name)}</strong>${standardMeta}</td>
       <td>${escapeHtml(category?.name||'—')}</td>
       <td>${escapeHtml(usageParts)}</td>
-      <td>${canWrite?`<button class="table-action" type="button" data-action="merchant-edit" data-id="${merchant.id}">Bearbeiten</button>`:''}</td>
+      <td>${canWrite?`<div class="table-actions"><button class="table-action" type="button" data-action="merchant-edit" data-id="${merchant.id}">Bearbeiten</button>${promoteAction}</div>`:''}</td>
     </tr>`;
   });
 
