@@ -102,7 +102,7 @@ assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\
 assert.doesNotMatch(read('assets/js/app/config.js'), /route: 'merchants'/);
 assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler', eyebrow: 'Einstellungen' \}/);
 assert.match(read('assets/js/views/settings.js'), /Stammdaten/);
-assert.match(read('assets/js/views/settings.js'), /href="#\/merchants"/);
+assert.match(read('assets/js/views/settings.js'), /href:['"]#\/merchants/);
 
 assert.equal(exists('assets/js/app/recurrence.js'), true);
 assert.match(read('assets/js/views/recurring.js'), /effectiveNextDate/);
