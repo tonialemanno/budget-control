@@ -66,7 +66,10 @@ export function budgetSummary({ budgets = [], transactions = [], debtPayments = 
     if(tx.status!=='booked'||tx.transfer_group_id||occurred>now||localMonthKey(tx.occurred_at)!==month) continue;
     const amount=consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
     if(!(amount>0)) continue;
-    const covered=rows.some((budget)=>budget.merchant_id ? budget.merchant_id===tx.merchant_id : budget.category_id===tx.category_id);
+    const category=categories.find((row)=>row.id===tx.category_id);
+    const covered=rows.some((budget)=>budget.merchant_id
+      ? budget.merchant_id===tx.merchant_id
+      : budget.category_id===tx.category_id || budget.category_id===category?.parent_id);
     if(covered) spent+=amount;
   }
   return { total, spent, remaining:Math.max(0,total-spent), percent:total>0?clampPercent(spent/total*100):0, count:rows.length };
