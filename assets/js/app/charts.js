@@ -1,4 +1,5 @@
-import { escapeHtml, money } from './format.js';
+import { escapeHtml, money, moneyText } from './format.js';
+import { t } from './i18n.js';
 
 function finite(value) {
   const n=Number(value);
@@ -31,6 +32,7 @@ export function renderCashflowChart({
   series=[],
   currency='CHF',
   locale='de-CH',
+  privacy=false,
 }={}) {
   if (!series.length) return '<div class="chart-empty">Keine Daten für die Entwicklung vorhanden.</div>';
 
@@ -51,7 +53,7 @@ export function renderCashflowChart({
 
   const grid=[0,.25,.5,.75,1].map((ratio)=>{
     const yy=top+plotHeight-(ratio*plotHeight);
-    const label=`${currency} ${compactNumber(maxValue*ratio,locale)}`;
+    const label=privacy ? '•••' : `${currency} ${compactNumber(maxValue*ratio,locale)}`;
     return `<g class="cashflow-gridline"><line x1="${left}" y1="${yy}" x2="${width-right}" y2="${yy}"></line><text x="${left-9}" y="${yy+4}" text-anchor="end">${escapeHtml(label)}</text></g>`;
   }).join('');
 
@@ -64,8 +66,12 @@ export function renderCashflowChart({
     const incomeH=h(row.income);
     const expenseH=h(row.expenses);
     const month=monthLabel(row.date,locale);
-    const incomeTitle=`Einnahmen · ${month}: ${money(row.income,{currency,locale})}`;
-    const expenseTitle=`Ausgaben · ${month}: ${money(row.expenses,{currency,locale})}`;
+    const incomeTitle=privacy
+      ? `${t('Einnahmen',locale)} · ${month}`
+      : `${t('Einnahmen',locale)} · ${month}: ${moneyText(row.income,{currency,locale})}`;
+    const expenseTitle=privacy
+      ? `${t('Ausgaben',locale)} · ${month}`
+      : `${t('Ausgaben',locale)} · ${month}: ${moneyText(row.expenses,{currency,locale})}`;
     return `<g class="cashflow-month">
       <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
       <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
@@ -76,16 +82,16 @@ export function renderCashflowChart({
   const latest=series[series.length-1]||{};
   return `<div class="cashflow-chart">
     <div class="chart-legend" aria-hidden="true">
-      <span><i class="legend-dot legend-dot--income"></i>Einnahmen</span>
-      <span><i class="legend-dot legend-dot--expense"></i>Ausgaben</span>
+      <span><i class="legend-dot legend-dot--income"></i>${escapeHtml(t('Einnahmen',locale))}</span>
+      <span><i class="legend-dot legend-dot--expense"></i>${escapeHtml(t('Ausgaben',locale))}</span>
     </div>
-    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Einnahmen und Ausgaben der letzten sechs Monate" preserveAspectRatio="xMidYMid meet">
+    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Einnahmen und Ausgaben der letzten sechs Monate',locale))}" preserveAspectRatio="xMidYMid meet">
       ${grid}
       ${groups}
     </svg>
     <div class="cashflow-summary">
-      <span>Aktueller Monat · Einnahmen <strong>${money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
-      <span>Aktueller Monat · Ausgaben <strong>${money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Monat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Monat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
     </div>
   </div>`;
 }
@@ -95,10 +101,11 @@ export function renderExpenseDonut({
   total=0,
   currency='CHF',
   locale='de-CH',
+  privacy=false,
 }={}) {
   const value=Math.max(0,finite(total));
   if (!(value>0) || !rows.length) {
-    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>Keine Ausgaben in diesem Monat.</p></div>`;
+    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Monat.',locale))}</p></div>`;
   }
 
   const radius=52;
@@ -109,24 +116,30 @@ export function renderExpenseDonut({
     const length=circumference*(share/100);
     const dashOffset=-offset;
     offset+=length;
-    const title=`${row.label}: ${money(row.value,{currency,locale})} · ${Math.round(share)}%`;
+    const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
+    const title=privacy
+      ? `${displayLabel}: ${Math.round(share)}%`
+      : `${displayLabel}: ${moneyText(row.value,{currency,locale})} · ${Math.round(share)}%`;
     return `<circle class="donut-segment donut-segment--${index%6}" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}"><title>${escapeHtml(title)}</title></circle>`;
   }).join('');
 
-  const legend=rows.map((row,index)=>`<div class="donut-legend-row">
-    <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
-    <strong>${escapeHtml(row.label)}</strong>
-    <span>${money(row.value,{currency,locale,decimals:0})}</span>
-    <small>${Math.round(row.share)}%</small>
-  </div>`).join('');
+  const legend=rows.map((row,index)=>{
+    const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
+    return `<div class="donut-legend-row">
+      <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
+      <strong>${escapeHtml(displayLabel)}</strong>
+      <span>${privacy?'•••':money(row.value,{currency,locale,decimals:0})}</span>
+      <small>${Math.round(row.share)}%</small>
+    </div>`;
+  }).join('');
 
   return `<div class="donut-layout">
     <div class="donut-visual">
-      <svg class="donut-svg" viewBox="0 0 140 140" role="img" aria-label="Ausgaben nach Kategorien im aktuellen Monat">
+      <svg class="donut-svg" viewBox="0 0 140 140" role="img" aria-label="${escapeHtml(t('Ausgaben nach Kategorien im aktuellen Monat',locale))}">
         <circle class="donut-track" cx="70" cy="70" r="${radius}"></circle>
         <g transform="rotate(-90 70 70)">${segments}</g>
-        <text class="donut-center-label" x="70" y="65" text-anchor="middle">Ausgaben</text>
-        <text class="donut-center-value" x="70" y="82" text-anchor="middle">${escapeHtml(currency)} ${escapeHtml(compactNumber(value,locale))}</text>
+        <text class="donut-center-label" x="70" y="65" text-anchor="middle">${escapeHtml(t('Ausgaben',locale))}</text>
+        <text class="donut-center-value" x="70" y="82" text-anchor="middle">${privacy?'•••':`${escapeHtml(currency)} ${escapeHtml(compactNumber(value,locale))}`}</text>
       </svg>
     </div>
     <div class="donut-legend">${legend}</div>
