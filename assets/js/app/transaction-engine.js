@@ -197,81 +197,32 @@ export async function recordTaxMovement({
   required(taxCase?.id, 'Steuerfall wurde nicht gefunden.');
   const value = positive(amount, 'Bitte einen gültigen Steuerbetrag eingeben.');
   const currency = taxCase.currency || 'CHF';
-  const treatment = taxPaymentTreatment(paymentType);
-  let transactionId = null;
-  let createdTransactionId = null;
-  let linkedTransactionBefore = null;
 
   if (source === 'created_transaction') {
     required(account?.account_id, 'Bitte ein Zahlungskonto auswählen.');
     if (account.currency !== currency) throw new Error('Steuerfall und Zahlungskonto müssen dieselbe Währung haben.');
-    const direction = taxPaymentDirection(paymentType);
-    const tx = await createEconomicTransaction({
-      api,
-      householdId,
-      account,
-      direction,
-      amount: value,
-      occurredAt: String(paidAt).length === 10 ? `${paidAt}T12:00:00` : paidAt,
-      description: treatment === 'tax_refund' ? `Steuerrückerstattung ${taxCase.tax_year}` : `Steuerzahlung ${taxCase.tax_year}`,
-      counterparty: 'Steuerverwaltung',
-      note: reference || notes || null,
-      tax: {
-        enabled: true,
-        year: Number(taxCase.tax_year),
-        treatment,
-        sectionKey: 'tax_account',
-        category: treatment === 'tax_refund' ? 'Steuerrückerstattung' : 'Steuerzahlung',
-      },
-    });
-    transactionId = tx?.id || null;
-    createdTransactionId = transactionId;
-    if (!transactionId) throw new Error('Kontobuchung konnte nicht erstellt werden.');
   } else if (source === 'linked_transaction') {
     required(transaction?.id, 'Bitte eine bestehende Buchung auswählen.');
     if (transaction.currency !== currency) throw new Error('Steuerfall und Buchung müssen dieselbe Währung haben.');
     const expectedSign = taxPaymentDirection(paymentType) === 'income' ? 1 : -1;
     if (Math.sign(Number(transaction.amount)) !== expectedSign) throw new Error('Die Richtung der Buchung passt nicht zur Steuerzahlung.');
     if (Math.abs(Math.abs(Number(transaction.amount)) - value) > 0.005) throw new Error('Betrag der Buchung und Steuerzahlung müssen übereinstimmen.');
-    transactionId = transaction.id;
-    linkedTransactionBefore = {
-      tax_relevant:Boolean(transaction.tax_relevant),
-      tax_year:transaction.tax_year??null,
-      tax_treatment:transaction.tax_treatment??null,
-      tax_section_key:transaction.tax_section_key??null,
-      tax_category:transaction.tax_category??null,
-    };
-    await api.updateTransaction(transaction.id, {
-      tax_relevant: true,
-      tax_year: Number(taxCase.tax_year),
-      tax_treatment: treatment,
-      tax_section_key: 'tax_account',
-      tax_category: treatment === 'tax_refund' ? 'Steuerrückerstattung' : 'Steuerzahlung',
-    });
   } else if (source !== 'history_only') {
     throw new Error('Unbekannte Zahlungsart.');
   }
 
-  try {
-    return await api.createTaxPayment({
-      household_id: householdId,
-      tax_case_id: taxCase.id,
-      obligation_id: obligationId || null,
-      payment_type: paymentType,
-      amount: value,
-      currency,
-      paid_at: paidAt,
-      transaction_id: transactionId,
-      reference,
-      notes,
-    });
-  } catch (error) {
-    if (createdTransactionId) {
-      try { await api.deleteTransaction(createdTransactionId); } catch {}
-    }
-    if (linkedTransactionBefore && transactionId) {
-      try { await api.updateTransaction(transactionId, linkedTransactionBefore); } catch {}
-    }
-    throw error;
-  }
+  if (typeof api.recordTaxPayment !== 'function') throw new Error('Die atomare Steuerbuchung ist nicht verfügbar.');
+  return api.recordTaxPayment({
+    householdId,
+    taxCaseId:taxCase.id,
+    obligationId,
+    paymentType,
+    amount:value,
+    paidAt,
+    reference,
+    notes,
+    source,
+    accountId:source==='created_transaction' ? account.account_id : null,
+    transactionId:source==='linked_transaction' ? transaction.id : null,
+  });
 }
