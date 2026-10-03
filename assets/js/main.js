@@ -357,6 +357,10 @@ function applyRouteIntent(route) {
     const account = form.querySelector('[name="accountId"]');
     if (account && accountId) account.value = accountId;
   }
+  if (formId === 'transfer-create' && accountId) {
+    const source = form.querySelector('[name="fromAccountId"]');
+    if (source) source.value = accountId;
+  }
   requestAnimationFrame(() => form.scrollIntoView({ behavior:'smooth', block:'start' }));
 }
 
@@ -1031,6 +1035,15 @@ function showBillPaymentSource(source) {
   const transactionField=document.querySelector('#billPaymentTransactionField');
   if(accountField) accountField.hidden=source!=='created_transaction';
   if(transactionField) transactionField.hidden=source!=='linked_transaction';
+}
+
+function showTaxPaymentSource(source) {
+  const accountField=document.querySelector('#taxPaymentAccountField');
+  const transactionField=document.querySelector('#taxPaymentTransactionField');
+  const historyInfo=document.querySelector('#taxPaymentHistoryInfo');
+  if(accountField) accountField.hidden=source!=='created_transaction';
+  if(transactionField) transactionField.hidden=source!=='linked_transaction';
+  if(historyInfo) historyInfo.hidden=source!=='history_only';
 }
 
 function addMonthsToDate(isoDate, months = 1) {
@@ -1916,13 +1929,18 @@ async function handleForm(form) {
   if (id === 'tax-payment-create') {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
     const caseId=formValue(data,'taxCaseId');
-    if(!runtime.taxCases.some((row)=>row.id===caseId)) throw new Error('Steuerfall wurde nicht gefunden.');
-    await financeApi.createTaxPayment({
-      household_id:h,tax_case_id:caseId,obligation_id:nullValue(data,'obligationId'),
-      payment_type:formValue(data,'paymentType')||'payment',amount:numberValue(data,'amount'),currency:formValue(data,'currency')||'CHF',
-      paid_at:formValue(data,'paidAt'),transaction_id:nullValue(data,'transactionId'),reference:nullValue(data,'reference'),notes:nullValue(data,'notes'),
+    const taxCase=runtime.taxCases.find((row)=>row.id===caseId);
+    if(!taxCase) throw new Error('Steuerfall wurde nicht gefunden.');
+    const source=formValue(data,'source') || (nullValue(data,'transactionId')?'linked_transaction':'history_only');
+    const account=runtime.accounts.find((row)=>row.account_id===nullValue(data,'accountId'))||null;
+    const transaction=runtime.transactions.find((row)=>row.id===nullValue(data,'transactionId'))||null;
+    await recordTaxMovement({
+      api:financeApi, householdId:h, taxCase, obligationId:nullValue(data,'obligationId'),
+      paymentType:formValue(data,'paymentType')||'payment', amount:numberValue(data,'amount'),
+      paidAt:formValue(data,'paidAt'), reference:nullValue(data,'reference'), notes:nullValue(data,'notes'),
+      source, account, transaction,
     });
-    await refresh('Steuerzahlung gespeichert.'); return;
+    await refresh(source==='history_only'?'Steuerzahlung im Dossier gespeichert.':'Steuerzahlung, Konto und Steuerdossier sind verknüpft.'); return;
   }
   if (id === 'tax-section-status') {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
@@ -2788,6 +2806,13 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
     if (target.id === 'billPaymentSource') { showBillPaymentSource(target.value); return; }
+    if (target.id === 'taxPaymentSource') { showTaxPaymentSource(target.value); return; }
+    if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
+      const merchant=runtime.merchants.find((row)=>row.id===target.value);
+      const category=target.closest('form')?.querySelector('[name="categoryId"]');
+      if(category && merchant?.default_category_id) category.value=merchant.default_category_id;
+      return;
+    }
     if (target.id === 'debtPaymentTransaction') {
       const option=target.selectedOptions?.[0];
       if(option?.value){
