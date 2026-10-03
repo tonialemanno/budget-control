@@ -35,19 +35,23 @@ function isBookedIncome(tx) {
     && tx.cashflow_type!=='receivable_principal';
 }
 
-function matchesIncomeRule(tx,rule) {
-  if(!isBookedIncome(tx)) return false;
-  if(!rule) return tx.categories?.kind==='income';
-  if(rule.merchant_id&&tx.merchant_id===rule.merchant_id) return true;
-  if(rule.category_id&&tx.category_id===rule.category_id) return true;
+function incomeMatchScore(tx,rule) {
+  if(!isBookedIncome(tx)) return 0;
+  if(!rule) return tx.categories?.kind==='income'?1:0;
+
+  let score=0;
+  if(rule.merchant_id&&tx.merchant_id===rule.merchant_id) score+=8;
 
   const haystack=normalized([tx.description,tx.counterparty,tx.merchants?.name].filter(Boolean).join(' '));
   const needles=[rule.description,rule.counterparty].map(normalized).filter((value)=>value.length>=5);
-  if(needles.some((needle)=>haystack.includes(needle)||needle.includes(haystack))) return true;
+  if(needles.some((needle)=>haystack.includes(needle)||needle.includes(haystack))) score+=6;
 
   const expected=Math.abs(Number(rule.amount||0));
   const actual=Math.abs(Number(tx.amount||0));
-  return expected>0&&Math.abs(expected-actual)<=Math.max(1,expected*.02)&&tx.categories?.kind==='income';
+  if(expected>0&&Math.abs(expected-actual)<=Math.max(1,expected*.02)) score+=4;
+  if(rule.category_id&&tx.category_id===rule.category_id) score+=2;
+  if(tx.categories?.kind==='income') score+=1;
+  return score;
 }
 
 function nominalStartFor(now,fallbackDay) {
@@ -63,12 +67,15 @@ function incomeNear(transactions,rule,nominal,now,windowDays=7) {
     now.getTime()
   ));
   return transactions
-    .filter((tx)=>{
-      if(!matchesIncomeRule(tx,rule)) return false;
-      const occurred=new Date(tx.occurred_at);
-      return !Number.isNaN(occurred.getTime())&&occurred>=earliest&&occurred<=latest;
-    })
-    .sort((a,b)=>new Date(b.occurred_at)-new Date(a.occurred_at))[0]||null;
+    .map((tx)=>({tx,score:incomeMatchScore(tx,rule),occurred:new Date(tx.occurred_at)}))
+    .filter((row)=>row.score>0&&!Number.isNaN(row.occurred.getTime())&&row.occurred>=earliest&&row.occurred<=latest)
+    .sort((a,b)=>{
+      if(b.score!==a.score) return b.score-a.score;
+      const aDistance=Math.abs(a.occurred.getTime()-nominal.getTime());
+      const bDistance=Math.abs(b.occurred.getTime()-nominal.getTime());
+      if(aDistance!==bDistance) return aDistance-bDistance;
+      return b.occurred-a.occurred;
+    })[0]?.tx||null;
 }
 
 function monthKey(date) {
@@ -132,7 +139,7 @@ export function financeCycles({
 
 export function financeCycleLabel(cycle,locale='de-CH') {
   if(!cycle?.start) return '';
-  const end=new Date(cycle.endExclusive.getTime()-DAY);
+  const end=new Date(cycle.endExclusive.getTime()-1);
   try {
     const fmt=new Intl.DateTimeFormat(locale,{day:'2-digit',month:'2-digit'});
     return `${fmt.format(cycle.start)}–${fmt.format(end)}`;
