@@ -23,7 +23,7 @@ export function renderPlanning({
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
-  const budget=budgetSummary({budgets,transactions,debtPayments,categories,baseCurrency:currency,fxRates});
+  const budget=budgetSummary({budgets,transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25});
   const goalRows=goalSummaries(goals).slice(0,4);
   const openBills=bills.filter((b)=>!['paid','cancelled'].includes(b.status));
   const activeRecurring=recurringRules.filter((r)=>r.active!==false);
