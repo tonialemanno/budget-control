@@ -49,7 +49,8 @@ const sourceDelete=fs.readFileSync(new URL('../supabase/migrations/20261002_fina
 
 assert.doesNotMatch(main,/new Date\(formValue\(data,'occurredAt'\)\)\.toISOString\(\)/);
 assert.equal((main.match(/financeEventTimestamp\(formValue\(data,'occurredAt'\)\)/g)||[]).length>=3,true);
-assert.match(receipt,/occurred_at:\s*financeEventTimestamp\(receiptDate\)/);
+assert.match(receipt,/occurredAt:\s*financeEventTimestamp\(receiptDate\)/);
+assert.match(receipt,/createEconomicTransaction/);
 assert.match(main,/Die Kontowährung kann nicht geändert werden/);
 assert.match(main,/deleteLinkedDocuments\('transaction'/);
 assert.match(main,/documentObjectTypeByTable/);
