@@ -21,7 +21,7 @@ function progressRow(label, value, percent, meta='') {
 export function renderOverview({
   accounts = [], transactions = [], debtPayments = [], recurringRules = [], budgets = [], bills = [],
   debts = [], receivables = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [],
-  categories = [], household, profile, fxRates,
+  categories = [], household, profile, fxRates, privacyEnabled=false,
 } = {}) {
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
@@ -95,7 +95,7 @@ export function renderOverview({
           <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Dieser Monat · echte Konsumausgaben</p></div>
           <a class="card-link" href="#/transactions">Details</a>
         </div>
-        ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale})}
+        ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
       </article>
 
       <article class="card card-padding finance-chart-card">
@@ -103,7 +103,7 @@ export function renderOverview({
           <div><h3 class="card-title">Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Monate</p></div>
           <a class="card-link" href="#/transactions">Buchungen</a>
         </div>
-        ${renderCashflowChart({series:months,currency,locale})}
+        ${renderCashflowChart({series:months,currency,locale,privacy:privacyEnabled})}
       </article>
     </div>
 
