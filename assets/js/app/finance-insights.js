@@ -74,8 +74,9 @@ export function categorySpending({
 
 export function effectiveBudgetSet(budgets = [], month) {
   const target=String(month||'').slice(0,7);
-  const current=budgets.filter((row)=>String(row.month_start||'').slice(0,7)===target);
-  if(current.length) return { rows:current, sourceMonth:target, inherited:false };
+  const current=budgets
+    .filter((row)=>String(row.month_start||'').slice(0,7)===target)
+    .map((row)=>({...row,_inherited:false}));
 
   const previousMonths=[...new Set(
     budgets
@@ -83,10 +84,20 @@ export function effectiveBudgetSet(budgets = [], month) {
       .filter((value)=>/^\d{4}-\d{2}$/.test(value)&&value<target)
   )].sort().reverse();
   const sourceMonth=previousMonths[0]||null;
-  const rows=sourceMonth
-    ? budgets.filter((row)=>String(row.month_start||'').slice(0,7)===sourceMonth)
-    : [];
-  return { rows, sourceMonth, inherited:Boolean(sourceMonth&&rows.length) };
+  if(!sourceMonth) return { rows:current, sourceMonth:target, inherited:false, inheritedCount:0 };
+
+  const scopeKey=(row)=>row.merchant_id ? `merchant:${row.merchant_id}` : `category:${row.category_id||''}`;
+  const currentScopes=new Set(current.map(scopeKey));
+  const inheritedRows=budgets
+    .filter((row)=>String(row.month_start||'').slice(0,7)===sourceMonth&&!currentScopes.has(scopeKey(row)))
+    .map((row)=>({...row,_inherited:true}));
+
+  return {
+    rows:[...current,...inheritedRows],
+    sourceMonth,
+    inherited:inheritedRows.length>0,
+    inheritedCount:inheritedRows.length,
+  };
 }
 
 export function budgetSummary({ budgets = [], transactions = [], debtPayments = [], categories = [], merchants = [], baseCurrency='CHF', fxRates=null, now=new Date() }={}) {
