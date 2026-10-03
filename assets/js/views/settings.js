@@ -18,7 +18,7 @@ function settingsLink({href,iconName,title,text,badge=''}) {
 
 export function renderSettings({
   theme='auto', depth='standard', moduleAccess={}, productModules=[], profile, household, user, adminRole, householdRole,
-  hiddenModules=[], privacyEnabled=false, canWrite=false,
+  hiddenModules=[], privacyEnabled=false, canWrite=false, canAdminHousehold=false,
   masterDataHouseholds=[], countryMasterCategories=[], countryMasterMerchants=[],
   accounts=[], categories=[], merchants=[], categorizationRules=[],
 } = {}) {
@@ -37,11 +37,13 @@ export function renderSettings({
   const setupReady=accounts.length>0 && categories.length>=5 && merchants.length>=3;
 
   return `
-    ${pageHeader({title:'Mehr',subtitle:'Einrichtung, Kategorien, Darstellung, Zugriff und weitere Funktionen.'})}
+    ${pageHeader({title:'Einstellungen',subtitle:'Sprache, Währung, Darstellung, Kategorien, Sicherheit, Module und Administration an einem Ort.'})}
 
     <div class="settings-section-label">Einrichtung</div>
     <div class="settings-nav-grid">
+      ${settingsLink({href:'#/profile',iconName:'user',title:'Mein Profil',text:'Login, Rolle und persönlicher Zugriff'})}
       ${settingsLink({href:'#/setup',iconName:'sparkles',title:'Finance einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':'offen'})}
+      ${settingsLink({href:'#/accounts',iconName:'wallet',title:'Konten & Währungen',text:`Basis ${household?.base_currency||'CHF'} · Konten dürfen eigene Währungen führen`,badge:`${accounts.length} Konten`})}
       ${settingsLink({href:'#/categories',iconName:'layout-grid',title:'Kategorien & Unterkategorien',text:'Deine persönliche Finanzstruktur',badge:`${categories.length} Kategorien`})}
       ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}
       ${adminRole?settingsLink({href:'#/admin',iconName:'shield',title:'Administration',text:'Benutzer, Module und Systemstatus'}):''}
@@ -51,6 +53,7 @@ export function renderSettings({
     <article class="card"><div class="settings-group">
       <div class="settings-row"><div class="settings-row-copy"><strong>Darstellung</strong><span>Hell, Dunkel oder System</span></div><select class="select-control" id="themeSelect"><option value="auto" ${theme==='auto'?'selected':''}>System</option><option value="light" ${theme==='light'?'selected':''}>Hell</option><option value="dark" ${theme==='dark'?'selected':''}>Dunkel</option></select></div>
       <div class="settings-row"><div class="settings-row-copy"><strong>Sprache & Region</strong><span>Sprache der Oberfläche sowie Datums-, Zahlen- und Regionsformat.</span></div><select class="select-control" id="localeSelect"><option value="de-CH" ${profile?.locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option><option value="de-DE" ${profile?.locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option><option value="it-CH" ${profile?.locale==='it-CH'?'selected':''}>Italiano · Svizzera</option><option value="it-IT" ${profile?.locale==='it-IT'?'selected':''}>Italiano · Italia</option><option value="en-CH" ${profile?.locale==='en-CH'?'selected':''}>English · Switzerland</option><option value="en-GB" ${profile?.locale==='en-GB'?'selected':''}>English · United Kingdom</option></select></div>
+      <form class="settings-row" id="household-preferences" data-form="household-preferences"><div class="settings-row-copy"><strong>Basiswährung</strong><span>Nur die Darstellung und Umrechnung des Haushalts. Originalwährungen der Konten und Buchungen bleiben unverändert.</span></div><div class="settings-inline-control"><select class="select-control" name="baseCurrency" ${canAdminHousehold?'':'disabled'}><option value="CHF" ${household?.base_currency==='CHF'?'selected':''}>CHF</option><option value="EUR" ${household?.base_currency==='EUR'?'selected':''}>EUR</option></select>${canAdminHousehold?'<button class="action-button action-button--secondary" type="submit">Speichern</button>':''}</div></form>
       <div class="settings-row"><div class="settings-row-copy"><strong>Informationstiefe</strong><span>Einfach, Standard oder Experte</span></div><select class="select-control" id="depthSelect"><option value="simple" ${depth==='simple'?'selected':''}>Einfach</option><option value="standard" ${depth==='standard'?'selected':''}>Standard</option><option value="expert" ${depth==='expert'?'selected':''}>Experte</option></select></div>
       <div class="settings-row"><div class="settings-row-copy"><strong>Privatsphäre-Modus</strong><span>Finanzwerte werden sofort durch neutrale Punkte ersetzt.</span></div><button class="action-button action-button--secondary" type="button" data-action="privacy-toggle">${privacyEnabled ? 'Zahlen anzeigen' : 'Zahlen verbergen'}</button></div>
     </div></article>
