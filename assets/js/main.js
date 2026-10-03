@@ -1234,21 +1234,39 @@ async function handleForm(form) {
 
   if (id === 'transaction-create') {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
-    const amount = Math.abs(numberValue(data,'amount')) * (formValue(data,'direction')==='expense' ? -1 : 1);
-    const payload={ household_id:h, account_id:formValue(data,'accountId'), category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account?.currency||currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), status:'booked', source:'manual' };
+    if (!account) throw new Error('Bitte ein Konto auswählen.');
+    const direction=formValue(data,'direction')||'expense';
+    const rawAmount=Math.abs(numberValue(data,'amount'));
+    const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+    const merchantId=nullValue(data,'merchantId');
+    const categoryId=nullValue(data,'categoryId');
+    let tax=null;
     if (moduleEnabled('tax')) {
-      payload.tax_relevant=formValue(data,'taxRelevant')==='true';
-      payload.tax_category=payload.tax_relevant?nullValue(data,'taxCategory'):null;
-      if(payload.tax_relevant){
-        const defaults=transactionTaxDefaults({...payload,taxTreatment:nullValue(data,'taxTreatment'),taxSectionKey:nullValue(data,'taxSectionKey')});
-        payload.tax_year=numberValue(data,'taxYear',transactionTaxYear(payload));
-        payload.tax_treatment=nullValue(data,'taxTreatment')||defaults.treatment;
-        payload.tax_section_key=nullValue(data,'taxSectionKey')||defaults.section;
-        await ensureTransactionTaxCase(payload.tax_year);
-      }
+      const enabled=formValue(data,'taxRelevant')==='true';
+      if(enabled){
+        const signed=direction==='expense'?-rawAmount:rawAmount;
+        const txLike={
+          amount:signed, occurred_at:occurredAt, description:formValue(data,'description'),
+          counterparty:nullValue(data,'counterparty'), tax_category:nullValue(data,'taxCategory'),
+          taxTreatment:nullValue(data,'taxTreatment'), taxSectionKey:nullValue(data,'taxSectionKey')
+        };
+        const defaults=transactionTaxDefaults(txLike);
+        const taxYear=numberValue(data,'taxYear',transactionTaxYear(txLike));
+        await ensureTransactionTaxCase(taxYear);
+        tax={
+          enabled:true, category:nullValue(data,'taxCategory'), year:taxYear,
+          treatment:nullValue(data,'taxTreatment')||defaults.treatment,
+          sectionKey:nullValue(data,'taxSectionKey')||defaults.section,
+        };
+      } else tax={enabled:false};
     }
-    await financeApi.createTransaction(payload);
-    await refresh('Transaktion gespeichert.'); return;
+    await createEconomicTransaction({
+      api:financeApi, householdId:h, account, direction, amount:rawAmount,
+      categoryId, merchantId, merchants:runtime.merchants, occurredAt,
+      description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
+      note:nullValue(data,'note'), tax,
+    });
+    await refresh('Transaktion gespeichert und in allen Auswertungen aktualisiert.'); return;
   }
   if (id === 'transaction-edit') {
     const transactionId=formValue(data,'transactionId');
@@ -1260,7 +1278,8 @@ async function handleForm(form) {
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
-    const patch={ account_id:account.account_id, category_id:nullValue(data,'categoryId'), merchant_id:nullValue(data,'merchantId'), occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const merchantId=nullValue(data,'merchantId');
+    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -1278,7 +1297,7 @@ async function handleForm(form) {
     let recurringSaved = false;
     if (data.get('makeRecurring') === 'on') {
       const direction = amount < 0 ? 'expense' : 'income';
-      const recurringPayload = { household_id:h, account_id:account.account_id, category_id:patch.category_id, direction, description:patch.description, counterparty:patch.counterparty, amount:Math.abs(amount), currency:account.currency, cadence:formValue(data,'recurringCadence')||'monthly', next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1), active:true };
+      const recurringPayload = { household_id:h, account_id:account.account_id, category_id:patch.category_id, merchant_id:patch.merchant_id, direction, description:patch.description, counterparty:patch.counterparty, amount:Math.abs(amount), currency:account.currency, cadence:formValue(data,'recurringCadence')||'monthly', next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1), active:true };
       const existing = runtime.recurringRules.find((r)=>r.account_id===account.account_id && r.direction===direction && r.description.trim().toLowerCase()===patch.description.trim().toLowerCase() && Math.abs(Number(r.amount)-Math.abs(amount))<0.01);
       if (existing) await financeApi.updateRecurringRule(existing.id, recurringPayload);
       else await financeApi.createRecurringRule(recurringPayload);
@@ -1291,12 +1310,14 @@ async function handleForm(form) {
     const from = runtime.accounts.find((a)=>a.account_id===formValue(data,'fromAccountId'));
     const to = runtime.accounts.find((a)=>a.account_id===formValue(data,'toAccountId'));
     if (!from || !to) throw new Error('Konten fehlen.');
-    const fromAmount=Math.abs(numberValue(data,'amount'));
     const enteredToAmount=formValue(data,'toAmount');
-    const toAmount=from.currency===to.currency ? fromAmount : Math.abs(Number(enteredToAmount));
-    if (!(fromAmount>0)) throw new Error('Der Abgangsbetrag muss grösser als 0 sein.');
-    if (from.currency!==to.currency && (!enteredToAmount || !Number.isFinite(toAmount) || !(toAmount>0))) throw new Error(`Für ${from.currency} → ${to.currency} muss der tatsächlich gutgeschriebene Zielbetrag angegeben werden.`);
-    await financeApi.createTransfer({ p_household_id:h, p_from_account_id:from.account_id, p_to_account_id:to.account_id, p_from_amount:fromAmount, p_to_amount:toAmount, p_occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), p_description:formValue(data,'description')||'Umbuchung' });
+    await createEconomicTransfer({
+      api:financeApi, householdId:h, fromAccount:from, toAccount:to,
+      fromAmount:Math.abs(numberValue(data,'amount')),
+      toAmount:from.currency===to.currency?null:Math.abs(Number(enteredToAmount)),
+      occurredAt:financeEventTimestamp(formValue(data,'occurredAt')),
+      description:formValue(data,'description')||'Umbuchung',
+    });
     await refresh(from.currency===to.currency?'Umbuchung gespeichert.':'Fremdwährungs-Umbuchung mit beiden Originalbeträgen gespeichert.'); return;
   }
 
@@ -1542,9 +1563,13 @@ async function handleForm(form) {
   }
   if (id === 'bill-payment') {
     const billId=formValue(data,'billId');
-    const source=formValue(data,'source');
-    if(!billId) throw new Error('Rechnung wurde nicht gefunden.');
-    await financeApi.payBill({ householdId:h, billId, source, paidAt:nullValue(data,'paidAt'), accountId:nullValue(data,'accountId'), transactionId:nullValue(data,'transactionId') });
+    const bill=runtime.bills.find((row)=>row.id===billId);
+    if(!bill) throw new Error('Rechnung wurde nicht gefunden.');
+    await recordBillMovement({
+      api:financeApi, householdId:h, bill, source:formValue(data,'source'),
+      paidAt:nullValue(data,'paidAt'), accountId:nullValue(data,'accountId'),
+      transactionId:nullValue(data,'transactionId'),
+    });
     await refresh('Rechnung bezahlt und mit der Kontobuchung verknüpft.'); return;
   }
   if (id === 'contract-create') {
@@ -1647,14 +1672,12 @@ async function handleForm(form) {
     await financeApi.createGoalSource(payload); await refresh('Finanzierungsquelle hinzugefügt.'); return;
   }
   if (id === 'receivable-create') {
-    const amount=numberValue(data,'amount',-1);
-    if(!(amount>0)) throw new Error('Bitte einen gültigen Forderungsbetrag eingeben.');
     const sourceAccountId=nullValue(data,'sourceAccountId');
-    await financeApi.createReceivable({
-      householdId:h, debtor:formValue(data,'debtor'), reason:formValue(data,'reason'),
-      originalAmount:amount, currency:formValue(data,'currency')||currency,
+    await createReceivableMovement({
+      api:financeApi, householdId:h, debtor:formValue(data,'debtor'), reason:formValue(data,'reason'),
+      amount:numberValue(data,'amount',-1), currency:formValue(data,'currency')||currency,
       lentAt:formValue(data,'lentAt')||dateInputValue(), dueDate:nullValue(data,'dueDate'),
-      notes:nullValue(data,'notes'), sourceAccountId, createTransaction:Boolean(sourceAccountId),
+      notes:nullValue(data,'notes'), sourceAccountId,
     });
     await refresh(sourceAccountId?'Forderung und Auszahlung gespeichert.':'Forderung gespeichert.');
     return;
@@ -1663,13 +1686,11 @@ async function handleForm(form) {
     const receivableId=formValue(data,'receivableId');
     const receivable=runtime.receivables.find((row)=>row.id===receivableId);
     if(!receivable) throw new Error('Forderung wurde nicht gefunden.');
-    const amount=numberValue(data,'amount',-1);
-    if(!(amount>0)) throw new Error('Bitte einen gültigen Rückzahlungsbetrag eingeben.');
-    if(amount>Number(receivable.outstanding_amount)+0.005) throw new Error('Die Rückzahlung ist höher als der offene Betrag.');
     const paymentAccountId=nullValue(data,'paymentAccountId');
-    await financeApi.recordReceivablePayment({
-      householdId:h, receivableId, amount, paidAt:formValue(data,'paidAt')||dateInputValue(),
-      note:nullValue(data,'note'), paymentAccountId, createTransaction:Boolean(paymentAccountId),
+    await recordReceivableMovement({
+      api:financeApi, householdId:h, receivable, amount:numberValue(data,'amount',-1),
+      paidAt:formValue(data,'paidAt')||dateInputValue(), note:nullValue(data,'note'),
+      paymentAccountId, createTransaction:Boolean(paymentAccountId),
     });
     uiState.receivableExpandedId=receivableId;
     await refresh(paymentAccountId?'Rückzahlung und Kontoeingang gespeichert.':'Rückzahlung im Forderungsverlauf gespeichert.');
@@ -1705,29 +1726,16 @@ async function handleForm(form) {
     const debtId=formValue(data,'debtId');
     const debt=runtime.debts.find((row)=>row.id===debtId);
     if(!debt) throw new Error('Schuld wurde nicht gefunden.');
-    const amount=numberValue(data,'amount',-1);
-    const principal=numberValue(data,'principalAmount',-1);
-    const interest=numberValue(data,'interestAmount',0);
-    const fee=numberValue(data,'feeAmount',0);
-    if(!(amount>0)||principal<0||interest<0||fee<0) throw new Error('Bitte gültige Zahlungsbeträge eingeben.');
-    if(Math.abs(amount-(principal+interest+fee))>0.005) throw new Error('Zahlung gesamt muss Tilgung + Zins + Gebühren entsprechen.');
-    const source=formValue(data,'source');
-    const payload={
-      household_id:h, debt_id:debt.id, paid_at:formValue(data,'paidAt'), amount,
-      principal_amount:principal, interest_amount:interest, fee_amount:fee, currency:debt.currency,
-      source, payment_account_id:null, transaction_id:null, note:nullValue(data,'note'),
-      advance_next_date:data.get('advanceNextDate')==='on',
-    };
-    if(source==='created_transaction') {
-      payload.payment_account_id=formValue(data,'paymentAccountId');
-      if(!payload.payment_account_id) throw new Error('Bitte ein Zahlungskonto auswählen.');
-    } else if(source==='linked_transaction') {
-      payload.transaction_id=formValue(data,'transactionId');
-      if(!payload.transaction_id) throw new Error('Bitte eine bestehende Buchung auswählen.');
-    } else if(source!=='history_only') throw new Error('Unbekannte Zahlungsart.');
-    await financeApi.createDebtPayment(payload);
+    await recordDebtMovement({
+      api:financeApi, householdId:h, debt,
+      amount:numberValue(data,'amount',-1), principalAmount:numberValue(data,'principalAmount',-1),
+      interestAmount:numberValue(data,'interestAmount',0), feeAmount:numberValue(data,'feeAmount',0),
+      paidAt:formValue(data,'paidAt'), source:formValue(data,'source'),
+      paymentAccountId:nullValue(data,'paymentAccountId'), transactionId:nullValue(data,'transactionId'),
+      note:nullValue(data,'note'), advanceNextDate:data.get('advanceNextDate')==='on',
+    });
     uiState.debtExpandedId=debt.id;
-    await refresh('Zahlung verbucht und Restschuld aktualisiert.');
+    await refresh('Zahlung verbucht: Konto, Restschuld und Planung sind aktualisiert.');
     return;
   }
   if (id === 'legal-create') {
