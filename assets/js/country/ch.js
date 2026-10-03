@@ -14,7 +14,7 @@ export const CH = Object.freeze({
   starterCategories: [['Lohn','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Sparen','expense'],['Sonstiges','expense']],
   starterSubcategories: [
     ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],
-    ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
+    ['Supermarkt','Lebensmittel','expense'],
     ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
     ['Unterhaltung','Freizeit','expense'],['Ferien','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
@@ -22,7 +22,6 @@ export const CH = Object.freeze({
   ],
   starterMerchantCategories: [
     ['Migros','Supermarkt'],['Coop','Supermarkt'],['Denner','Supermarkt'],['Aldi Suisse','Supermarkt'],['Lidl','Supermarkt'],
-    ["McDonald's",'Restaurant & Take-away'],['Migros Restaurant','Restaurant & Take-away'],['Coop Restaurant','Restaurant & Take-away'],
     ['SBB','ÖV'],['VBSG / Verkehrsbetriebe','ÖV'],['ParkingPay','Parken'],
     ['Netflix','Streaming'],['Sunrise / Yallo','Telefon & Internet'],
   ],
