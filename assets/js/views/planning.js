@@ -83,7 +83,7 @@ export function renderPlanning({
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">
-        <div class="card-heading"><div><h3 class="card-title">Budget dieses Monats</h3><p class="card-subtitle">${budget.count?`${budget.count} Budgetposition${budget.count===1?'':'en'}`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">Bearbeiten</a></div>
+        <div class="card-heading"><div><h3 class="card-title">Budget dieses Finanzmonats</h3><p class="card-subtitle">${budget.count?`${budget.count} Budgetposition${budget.count===1?'':'en'}`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">Bearbeiten</a></div>
         <div class="budget-ring-wrap">
           <div class="budget-ring budget-ring--large" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>verbraucht</span></div></div>
           <div class="budget-ring-copy">
