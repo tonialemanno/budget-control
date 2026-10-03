@@ -1,5 +1,8 @@
 import { pathToFileURL } from 'node:url';
 import {renderOverview} from '../assets/js/views/overview.js';
+import {renderMoney} from '../assets/js/views/money.js';
+import {renderPlanning} from '../assets/js/views/planning.js';
+import {renderSetupGuide} from '../assets/js/views/setup.js';
 import {renderAccounts} from '../assets/js/views/accounts.js';
 import {renderTransactions} from '../assets/js/views/transactions.js';
 import {renderCategories} from '../assets/js/views/categories.js';
@@ -70,7 +73,7 @@ const moduleAccess={core:true,money:true,budget:true,bills:true,goals:true,tax:t
 const productModules=Object.keys(moduleAccess).map((key,i)=>({key,label:key,group_name:'Test',sort_order:i,is_core:['core','money'].includes(key),is_available:true}));
 const adminUsers=[{id:'u1',email:'test@example.com',display_name:'Test User',created_at:iso,last_sign_in_at:iso,modules:moduleAccess},{id:'u2',email:'view@example.com',display_name:'Viewer',created_at:iso,last_sign_in_at:null,modules:{core:true,money:true}}];
 export const base={household,profile,fxRates,accounts,categories,merchants,transactions,debtPayments,budgets,bills,contracts,recurringRules,goals,goalSources,debts,legalCases,legalEvents,assets,properties,vehicles,insurance,investments,investmentTransactions,pensions,documents,importBatches,categorizationRules,householdMembers,moduleAccess,productModules,adminUsers,canWrite:true,canAdminHousehold:true,householdRole:'owner',depth:'expert',taxYear:now.getFullYear(),transactionView:'details',transactionPeriod:'all',transactionQuery:'',transactionCategory:'all',transactionAccount:'all',transactionFrom:'',transactionTo:'',transactionPage:1,categorizationOpen:true,categorizationFilter:'action',categorizationPage:1,debtExpandedId:'d1',adminQuery:'',adminPage:1,adminExpandedUserId:'u1',hiddenModules:[],privacyEnabled:false};
-export const tests={overview:renderOverview,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,'fixed-costs':renderFixedCosts,merchants:renderMerchants,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,receivables:renderReceivables,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,admin:renderAdmin};
+export const tests={overview:renderOverview,money:renderMoney,planning:renderPlanning,setup:renderSetupGuide,accounts:renderAccounts,transactions:renderTransactions,categories:renderCategories,imports:renderImports,'import-history':renderImportHistory,recurring:renderRecurring,'fixed-costs':renderFixedCosts,merchants:renderMerchants,documents:renderDocuments,budget:renderBudget,bills:renderBills,goals:renderGoals,'tax-advisor':renderTaxAdvisor,debts:renderDebts,receivables:renderReceivables,legal:renderLegal,family:renderFamily,wealth:renderWealth,property:renderProperty,vehicles:renderVehicles,insurance:renderInsurance,investments:renderInvestments,pension:renderPension,intelligence:renderIntelligence,settings:renderSettings,admin:renderAdmin};
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   let fail=0;
   for (const [name,fn] of Object.entries(tests)) {
