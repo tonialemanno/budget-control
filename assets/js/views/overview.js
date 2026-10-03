@@ -97,6 +97,7 @@ export function renderOverview({
       ${metricCard('Einnahmen · Monat',money(snapshot.actualIncomeMonth,{currency,locale,decimals:0}),'gebuchte Einnahmen','positive')}
       ${metricCard('Ausgaben · Monat',money(snapshot.actualExpensesMonth,{currency,locale,decimals:0}),'echter Konsum')}
       ${metricCard('Sparquote',`${Math.round(snapshot.savingsRate)}%`,'aus gebuchten Bewegungen',snapshot.savingsRate>=0?'positive':'warning')}
+      ${metricCard('Noch geplant · Monat',money(snapshot.remainingPlannedExpensesMonth,{currency,locale,decimals:0}),'offene geplante Ausgaben')}
       ${metricCard('Runway',snapshot.runwayMonths>0?`${snapshot.runwayMonths.toFixed(1)} Monate`:'—','bei aktuellem Ausgabenniveau')}
     </div>
 
