@@ -646,10 +646,17 @@
   .budget-ring-wrap { gap:16px; }
   .budget-ring { width:104px; }
   .budget-ring--large { width:116px; }
-  .month-bars { height:160px; gap:6px; padding-inline:0; }
-  .month-bar-values { gap:3px; }
-  .month-bar { width:min(14px,38%); }
-  .overview-insights-grid { grid-template-columns:1fr; }
+  .dashboard-chart-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
+  .dashboard-donut-card,
+  .finance-chart-card { min-height:0; padding:16px; }
+  .donut-layout { grid-template-columns:128px minmax(0,1fr); gap:12px; min-height:190px; }
+  .donut-svg { width:128px; }
+  .donut-legend { gap:7px; }
+  .donut-legend-row { grid-template-columns:auto minmax(0,1fr) auto; gap:6px; }
+  .donut-legend-row small { display:none; }
+  .cashflow-svg { height:210px; }
+  .cashflow-summary { grid-template-columns:1fr; }
+  .insight-list--accounts { grid-template-columns:1fr; gap:14px; }
 
   .wallet-card { padding:16px; border-radius:20px; }
   .wallet-card-balance { font-size:25px; margin-top:20px; }
@@ -708,11 +715,16 @@
   .budget-ring { width:92px; }
   .overview-metric-strip,
   .profile-stat-grid { grid-template-columns:1fr 1fr; }
+  .donut-layout { grid-template-columns:112px minmax(0,1fr); }
+  .donut-svg { width:112px; }
   .wallet-card-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 360px) {
   .quick-add-grid { grid-template-columns:1fr; max-height:55vh; overflow-y:auto; }
+  .donut-layout { grid-template-columns:1fr; }
+  .donut-svg { width:150px; }
+  .donut-legend-row small { display:block; }
   .finance-balance-actions,
   .wallet-summary-actions { grid-template-columns:1fr; }
   .finance-balance-actions .action-button:first-child,
