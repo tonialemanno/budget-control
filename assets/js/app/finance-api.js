@@ -163,8 +163,11 @@ export const financeApi = Object.freeze({
   createReceivable({ householdId, debtor, reason, originalAmount, currency, lentAt, dueDate=null, notes=null, sourceAccountId=null, createTransaction=false }) {
     return backend.rpc('create_receivable_v2', { p_household_id:householdId, p_debtor:debtor, p_reason:reason, p_original_amount:originalAmount, p_currency:currency, p_lent_at:lentAt, p_due_date:dueDate, p_notes:notes, p_source_account_id:sourceAccountId, p_create_transaction:createTransaction });
   },
-  recordReceivablePayment({ householdId, receivableId, amount, paidAt, note=null, paymentAccountId=null, createTransaction=false }) {
-    return backend.rpc('record_receivable_payment_v2', { p_household_id:householdId, p_receivable_id:receivableId, p_amount:amount, p_paid_at:paidAt, p_note:note, p_payment_account_id:paymentAccountId, p_create_transaction:createTransaction });
+  recordReceivablePayment({ householdId, receivableId, amount, paidAt, note=null, source='created_transaction', paymentAccountId=null, transactionId=null }) {
+    return backend.rpc('record_receivable_payment_v3', {
+      p_household_id:householdId, p_receivable_id:receivableId, p_amount:amount, p_paid_at:paidAt,
+      p_note:note, p_source:source, p_payment_account_id:paymentAccountId, p_transaction_id:transactionId
+    });
   },
   reverseReceivablePayment: (paymentId) => backend.rpc('reverse_receivable_payment_v2', { p_payment_id:paymentId }),
   deleteReceivable: ({ householdId, receivableId }) => backend.rpc('delete_receivable_v2', { p_household_id:householdId, p_receivable_id:receivableId }),
@@ -201,6 +204,7 @@ export const financeApi = Object.freeze({
     p_payment_type:paymentType, p_amount:amount, p_paid_at:paidAt, p_reference:reference,
     p_notes:notes, p_source:source, p_account_id:accountId, p_transaction_id:transactionId,
   }),
+  reverseTaxPayment: ({ householdId, paymentId }) => backend.rpc('reverse_tax_payment_v2', { p_household_id:householdId, p_payment_id:paymentId }),
   deleteTaxPayment: (id) => remove('tax_payments', id),
   listDocuments(householdId) { return listByHousehold('documents', householdId, { order: 'created_at.desc', limit: 200 }); }, createDocument: (payload) => insert('documents', payload), updateDocument: (id, patch) => update('documents', id, patch),
   deleteDocument: async (document) => { if (document?.storage_path) await backend.storageDelete('finance-documents', [document.storage_path]); return remove('documents', document.id); },
