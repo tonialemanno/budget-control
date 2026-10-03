@@ -3,6 +3,7 @@ import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue, financeEventTimestamp } from './format.js';
 import { getLocale, t } from './i18n.js';
+import { createEconomicTransaction, merchantDefaultCategory } from './transaction-engine.js';
 
 const state = {
   file: null,
@@ -319,18 +320,19 @@ async function saveReceipt(form) {
       const safe = duplicates.filter((entry) => entry.highConfidence);
       if (safe.length === 1 && !confirm(t('Es gibt bereits eine sehr ähnliche Bankbuchung. Trotzdem eine neue Ausgabe anlegen?'))) return;
 
-      transaction = await financeApi.createTransaction({
-        household_id: context.household.id,
-        account_id: account.account_id,
-        category_id: categoryId,
-        merchant_id: merchant?.id || null,
-        occurred_at: financeEventTimestamp(receiptDate),
-        amount: -amount,
-        currency,
+      transaction = await createEconomicTransaction({
+        api: financeApi,
+        householdId: context.household.id,
+        account,
+        direction: 'expense',
+        amount,
+        categoryId,
+        merchantId: merchant?.id || null,
+        merchants: context.merchants.concat(merchant ? [merchant] : []),
+        occurredAt: financeEventTimestamp(receiptDate),
         description: merchantName,
         counterparty: merchantName,
         note,
-        status: 'booked',
         source: 'manual',
       });
       createdTransaction = transaction;
@@ -351,7 +353,8 @@ async function saveReceipt(form) {
 
     if (linked) {
       const patch = {};
-      if (categoryId && !transaction.category_id) patch.category_id = categoryId;
+      const resolvedCategoryId=merchantDefaultCategory(merchant?.id||null,categoryId,context.merchants.concat(merchant ? [merchant] : []));
+      if (resolvedCategoryId && !transaction.category_id) patch.category_id = resolvedCategoryId;
       if (merchant?.id && !transaction.merchant_id) patch.merchant_id = merchant.id;
       if (!transaction.counterparty) patch.counterparty = merchantName;
       if (Object.keys(patch).length) {
