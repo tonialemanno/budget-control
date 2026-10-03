@@ -1,9 +1,10 @@
 import { metricCard, pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { escapeHtml, money, shortDate } from '../app/format.js';
+import { escapeHtml, money, monthLabel, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { accountShare, budgetSummary, categorySpending, monthSeries } from '../app/finance-insights.js';
+import { accountShare, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries } from '../app/finance-insights.js';
+import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 
 function pct(value) {
@@ -33,9 +34,21 @@ export function renderOverview({
   const currency = snapshot.currency;
   const hasForeign = accounts.some((a)=>a.currency!==currency) || transactions.some((t)=>t.currency!==currency);
   const actualTransactions=transactions.filter((tx)=>tx.status==='booked' && new Date(tx.occurred_at)<=now);
-  const budget=budgetSummary({budgets,transactions,debtPayments,categories,baseCurrency:currency,fxRates,now});
-  const months=monthSeries({transactions,debtPayments,baseCurrency:currency,fxRates,now,months:6});
-  const categoriesSpent=categorySpending({transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5});
+  const cycleTotals=currentFinanceCycleTotals({
+    transactions,debtPayments,recurringRules,baseCurrency:currency,fxRates,now,fallbackDay:25,
+  });
+  const financeCycle=cycleTotals.cycle;
+  const cycleLabel=financeCycleLabel(financeCycle,locale);
+  const budget=budgetSummary({
+    budgets,transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,now,fallbackDay:25,
+  });
+  const months=financeCycleSeries({
+    transactions,debtPayments,recurringRules,baseCurrency:currency,fxRates,now,cycles:6,fallbackDay:25,
+  });
+  const categoriesSpent=categorySpending({
+    transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5,
+    rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
+  });
   const accountRows=accountShare(accounts,currency,fxRates).slice(0,4);
   const categoryTotal=categoriesSpent[0]?.total||0;
 
@@ -53,7 +66,7 @@ export function renderOverview({
     ${pageHeader({
       kicker:shortDate(now,locale),
       title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),
-      subtitle:'Deine Finanzen auf einen Blick. Alle Werte stammen aus denselben Konten und Transaktionen.'
+      subtitle:`Deine Finanzen auf einen Blick. Aktueller Finanzmonat: ${cycleLabel}. Der Zyklus folgt deiner letzten relevanten Einnahme, sonst dem 25.`
     })}
 
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>Mehrere Währungen aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben auf den Konten erhalten.</span></div>`:''}
@@ -76,7 +89,7 @@ export function renderOverview({
       </article>
 
       <article class="card card-padding budget-ring-card">
-        <div class="card-heading"><div><h3 class="card-title">Monatsbudget</h3><p class="card-subtitle">${budget.count?'Aus deinen Budgetregeln':'Noch kein Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Öffnen</a></div>
+        <div class="card-heading"><div><h3 class="card-title">Budget · Finanzmonat</h3><p class="card-subtitle">${budget.count ? (budget.inherited ? `Vorlage aus ${monthLabel(`${budget.sourceMonth}-01`,locale)} · ${cycleLabel}` : cycleLabel) : 'Noch kein Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Öffnen</a></div>
         <div class="budget-ring-wrap">
           <div class="budget-ring" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>genutzt</span></div></div>
           <div class="budget-ring-copy">
@@ -92,7 +105,7 @@ export function renderOverview({
     <div class="dashboard-chart-grid">
       <article class="card card-padding dashboard-donut-card">
         <div class="card-heading">
-          <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Dieser Monat · echte Konsumausgaben</p></div>
+          <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Finanzmonat ${cycleLabel} · echte Konsumausgaben</p></div>
           <a class="card-link" href="#/transactions">Details</a>
         </div>
         ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
@@ -100,7 +113,7 @@ export function renderOverview({
 
       <article class="card card-padding finance-chart-card">
         <div class="card-heading">
-          <div><h3 class="card-title">Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Monate</p></div>
+          <div><h3 class="card-title">Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Finanzmonate</p></div>
           <a class="card-link" href="#/transactions">Buchungen</a>
         </div>
         ${renderCashflowChart({series:months,currency,locale,privacy:privacyEnabled})}
@@ -108,9 +121,9 @@ export function renderOverview({
     </div>
 
     <div class="overview-metric-strip">
-      ${metricCard('Einnahmen · Monat',money(snapshot.actualIncomeMonth,{currency,locale,decimals:0}),'gebuchte Einnahmen','positive')}
-      ${metricCard('Ausgaben · Monat',money(snapshot.actualExpensesMonth,{currency,locale,decimals:0}),'echter Konsum')}
-      ${metricCard('Sparquote',`${Math.round(snapshot.savingsRate)}%`,'aus gebuchten Bewegungen',snapshot.savingsRate>=0?'positive':'warning')}
+      ${metricCard('Einnahmen · Finanzmonat',money(cycleTotals.income,{currency,locale,decimals:0}),cycleLabel,'positive')}
+      ${metricCard('Ausgaben · Finanzmonat',money(cycleTotals.expenses,{currency,locale,decimals:0}),cycleLabel)}
+      ${metricCard('Sparquote',`${Math.round(cycleTotals.savingsRate)}%`,'im aktuellen Finanzmonat',cycleTotals.savingsRate>=0?'positive':'warning')}
       ${metricCard('Noch geplant · Monat',money(snapshot.remainingPlannedExpensesMonth,{currency,locale,decimals:0}),'offene geplante Ausgaben')}
       ${metricCard('Runway',snapshot.runwayMonths>0?`${snapshot.runwayMonths.toFixed(1)} Monate`:'—','bei aktuellem Ausgabenniveau')}
     </div>

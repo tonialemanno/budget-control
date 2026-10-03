@@ -85,13 +85,13 @@ export function renderCashflowChart({
       <span><i class="legend-dot legend-dot--income"></i>${escapeHtml(t('Einnahmen',locale))}</span>
       <span><i class="legend-dot legend-dot--expense"></i>${escapeHtml(t('Ausgaben',locale))}</span>
     </div>
-    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Einnahmen und Ausgaben der letzten sechs Monate',locale))}" preserveAspectRatio="xMidYMid meet">
+    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Einnahmen und Ausgaben der letzten sechs Finanzmonate',locale))}" preserveAspectRatio="xMidYMid meet">
       ${grid}
       ${groups}
     </svg>
     <div class="cashflow-summary">
-      <span>${escapeHtml(t('Aktueller Monat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
-      <span>${escapeHtml(t('Aktueller Monat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Finanzmonat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Finanzmonat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
     </div>
   </div>`;
 }
@@ -105,7 +105,7 @@ export function renderExpenseDonut({
 }={}) {
   const value=Math.max(0,finite(total));
   if (!(value>0) || !rows.length) {
-    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Monat.',locale))}</p></div>`;
+    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Finanzmonat.',locale))}</p></div>`;
   }
 
   const radius=52;
@@ -135,7 +135,7 @@ export function renderExpenseDonut({
 
   return `<div class="donut-layout">
     <div class="donut-visual">
-      <svg class="donut-svg" viewBox="0 0 140 140" role="img" aria-label="${escapeHtml(t('Ausgaben nach Kategorien im aktuellen Monat',locale))}">
+      <svg class="donut-svg" viewBox="0 0 140 140" role="img" aria-label="${escapeHtml(t('Ausgaben nach Kategorien im aktuellen Finanzmonat',locale))}">
         <circle class="donut-track" cx="70" cy="70" r="${radius}"></circle>
         <g transform="rotate(-90 70 70)">${segments}</g>
         <text class="donut-center-label" x="70" y="65" text-anchor="middle">${escapeHtml(t('Ausgaben',locale))}</text>
