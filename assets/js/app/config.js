@@ -72,6 +72,7 @@ export const PAGE_META = Object.freeze({
   money: { title: 'Geld', eyebrow: 'Finance' },
   planning: { title: 'Planung', eyebrow: 'Finance' },
   setup: { title: 'Einrichtung', eyebrow: 'Finance' },
+  profile: { title: 'Mein Profil', eyebrow: 'Finance' },
   accounts: { title: 'Konten', eyebrow: 'Geld' },
   transactions: { title: 'Transaktionen', eyebrow: 'Geld' },
   categories: { title: 'Kategorien & Regeln', eyebrow: 'Einstellungen' },
