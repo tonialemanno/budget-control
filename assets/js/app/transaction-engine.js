@@ -200,6 +200,7 @@ export async function recordTaxMovement({
   const treatment = taxPaymentTreatment(paymentType);
   let transactionId = null;
   let createdTransactionId = null;
+  let linkedTransactionBefore = null;
 
   if (source === 'created_transaction') {
     required(account?.account_id, 'Bitte ein Zahlungskonto auswählen.');
@@ -233,6 +234,13 @@ export async function recordTaxMovement({
     if (Math.sign(Number(transaction.amount)) !== expectedSign) throw new Error('Die Richtung der Buchung passt nicht zur Steuerzahlung.');
     if (Math.abs(Math.abs(Number(transaction.amount)) - value) > 0.005) throw new Error('Betrag der Buchung und Steuerzahlung müssen übereinstimmen.');
     transactionId = transaction.id;
+    linkedTransactionBefore = {
+      tax_relevant:Boolean(transaction.tax_relevant),
+      tax_year:transaction.tax_year??null,
+      tax_treatment:transaction.tax_treatment??null,
+      tax_section_key:transaction.tax_section_key??null,
+      tax_category:transaction.tax_category??null,
+    };
     await api.updateTransaction(transaction.id, {
       tax_relevant: true,
       tax_year: Number(taxCase.tax_year),
@@ -260,6 +268,9 @@ export async function recordTaxMovement({
   } catch (error) {
     if (createdTransactionId) {
       try { await api.deleteTransaction(createdTransactionId); } catch {}
+    }
+    if (linkedTransactionBefore && transactionId) {
+      try { await api.updateTransaction(transactionId, linkedTransactionBefore); } catch {}
     }
     throw error;
   }
