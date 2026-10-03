@@ -481,7 +481,7 @@
 .finance-balance-foot strong { font-size: 13px; opacity: 1; }
 
 .overview-metric-strip,
-.profile-stat-grid { grid-template-columns: repeat(4,minmax(0,1fr)); margin-bottom: 4px; }
+.profile-stat-grid { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:12px; margin-bottom: 4px; }
 
 .budget-ring-card { min-height: 250px; }
 .budget-ring-wrap { display: flex; align-items: center; gap: 22px; margin: 18px 0; }
