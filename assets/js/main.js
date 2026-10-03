@@ -12,6 +12,9 @@ import { buildCategorizationGroups } from './app/categorization.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 
 import { renderOverview } from './views/overview.js';
+import { renderMoney } from './views/money.js';
+import { renderPlanning } from './views/planning.js';
+import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
 import { renderCategories } from './views/categories.js';
@@ -39,6 +42,9 @@ import { renderAdmin } from './views/admin.js';
 
 const views = {
   overview: renderOverview,
+  money: renderMoney,
+  planning: renderPlanning,
+  setup: renderSetupGuide,
   accounts: renderAccounts,
   transactions: renderTransactions,
   categories: renderCategories,
@@ -119,6 +125,8 @@ const themeButton = document.querySelector('#themeButton');
 const privacyButton = document.querySelector('#privacyButton');
 const mobileMenuButton = document.querySelector('#mobileMenuButton');
 const mobileScrim = document.querySelector('#mobileScrim');
+const quickAddSheet = document.querySelector('#quickAddSheet');
+const quickAddScrim = document.querySelector('#quickAddScrim');
 const mobileLogoutButton = document.querySelector('#mobileLogoutButton');
 const profileButton = document.querySelector('#profileButton');
 const profileAvatar = document.querySelector('#profileAvatar');
@@ -187,23 +195,30 @@ function enabledNavItems() {
 }
 
 function renderNavigation() {
-  const grouped = enabledNavItems().reduce((acc, item) => {
-    (acc[item.group] ||= []).push(item);
-    return acc;
-  }, {});
+  const primary = enabledNavItems().filter((item) => item.primary);
+  desktopNav.innerHTML = `
+    <div class="nav-group-label">Finance</div>
+    ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`).join('')}
+  `;
 
-  desktopNav.innerHTML = Object.entries(grouped).map(([group, links]) => `
-    <div class="nav-group-label">${escapeHtml(group)}</div>
-    ${links.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.label)}</span></a>`).join('')}
-  `).join('');
+  mobileNav.innerHTML = `
+    <a href="#/overview" data-route="overview" data-section="overview">${icon('home')}<span>Übersicht</span></a>
+    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>Geld</span></a>
+    <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="Hinzufügen" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
+    <a href="#/planning" data-route="planning" data-section="planning">${icon('target')}<span>Planung</span></a>
+    <a href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>Mehr</span></a>
+  `;
+}
 
-  mobileNav.innerHTML = enabledNavItems().filter((item) => item.mobile).slice(0, 5)
-    .map((item) => `<a href="#/${item.route}" data-route="${item.route}">${icon(item.icon)}<span>${escapeHtml(item.mobileLabel || item.label)}</span></a>`).join('');
+function routeSection(route) {
+  if (['settings','categories','setup','admin'].includes(route)) return 'settings';
+  if (route === 'import-history') return 'money';
+  return NAV_ITEMS.find((item) => item.route === route)?.section || route;
 }
 
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
-  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings']);
+  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('import-history'); }
   return allowed.has(requested) ? requested : 'overview';
 }
@@ -223,6 +238,78 @@ function closeMobileNav() {
   document.body.classList.remove('mobile-nav-open');
   mobileMenuButton?.setAttribute('aria-expanded', 'false');
   if (mobileScrim) mobileScrim.hidden = true;
+}
+
+function quickAddSheetHtml() {
+  const transferOption = runtime.accounts.length > 1
+    ? `<a class="quick-add-option" href="#/transactions?create=transfer"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
+    : `<button class="quick-add-option" type="button" disabled><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Mindestens 2 Konten nötig</small></button>`;
+  const debtOptions = moduleEnabled('debts') ? `
+    <a class="quick-add-option" href="#/debts?create=debt"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
+    <a class="quick-add-option" href="#/receivables?create=receivable"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
+  ` : '';
+  return `
+    <div class="quick-add-handle" aria-hidden="true"></div>
+    <div class="quick-add-head"><div><strong>Hinzufügen</strong><span>Was möchtest du erfassen?</span></div><button class="icon-button" type="button" data-quick-add-close aria-label="Schliessen">×</button></div>
+    <div class="quick-add-grid">
+      <a class="quick-add-option" href="#/transactions?create=expense"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
+      <a class="quick-add-option" href="#/transactions?create=income"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
+      <a class="quick-add-option" href="#/transactions?create=receipt"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
+      ${transferOption}
+      ${debtOptions}
+    </div>
+  `;
+}
+
+function openQuickAdd() {
+  if (!runtime.household || !canWriteHousehold()) {
+    showToast('Du hast für diesen Haushalt nur Leserechte.', 'error');
+    return;
+  }
+  if (!quickAddSheet || !quickAddScrim) return;
+  quickAddSheet.innerHTML = quickAddSheetHtml();
+  quickAddSheet.hidden = false;
+  quickAddScrim.hidden = false;
+  document.body.classList.add('quick-add-open');
+}
+
+function closeQuickAdd() {
+  if (quickAddSheet) quickAddSheet.hidden = true;
+  if (quickAddScrim) quickAddScrim.hidden = true;
+  document.body.classList.remove('quick-add-open');
+}
+
+function applyRouteIntent(route) {
+  if (!canWriteHousehold()) return;
+  const query = (location.hash.split('?')[1] || '').trim();
+  if (!query) return;
+  const params = new URLSearchParams(query);
+  const create = params.get('create');
+  if (!create) return;
+
+  history.replaceState(null, '', `#/${route}`);
+
+  if (route === 'transactions' && create === 'receipt') {
+    requestAnimationFrame(() => pageContent.querySelector('[data-action="receipt-camera"]')?.click());
+    return;
+  }
+
+  const formId = ({
+    accounts: { account: 'account-create' },
+    transactions: { expense: 'transaction-create', income: 'transaction-create', transaction: 'transaction-create', transfer: 'transfer-create' },
+    debts: { debt: 'debt-create' },
+    receivables: { receivable: 'receivable-create' },
+  })[route]?.[create];
+
+  if (!formId) return;
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.removeAttribute('hidden');
+  if (formId === 'transaction-create' && ['expense','income'].includes(create)) {
+    const direction = form.querySelector('[name="direction"]');
+    if (direction) direction.value = create;
+  }
+  requestAnimationFrame(() => form.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 function syncMobileScrollState() {
@@ -381,7 +468,7 @@ function showAuth() {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.5</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -515,11 +602,15 @@ function render() {
     taxYear: uiState.taxYear,
   });
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
+  const section = routeSection(route);
+  mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   closeMobileNav();
+  closeQuickAdd();
   closeProfileMenu();
   applyPrivacyUI();
   window.scrollTo({ top: 0, behavior: 'auto' });
+  applyRouteIntent(route);
 }
 
 function applyPermissionUI(route) {
@@ -552,16 +643,58 @@ function nullValue(data, key) { const v = formValue(data,key); return v || null;
 
 async function seedStarterCategoriesForHousehold(householdId, countryCode, existingCategories = []) {
   const cfg = countryConfig(countryCode || 'CH');
-  const existing = new Set(existingCategories.map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
-  const missing = cfg.starterCategories.filter(([name,kind])=>!existing.has(`${kind}:${name.toLowerCase()}`));
-  if (!missing.length) return 0;
-  await financeApi.createCategories(missing.map(([name,kind],index)=>({
-    household_id: householdId,
-    name,
-    kind,
-    sort_order: (index + 1) * 10,
-  })));
-  return missing.length;
+  let created = 0;
+
+  const existingParents = new Set(existingCategories.filter((category)=>!category.parent_id).map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
+  const missingParents = (cfg.starterCategories || []).filter(([name,kind])=>!existingParents.has(`${kind}:${name.toLowerCase()}`));
+  if (missingParents.length) {
+    await financeApi.createCategories(missingParents.map(([name,kind],index)=>({
+      household_id: householdId,
+      name,
+      kind,
+      sort_order: (index + 1) * 10,
+    })));
+    created += missingParents.length;
+  }
+
+  let categories = await financeApi.listCategories(householdId);
+  const childKeys = new Set(categories.filter((category)=>category.parent_id).map((category)=>`${category.parent_id}:${String(category.name||'').toLowerCase()}`));
+  const childRows = [];
+  for (const [name,parentName,kind] of (cfg.starterSubcategories || [])) {
+    const parent = categories.find((category)=>!category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
+    if (!parent) continue;
+    const key = `${parent.id}:${name.toLowerCase()}`;
+    if (childKeys.has(key)) continue;
+    childRows.push({ household_id:householdId, parent_id:parent.id, name, kind, sort_order:(childRows.length+1)*10 });
+    childKeys.add(key);
+  }
+  if (childRows.length) {
+    await financeApi.createCategories(childRows);
+    created += childRows.length;
+    categories = await financeApi.listCategories(householdId);
+  }
+
+  const existingRules = await financeApi.listCategorizationRules(householdId);
+  const merchantValues = new Set(existingRules.map((rule)=>String(rule.match_value||'').trim().toLowerCase()).filter(Boolean));
+  for (const [merchant,targetCategoryName] of (cfg.starterMerchantRules || [])) {
+    const key = merchant.trim().toLowerCase();
+    if (!key || merchantValues.has(key)) continue;
+    const target = categories.find((category)=>category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
+    if (!target) continue;
+    await financeApi.createCategorizationRule({
+      household_id: householdId,
+      category_id: target.id,
+      field_name: 'description',
+      match_type: 'contains',
+      match_value: merchant,
+      priority: 100,
+      active: true,
+    });
+    merchantValues.add(key);
+    created += 1;
+  }
+
+  return created;
 }
 
 function currentCategorizationGroups() {
@@ -740,7 +873,7 @@ async function handleForm(form) {
     const createdHousehold = await financeApi.createHousehold({ name: formValue(data,'householdName'), countryCode, baseCurrency, ownerUserId: runtime.user.id });
     await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
     await refresh('Finance Core wurde eingerichtet.');
-    location.hash = '#/overview';
+    location.hash = '#/setup';
     return;
   }
 
@@ -1608,6 +1741,13 @@ themeButton?.addEventListener('click',cycleTheme);
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
+mobileNav?.addEventListener('click',(event)=>{ if (event.target.closest('#mobileQuickAddButton')) { event.preventDefault(); openQuickAdd(); } });
+quickAddScrim?.addEventListener('click',closeQuickAdd);
+quickAddSheet?.addEventListener('click',(event)=>{
+  if (event.target.closest('[data-quick-add-close]')) { closeQuickAdd(); return; }
+  if (event.target.closest('a.quick-add-option')) closeQuickAdd();
+});
+document.addEventListener('keydown',(event)=>{ if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
 mobileLogoutButton?.addEventListener('click',async()=>{ try { await logoutCurrentUser(); } catch (error) { showToast(humanError(error),'error'); } });
 profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); toggleProfileMenu(); });
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
