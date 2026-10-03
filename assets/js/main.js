@@ -11,6 +11,11 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
+import {
+  createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
+  createReceivableMovement, recordReceivableMovement, recordBillMovement, recordTaxMovement,
+  merchantDefaultCategory,
+} from './app/transaction-engine.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -214,9 +219,18 @@ function enabledNavItems() {
 
 function renderNavigation() {
   const primary = enabledNavItems().filter((item) => item.primary);
+  const management = [
+    `<a class="nav-item" href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Einstellungen'))}</span></a>`,
+    runtime.adminRole
+      ? `<a class="nav-item" href="#/admin" data-route="admin" data-section="settings">${icon('shield')}<span>${escapeHtml(t('Administration'))}</span></a>`
+      : '',
+  ].filter(Boolean).join('');
+
   desktopNav.innerHTML = `
     <div class="nav-group-label">${escapeHtml(t('Finance'))}</div>
     ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
+    <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Verwaltung'))}</div>
+    ${management}
   `;
 
   mobileNav.innerHTML = `
@@ -238,6 +252,11 @@ function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
+  const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
+  if (onboardingPending) {
+    const setupRoutes = new Set(['setup','accounts','categories','merchants','settings']);
+    return setupRoutes.has(requested) ? requested : 'setup';
+  }
   return allowed.has(requested) ? requested : 'overview';
 }
 
@@ -304,7 +323,15 @@ function applyRouteIntent(route) {
   if (!query) return;
   const params = new URLSearchParams(query);
   const create = params.get('create');
-  if (!create) return;
+  const accountId = params.get('account');
+  if (route === 'transactions' && accountId && runtime.accounts.some((row)=>row.account_id===accountId)) {
+    uiState.transactionAccount = accountId;
+    uiState.transactionPage = 1;
+  }
+  if (!create) {
+    if (accountId) history.replaceState(null, '', `#/${route}`);
+    return;
+  }
 
   history.replaceState(null, '', `#/${route}`);
 
@@ -327,6 +354,8 @@ function applyRouteIntent(route) {
   if (formId === 'transaction-create' && ['expense','income'].includes(create)) {
     const direction = form.querySelector('[name="direction"]');
     if (direction) direction.value = create;
+    const account = form.querySelector('[name="accountId"]');
+    if (account && accountId) account.value = accountId;
   }
   requestAnimationFrame(() => form.scrollIntoView({ behavior:'smooth', block:'start' }));
 }
