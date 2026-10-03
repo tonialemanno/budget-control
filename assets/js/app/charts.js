@@ -105,7 +105,7 @@ export function renderExpenseDonut({
 }={}) {
   const value=Math.max(0,finite(total));
   if (!(value>0) || !rows.length) {
-    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Monat.',locale))}</p></div>`;
+    return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Finanzmonat.',locale))}</p></div>`;
   }
 
   const radius=52;
