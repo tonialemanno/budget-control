@@ -4,14 +4,10 @@ import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { accountShare, budgetSummary, categorySpending, monthSeries } from '../app/finance-insights.js';
+import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 
 function pct(value) {
   return Math.max(0, Math.min(100, Number(value)||0));
-}
-
-function monthName(date, locale) {
-  try { return new Intl.DateTimeFormat(locale,{month:'short'}).format(date).replace('.',''); }
-  catch { return String(date.getMonth()+1); }
 }
 
 function progressRow(label, value, percent, meta='') {
@@ -41,7 +37,7 @@ export function renderOverview({
   const months=monthSeries({transactions,debtPayments,baseCurrency:currency,fxRates,now,months:6});
   const categoriesSpent=categorySpending({transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5});
   const accountRows=accountShare(accounts,currency,fxRates).slice(0,4);
-  const maxMonth=Math.max(1,...months.flatMap((row)=>[row.income,row.expenses]));
+  const categoryTotal=categoriesSpent[0]?.total||0;
 
   if (!accounts.length) {
     return `
@@ -93,6 +89,24 @@ export function renderOverview({
       </article>
     </div>
 
+    <div class="dashboard-chart-grid">
+      <article class="card card-padding dashboard-donut-card">
+        <div class="card-heading">
+          <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Dieser Monat · echte Konsumausgaben</p></div>
+          <a class="card-link" href="#/transactions">Details</a>
+        </div>
+        ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale})}
+      </article>
+
+      <article class="card card-padding finance-chart-card">
+        <div class="card-heading">
+          <div><h3 class="card-title">Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Monate</p></div>
+          <a class="card-link" href="#/transactions">Buchungen</a>
+        </div>
+        ${renderCashflowChart({series:months,currency,locale})}
+      </article>
+    </div>
+
     <div class="overview-metric-strip">
       ${metricCard('Einnahmen · Monat',money(snapshot.actualIncomeMonth,{currency,locale,decimals:0}),'gebuchte Einnahmen','positive')}
       ${metricCard('Ausgaben · Monat',money(snapshot.actualExpensesMonth,{currency,locale,decimals:0}),'echter Konsum')}
@@ -101,36 +115,14 @@ export function renderOverview({
       ${metricCard('Runway',snapshot.runwayMonths>0?`${snapshot.runwayMonths.toFixed(1)} Monate`:'—','bei aktuellem Ausgabenniveau')}
     </div>
 
-    ${sectionHeading('Entwicklung','Einnahmen und Ausgaben der letzten sechs Monate')}
-    <article class="card card-padding finance-chart-card">
-      <div class="chart-legend"><span><i class="legend-dot legend-dot--income"></i>Einnahmen</span><span><i class="legend-dot legend-dot--expense"></i>Ausgaben</span></div>
-      <div class="month-bars">
-        ${months.map((row)=>`<div class="month-bar-group">
-          <div class="month-bar-values"><span title="${money(row.income,{currency,locale})}" style="--bar-height:${Math.max(2,row.income/maxMonth*100)}%" class="month-bar month-bar--income"></span><span title="${money(row.expenses,{currency,locale})}" style="--bar-height:${Math.max(2,row.expenses/maxMonth*100)}%" class="month-bar month-bar--expense"></span></div>
-          <small>${escapeHtml(monthName(row.date,locale))}</small>
-        </div>`).join('')}
+    <article class="card card-padding overview-account-card">
+      <div class="card-heading"><div><h3 class="card-title">Wo dein Geld liegt</h3><p class="card-subtitle">Anteil deiner liquiden Konten</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
+      <div class="insight-list insight-list--accounts">
+        ${accountRows.length
+          ? accountRows.map((row)=>progressRow(row.account.name,money(row.account.current_balance,{currency:row.account.currency,locale,decimals:0}),row.share,escapeHtml(row.account.currency))).join('')
+          : '<div class="table-empty">Noch keine liquiden Konten.</div>'}
       </div>
     </article>
-
-    <div class="grid-main-aside overview-insights-grid">
-      <article class="card card-padding">
-        <div class="card-heading"><div><h3 class="card-title">Wofür dein Geld geht</h3><p class="card-subtitle">Top-Kategorien im aktuellen Monat</p></div><a class="card-link" href="#/transactions">Details</a></div>
-        <div class="insight-list">
-          ${categoriesSpent.length
-            ? categoriesSpent.map((row)=>progressRow(row.label,money(row.value,{currency,locale,decimals:0}),row.share,`${Math.round(row.share)}% der Top-Kategorien`)).join('')
-            : '<div class="table-empty">Noch keine Ausgaben in diesem Monat.</div>'}
-        </div>
-      </article>
-
-      <article class="card card-padding">
-        <div class="card-heading"><div><h3 class="card-title">Wo dein Geld liegt</h3><p class="card-subtitle">Anteil deiner liquiden Konten</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
-        <div class="insight-list">
-          ${accountRows.length
-            ? accountRows.map((row)=>progressRow(row.account.name,money(row.account.current_balance,{currency:row.account.currency,locale,decimals:0}),row.share,escapeHtml(row.account.currency))).join('')
-            : '<div class="table-empty">Noch keine liquiden Konten.</div>'}
-        </div>
-      </article>
-    </div>
 
     ${sectionHeading('Letzte Bewegungen','Die letzten echten Transaktionen','<a class="card-link" href="#/transactions">Alle ansehen</a>')}
     <article class="card card-padding">
