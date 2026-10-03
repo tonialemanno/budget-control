@@ -592,92 +592,129 @@
 }
 
 
-/* UX foundation mobile navigation and hubs */
+/* Finance experience mobile layout */
 @media (max-width: 660px) {
   .hub-grid,
   .settings-nav-grid,
-  .category-tree-grid { grid-template-columns: 1fr; gap: 10px; }
+  .category-tree-grid,
+  .plan-feature-grid,
+  .wallet-card-grid { grid-template-columns:1fr; gap:10px; }
 
   .hub-link-card,
-  .settings-nav-card { min-height: 86px; padding: 14px; border-radius: 18px; }
-  .hub-link-icon { width: 42px; height: 42px; border-radius: 13px; }
-  .hub-link-copy strong { font-size: 14px; }
-  .hub-link-copy span { font-size: 11px; }
-  .hub-mini-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
-  .hub-mini-grid .metric-card { min-height: 94px; padding: 11px; }
-  .hub-mini-grid .metric-value { font-size: 18px; }
-  .hub-mini-grid .metric-note { font-size: 9px; }
+  .settings-nav-card,
+  .plan-feature-card { min-height:86px; padding:14px; border-radius:18px; }
+  .hub-link-icon,
+  .wallet-card-icon { width:42px; height:42px; border-radius:13px; }
+  .hub-link-copy strong,
+  .plan-feature-copy strong { font-size:14px; }
+  .hub-link-copy span,
+  .plan-feature-copy span { font-size:11px; }
+  .settings-section-label { margin:22px 2px 9px; }
+  .settings-nav-card .status-pill { display:none; }
+  .settings-inline-control { width:100%; flex-direction:column; align-items:stretch; }
+  .settings-inline-control .action-button { width:100%; }
 
-  .settings-section-label { margin: 22px 2px 9px; }
-  .settings-nav-card .status-pill { display: none; }
+  .setup-progress-card { padding:16px; }
+  .setup-progress-head h3 { font-size:18px; }
+  .setup-progress-head > strong { font-size:22px; }
+  .setup-step { grid-template-columns:auto minmax(0,1fr); gap:11px; padding:14px; border-radius:18px; }
+  .setup-step-action { grid-column:1 / -1; padding-left:53px; }
+  .setup-step-action .action-button { width:100%; }
+  .setup-finish { align-items:stretch; flex-direction:column; padding:16px; }
+  .setup-finish .action-button,
+  .setup-finish form { width:100%; }
+  .setup-finish form .action-button { width:100%; }
 
-  .setup-progress-card { padding: 16px; }
-  .setup-progress-head h3 { font-size: 18px; }
-  .setup-progress-head > strong { font-size: 22px; }
-  .setup-step {
-    grid-template-columns: auto minmax(0,1fr);
-    gap: 11px;
-    padding: 14px;
-    border-radius: 18px;
-  }
-  .setup-step-action {
-    grid-column: 1 / -1;
-    padding-left: 53px;
-  }
-  .setup-step-action .action-button { width: 100%; }
-  .setup-finish { align-items: stretch; flex-direction: column; padding: 16px; }
-  .setup-finish .action-button { width: 100%; }
+  .category-tree-head { padding:14px; grid-template-columns:auto minmax(0,1fr); }
+  .category-tree-head > .table-actions { grid-column:1 / -1; padding-left:54px; }
+  .category-child-row { padding:11px 14px 11px 67px; }
+  .category-empty-child { padding:11px 14px 13px 67px; }
 
-  .category-tree-head { padding: 14px; }
-  .category-child-row { padding: 11px 14px 11px 67px; }
-  .category-empty-child { padding: 11px 14px 13px 67px; }
-  .category-tree-head .table-action,
-  .category-child-row .table-action { min-height: 36px; padding: 7px 9px; }
+  .overview-hero-grid,
+  .planning-focus-grid { grid-template-columns:1fr; gap:10px; }
+  .finance-balance-card,
+  .wallet-summary-card { min-height:210px; padding:20px; }
+  .finance-balance-actions,
+  .wallet-summary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .finance-balance-actions .action-button:first-child,
+  .wallet-summary-actions .action-button:first-child { grid-column:1 / -1; }
+  .finance-balance-foot { grid-template-columns:1fr 1fr; }
+  .overview-metric-strip,
+  .profile-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .overview-metric-strip .metric-card,
+  .profile-stat { min-height:100px; padding:13px; }
+  .budget-ring-wrap { gap:16px; }
+  .budget-ring { width:104px; }
+  .budget-ring--large { width:116px; }
+  .month-bars { height:160px; gap:6px; padding-inline:0; }
+  .month-bar-values { gap:3px; }
+  .month-bar { width:min(14px,38%); }
+  .overview-insights-grid { grid-template-columns:1fr; }
+
+  .wallet-card { padding:16px; border-radius:20px; }
+  .wallet-card-balance { font-size:25px; margin-top:20px; }
+  .wallet-card-actions { grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; }
+  .wallet-card-actions a { font-size:8px; }
+  .planning-budget-card,
+  .planning-goals-card { min-height:0; }
+  .plan-feature-card { min-height:94px; }
+
+  .profile-hero-card { grid-template-columns:auto minmax(0,1fr); padding:18px; gap:14px; }
+  .profile-hero-avatar { width:58px; height:58px; border-radius:19px; font-size:23px; }
+  .profile-hero-copy h3 { font-size:18px; }
+  .profile-hero-actions { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .profile-hero-actions .action-button { width:100%; justify-content:center; }
+  .onboarding-empty { grid-template-columns:1fr; text-align:center; justify-items:center; padding:22px; }
+  .onboarding-empty .action-button { width:100%; }
 
   .mobile-tabbar .mobile-quick-add {
-    align-self: start;
-    justify-self: center;
-    width: 56px;
-    height: 56px;
-    margin-top: -16px;
-    display: grid;
-    place-items: center;
-    border: 5px solid var(--surface);
-    border-radius: 18px;
-    background: var(--accent);
-    color: #fff;
-    box-shadow: 0 7px 22px rgba(0,0,0,.16);
+    align-self:start;
+    justify-self:center;
+    width:56px;
+    height:56px;
+    margin-top:-16px;
+    display:grid;
+    place-items:center;
+    border:5px solid var(--surface);
+    border-radius:18px;
+    background:var(--accent);
+    color:#fff;
+    box-shadow:0 7px 22px rgba(0,0,0,.16);
   }
-  .mobile-tabbar .mobile-quick-add svg { width: 27px; height: 27px; stroke-width: 1.8; }
-  .mobile-tabbar .mobile-quick-add:active { transform: scale(.95); }
-  .mobile-tabbar .mobile-quick-add:disabled { opacity: .42; box-shadow: none; }
+  .mobile-tabbar .mobile-quick-add svg { width:27px; height:27px; stroke-width:1.8; }
+  .mobile-tabbar .mobile-quick-add:active { transform:scale(.95); }
+  .mobile-tabbar .mobile-quick-add:disabled { opacity:.42; box-shadow:none; }
 
   .quick-add-sheet {
-    right: 10px;
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    left: 10px;
-    width: auto;
-    padding: 10px 14px 16px;
-    transform: none;
-    border-radius: 25px;
+    right:10px;
+    bottom:calc(72px + env(safe-area-inset-bottom));
+    left:10px;
+    width:auto;
+    padding:10px 14px 16px;
+    transform:none;
+    border-radius:25px;
   }
-  .quick-add-handle {
-    width: 38px;
-    height: 5px;
-    display: block;
-    margin: 0 auto 10px;
-    border-radius: 999px;
-    background: var(--border);
-  }
-  .quick-add-head { margin-bottom: 11px; }
-  .quick-add-head strong { font-size: 18px; }
-  .quick-add-head .icon-button { width: 36px; height: 36px; min-height: 36px; flex-basis: 36px; }
-  .quick-add-grid { gap: 8px; }
-  .quick-add-option { min-height: 82px; padding: 11px; border-radius: 15px; }
-  .quick-add-option > span { width: 36px; height: 36px; }
+  .quick-add-handle { width:38px; height:5px; display:block; margin:0 auto 10px; border-radius:999px; background:var(--border); }
+  .quick-add-head { margin-bottom:11px; }
+  .quick-add-head strong { font-size:18px; }
+  .quick-add-head .icon-button { width:36px; height:36px; min-height:36px; flex-basis:36px; }
+  .quick-add-grid { gap:8px; }
+  .quick-add-option { min-height:82px; padding:11px; border-radius:15px; }
+  .quick-add-option > span { width:36px; height:36px; }
+}
+
+@media (max-width: 390px) {
+  .budget-ring-wrap { align-items:flex-start; }
+  .budget-ring { width:92px; }
+  .overview-metric-strip,
+  .profile-stat-grid { grid-template-columns:1fr 1fr; }
+  .wallet-card-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 360px) {
-  .hub-mini-grid { grid-template-columns: 1fr; }
-  .quick-add-grid { grid-template-columns: 1fr; max-height: 55vh; overflow-y: auto; }
+  .quick-add-grid { grid-template-columns:1fr; max-height:55vh; overflow-y:auto; }
+  .finance-balance-actions,
+  .wallet-summary-actions { grid-template-columns:1fr; }
+  .finance-balance-actions .action-button:first-child,
+  .wallet-summary-actions .action-button:first-child { grid-column:auto; }
 }
