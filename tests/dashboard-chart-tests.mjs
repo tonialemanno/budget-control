@@ -38,7 +38,7 @@ const cashflow=renderCashflowChart({series,currency:'CHF',locale:'de-CH'});
 assert.match(cashflow,/<svg[^>]+cashflow-svg/);
 assert.match(cashflow,/cashflow-bar--income/);
 assert.match(cashflow,/cashflow-bar--expense/);
-assert.match(cashflow,/Aktueller Monat · Einnahmen/);
+assert.match(cashflow,/Aktueller Finanzmonat · Einnahmen/);
 assert.doesNotMatch(cashflow,/--bar-height/);
 assert.doesNotMatch(cashflow,/NaN|undefined|\$\{/);
 
@@ -50,6 +50,6 @@ assert.match(donut,/Sonstiges/);
 assert.doesNotMatch(donut,/NaN|undefined|\$\{/);
 
 const emptyDonut=renderExpenseDonut({rows:[],total:0,currency:'CHF',locale:'de-CH'});
-assert.match(emptyDonut,/Keine Ausgaben in diesem Monat/);
+assert.match(emptyDonut,/Keine Ausgaben in diesem Finanzmonat/);
 
 console.log('dashboard chart assertions OK');

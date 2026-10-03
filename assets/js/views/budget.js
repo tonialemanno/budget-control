@@ -4,6 +4,8 @@ import { convertAmount } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
 import { buildFinanceSnapshot, budgetCoversTransaction, isFixedBudget, matchesRecurringExpense } from '../app/finance-model.js';
+import { effectiveBudgetSet } from '../app/finance-insights.js';
+import { financeCycleLabel, inFinanceCycle, resolveFinanceCycle } from '../app/finance-cycle.js';
 
 function roundBudget(value) { return Math.max(10, Math.ceil(Number(value||0)/10)*10); }
 
@@ -39,17 +41,20 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
   const locale = profile?.locale || 'de-CH';
   const now=new Date();
   const today=now.toISOString().slice(0,10);
-  const currentMonth = monthInputValue(now);
-  const monthStart = `${currentMonth}-01`;
+  const financeCycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay:25});
+  const financePeriodLabel=financeCycleLabel(financeCycle,locale);
+  const currentMonth=financeCycle.budgetMonth;
+  const monthStart=currentMonth+'-01';
   const expenseCategories = categories.filter((c)=>c.kind==='expense');
-  const monthBudgets = budgets.filter((b)=>String(b.month_start).slice(0,7)===currentMonth);
+  const effectiveBudgets=effectiveBudgetSet(budgets,currentMonth);
+  const monthBudgets=effectiveBudgets.rows;
   const activeRecurring=recurringRules.filter((rule)=>rule.active!==false && (!rule.end_date || String(rule.end_date).slice(0,10)>=today));
   const variableBudgets=monthBudgets.filter((budget)=>!isFixedBudget(budget,activeRecurring));
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
 
   const monthTx = transactions.filter((tx)=>{
     const date=new Date(tx.occurred_at);
-    return localMonthKey(tx.occurred_at)===currentMonth
+    return inFinanceCycle(tx,financeCycle)
       && Number(tx.amount)<0
       && !tx.transfer_group_id
       && tx.status==='booked'
@@ -86,8 +91,9 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
     const spent=targetTx.reduce((s,t)=>s+consumptionExpenseBase(t,paymentMap,currency,fxRates),0);
     const pct=progress(spent,b.amount);
     const label=b.merchants?.name||b.categories?.name||'Budget';
-    const type=fixed?'Fixkosten · nicht im variablen Budget':b.merchant_id?'Händler':'Kategorie';
-    return `<tr><td><strong>${escapeHtml(label)}</strong><div class="table-meta">${escapeHtml(type)}</div></td><td>${money(b.amount,{currency,locale})}</td><td>${money(spent,{currency,locale})}</td><td><div class="progress-track table-progress"><div class="progress-fill ${pct>=100?'progress-fill--red':pct>=80?'progress-fill--orange':''}" style="--progress:${pct}%"></div></div><div class="table-meta">${pct.toFixed(0)} %</div></td><td>${canWrite?deleteButton('budgets',b.id):''}</td></tr>`;
+    const baseType=fixed?'Fixkosten · nicht im variablen Budget':b.merchant_id?'Händler':'Kategorie';
+    const type=b._inherited ? baseType+' · Vorlage aus '+monthLabel(effectiveBudgets.sourceMonth+'-01',locale) : baseType;
+    return `<tr><td><strong>${escapeHtml(label)}</strong><div class="table-meta">${escapeHtml(type)}</div></td><td>${money(b.amount,{currency,locale})}</td><td>${money(spent,{currency,locale})}</td><td><div class="progress-track table-progress"><div class="progress-fill ${pct>=100?'progress-fill--red':pct>=80?'progress-fill--orange':''}" style="--progress:${pct}%"></div></div><div class="table-meta">${pct.toFixed(0)} %</div></td><td>${canWrite&&!b._inherited?deleteButton('budgets',b.id):''}</td></tr>`;
   });
 
   const historyMonths=previousFullMonths(3,now);
@@ -137,10 +143,10 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
     .slice(0,6);
 
   return `
-    ${pageHeader({title:'Budget',subtitle:`Variable Ausgaben für ${monthLabel(monthStart,locale)} planen und nachvollziehen. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet.`,actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Budget</button>`:''})}
+    ${pageHeader({title:'Budget',subtitle:`Finanzmonat ${financePeriodLabel}. Der Zyklus startet mit der letzten relevanten Einnahme rund um den 25.; ohne passende Einnahme gilt der 25. als Start. Fixkosten bleiben separat.`,actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Budget</button>`:''})}
     ${formShell('budget-create','Budget festlegen','Kategorie oder einzelnen Händler budgetieren',fields,{hidden:true,submitLabel:'Budget speichern'})}
     <div class="metric-grid" style="margin-bottom:16px">
-      ${metricCard('Variables Budget',money(totalBudget,{currency,locale}),monthLabel(monthStart,locale))}
+      ${metricCard('Variables Budget',money(totalBudget,{currency,locale}),financePeriodLabel)}
       ${metricCard('Davon verbraucht',money(budgetedSpent,{currency,locale}),'nur Ausgaben innerhalb deiner Budgets')}
       ${metricCard('Noch verfügbar',money(left,{currency,locale}),left>=0?'im variablen Budget':'variables Budget überschritten',left>=0?'positive':'warning')}
       ${metricCard('Ausserhalb Budget',money(outsideBudget,{currency,locale}),'variable Ausgaben ohne passendes Budget',outsideBudget>0?'warning':'positive')}
@@ -156,5 +162,5 @@ export function renderBudget({ budgets = [], categories = [], merchants = [], tr
       </div>`:'';
       return `<div class="suggestion-card budget-pattern-card"><div class="budget-pattern-head"><div><strong>${escapeHtml(s.name)}</strong><span>${s.count} Buchungen · ${money(s.total,{currency,locale})} gesamt · Ø ${money(s.monthly,{currency,locale})}/Monat</span><small>${s.fixedRule?`Als Fixkosten erkannt: ${escapeHtml(s.fixedRule.description)} · ${money(fixedMonthly,{currency,locale})}/Monat`:`Budgetvorschlag: ${money(s.suggested,{currency,locale})}`}</small></div><div class="row-actions"><button class="table-action" type="button" data-action="budget-suggestion-toggle" data-merchant-id="${s.id}">${expanded?'Buchungen schliessen':'Buchungen anzeigen'}</button>${canWrite&&!s.fixedRule?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${s.id}" data-amount="${s.suggested}">Budget übernehmen</button>`:''}${s.fixedRule?`<a class="table-action" href="#/fixed-costs">Fixkosten öffnen</a>`:''}</div></div>${details}</div>`;
     }).join('')}</div></article>`:''}
-    <article class="card card-padding">${dataTable({headers:['Budget','Soll','Ist','Nutzung',''],rows,emptyText:'Für diesen Monat ist noch kein variables Budget angelegt.'})}</article>`;
+    <article class="card card-padding">${dataTable({headers:['Budget','Soll','Ist','Nutzung',''],rows,emptyText:'Für diesen Finanzmonat ist noch kein variables Budget angelegt.'})}</article>`;
 }
