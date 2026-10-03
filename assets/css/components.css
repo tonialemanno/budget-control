@@ -480,8 +480,8 @@
 .finance-balance-foot span { display: grid; gap: 4px; font-size: 10px; opacity: .82; }
 .finance-balance-foot strong { font-size: 13px; opacity: 1; }
 
-.overview-metric-strip,
-.profile-stat-grid { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:12px; margin-bottom: 4px; }
+.overview-metric-strip { display:grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:4px; }
+.profile-stat-grid { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:4px; }
 
 .budget-ring-card { min-height: 250px; }
 .budget-ring-wrap { display: flex; align-items: center; gap: 22px; margin: 18px 0; }
