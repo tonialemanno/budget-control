@@ -46,6 +46,7 @@ import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
 import { renderSettings } from './views/settings.js';
+import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 
 const views = {
@@ -78,6 +79,7 @@ const views = {
   pension: renderPension,
   intelligence: renderIntelligence,
   settings: renderSettings,
+  profile: renderProfile,
   admin: renderAdmin,
 };
 
@@ -243,14 +245,14 @@ function renderNavigation() {
 }
 
 function routeSection(route) {
-  if (['settings','categories','merchants','setup','admin'].includes(route)) return 'settings';
+  if (['settings','categories','merchants','setup','profile','admin'].includes(route)) return 'settings';
   if (route === 'import-history') return 'money';
   return NAV_ITEMS.find((item) => item.route === route)?.section || route;
 }
 
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
-  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup']);
+  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup', 'profile']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
   if (onboardingPending) {
@@ -392,7 +394,7 @@ function profileMenuHtml() {
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
-    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="#/settings" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
+    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="#/profile" data-action="profile-close">Mein Profil</a><a class="action-button action-button--secondary" href="#/settings" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
   </div>`;
 }
 
