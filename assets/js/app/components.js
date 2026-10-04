@@ -90,7 +90,7 @@ export function editButton(action, id, label = 'Bearbeiten') {
   return `<button class="table-action" type="button" data-action="${escapeHtml(action)}" data-id="${escapeHtml(id)}">${escapeHtml(t(label))}</button>`;
 }
 
-export function accountCard(account, { locale = 'de-CH', canWrite = false, projection = null } = {}) {
+export function accountCard(account, { locale = 'de-CH', canWrite = false, projection = null, isPrimary = false } = {}) {
   const typeLabel = ({
     checking:'Zahlungskonto', savings:'Sparkonto', cash:'Bargeld', credit_card:'Kreditkarte', wallet:'Onlinekonto / Wallet',
     investment:'Investmentkonto', pension:'Vorsorgekonto', other:'Sonstiges',
@@ -105,13 +105,16 @@ export function accountCard(account, { locale = 'de-CH', canWrite = false, proje
   return `
     <article class="card account-card">
       <div class="account-card-head">
-        <div><div class="account-name">${escapeHtml(account.name)}</div><div class="account-kind">${escapeHtml(account.institution_name || localizedTypeLabel)} · ${t(account.visibility === 'household' ? 'Haushalt' : 'Privat')}</div></div>
+        <div><div class="account-name">${escapeHtml(account.name)} ${isPrimary ? statusPill('active','Hauptkonto') : ''}</div><div class="account-kind">${escapeHtml(account.institution_name || localizedTypeLabel)} · ${t(account.visibility === 'household' ? 'Haushalt' : 'Privat')}</div></div>
         <span class="list-row-leading">${icon(account.account_type === 'cash' ? 'banknote' : 'wallet')}</span>
       </div>
       <div class="account-balance">${money(account.current_balance, { currency: account.currency, locale })}</div>
       <div class="account-change">${escapeHtml(account.currency)} · ${escapeHtml(t('Stand-Anker'))} ${dateLabel(account.balance_anchor_at, locale)}</div>
       ${projectionHtml}
-      ${canWrite ? `<div class="card-footer-actions"><button class="table-action" type="button" data-action="account-edit" data-id="${escapeHtml(account.account_id)}">${escapeHtml(t('Bearbeiten / korrigieren'))}</button></div>` : ''}
+      <div class="card-footer-actions">
+        ${canWrite ? `<button class="table-action" type="button" data-action="account-edit" data-id="${escapeHtml(account.account_id)}">${escapeHtml(t('Bearbeiten / korrigieren'))}</button>` : ''}
+        ${isPrimary ? '' : `<button class="table-action" type="button" data-action="account-set-primary" data-id="${escapeHtml(account.account_id)}">${escapeHtml(t('Als Hauptkonto festlegen'))}</button>`}
+      </div>
     </article>`;
 }
 

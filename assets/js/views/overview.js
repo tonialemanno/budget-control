@@ -4,6 +4,7 @@ import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { accountShare, annualIncomeBreakdown, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries, primaryOperatingAccount } from '../app/finance-insights.js';
+import { primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 
@@ -50,7 +51,8 @@ export function renderOverview({
     rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
   });
   const accountRows=accountShare(accounts,currency,fxRates);
-  const primaryAccount=primaryOperatingAccount(accounts,recurringRules,currency);
+  const preferredPrimaryAccountId=primaryAccountPreferenceId(profile,household?.id,accounts);
+  const primaryAccount=primaryOperatingAccount(accounts,recurringRules,currency,preferredPrimaryAccountId);
   const primaryAccountRow=accountRows.find((row)=>row.account.account_id===primaryAccount?.account_id) || null;
   const primaryBaseValue=primaryAccountRow?.value||0;
   const otherLiquid=snapshot.cash-primaryBaseValue;
