@@ -171,7 +171,7 @@ export function renderSetupGuide({
       number:7,key:'recurring',title:'Monatseinnahmen & Fixkosten',
       text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt Finance deinen echten Monatsrahmen vor dem ersten Import.',
       done:s.recurring,current:firstOpen==='recurring',optional:true,iconName:'repeat',
-      meta:`${status.recurringIncome} feste Einnahmen · ${status.recurringExpenses} Fixkosten`,
+      meta:`${status.recurringIncome} / ${status.recurringExpenses}`,
       actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
     }),
     stepCard({
