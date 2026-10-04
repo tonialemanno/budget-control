@@ -3947,7 +3947,14 @@ pageContent.addEventListener('change', async (event) => {
       fillSelect(document.querySelector('#mapAmount'),parsed.headers,guess.amount,true);
       fillSelect(document.querySelector('#mapDebit'),parsed.headers,guess.debit,true);
       fillSelect(document.querySelector('#mapCredit'),parsed.headers,guess.credit,true);
-      const meta=parsed.format==='pdf' ? `${parsed.rows.length} erkannte Buchungen · ${parsed.meta?.pages||0} PDF-Seite${parsed.meta?.pages===1?'':'n'}${parsed.meta?.ambiguous?` · ${parsed.meta.ambiguous} unklare Zeile${parsed.meta.ambiguous===1?'':'n'} übersprungen`:''}` : `${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
+      const pdfCredits=Number(parsed.meta?.credits||0);
+      const pdfDebits=Number(parsed.meta?.debits||0);
+      const pdfWarning=parsed.format==='pdf'&&parsed.rows.length>=20&&pdfCredits===0
+        ? ' · ⚠ Keine Einnahme/Gutschrift erkannt – bitte vor dem Import prüfen.'
+        : '';
+      const meta=parsed.format==='pdf'
+        ? `${parsed.rows.length} erkannte Buchungen · ${pdfCredits} Einnahmen · ${pdfDebits} Ausgaben · ${parsed.meta?.pages||0} PDF-Seite${parsed.meta?.pages===1?'':'n'}${parsed.meta?.ambiguous?` · ${parsed.meta.ambiguous} unklare Zeile${parsed.meta.ambiguous===1?'':'n'} übersprungen`:''}${pdfWarning}`
+        : `${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
       document.querySelector('#importPreviewMeta').textContent=meta;
       document.querySelector('#importMapping').hidden=false;
       renderImportReview();
