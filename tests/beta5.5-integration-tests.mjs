@@ -42,7 +42,7 @@ assert.equal(exists('assets/js/app/finance-model.js'), true);
 assert.match(read('assets/js/views/overview.js'), /buildFinanceSnapshot/);
 assert.match(read('assets/js/views/intelligence.js'), /buildFinanceSnapshot/);
 assert.match(read('assets/js/views/intelligence.js'), /Offene Forderungen/);
-assert.match(read('assets/js/views/intelligence.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/views/intelligence.js'), /Rücklagen & Umbuchungen \/ Monat/);
 assert.match(read('assets/js/app/finance-model.js'), /receivablesOutstanding/);
 assert.match(read('assets/js/app/finance-model.js'), /plannedVariableMonthly/);
 assert.match(read('assets/js/app/finance-model.js'), /fixedTransfersMonthly/);
