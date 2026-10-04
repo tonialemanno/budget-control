@@ -3303,6 +3303,19 @@ pageContent.addEventListener('change', async (event) => {
       }
       return;
     }
+    if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
+      syncTransactionTransferEditor();
+      return;
+    }
+    if (target.id === 'transactionEditOtherTransaction') {
+      const option=target.selectedOptions?.[0];
+      const amount=document.querySelector('#transactionEditOtherAmount');
+      const current=runtime.transactions.find((row)=>row.id===document.querySelector('#transactionEditId')?.value);
+      const currentAccount=runtime.accounts.find((row)=>row.account_id===current?.account_id);
+      const otherAccount=runtime.accounts.find((row)=>row.account_id===document.querySelector('#transactionEditOtherAccount')?.value);
+      if(option?.value&&amount&&currentAccount&&otherAccount&&currentAccount.currency!==otherAccount.currency&&option.dataset.amount) amount.value=option.dataset.amount;
+      return;
+    }
     if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
       const merchant=runtime.merchants.find((row)=>row.id===target.value);
       const category=target.closest('form')?.querySelector('[name="categoryId"]');
@@ -3446,6 +3459,10 @@ pageContent.addEventListener('change', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target = event.target;
+  if (['transactionEditAmount','transactionEditDate','transactionEditOtherAmount'].includes(target.id)) {
+    syncTransactionTransferEditor();
+    return;
+  }
   if (['debtPaymentAmount','debtPaymentInterest','debtPaymentFee'].includes(target.id)) {
     const amount=Number(document.querySelector('#debtPaymentAmount')?.value||0);
     const interest=Number(document.querySelector('#debtPaymentInterest')?.value||0);
