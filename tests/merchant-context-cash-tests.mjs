@@ -10,6 +10,11 @@ import { renderTransactions } from '../assets/js/views/transactions.js';
 import { renderMerchants } from '../assets/js/views/merchants.js';
 import { CH } from '../assets/js/country/ch.js';
 
+const swisslos=merchantFromTransaction({description:'SWISSLOS E-COMMERCE; Zahlung UBS TWINT'});
+assert.equal(swisslos.name,'Swisslos');
+assert.equal(swisslos.key,'swisslos');
+assert.deepEqual(suggestKnownCategoryCandidates({description:'SWISSLOS E-COMMERCE; Zahlung UBS TWINT'}),['Lotterie & Gewinnspiele','Freizeit']);
+
 const edekaA=merchantFromTransaction({description:'EDEKA BRAND;00000 FREIBURG'});
 const edekaB=merchantFromTransaction({description:'EDEKA BRAND BACKSHOP'});
 assert.equal(edekaA.name,'EDEKA');
@@ -104,6 +109,8 @@ assert.match(merchantHtml,/Mögliche Händler-Dubletten/);
 assert.match(merchantHtml,/data-action="merchant-merge"/);
 
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Haushaltsabgaben'&&parent==='Wohnen'));
+assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Lotterie & Gewinnspiele'&&parent==='Freizeit'));
+assert.ok(CH.starterMerchantCategories.some(([merchant,category])=>merchant==='Swisslos'&&category==='Lotterie & Gewinnspiele'));
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Restaurant & Café'&&parent==='Freizeit'));
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Fahrzeugkauf'&&parent==='Mobilität'));
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Wartung & Reparatur'&&parent==='Mobilität'));
