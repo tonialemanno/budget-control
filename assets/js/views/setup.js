@@ -1,5 +1,5 @@
 import { pageHeader } from '../app/components.js';
-import { escapeHtml } from '../app/format.js';
+import { dateInputValue, escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { buildSetupStatus } from '../app/setup-model.js';
 
@@ -26,6 +26,45 @@ function reviewButton(key,label='Später') {
   return `<button class="action-button action-button--secondary" type="button" data-action="setup-review" data-key="${escapeHtml(key)}">${escapeHtml(label)}</button>`;
 }
 
+
+function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canWrite=false}={}) {
+  if(!canWrite) return '';
+  const accountOptions=accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
+  const expenseCategories=categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const incomeRules=recurringRules.filter((r)=>r.active!==false&&r.direction==='income');
+  const expenseRules=recurringRules.filter((r)=>r.active!==false&&r.direction==='expense');
+  const next=dateInputValue();
+  return `
+    <div class="setup-monthly-plan">
+      <div class="setup-monthly-plan-summary">
+        <span><strong>${incomeRules.length}</strong> feste Einnahmen</span>
+        <span><strong>${expenseRules.length}</strong> Fixkosten</span>
+      </div>
+      <details class="setup-inline-panel" ${incomeRules.length?'':'open'}>
+        <summary>Monatseinnahme hinzufügen</summary>
+        <form class="form-grid form-grid--2 setup-inline-form" id="setup-income-create" data-form="setup-income-create">
+          <label class="field"><span>Bezeichnung</span><input class="text-control" name="description" value="Lohn" required></label>
+          <label class="field"><span>Arbeitgeber / Zahler</span><input class="text-control" name="counterparty" placeholder="z. B. Abacus Umantis"></label>
+          <label class="field"><span>Nettobetrag pro Monat</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label class="field"><span>Auf Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
+          <label class="field"><span>Zahlungstag / nächster Eingang</span><input class="text-control" name="nextDate" type="date" value="${next}" required></label>
+          <div class="field"><span>&nbsp;</span><button class="action-button action-button--primary" type="submit">Monatseinnahme speichern</button></div>
+        </form>
+      </details>
+      <details class="setup-inline-panel">
+        <summary>Fixkosten hinzufügen</summary>
+        <form class="form-grid form-grid--2 setup-inline-form" id="setup-expense-create" data-form="setup-expense-create">
+          <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" name="description" required placeholder="z. B. Miete"></label>
+          <label class="field"><span>Empfänger</span><input class="text-control" name="counterparty" placeholder="z. B. UZON"><small>Optional. Neue Empfänger werden bei Bedarf automatisch als Händler angelegt.</small></label>
+          <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label class="field"><span>Von Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
+          <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" required><option value="">Bitte wählen</option>${expenseCategories}</select></label>
+          <label class="field"><span>Nächster Zahlungstermin</span><input class="text-control" name="nextDate" type="date" value="${next}" required></label>
+          <div class="field form-grid-span"><button class="action-button action-button--primary" type="submit">Fixkosten speichern</button></div>
+        </form>
+      </details>
+    </div>`;
+}
 function stepCard({
   number,key,title,text,done,current=false,optional=false,meta='',actions='',iconName='settings'
 }) {
@@ -116,11 +155,11 @@ export function renderSetupGuide({
       actions:actionLink('#/merchants',s.automation?'Händler prüfen':'Händler zuordnen',!s.automation),
     }),
     stepCard({
-      number:7,key:'recurring',title:'Wiederkehrende Einnahmen & Fixkosten',
-      text:'Erfasse Lohn, Miete, Krankenkasse, Abos und andere wiederkehrende Bewegungen. Das verbessert Finanzmonat und Planung.',
+      number:7,key:'recurring',title:'Monatseinnahmen & Fixkosten',
+      text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt Finance deinen echten Monatsrahmen vor dem ersten Import.',
       done:s.recurring,current:firstOpen==='recurring',optional:true,iconName:'repeat',
-      meta:`${status.recurringIncome} Einnahmen · ${status.recurringExpenses} Ausgaben wiederkehrend`,
-      actions:`${actionLink('#/fixed-costs','Fixkosten & Einnahmen öffnen',!s.recurring)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}`,
+      meta:`${status.recurringIncome} feste Einnahmen · ${status.recurringExpenses} Fixkosten`,
+      actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
     }),
     stepCard({
       number:8,key:'modules',title:'Budget, Ziele, Schulden, Forderungen & Steuern',
