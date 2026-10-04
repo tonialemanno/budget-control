@@ -1306,7 +1306,8 @@ async function handleForm(form) {
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
-      note:nullValue(data,'note'), tax,
+      note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
+      excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
     await refresh('Transaktion gespeichert und in allen Auswertungen aktualisiert.'); return;
   }
