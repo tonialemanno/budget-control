@@ -1773,9 +1773,20 @@ async function handleForm(form) {
     const rawAmount=Math.abs(numberValue(data,'amount'));
     const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
     const merchantId=nullValue(data,'merchantId');
-    const categoryId=nullValue(data,'categoryId');
+    const explicitCategoryId=nullValue(data,'categoryId');
     const counterpartyEntity=await resolveCounterpartyFromForm(data);
     const contextId=await resolveContextFromForm(data);
+    const contextName=formValue(data,'contextName')||runtime.transactionContexts.find((row)=>row.id===contextId)?.name||'';
+    const categoryId=suggestedCategoryIdForTransaction({
+      explicitCategoryId,
+      merchantId,
+      description:formValue(data,'description'),
+      counterparty:nullValue(data,'counterparty'),
+      note:nullValue(data,'note'),
+      amount:direction==='expense'?-rawAmount:rawAmount,
+      semanticType:nullValue(data,'semanticType'),
+      contextName,
+    });
     const vehicleId=await resolveVehicleFromForm(data,{amount:rawAmount,occurredAt,currency:account.currency});
     let tax=null;
     if (moduleEnabled('tax')) {
@@ -1920,7 +1931,16 @@ async function handleForm(form) {
 
     const patch={
       account_id:account.account_id,
-      category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants),
+      category_id:suggestedCategoryIdForTransaction({
+        explicitCategoryId:nullValue(data,'categoryId'),
+        merchantId,
+        description:formValue(data,'description'),
+        counterparty:nullValue(data,'counterparty'),
+        note:nullValue(data,'note'),
+        amount,
+        semanticType:nullValue(data,'semanticType'),
+        contextName:formValue(data,'contextName')||runtime.transactionContexts.find((row)=>row.id===contextId)?.name||'',
+      }),
       merchant_id:merchantId,
       counterparty_id:counterpartyEntity?.id||null,
       context_id:contextId,
