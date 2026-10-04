@@ -160,39 +160,121 @@ export function normalizeMerchantKey(value) {
     .replace(/\s+/g, ' ');
 }
 
+function stripPaymentProcessor(value) {
+  let text=String(value||'').trim();
+  let paymentProcessor=null;
+  const sumup=text.match(/(?:^|\b)(?:bezug\s+)?sumup\s*\*\s*(.+)$/i);
+  if(sumup?.[1]){
+    paymentProcessor='SumUp';
+    text=sumup[1].trim();
+  }
+  const twint=text.match(/(?:^|\b)twint\s*[:*\-]\s*(.+)$/i);
+  if(twint?.[1]){
+    paymentProcessor=paymentProcessor||'TWINT';
+    text=twint[1].trim();
+  }
+  return {text,paymentProcessor};
+}
+
+function canonicalMerchantIdentity(name) {
+  const text=String(name||'').trim();
+  if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\belvetino\b/i.test(text)) return {name:'Elvetino',key:'elvetino'};
+  if(/\bserafe\b/i.test(text)) return {name:'Serafe',key:'serafe'};
+  if(/\bsp\s+motori\b/i.test(text)) return {name:'SP Motori',key:'sp motori'};
+  return null;
+}
+
 export function merchantFromTransaction(tx) {
   const raw = String(tx?.counterparty || tx?.description || '').trim();
-  const known = knownMerchantSuggestion(tx);
-  if (known) return { name: known.name, key: known.key, sourceField: tx?.counterparty ? 'counterparty' : 'description', known: true };
-
   const parts = raw.split(';').map((part)=>part.trim()).filter(Boolean);
   let merchantRaw = parts[0] || raw;
   if (
     parts.length > 1
+    && !/^bezug\s+sumup\b/i.test(merchantRaw)
     && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|bezug)\b/i.test(merchantRaw)
   ) {
     merchantRaw = parts[1] || merchantRaw;
   }
 
+  const processor=stripPaymentProcessor(merchantRaw);
+  merchantRaw=processor.text||merchantRaw;
+
   let name = merchantRaw
-    .replace(/^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce)\s*[:\-–]?\s*/i, '')
+    .replace(/^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|bezug)\s*[:\-–]?\s*/i, '')
     .replace(/\b(?:terminal|term|beleg|referenz|reference|ref|transaktion|transaction|auth|karte|card)\s*[:#]?\s*[A-Z0-9*\-]{5,}\b/gi, ' ')
     .replace(/\b\d{8,}\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (!name) name = merchantRaw || raw || 'Unbekannter Händler';
   if (name.length > 80) name = name.slice(0, 80).trim();
+
+  const canonical=canonicalMerchantIdentity(name);
+  if(canonical){
+    return {
+      ...canonical,
+      rawName:name,
+      aliasKey:normalizeMerchantKey(name),
+      sourceField:tx?.counterparty ? 'counterparty' : 'description',
+      paymentProcessor:processor.paymentProcessor,
+      known:true,
+    };
+  }
+
+  const known = knownMerchantSuggestion({...tx,counterparty:name,description:name});
+  if (known && !known.generic) {
+    return {
+      name:known.name,
+      key:known.key,
+      rawName:name,
+      aliasKey:normalizeMerchantKey(name),
+      sourceField:tx?.counterparty ? 'counterparty' : 'description',
+      paymentProcessor:processor.paymentProcessor,
+      known:true,
+    };
+  }
+
   return {
     name,
     key: normalizeMerchantKey(name) || normalizeMerchantKey(merchantRaw) || normalizeMerchantKey(raw) || 'unbekannt',
+    rawName:name,
+    aliasKey:normalizeMerchantKey(name),
     sourceField: tx?.counterparty ? 'counterparty' : 'description',
+    paymentProcessor:processor.paymentProcessor,
   };
 }
 
+export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) {
+  if(!detected) return null;
+  const aliasKey=detected.aliasKey||detected.key;
+  const alias=aliases.find((row)=>row.normalized_key===aliasKey||row.normalized_key===detected.key);
+  if(alias){
+    const merchant=merchants.find((row)=>row.id===alias.merchant_id);
+    if(merchant) return merchant;
+  }
+  const exact=merchants.find((row)=>row.normalized_key===detected.key);
+  if(exact) return exact;
+
+  const canonical=canonicalMerchantIdentity(detected.name);
+  if(canonical){
+    const brand=merchants.find((row)=>row.normalized_key===canonical.key);
+    if(brand) return brand;
+  }
+  return null;
+}
+
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
-  { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant' },
-  { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant' },
-  { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant' },
+  { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
+  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
+  { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
+  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:garage|officina|werkstatt|reparatur|riparazione|pneu|reifen)\b/i, name:null, key:null, category:'Wartung & Reparatur' },
+  { pattern:/\b(?:noleggio|mietroller|rollermiete|scooter\s*rental|rent\s*a\s*scooter|mietfahrzeug)\b/i, name:null, key:null, category:'Mietfahrzeug' },
+  { pattern:/\b(?:blumen|florist|fiori|grabpflege|gedenken)\b/i, name:null, key:null, category:'Geschenke & Gedenken' },
+  { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant & Café' },
+  { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant & Café' },
+  { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant & Café' },
   { pattern:/\bmigros\b/i, name:'Migros', key:'migros', category:'Lebensmittel' },
   { pattern:/\bcoop\b/i, name:'Coop', key:'coop', category:'Lebensmittel' },
   { pattern:/\bdenner\b/i, name:'Denner', key:'denner', category:'Lebensmittel' },
@@ -215,9 +297,35 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
 
 export function knownMerchantSuggestion(tx) {
   const raw=`${tx?.counterparty||''} ${tx?.description||''}`.trim();
-  return KNOWN_MERCHANT_LIBRARY.find((entry)=>entry.pattern.test(raw)) || null;
+  const match=KNOWN_MERCHANT_LIBRARY.find((entry)=>entry.pattern.test(raw)) || null;
+  if(!match) return null;
+  if(match.name&&match.key) return match;
+  const detected=stripPaymentProcessor(raw).text||raw;
+  return {
+    ...match,
+    name:detected.replace(/\s+/g,' ').trim().slice(0,80),
+    key:normalizeMerchantKey(detected),
+    generic:true,
+  };
+}
+
+export function suggestKnownCategoryCandidates(tx) {
+  const detected=merchantFromTransaction(tx);
+  const purpose=[detected?.name||tx?.counterparty||tx?.description||'',tx?.note||''].filter(Boolean).join(' ');
+  const probe={...tx,counterparty:detected?.name||tx?.counterparty,description:purpose};
+  const category=knownMerchantSuggestion(probe)?.category||null;
+  if(!category) return [];
+  const fallback={
+    'Restaurant & Café':['Restaurant & Café','Restaurant','Freizeit'],
+    'Supermarkt':['Supermarkt','Lebensmittel'],
+    'Haushaltsabgaben':['Haushaltsabgaben','Wohnen'],
+    'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
+    'Wartung & Reparatur':['Wartung & Reparatur','Mobilität'],
+    'Geschenke & Gedenken':['Geschenke & Gedenken','Freizeit'],
+  };
+  return fallback[category]||[category];
 }
 
 export function suggestKnownCategoryName(tx) {
-  return knownMerchantSuggestion(tx)?.category || null;
+  return suggestKnownCategoryCandidates(tx)[0]||null;
 }
