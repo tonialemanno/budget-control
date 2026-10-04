@@ -1,4 +1,4 @@
-import { cadenceMonthlyFactor } from './format.js';
+import { plannedMonthlyAmount } from './recurring-planning.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
 import { occurrenceNear } from './recurrence.js';
@@ -77,7 +77,8 @@ function recurringRuleScore(tx,rule,categories=[]) {
 
   const expected=Math.abs(Number(rule.amount||0));
   const actual=Math.abs(Number(tx.amount||0));
-  if(expected>0 && Math.abs(expected-actual)<=Math.max(1,expected*.03)) score+=5;
+  if(rule.amount_mode==='variable'&&actual>0) score+=2;
+  else if(expected>0 && Math.abs(expected-actual)<=Math.max(1,expected*.03)) score+=5;
 
   if(rule.next_date&&occurrenceNear(rule,tx.occurred_at,5)) score+=2;
   return score;
@@ -145,7 +146,7 @@ export function semanticIncomeBase(tx,{
 
 export function monthlyRuleAmount(rule,baseCurrency='CHF',fxRates=null) {
   if(!rule) return 0;
-  const native=Number(rule.amount||0)*cadenceMonthlyFactor(rule.cadence);
+  const native=plannedMonthlyAmount(rule);
   return Math.max(0,convertAmount(native,rule.currency||baseCurrency,baseCurrency,fxRates)??0);
 }
 

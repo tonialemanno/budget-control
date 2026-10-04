@@ -1419,16 +1419,18 @@ async function ensureTransactionTaxCase(year) {
 
 function findMatchingRecurringRule(txLike={}) {
   const amount=Math.abs(Number(txLike.amount||0));
+  const refund=txLike.semantic_type==='refund'||txLike.semanticType==='refund';
   const direction=Number(txLike.amount||0)<0?'expense':'income';
   const text=normalizeMerchantKey([txLike.merchants?.name,txLike.counterparty,txLike.description].filter(Boolean).join(' '));
   const candidates=runtime.recurringRules
-    .filter((rule)=>rule.active!==false&&rule.direction===direction)
+    .filter((rule)=>rule.active!==false&&(rule.direction===direction||(refund&&rule.direction==='expense'&&rule.amount_mode==='variable')))
     .map((rule)=>{
       let score=0;
       if(rule.account_id&&txLike.account_id===rule.account_id) score+=2;
       if(rule.merchant_id&&txLike.merchant_id===rule.merchant_id) score+=8;
       if(rule.category_id&&txLike.category_id===rule.category_id) score+=2;
-      if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
+      if(rule.amount_mode==='variable'&&amount>0) score+=3;
+      else if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
       const ruleText=normalizeMerchantKey([rule.merchants?.name,rule.counterparty,rule.description].filter(Boolean).join(' '));
       if(text&&ruleText&&(text.includes(ruleText)||ruleText.includes(text))) score+=6;
       return {rule,score};
@@ -1985,6 +1987,8 @@ async function handleForm(form) {
             amount:currentAmount,
             currency:sourceAccount.currency,
             cadence:formValue(data,'recurringCadence')||'monthly',
+            interval_months:(formValue(data,'recurringCadence')||'monthly')==='monthly'?Math.max(1,numberValue(data,'recurringIntervalMonths',1)):1,
+            amount_mode:'fixed',
             next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
             active:true,
           });
@@ -2087,6 +2091,8 @@ async function handleForm(form) {
         amount:Math.abs(amount),
         currency:account.currency,
         cadence:formValue(data,'recurringCadence')||'monthly',
+        interval_months:(formValue(data,'recurringCadence')||'monthly')==='monthly'?Math.max(1,numberValue(data,'recurringIntervalMonths',1)):1,
+        amount_mode:formValue(data,'recurringAmountMode')||'fixed',
         next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1),
         active:true
       });
@@ -2191,8 +2197,10 @@ async function handleForm(form) {
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:true
@@ -2233,8 +2241,12 @@ async function handleForm(form) {
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:direction==='expense'?Boolean(rule.reserve_enabled):false,
+      reserve_account_id:direction==='expense'?(rule.reserve_account_id||null):null,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true'
@@ -2276,6 +2288,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const reserveEnabled=direction==='expense'&&data.get('reserveEnabled')==='on';
+    let reserveAccountId=null;
+    if(reserveEnabled){
+      const reserve=runtime.accounts.find((a)=>a.account_id===formValue(data,'reserveAccountId'));
+      if(!reserve) throw new Error('Bitte einen Rücklagetopf auswählen.');
+      if(reserve.account_id===account.account_id) throw new Error('Rücklagetopf und Zahlungskonto müssen unterschiedlich sein.');
+      if(reserve.currency!==account.currency) throw new Error('Rücklagetopf und Zahlungskonto müssen dieselbe Währung haben.');
+      reserveAccountId=reserve.account_id;
+    }
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
@@ -2286,8 +2307,13 @@ async function handleForm(form) {
       description:formValue(data,'description'),
       counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:reserveEnabled,
+      reserve_account_id:reserveAccountId,
+      reserve_strategy:'monthly',
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:true,
@@ -2351,6 +2377,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const reserveEnabled=direction==='expense'&&data.get('reserveEnabled')==='on';
+    let reserveAccountId=null;
+    if(reserveEnabled){
+      const reserve=runtime.accounts.find((a)=>a.account_id===formValue(data,'reserveAccountId'));
+      if(!reserve) throw new Error('Bitte einen Rücklagetopf auswählen.');
+      if(reserve.account_id===account.account_id) throw new Error('Rücklagetopf und Zahlungskonto müssen unterschiedlich sein.');
+      if(reserve.currency!==account.currency) throw new Error('Rücklagetopf und Zahlungskonto müssen dieselbe Währung haben.');
+      reserveAccountId=reserve.account_id;
+    }
     const rule=await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
@@ -2360,8 +2395,13 @@ async function handleForm(form) {
       description:formValue(data,'description'),
       counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:linkedDebt?linkedDebt.currency:(account.currency||currency),
       cadence,
+      interval_months:cadence==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:reserveEnabled,
+      reserve_account_id:reserveAccountId,
+      reserve_strategy:'monthly',
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true',
@@ -3573,11 +3613,15 @@ async function handleAction(target) {
     document.querySelector('#recurringEditId').value=rule.id;
     document.querySelector('#recurringEditDirection').value=rule.direction||'expense';
     document.querySelector('#recurringEditAmount').value=rule.amount||0;
+    document.querySelector('#recurringEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#recurringEditAccount').value=rule.account_id||'';
     document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#recurringEditCategory').value=rule.category_id||'';
     document.querySelector('#recurringEditDescription').value=rule.description||'';
     document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#recurringEditInterval').value=rule.interval_months||1;
+    const recurringIntervalField=document.querySelector('#recurringEditIntervalField');
+    if(recurringIntervalField) recurringIntervalField.hidden=(rule.cadence||'monthly')!=='monthly';
     document.querySelector('#recurringEditNextDate').value=rule.next_date||'';
     document.querySelector('#recurringEditEndDate').value=rule.end_date||'';
     document.querySelector('#recurringEditActive').value=rule.active===false?'false':'true';
@@ -3599,11 +3643,21 @@ async function handleAction(target) {
     document.querySelector('#fixedCostEditDirection').value=rule.direction||'expense';
     document.querySelector('#fixedCostEditDescription').value=rule.description||'';
     document.querySelector('#fixedCostEditAmount').value=rule.amount||0;
+    document.querySelector('#fixedCostEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
     document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
     document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#fixedCostEditInterval').value=rule.interval_months||1;
+    const fixedIntervalField=document.querySelector('#fixedCostEditIntervalField');
+    if(fixedIntervalField) fixedIntervalField.hidden=(rule.cadence||'monthly')!=='monthly';
+    document.querySelector('#fixedCostEditReserveEnabled').checked=Boolean(rule.reserve_enabled);
+    document.querySelector('#fixedCostEditReserveAccount').value=rule.reserve_account_id||'';
+    const reserveAccountField=document.querySelector('#fixedCostEditReserveAccountField');
+    if(reserveAccountField) reserveAccountField.hidden=!rule.reserve_enabled;
+    const reserveToggleField=document.querySelector('#fixedCostEditReserveToggleField');
+    if(reserveToggleField) reserveToggleField.hidden=rule.direction!=='expense';
     document.querySelector('#fixedCostEditNextDate').value=rule.next_date||'';
     document.querySelector('#fixedCostEditEndDate').value=rule.end_date||'';
     document.querySelector('#fixedCostEditActive').value=rule.active?'true':'false';
@@ -3929,19 +3983,53 @@ pageContent.addEventListener('change', async (event) => {
       const transfer=target.value==='transfer';
       const targetField=document.querySelector(edit?'#recurringEditTargetField':'#recurringTargetField');
       const categoryField=document.querySelector(edit?'#recurringEditCategoryField':'#recurringCategoryField');
+      const amountMode=document.querySelector(edit?'#recurringEditAmountMode':'#recurringAmountMode');
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
+      if(amountMode&&transfer) amountMode.value='fixed';
+      return;
+    }
+    if (target.id === 'recurringCadence' || target.id === 'recurringEditCadence') {
+      const edit=target.id==='recurringEditCadence';
+      const field=document.querySelector(edit?'#recurringEditIntervalField':'#recurringIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
       return;
     }
     if (target.id === 'fixedCostDirection' || target.id === 'fixedCostEditDirection') {
       const edit=target.id==='fixedCostEditDirection';
       const transfer=target.value==='transfer';
+      const expense=target.value==='expense';
       const targetField=document.querySelector(edit?'#fixedCostEditTargetField':'#fixedCostTargetField');
       const categoryField=document.querySelector(edit?'#fixedCostEditCategoryField':'#fixedCostCategoryField');
       const merchantField=document.querySelector(edit?'#fixedCostEditMerchantField':'#fixedCostMerchantField');
+      const reserveToggleField=document.querySelector(edit?'#fixedCostEditReserveToggleField':'#fixedCostReserveToggleField');
+      const reserveAccountField=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
+      const reserveToggle=document.querySelector(edit?'#fixedCostEditReserveEnabled':'#fixedCostReserveEnabled');
+      const amountMode=document.querySelector(edit?'#fixedCostEditAmountMode':'#fixedCostAmountMode');
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       if(merchantField) merchantField.hidden=transfer;
+      if(reserveToggleField) reserveToggleField.hidden=!expense;
+      if(!expense&&reserveToggle) reserveToggle.checked=false;
+      if(reserveAccountField) reserveAccountField.hidden=!expense||!reserveToggle?.checked;
+      if(amountMode&&transfer) amountMode.value='fixed';
+      return;
+    }
+    if (target.id === 'fixedCostCadence' || target.id === 'fixedCostEditCadence') {
+      const edit=target.id==='fixedCostEditCadence';
+      const field=document.querySelector(edit?'#fixedCostEditIntervalField':'#fixedCostIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
+      return;
+    }
+    if (target.id === 'fixedCostReserveEnabled' || target.id === 'fixedCostEditReserveEnabled') {
+      const edit=target.id==='fixedCostEditReserveEnabled';
+      const field=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
+      if(field) field.hidden=!target.checked;
+      return;
+    }
+    if (target.id === 'transactionRecurringCadence') {
+      const field=document.querySelector('#transactionRecurringIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
       return;
     }
     if (target.id === 'setupExpensePreset') {
