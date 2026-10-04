@@ -1400,7 +1400,8 @@ function findMatchingRecurringRule(txLike={}) {
 async function resolveCounterpartyFromForm(data) {
   const name=String(formValue(data,'counterparty')||'').trim();
   if(!name) return null;
-  const kind=formValue(data,'counterpartyKind')||'other';
+  const kind=formValue(data,'counterpartyKind');
+  if(!kind) return null;
   const normalizedKey=normalizeMerchantKey(name);
   if(!normalizedKey) return null;
   const existing=runtime.counterparties.find((row)=>row.kind===kind&&row.normalized_key===normalizedKey);
@@ -1566,7 +1567,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditCategory').value=tx.category_id||'';
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
   document.querySelector('#transactionEditCounterparty').value=tx.counterparties?.name||tx.counterparty||'';
-  const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'person';
+  const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'';
   const context=document.querySelector('#transactionEditContext'); if(context) context.value=tx.context_id||'';
   const contextName=document.querySelector('#transactionEditContextName'); if(contextName) contextName.value='';
   const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
