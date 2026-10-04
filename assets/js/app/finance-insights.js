@@ -2,6 +2,8 @@ import { localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
 import { financeCycles, inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
+import { budgetIsFixed, budgetIsSavings } from './budget-intelligence.js';
+import { countsAsCashIncome, countsAsEarnedIncome, inferredIncomeKind, incomeKindLabel, incomeSourceLabel, needsIncomeReview } from './finance-semantics.js';
 
 function base(value, currency, target, fxRates) {
   return convertAmount(value, currency || target, target, fxRates) ?? 0;
@@ -25,7 +27,7 @@ export function monthSeries({
       const occurred = new Date(tx.occurred_at);
       return tx.status === 'booked' && !tx.transfer_group_id && localMonthKey(tx.occurred_at) === key && occurred <= now;
     });
-    const income = rows.filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
+    const income = rows.filter((tx)=>countsAsCashIncome(tx))
       .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
     const expenses = rows.reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
     result.push({ key, date, income, expenses, net: income-expenses });
@@ -51,7 +53,7 @@ export function financeCycleSeries({
       return tx.status==='booked'&&!tx.transfer_group_id&&occurred<=now&&inFinanceCycle(tx,cycle);
     });
     const income=rows
-      .filter((tx)=>Number(tx.amount)>0&&tx.cashflow_type!=='receivable_principal')
+      .filter((tx)=>countsAsCashIncome(tx))
       .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
     const expenses=rows.reduce(
       (sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),
@@ -86,7 +88,7 @@ export function currentFinanceCycleTotals({
     return tx.status==='booked'&&!tx.transfer_group_id&&occurred<=now&&inFinanceCycle(tx,cycle);
   });
   const income=rows
-    .filter((tx)=>Number(tx.amount)>0&&tx.cashflow_type!=='receivable_principal')
+    .filter((tx)=>countsAsCashIncome(tx))
     .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
   const expenses=rows.reduce(
     (sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),
@@ -130,10 +132,16 @@ export function categorySpending({
     const parent = category?.parent_id ? parentById.get(category.parent_id) : category;
     const key = parent?.id || 'uncategorized';
     const label = parent?.name || 'Ohne Kategorie';
-    totals.set(key,{ key,label,value:(totals.get(key)?.value||0)+value });
+    const current=totals.get(key)||{key,label,value:0,transactionIds:[],categoryIds:new Set()};
+    current.value+=value;
+    current.transactionIds.push(tx.id);
+    if(tx.category_id) current.categoryIds.add(tx.category_id);
+    totals.set(key,current);
   }
 
-  const allRows=[...totals.values()].sort((a,b)=>b.value-a.value);
+  const allRows=[...totals.values()]
+    .map((row)=>({...row,categoryIds:[...row.categoryIds]}))
+    .sort((a,b)=>b.value-a.value);
   const total=allRows.reduce((sum,row)=>sum+row.value,0);
   const visible=allRows.slice(0,Math.max(1,limit));
   const hidden=allRows.slice(visible.length);
@@ -142,6 +150,8 @@ export function categorySpending({
       key:'other',
       label:'Sonstiges',
       value:hidden.reduce((sum,row)=>sum+row.value,0),
+      transactionIds:hidden.flatMap((row)=>row.transactionIds||[]),
+      categoryIds:[...new Set(hidden.flatMap((row)=>row.categoryIds||[]))],
     });
   }
 
@@ -182,10 +192,14 @@ export function budgetSummary({
 }={}) {
   const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay});
   const effective=effectiveBudgetSet(budgets,cycle.budgetMonth);
-  const rows=effective.rows;
+  const activeRecurring=recurringRules.filter((rule)=>rule.active!==false);
+  const rows=effective.rows.filter((budget)=>!budgetIsFixed(budget,activeRecurring,merchants)&&!budgetIsSavings(budget));
+  const excludedFixed=effective.rows.filter((budget)=>budgetIsFixed(budget,activeRecurring,merchants));
+  const excludedSavings=effective.rows.filter((budget)=>budgetIsSavings(budget));
   const total=rows.reduce((sum,b)=>sum+base(Number(b.amount||0),b.currency||baseCurrency,baseCurrency,fxRates),0);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   let spent=0;
+  const matchedTransactionIds=[];
   for(const tx of transactions){
     const occurred=new Date(tx.occurred_at);
     if(tx.status!=='booked'||tx.transfer_group_id||occurred>now||!inFinanceCycle(tx,cycle)) continue;
@@ -195,18 +209,84 @@ export function budgetSummary({
     const covered=rows.some((budget)=>budget.merchant_id
       ? budget.merchant_id===tx.merchant_id
       : budget.category_id===tx.category_id || budget.category_id===category?.parent_id);
-    if(covered) spent+=amount;
+    if(covered){ spent+=amount; matchedTransactionIds.push(tx.id); }
   }
+  const rawPercent=total>0?spent/total*100:0;
   return {
     total,
     spent,
     remaining:Math.max(0,total-spent),
-    percent:total>0?clampPercent(spent/total*100):0,
+    overrun:Math.max(0,spent-total),
+    rawPercent,
+    percent:clampPercent(rawPercent),
     count:rows.length,
+    rows,
+    matchedTransactionIds,
+    excludedFixedCount:excludedFixed.length,
+    excludedSavingsCount:excludedSavings.length,
     sourceMonth:effective.sourceMonth,
     inherited:effective.inherited,
     inheritedCount:effective.inheritedCount||0,
     cycle,
+  };
+}
+
+export function annualIncomeSummary({
+  transactions=[],
+  baseCurrency='CHF',
+  fxRates=null,
+  year=new Date().getFullYear(),
+}={}){
+  const start=new Date(year,0,1,0,0,0,0);
+  const end=new Date(year+1,0,1,0,0,0,0);
+  const rows=transactions.filter((tx)=>{
+    const occurred=new Date(tx.occurred_at);
+    return tx.status==='booked'
+      && Number(tx.amount)>0
+      && !tx.transfer_group_id
+      && occurred>=start
+      && occurred<end
+      && tx.analytics_excluded!==true;
+  });
+
+  const cashIncomeRows=rows.filter((tx)=>countsAsCashIncome(tx));
+  const totalCash=cashIncomeRows.reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
+  const earnedRows=cashIncomeRows.filter((tx)=>countsAsEarnedIncome(tx));
+  const earned=earnedRows.reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
+
+  const bySourceMap=new Map();
+  for(const tx of cashIncomeRows){
+    const source=incomeSourceLabel(tx);
+    const kind=inferredIncomeKind(tx)||'unknown';
+    const key=`${source}|${kind}`;
+    const value=base(tx.amount,tx.currency,baseCurrency,fxRates);
+    const current=bySourceMap.get(key)||{key,source,kind,label:incomeKindLabel(kind),value:0,count:0,transactionIds:[]};
+    current.value+=value;
+    current.count+=1;
+    current.transactionIds.push(tx.id);
+    bySourceMap.set(key,current);
+  }
+
+  const byKindMap=new Map();
+  for(const tx of cashIncomeRows){
+    const kind=inferredIncomeKind(tx)||'unknown';
+    const current=byKindMap.get(kind)||{kind,label:incomeKindLabel(kind),value:0,count:0,transactionIds:[]};
+    current.value+=base(tx.amount,tx.currency,baseCurrency,fxRates);
+    current.count+=1;
+    current.transactionIds.push(tx.id);
+    byKindMap.set(kind,current);
+  }
+
+  return {
+    year,
+    totalCash,
+    earned,
+    refunds:(byKindMap.get('refund')?.value||0),
+    repayments:(byKindMap.get('repayment')?.value||0),
+    unknown:(byKindMap.get('unknown')?.value||0),
+    reviewCount:rows.filter((tx)=>needsIncomeReview(tx)).length,
+    bySource:[...bySourceMap.values()].sort((a,b)=>b.value-a.value),
+    byKind:[...byKindMap.values()].sort((a,b)=>b.value-a.value),
   };
 }
 
