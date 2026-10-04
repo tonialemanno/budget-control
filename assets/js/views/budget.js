@@ -126,7 +126,7 @@ export function renderBudget({
   return `
     ${pageHeader({
       title:'Budget',
-      subtitle:`Aktueller Finanzmonat ${financePeriodLabel}. Setze nur deine frei steuerbaren Monatsrahmen; Fixkosten und Rücklagen laufen automatisch separat.`,
+      subtitle:'Variable Budgets, Fixkosten, Rücklagen und Steuern werden getrennt geplant.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Variables Budget</button>`:''
     })}
     ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt Finance den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
