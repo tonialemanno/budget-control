@@ -2,7 +2,7 @@ import { convertAmount } from './fx.js';
 import { effectiveNextDate, nextOccurrenceDate } from './recurrence.js';
 import { calculateBudgetSummary } from './budget-engine.js';
 import { categoryLineage, matchingRecurringRule, semanticExpenseBase, semanticType } from './finance-semantics.js';
-import { reserveMonthlyAmount } from './recurring-planning.js';
+import { plannedMonthlyAmount, reserveMonthlyAmount } from './recurring-planning.js';
 
 const DAY=24*60*60*1000;
 
@@ -135,7 +135,22 @@ function reserveStatus(rule,accounts=[],now=new Date()){
 }
 
 function priority(type){
-  return ({cash_shortfall:100,budget_risk:85,spending_spike:80,uncategorized:70,reserve_gap:60,unbudgeted:55,no_budget:45,on_track:10})[type]||0;
+  return ({cash_shortfall:100,budget_risk:85,spending_spike:80,uncategorized:70,reserve_gap:60,unbudgeted:55,no_budget:45,subscriptions:40,on_track:10})[type]||0;
+}
+
+function subscriptionSummary({recurringRules=[],categories=[],baseCurrency='CHF',fxRates=null,now=new Date()}={}){
+  const categoryById=new Map(categories.map((row)=>[row.id,row]));
+  const rows=recurringRules.filter((rule)=>{
+    if(!ruleActive(rule,now)||rule.direction!=='expense'||rule.reserve_enabled) return false;
+    const category=categoryById.get(rule.category_id);
+    const text=`${rule.description||''} ${rule.counterparty||''} ${category?.name||''}`
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    return /\b(abo|abonnement|subscription|stream|netflix|spotify|disney|youtube|prime|icloud|dropbox|adobe|microsoft\s*365|fitness|gym)\b/.test(text);
+  });
+  if(rows.length<2) return null;
+  const monthly=rows.reduce((sum,rule)=>sum+base(plannedMonthlyAmount(rule),rule.currency,baseCurrency,fxRates),0);
+  if(!(monthly>0)) return null;
+  return {count:rows.length,monthly,annual:monthly*12};
 }
 
 export function buildFinanceCoach({
@@ -220,6 +235,7 @@ export function buildFinanceCoach({
       return aDate-bDate;
     });
   const reserveGap=reserves.find((row)=>row.target>0&&row.balance<row.target&&row.monthly>0)||null;
+  const subscriptions=subscriptionSummary({recurringRules,categories,baseCurrency,fxRates,now});
 
   const insights=[];
   if(freeUntilIncome<0){
@@ -259,6 +275,9 @@ export function buildFinanceCoach({
   if(!budgetState.count&&snapshot.actualVariableExpensesMonth>0){
     insights.push({type:'no_budget',tone:'neutral',href:'#/budget'});
   }
+  if(subscriptions){
+    insights.push({type:'subscriptions',tone:'neutral',...subscriptions,href:'#/recurring'});
+  }
   if(!insights.some((row)=>['cash_shortfall','budget_risk','spending_spike'].includes(row.type))){
     insights.push({type:'on_track',tone:'positive',href:'#/budget'});
   }
@@ -297,6 +316,7 @@ export function buildFinanceCoach({
     budget:budgetState,
     reserves,
     anomaly,
+    subscriptions,
     insights:insights.slice(0,4),
   };
 }
