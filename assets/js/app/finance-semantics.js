@@ -47,7 +47,7 @@ export function incomeKindLabel(kind) {
 
 export function countsAsEarnedIncome(tx) {
   const kind=inferredIncomeKind(tx);
-  return !tx?.analytics_excluded && ['salary','side_income','sale','gift','other'].includes(kind);
+  return !tx?.analytics_excluded && ['salary','side_income'].includes(kind);
 }
 
 export function countsAsCashIncome(tx) {
