@@ -1109,6 +1109,78 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   return targets.length;
 }
 
+async function applyImportGroupLearning(ids, categoryId) {
+  const selectedIds=new Set((ids||[]).filter(Boolean));
+  const selected=runtime.transactions.filter((row)=>selectedIds.has(row.id));
+  if(!selected.length) throw new Error('Importgruppe wurde nicht gefunden.');
+
+  const kind=Number(selected[0].amount)<0?'expense':'income';
+  const category=runtime.categories.find((row)=>row.id===categoryId);
+  if(!category || category.kind!==kind) throw new Error('Bitte eine passende Kategorie auswählen.');
+
+  const detected=merchantFromTransaction(selected[0]);
+  if(!detected?.key || detected.key==='unbekannt'){
+    await financeApi.bulkUpdateTransactions(selected.map((row)=>row.id),{category_id:category.id});
+    for(const row of selected){
+      row.category_id=category.id;
+      row.categories={name:category.name,kind:category.kind,parent_id:category.parent_id||null};
+    }
+    return {count:selected.length,name:selected[0].counterparty||selected[0].description||'Buchung'};
+  }
+
+  let merchant=runtime.merchants.find((row)=>row.normalized_key===detected.key)||null;
+  if(!merchant){
+    merchant=await financeApi.upsertMerchant({
+      household_id:runtime.household.id,
+      normalized_key:detected.key,
+      name:detected.name,
+      default_category_id:category.id,
+    });
+    if(merchant) runtime.merchants.push(merchant);
+  } else if(merchant.default_category_id!==category.id){
+    merchant=await financeApi.updateMerchant(merchant.id,{default_category_id:category.id});
+    const index=runtime.merchants.findIndex((row)=>row.id===merchant.id);
+    if(index>=0) runtime.merchants[index]=merchant;
+  }
+
+  const candidates=runtime.transactions.filter((row)=>{
+    if(row.transfer_group_id || !['booked','pending'].includes(row.status)) return false;
+    const rowKind=Number(row.amount)<0?'expense':'income';
+    if(rowKind!==kind) return false;
+    const identity=merchantFromTransaction(row);
+    if(identity?.key!==detected.key) return false;
+    return selectedIds.has(row.id) || !row.category_id || row.category_id===category.id;
+  });
+
+  const aliasVariants=new Map();
+  for(const row of candidates){
+    const identity=merchantFromTransaction(row);
+    if(identity?.aliasKey && identity.aliasKey!==detected.key){
+      aliasVariants.set(identity.aliasKey,identity);
+    }
+  }
+  for(const identity of aliasVariants.values()){
+    const alias=await financeApi.upsertMerchantAlias({
+      household_id:runtime.household.id,
+      merchant_id:merchant.id,
+      alias_name:identity.rawName||identity.name,
+      normalized_key:identity.aliasKey,
+      payment_processor:identity.paymentProcessor||null,
+    });
+    if(alias && !runtime.merchantAliases.some((row)=>row.id===alias.id)) runtime.merchantAliases.push(alias);
+  }
+
+  const patch={category_id:category.id,merchant_id:merchant.id};
+  await financeApi.bulkUpdateTransactions(candidates.map((row)=>row.id),patch);
+  for(const row of candidates){
+    row.category_id=category.id;
+    row.merchant_id=merchant.id;
+    row.categories={name:category.name,kind:category.kind,parent_id:category.parent_id||null};
+    row.merchants={name:merchant.name,normalized_key:merchant.normalized_key,default_category_id:category.id};
+  }
+  return {count:candidates.length,name:merchant.name};
+}
+
 function contractRecurringPayload(contract) {
   const account=runtime.accounts.find((row)=>row.account_id===contract.account_id);
   if(!account) throw new Error('Bitte beim Vertrag zuerst ein Zahlungskonto hinterlegen.');
@@ -3412,9 +3484,12 @@ async function handleAction(target) {
     const categoryId=row?.querySelector('[data-import-group-category]')?.value || null;
     if (!categoryId) throw new Error('Bitte zuerst eine Kategorie auswählen.');
     const ids=String(row?.dataset.txIds||'').split(',').filter(Boolean);
-    for (const id of ids) await financeApi.updateTransaction(id,{category_id:categoryId});
-    if (row?.dataset.merchantId) await financeApi.updateMerchant(row.dataset.merchantId,{default_category_id:categoryId});
-    await refresh(`${ids.length} Buchung${ids.length===1?'':'en'} kategorisiert und Händler-Zuordnung gespeichert.`); return;
+    const scrollY=window.scrollY;
+    const result=await applyImportGroupLearning(ids,categoryId);
+    render();
+    requestAnimationFrame(()=>window.scrollTo({top:scrollY,behavior:'auto'}));
+    showToast(`${result.name}: ${result.count} Buchung${result.count===1?'':'en'} zugeordnet und dauerhaft gemerkt.`);
+    return;
   }
   if (action === 'transaction-delete') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
