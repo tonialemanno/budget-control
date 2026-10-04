@@ -1,4 +1,4 @@
-import { MODULES } from '../app/config.js';
+import { APP_CONFIG, MODULES } from '../app/config.js';
 import { buildSetupStatus } from '../app/setup-model.js';
 import { pageHeader, statusPill } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
@@ -22,7 +22,7 @@ export function renderSettings({
   hiddenModules=[], privacyEnabled=false, canWrite=false, canAdminHousehold=false,
   masterDataHouseholds=[], countryMasterCategories=[], countryMasterMerchants=[],
   accounts=[], categories=[], merchants=[], categorizationRules=[], recurringRules=[],
-  budgets=[], goals=[], debts=[], receivables=[], taxCases=[],
+  budgets=[], goals=[], debts=[], receivables=[], taxCases=[], runtimeState=null,
 } = {}) {
   const hidden = new Set(hiddenModules || []);
   const catalog = (productModules || []).filter((module)=>module.key !== 'admin');
@@ -40,6 +40,10 @@ export function renderSettings({
     accounts,categories,merchants,categorizationRules,recurringRules,budgets,goals,debts,receivables,taxCases,household,profile,
   });
   const setupReady=setupState.completed||setupState.ready;
+  const preferences=profile?.preferences&&typeof profile.preferences==='object'&&!Array.isArray(profile.preferences)?profile.preferences:{};
+  const sessionTimeout=[15,30,60,120].includes(Number(preferences.session_timeout_minutes))
+    ? Number(preferences.session_timeout_minutes)
+    : 30;
 
   return `
     ${pageHeader({title:'Einstellungen',subtitle:'Sprache, Währung, Darstellung, Kategorien, Sicherheit, Module und Administration an einem Ort.'})}
@@ -85,6 +89,11 @@ export function renderSettings({
         <article class="card card-padding">
           <div class="card-heading"><div><h3 class="card-title">Mein Login & Zugriff</h3><p class="card-subtitle">Identität und Berechtigungen auf einen Blick</p></div></div>
           <div class="mini-detail-list"><span>Name <strong>${escapeHtml(profile?.display_name||'—')}</strong></span><span>E-Mail <strong>${escapeHtml(user?.email||'—')}</strong></span><span>Haushalt <strong>${escapeHtml(household?.name||'—')}</strong></span><span>Haushaltsrolle <strong>${escapeHtml(householdRoleLabel(householdRole))}</strong></span><span>Systemrolle <strong>${escapeHtml(adminRole ? `App-${adminRole}` : 'Benutzer')}</strong></span><span>Land <strong>${escapeHtml(household?.country_code||'—')}</strong></span><span>Basiswährung <strong>${escapeHtml(household?.base_currency||'—')}</strong></span></div>
+        </article>
+        <article class="card card-padding">
+          <div class="card-heading"><div><h3 class="card-title">Sitzung & Sicherheit</h3><p class="card-subtitle">Finance meldet dich bei Inaktivität automatisch ab.</p></div><span class="list-row-leading">${icon('shield')}</span></div>
+          <div class="settings-row settings-row--embedded"><div class="settings-row-copy"><strong>Automatischer Logout</strong><span>Nach dieser Zeit ohne Bedienung wird die Sitzung beendet. 5 Minuten vorher erscheint eine Warnung.</span></div><select class="select-control" id="sessionTimeoutSelect"><option value="15" ${sessionTimeout===15?'selected':''}>15 Minuten</option><option value="30" ${sessionTimeout===30?'selected':''}>30 Minuten · empfohlen</option><option value="60" ${sessionTimeout===60?'selected':''}>60 Minuten</option><option value="120" ${sessionTimeout===120?'selected':''}>2 Stunden</option></select></div>
+          <div class="mini-detail-list" style="margin-top:14px"><span>Maximale Sitzung <strong>12 Stunden</strong></span><span>Release <strong>${escapeHtml(APP_CONFIG.releaseId)}</strong></span><span>App <strong>V${escapeHtml(APP_CONFIG.version)}</strong></span><span>Schema <strong>${Number(runtimeState?.schema_version||APP_CONFIG.schemaVersion)}</strong></span></div>
         </article>
         <form class="card card-padding" id="password-change" data-form="password-change"><div class="card-heading"><div><h3 class="card-title">Passwort ändern</h3><p class="card-subtitle">Mindestens 8 Zeichen</p></div><span class="list-row-leading">${icon('shield')}</span></div><div class="form-grid"><label class="field"><span>Neues Passwort</span><input class="text-control" name="password" type="password" minlength="8" required autocomplete="new-password"></label><label class="field"><span>Wiederholen</span><input class="text-control" name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password"></label></div><div class="form-actions"><button class="action-button action-button--primary" type="submit">Passwort speichern</button></div></form>
       </div>

@@ -1,6 +1,11 @@
+const now=Date.parse('2026-10-04T10:00:00Z');
+assert.equal(presenceState({presence:{last_seen_at:'2026-10-04T09:59:30Z',last_interaction_at:'2026-10-04T09:58:00Z',activity_state:'active'}},now).state,'active');
+assert.equal(presenceState({presence:{last_seen_at:'2026-10-04T09:59:30Z',last_interaction_at:'2026-10-04T09:53:00Z',activity_state:'idle'}},now).state,'idle');
+assert.equal(presenceState({presence:{last_seen_at:'2026-10-04T09:57:00Z',last_interaction_at:'2026-10-04T09:56:00Z',activity_state:'active'}},now).state,'offline');
+
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { renderAdmin } from '../assets/js/views/admin.js';
+import { presenceState, renderAdmin } from '../assets/js/views/admin.js';
 
 const html=renderAdmin({
   productModules:[],
@@ -58,6 +63,8 @@ assert.doesNotMatch(migration,/object_id\s+/i);
 
 const edge=fs.readFileSync(new URL('../supabase/functions/admin-users/index.ts',import.meta.url),'utf8');
 assert.match(edge,/user_activity_summary/);
+assert.match(edge,/activity_state/);
+assert.match(edge,/last_interaction_at/);
 assert.match(edge,/user_activity_events/);
 assert.match(edge,/last_30_days/);
 assert.match(edge,/recent:/);

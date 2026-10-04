@@ -61,7 +61,7 @@ export const financeApi = Object.freeze({
   listCategorizationRules(householdId) { return listByHousehold('categorization_rules', householdId, { select: '*,categories(name,kind)', order: 'priority.asc,created_at.asc' }); },
   createCategorizationRule: (payload) => insert('categorization_rules', payload), deleteCategorizationRule: (id) => remove('categorization_rules', id),
   async listTransactions(householdId) {
-    const select = 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,tax_year,tax_section_key,tax_treatment,cashflow_type,accounts(name),categories(name,kind,parent_id),merchants(name,normalized_key,default_category_id)';
+    const select = 'id,household_id,account_id,category_id,merchant_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,tax_year,tax_section_key,tax_treatment,cashflow_type,semantic_type,exclude_from_reports,accounts(name),categories(name,kind,parent_id),merchants(name,normalized_key,default_category_id)';
     const pageSize = 1000; const rows = [];
     for (let offset = 0; ; offset += pageSize) { const page = await listByHousehold('transactions', householdId, { select, order: 'occurred_at.desc,created_at.desc', limit: pageSize, extra: { offset: String(offset) } }); rows.push(...(page || [])); if (!page || page.length < pageSize) break; }
     return rows;
@@ -171,8 +171,19 @@ export const financeApi = Object.freeze({
   },
   reverseReceivablePayment: (paymentId) => backend.rpc('reverse_receivable_payment_v2', { p_payment_id:paymentId }),
   deleteReceivable: ({ householdId, receivableId }) => backend.rpc('delete_receivable_v2', { p_household_id:householdId, p_receivable_id:receivableId }),
-  touchPresence: ({ route=null, appVersion=null, deviceLabel=null }={}) => backend.rpc('touch_user_presence', { p_route:route, p_app_version:appVersion, p_device_label:deviceLabel }),
+  touchPresence: ({ route=null, appVersion=null, deviceLabel=null, activityState='active', lastInteractionAt=null, sessionStartedAt=null }={}) => backend.rpc('touch_user_presence_v2', {
+    p_route:route,
+    p_app_version:appVersion,
+    p_device_label:deviceLabel,
+    p_activity_state:activityState,
+    p_last_interaction_at:lastInteractionAt,
+    p_session_started_at:sessionStartedAt,
+  }),
   clearPresence: () => backend.rpc('clear_user_presence'),
+  getRuntimeState: async () => {
+    const rows=await backend.rpc('get_finance_runtime_state');
+    return Array.isArray(rows)?rows[0]||null:rows||null;
+  },
   listLegalCases(householdId) { return listByHousehold('legal_cases', householdId, { order: 'status.asc,next_action_date.asc.nullslast,created_at.desc' }); }, createLegalCase: (payload) => insert('legal_cases', payload), updateLegalCase: (id, patch) => update('legal_cases', id, patch), deleteLegalCase: (id) => remove('legal_cases', id),
   listLegalEvents(householdId) { return listByHousehold('legal_case_events', householdId, { order: 'event_date.desc,created_at.desc' }); }, createLegalEvent: (payload) => insert('legal_case_events', payload), deleteLegalEvent: (id) => remove('legal_case_events', id),
   listAssets(householdId) { return listByHousehold('assets', householdId, { order: 'created_at.desc' }); }, createAsset: (payload) => insert('assets', payload), updateAsset: (id, patch) => update('assets', id, patch), deleteAsset: (id) => remove('assets', id),

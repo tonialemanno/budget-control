@@ -1,7 +1,9 @@
 import { localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
-import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
+import { buildDebtPaymentTransactionMap } from './financial-effects.js';
 import { financeCycles, inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
+import { calculateBudgetSummary, effectiveBudgetSet } from './budget-engine.js';
+import { semanticExpenseBase, semanticIncomeBase, semanticType } from './finance-semantics.js';
 
 function base(value, currency, target, fxRates) {
   return convertAmount(value, currency || target, target, fxRates) ?? 0;
@@ -25,9 +27,8 @@ export function monthSeries({
       const occurred = new Date(tx.occurred_at);
       return tx.status === 'booked' && !tx.transfer_group_id && localMonthKey(tx.occurred_at) === key && occurred <= now;
     });
-    const income = rows.filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
-      .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
-    const expenses = rows.reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),0);
+    const income = rows.reduce((sum,tx)=>sum+semanticIncomeBase(tx,{baseCurrency,fxRates}),0);
+    const expenses = rows.reduce((sum,tx)=>sum+semanticExpenseBase(tx,{debtPayments:paymentMap,baseCurrency,fxRates}),0);
     result.push({ key, date, income, expenses, net: income-expenses });
   }
   return result;
@@ -37,6 +38,7 @@ export function financeCycleSeries({
   transactions=[],
   debtPayments=[],
   recurringRules=[],
+  categories=[],
   baseCurrency='CHF',
   fxRates=null,
   now=new Date(),
@@ -50,11 +52,12 @@ export function financeCycleSeries({
       const occurred=new Date(tx.occurred_at);
       return tx.status==='booked'&&!tx.transfer_group_id&&occurred<=now&&inFinanceCycle(tx,cycle);
     });
-    const income=rows
-      .filter((tx)=>Number(tx.amount)>0&&tx.cashflow_type!=='receivable_principal')
-      .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
+    const income=rows.reduce(
+      (sum,tx)=>sum+semanticIncomeBase(tx,{categories,recurringRules,baseCurrency,fxRates}),
+      0
+    );
     const expenses=rows.reduce(
-      (sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),
+      (sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency,fxRates}),
       0
     );
     return {
@@ -74,6 +77,7 @@ export function currentFinanceCycleTotals({
   transactions=[],
   debtPayments=[],
   recurringRules=[],
+  categories=[],
   baseCurrency='CHF',
   fxRates=null,
   now=new Date(),
@@ -85,11 +89,12 @@ export function currentFinanceCycleTotals({
     const occurred=new Date(tx.occurred_at);
     return tx.status==='booked'&&!tx.transfer_group_id&&occurred<=now&&inFinanceCycle(tx,cycle);
   });
-  const income=rows
-    .filter((tx)=>Number(tx.amount)>0&&tx.cashflow_type!=='receivable_principal')
-    .reduce((sum,tx)=>sum+base(tx.amount,tx.currency,baseCurrency,fxRates),0);
+  const income=rows.reduce(
+    (sum,tx)=>sum+semanticIncomeBase(tx,{categories,recurringRules,baseCurrency,fxRates}),
+    0
+  );
   const expenses=rows.reduce(
-    (sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates),
+    (sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency,fxRates}),
     0
   );
   const savings=income-expenses;
@@ -104,7 +109,7 @@ export function currentFinanceCycleTotals({
 }
 
 export function categorySpending({
-  transactions = [], debtPayments = [], categories = [], baseCurrency = 'CHF', fxRates = null,
+  transactions = [], debtPayments = [], categories = [], recurringRules = [], baseCurrency = 'CHF', fxRates = null,
   now = new Date(), limit = 5, includeOther = true, periodDays = null,
   rangeStart = null, rangeEnd = null,
 } = {}) {
@@ -124,16 +129,20 @@ export function categorySpending({
     if (tx.status!=='booked' || tx.transfer_group_id || occurred>now) continue;
     if (periodStart ? occurred<periodStart : localMonthKey(tx.occurred_at)!==month) continue;
     if (periodEnd && occurred>=periodEnd) continue;
-    const value = consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
+    const value = semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency,fxRates});
     if (!(value>0)) continue;
     const category = parentById.get(tx.category_id);
     const parent = category?.parent_id ? parentById.get(category.parent_id) : category;
     const key = parent?.id || 'uncategorized';
     const label = parent?.name || 'Ohne Kategorie';
-    totals.set(key,{ key,label,value:(totals.get(key)?.value||0)+value });
+    const existing=totals.get(key)||{key,label,value:0,categoryIds:new Set()};
+    existing.value+=value;
+    if(category?.id) existing.categoryIds.add(category.id);
+    if(parent?.id) existing.categoryIds.add(parent.id);
+    totals.set(key,existing);
   }
 
-  const allRows=[...totals.values()].sort((a,b)=>b.value-a.value);
+  const allRows=[...totals.values()].map((row)=>({...row,categoryIds:[...row.categoryIds]})).sort((a,b)=>b.value-a.value);
   const total=allRows.reduce((sum,row)=>sum+row.value,0);
   const visible=allRows.slice(0,Math.max(1,limit));
   const hidden=allRows.slice(visible.length);
@@ -142,72 +151,65 @@ export function categorySpending({
       key:'other',
       label:'Sonstiges',
       value:hidden.reduce((sum,row)=>sum+row.value,0),
+      categoryIds:[...new Set(hidden.flatMap((row)=>row.categoryIds||[]))],
     });
   }
 
   return visible.map((row)=>({...row,share:total>0?row.value/total*100:0,total}));
 }
 
-export function effectiveBudgetSet(budgets = [], month) {
-  const target=String(month||'').slice(0,7);
-  const current=budgets
-    .filter((row)=>String(row.month_start||'').slice(0,7)===target)
-    .map((row)=>({...row,_inherited:false}));
+export function annualIncomeBreakdown({
+  transactions=[],categories=[],recurringRules=[],baseCurrency='CHF',fxRates=null,year=new Date().getFullYear(),limit=6,
+}={}) {
+  const start=new Date(year,0,1);
+  const end=new Date(year+1,0,1);
+  const earned=new Map();
+  let refunds=0;
+  let repayments=0;
+  let unclassified=0;
+  let otherIncome=0;
 
-  const previousMonths=[...new Set(
-    budgets
-      .map((row)=>String(row.month_start||'').slice(0,7))
-      .filter((value)=>/^\d{4}-\d{2}$/.test(value)&&value<target)
-  )].sort().reverse();
-  const sourceMonth=previousMonths[0]||null;
-  if(!sourceMonth) return { rows:current, sourceMonth:target, inherited:false, inheritedCount:0 };
+  for(const tx of transactions){
+    const date=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||Number.isNaN(date.getTime())||date<start||date>=end||Number(tx.amount)<=0) continue;
+    const type=semanticType(tx,{categories,recurringRules});
+    const value=Math.max(0,base(tx.amount,tx.currency,baseCurrency,fxRates));
+    if(type==='earned_income'||type==='other_income'){
+      const source=tx.merchants?.name||tx.counterparty||tx.description||'Sonstige Einnahmen';
+      const key=String(source).trim()||'Sonstige Einnahmen';
+      earned.set(key,(earned.get(key)||0)+value);
+      if(type==='other_income') otherIncome+=value;
+    } else if(type==='refund'||type==='tax_refund') refunds+=value;
+    else if(type==='receivable_repayment') repayments+=value;
+    else if(type==='unclassified_inflow') unclassified+=value;
+  }
 
-  const scopeKey=(row)=>row.merchant_id ? `merchant:${row.merchant_id}` : `category:${row.category_id||''}`;
-  const currentScopes=new Set(current.map(scopeKey));
-  const inheritedRows=budgets
-    .filter((row)=>String(row.month_start||'').slice(0,7)===sourceMonth&&!currentScopes.has(scopeKey(row)))
-    .map((row)=>({...row,_inherited:true}));
-
+  const allSources=[...earned.entries()].map(([label,value])=>({label,value,sourceNames:[label]})).sort((a,b)=>b.value-a.value);
+  const top=allSources.slice(0,Math.max(1,limit));
+  const hidden=allSources.slice(top.length);
+  if(hidden.length) top.push({
+    label:'Sonstige Verdienste',
+    value:hidden.reduce((sum,row)=>sum+row.value,0),
+    other:true,
+    sourceNames:hidden.map((row)=>row.label),
+  });
+  const earnedTotal=allSources.reduce((sum,row)=>sum+row.value,0);
   return {
-    rows:[...current,...inheritedRows],
-    sourceMonth,
-    inherited:inheritedRows.length>0,
-    inheritedCount:inheritedRows.length,
+    year,
+    earnedTotal,
+    sources:top,
+    refunds,
+    repayments,
+    unclassified,
+    otherIncome,
+    cashInflows:earnedTotal+refunds+repayments+unclassified,
   };
 }
 
-export function budgetSummary({
-  budgets = [], transactions = [], debtPayments = [], categories = [], merchants = [],
-  recurringRules = [], baseCurrency='CHF', fxRates=null, now=new Date(), fallbackDay=25,
-}={}) {
-  const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay});
-  const effective=effectiveBudgetSet(budgets,cycle.budgetMonth);
-  const rows=effective.rows;
-  const total=rows.reduce((sum,b)=>sum+base(Number(b.amount||0),b.currency||baseCurrency,baseCurrency,fxRates),0);
-  const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  let spent=0;
-  for(const tx of transactions){
-    const occurred=new Date(tx.occurred_at);
-    if(tx.status!=='booked'||tx.transfer_group_id||occurred>now||!inFinanceCycle(tx,cycle)) continue;
-    const amount=consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
-    if(!(amount>0)) continue;
-    const category=categories.find((row)=>row.id===tx.category_id);
-    const covered=rows.some((budget)=>budget.merchant_id
-      ? budget.merchant_id===tx.merchant_id
-      : budget.category_id===tx.category_id || budget.category_id===category?.parent_id);
-    if(covered) spent+=amount;
-  }
-  return {
-    total,
-    spent,
-    remaining:Math.max(0,total-spent),
-    percent:total>0?clampPercent(spent/total*100):0,
-    count:rows.length,
-    sourceMonth:effective.sourceMonth,
-    inherited:effective.inherited,
-    inheritedCount:effective.inheritedCount||0,
-    cycle,
-  };
+export { effectiveBudgetSet };
+
+export function budgetSummary(options={}) {
+  return calculateBudgetSummary(options);
 }
 
 export function goalSummaries(goals = []) {

@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
         ? admin.from("user_module_access").select("user_id,module_key,enabled").in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
       userIds.length
-        ? admin.from("user_presence").select("user_id,last_seen_at,route,app_version,device_label").in("user_id", userIds)
+        ? admin.from("user_presence").select("user_id,last_seen_at,route,app_version,device_label,activity_state,last_interaction_at,session_started_at").in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
       userIds.length
         ? admin.from("profiles").select("user_id,display_name,locale").in("user_id", userIds)

@@ -45,6 +45,8 @@ export async function createEconomicTransaction({
   note = null,
   source = 'manual',
   status = 'booked',
+  semanticType = null,
+  excludeFromReports = false,
   tax = null,
 }) {
   required(api, 'Finance API fehlt.');
@@ -64,6 +66,8 @@ export async function createEconomicTransaction({
     note: note || null,
     status,
     source,
+    semantic_type: semanticType || null,
+    exclude_from_reports: Boolean(excludeFromReports),
   };
   if (tax?.enabled) {
     payload.tax_relevant = true;

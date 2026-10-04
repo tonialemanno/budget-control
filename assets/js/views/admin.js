@@ -50,20 +50,39 @@ function matchesUser(user,query){
   return [user.display_name,user.email].filter(Boolean).some((value)=>String(value).toLowerCase().includes(needle));
 }
 
-function presenceState(user){
+export function presenceState(user,now=Date.now()){
   const raw=user?.presence?.last_seen_at;
-  if(!raw) return {online:false,label:'Nicht online',detail:'Noch kein Live-Signal'};
+  if(!raw) return {state:'offline',online:false,active:false,idle:false,label:'Offline',detail:'Noch kein Live-Signal'};
   const seen=new Date(raw);
-  const seconds=Math.max(0,(Date.now()-seen.getTime())/1000);
-  const online=seconds<=95;
-  let label='Online';
-  if(!online){
+  const seconds=Math.max(0,(Number(now)-seen.getTime())/1000);
+  const heartbeatFresh=seconds<=95;
+  if(!heartbeatFresh){
     const minutes=Math.floor(seconds/60);
-    if(minutes<60) label=`vor ${Math.max(1,minutes)} Min.`;
-    else if(minutes<1440) label=`vor ${Math.floor(minutes/60)} Std.`;
-    else label=`vor ${Math.floor(minutes/1440)} Tag${Math.floor(minutes/1440)===1?'':'en'}`;
+    let label='Offline';
+    if(minutes<60) label=`Offline · vor ${Math.max(1,minutes)} Min.`;
+    else if(minutes<1440) label=`Offline · vor ${Math.floor(minutes/60)} Std.`;
+    else label=`Offline · vor ${Math.floor(minutes/1440)} Tag${Math.floor(minutes/1440)===1?'':'en'}`;
+    return {
+      state:'offline',online:false,active:false,idle:false,label,
+      detail:[user.presence?.device_label,user.presence?.app_version].filter(Boolean).join(' · ')||'Kein aktuelles Live-Signal'
+    };
   }
-  return {online,label,detail:[user.presence?.device_label,user.presence?.app_version].filter(Boolean).join(' · ')||'Live-Status'};
+
+  const interactionRaw=user?.presence?.last_interaction_at;
+  const interaction=interactionRaw?new Date(interactionRaw):null;
+  const interactionMinutes=interaction&&!Number.isNaN(interaction.getTime())
+    ? Math.max(0,Math.floor((Number(now)-interaction.getTime())/60000))
+    : null;
+  const idle=user?.presence?.activity_state==='idle'||(interactionMinutes!==null&&interactionMinutes>=5);
+  const state=idle?'idle':'active';
+  const label=idle?'Inaktiv':'Aktiv';
+  const interactionDetail=idle&&interactionMinutes!==null
+    ? `letzte Bedienung vor ${Math.max(1,interactionMinutes)} Min.`
+    : 'aktive Bedienung';
+  return {
+    state,online:true,active:!idle,idle,label,
+    detail:[interactionDetail,user.presence?.device_label,user.presence?.app_version].filter(Boolean).join(' · ')
+  };
 }
 
 export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',adminPage=1,adminExpandedUserId=null,demoCredentials=null}={}){
@@ -73,7 +92,8 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
   const safePage=Math.min(Math.max(Number(adminPage)||1,1),pageCount);
   const start=(safePage-1)*PAGE_SIZE;
   const visibleUsers=filtered.slice(start,start+PAGE_SIZE);
-  const onlineCount=adminUsers.filter((user)=>presenceState(user).online).length;
+  const activeCount=adminUsers.filter((user)=>presenceState(user).active).length;
+  const idleCount=adminUsers.filter((user)=>presenceState(user).idle).length;
 
   const rows=visibleUsers.map((user)=>{
     const expanded=adminExpandedUserId===user.id;
@@ -87,7 +107,7 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
     return `<article class="card admin-user-row ${expanded?'admin-user-row--expanded':''}">
       <div class="admin-user-summary">
         <div class="admin-user-identity"><span class="profile-avatar">${escapeHtml((user.display_name||user.email||'B').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(user.display_name||'Ohne Anzeigename')}</strong><span>${escapeHtml(user.email||'')}</span></div></div>
-        <div class="admin-user-meta"><span>Live <strong>${presence.online?statusPill('active','Online'):escapeHtml(presence.label)}</strong><small class="table-meta">${escapeHtml(presence.detail)}</small></span><span>Letzter Login <strong>${user.last_sign_in_at?dateLabel(user.last_sign_in_at):'noch nie'}</strong></span><span>Letzte Eintragung <strong>${escapeHtml(lastActivity)}</strong><small class="table-meta">${escapeHtml(lastActivityModule)}</small></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
+        <div class="admin-user-meta"><span>Status <strong>${presence.active?statusPill('active','Aktiv'):presence.idle?statusPill('pending','Inaktiv'):escapeHtml(presence.label)}</strong><small class="table-meta">${escapeHtml(presence.detail)}</small></span><span>Letzter Login <strong>${user.last_sign_in_at?dateLabel(user.last_sign_in_at):'noch nie'}</strong></span><span>Letzte Eintragung <strong>${escapeHtml(lastActivity)}</strong><small class="table-meta">${escapeHtml(lastActivityModule)}</small></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
         <button class="table-action" type="button" data-action="admin-user-toggle-details" data-user-id="${user.id}">${expanded?'Schliessen':'Details'}</button>
       </div>
       ${expanded?`<div class="admin-user-details">
@@ -116,7 +136,7 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
   const pager=pageCount>1?`<div class="admin-pager"><button class="table-action" type="button" data-action="admin-page" data-page="${safePage-1}" ${safePage<=1?'disabled':''}>Zurück</button><span>Seite ${safePage} von ${pageCount}</span><button class="table-action" type="button" data-action="admin-page" data-page="${safePage+1}" ${safePage>=pageCount?'disabled':''}>Weiter</button></div>`:'';
 
   return `
-    ${pageHeader({title:'Administration',subtitle:`${onlineCount} online · ${adminUsers.length} Benutzer. Online bedeutet: aktives Signal innerhalb der letzten 95 Sekunden.`,actions:'<button class="action-button action-button--secondary" type="button" data-action="admin-refresh-presence">Status aktualisieren</button>'})}
+    ${pageHeader({title:'Administration',subtitle:`${activeCount} aktiv · ${idleCount} inaktiv · ${adminUsers.length} Benutzer. Aktiv = Bedienung in den letzten 5 Minuten; Inaktiv = Seite offen ohne Bedienung; danach Offline.`,actions:'<button class="action-button action-button--secondary" type="button" data-action="admin-refresh-presence">Status aktualisieren</button>'})}
     <div class="grid-main-aside">
       <form class="card card-padding" id="admin-demo-create" data-form="admin-demo-create">
         <div class="card-heading"><div><h3 class="card-title">Demo-Instanz</h3><p class="card-subtitle">Isolierter Demo-Haushalt mit synthetischen Daten und allen Modulen.</p></div><span class="list-row-leading">${icon('sparkles')}</span></div>

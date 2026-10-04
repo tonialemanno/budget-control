@@ -11,6 +11,15 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
+import { resolveFinanceCycle } from './app/finance-cycle.js';
+import {
+  DEFAULT_IDLE_MINUTES, MAX_SESSION_HOURS, formatRemainingMinutes, normalizeIdleMinutes,
+  presenceActivityState, sessionStatus,
+} from './app/session-guard.js';
+import {
+  RELEASE_CHECK_INTERVAL_MS, clearFinanceCaches, fetchReleaseManifest,
+  releaseMismatch, releaseReloadUrl, schemaCompatibility,
+} from './app/release-guard.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 import {
   createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
@@ -134,10 +143,11 @@ const runtime = {
   taxObligations: [],
   taxPayments: [],
   fxRates: null,
+  runtimeState: null,
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -407,8 +417,23 @@ function closeProfileMenu() {
   profileButton?.setAttribute('aria-expanded','false');
 }
 
-let presenceTimer = null;
-let adminPresenceTimer = null;
+const SESSION_KEYS=Object.freeze({
+  lastInteraction:'finance:lastInteractionAt',
+  sessionStarted:'finance:sessionStartedAt',
+  timeout:'finance:sessionTimeoutMinutes',
+});
+const SESSION_WARNING_ID='sessionExpiryWarning';
+const RELEASE_OVERLAY_ID='releaseUpdateOverlay';
+const BACKGROUND_REFRESH_MS=5*60_000;
+
+let presenceTimer=null;
+let adminPresenceTimer=null;
+let sessionGuardTimer=null;
+let releaseTimer=null;
+let hiddenAt=null;
+let releaseCheckInFlight=null;
+let releaseReloading=false;
+let lastInteractionPersistAt=0;
 
 function applyReleaseChannelUI() {
   const channel=APP_CONFIG.releaseChannel||'stable';
@@ -416,14 +441,15 @@ function applyReleaseChannelUI() {
   const pill=document.querySelector('#releaseVersionPill');
   const heading=document.querySelector('#releaseChannelLabel');
   const caption=document.querySelector('#releaseChannelCaption');
-  if(pill) pill.textContent=`V2.3 · ${label.toUpperCase()}`;
-  if(heading) heading.textContent=`${label} 2.3`;
+  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()}`;
+  if(heading) heading.textContent=`${label} ${APP_CONFIG.version}`;
   if(caption) caption.textContent=channel==='beta'
     ? t('Teststand · kann sich ändern')
     : channel==='local'
       ? t('Lokale Entwicklungsumgebung')
       : t('Freigegebener Stand · Supabase');
   document.documentElement.dataset.releaseChannel=channel;
+  document.documentElement.dataset.releaseId=APP_CONFIG.releaseId;
 }
 
 function currentDeviceLabel() {
@@ -436,25 +462,211 @@ function currentDeviceLabel() {
   return 'Browser';
 }
 
-async function pulsePresence() {
-  if (!runtime.user || document.visibilityState === 'hidden') return;
+function storageNumber(key){
+  try {
+    const value=Number(localStorage.getItem(key));
+    return Number.isFinite(value)&&value>0?value:null;
+  } catch { return null; }
+}
+
+function persistNumber(key,value){
+  try { localStorage.setItem(key,String(value)); } catch {}
+}
+
+function clearSessionClock(){
+  try {
+    localStorage.removeItem(SESSION_KEYS.lastInteraction);
+    localStorage.removeItem(SESSION_KEYS.sessionStarted);
+  } catch {}
+}
+
+function configuredSessionTimeout(){
+  const preferred=profilePreferences().session_timeout_minutes;
+  const stored=storageNumber(SESSION_KEYS.timeout);
+  return normalizeIdleMinutes(preferred??stored??DEFAULT_IDLE_MINUTES);
+}
+
+function ensureSessionClock({fresh=false}={}){
+  const now=Date.now();
+  let started=fresh?null:storageNumber(SESSION_KEYS.sessionStarted);
+  let last=fresh?null:storageNumber(SESSION_KEYS.lastInteraction);
+  if(!started) started=now;
+  if(!last) last=now;
+  persistNumber(SESSION_KEYS.sessionStarted,started);
+  persistNumber(SESSION_KEYS.lastInteraction,last);
+  return {started,last};
+}
+
+function sessionClock(){
+  const clock=ensureSessionClock();
+  return {
+    sessionStartedAt:clock.started,
+    lastInteractionAt:clock.last,
+    idleMinutes:configuredSessionTimeout(),
+  };
+}
+
+function hideSessionWarning(){
+  document.querySelector(`#${SESSION_WARNING_ID}`)?.remove();
+}
+
+function renderSessionWarning(status){
+  let banner=document.querySelector(`#${SESSION_WARNING_ID}`);
+  if(!banner){
+    banner=document.createElement('aside');
+    banner.id=SESSION_WARNING_ID;
+    banner.className='session-expiry-warning';
+    banner.setAttribute('role','alert');
+    document.body.appendChild(banner);
+  }
+  const minutes=formatRemainingMinutes(status.remainingMs);
+  banner.innerHTML=`<div><strong>${escapeHtml(t('Sitzung läuft bald ab'))}</strong><span>${escapeHtml(t(`Ohne Bedienung wirst du in ${minutes} Min. automatisch abgemeldet.`))}</span></div><button class="action-button action-button--primary" type="button" data-session-continue>${escapeHtml(t('Weiterarbeiten'))}</button>`;
+  banner.querySelector('[data-session-continue]')?.addEventListener('click',()=>{
+    markInteraction(true);
+    hideSessionWarning();
+    void pulsePresence();
+  },{once:true});
+}
+
+function markInteraction(force=false){
+  if(!runtime.user) return;
+  const now=Date.now();
+  if(!force&&now-lastInteractionPersistAt<5000) return;
+  lastInteractionPersistAt=now;
+  persistNumber(SESSION_KEYS.lastInteraction,now);
+  hideSessionWarning();
+}
+
+function currentSessionStatus(){
+  const clock=sessionClock();
+  return sessionStatus({
+    now:Date.now(),
+    lastInteractionAt:clock.lastInteractionAt,
+    sessionStartedAt:clock.sessionStartedAt,
+    idleMinutes:clock.idleMinutes,
+    maxSessionHours:MAX_SESSION_HOURS,
+  });
+}
+
+function showReleaseUpdating(message='Neue Finance-Version wird geladen …'){
+  let overlay=document.querySelector(`#${RELEASE_OVERLAY_ID}`);
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id=RELEASE_OVERLAY_ID;
+    overlay.className='release-update-overlay';
+    overlay.setAttribute('role','alert');
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML=`<div class="release-update-card"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t(message))}</strong><span>${escapeHtml(t('Deine Finanzdaten bleiben unverändert.'))}</span></div>`;
+}
+
+async function reloadForRelease(releaseId,message='Neue Finance-Version wird geladen …'){
+  if(releaseReloading) return false;
+  releaseReloading=true;
+  showReleaseUpdating(message);
+  stopLiveTimers();
+  await clearFinanceCaches().catch(()=>null);
+  const next=releaseReloadUrl(location,releaseId||Date.now());
+  location.replace(next);
+  return false;
+}
+
+async function ensureCurrentRelease(){
+  if(releaseReloading) return false;
+  if(releaseCheckInFlight) return releaseCheckInFlight;
+  releaseCheckInFlight=(async()=>{
+    try {
+      const manifest=await fetchReleaseManifest(`./version.json?check=${Date.now()}`);
+      if(releaseMismatch(APP_CONFIG.releaseId,manifest)){
+        return reloadForRelease(manifest.releaseId,'Neue Finance-Version verfügbar. Finance wird aktualisiert …');
+      }
+      return true;
+    } catch {
+      // Netzwerkfehler dürfen eine bereits geladene, kompatible App nicht blockieren.
+      return true;
+    } finally {
+      releaseCheckInFlight=null;
+    }
+  })();
+  return releaseCheckInFlight;
+}
+
+async function ensureRuntimeCompatibility(){
+  let state;
+  try {
+    state=await financeApi.getRuntimeState();
+  } catch {
+    // Wenn der Versions-RPC vorübergehend nicht erreichbar ist, kann die App weiterarbeiten.
+    // Datenzugriffe selbst bleiben weiterhin durch Supabase geschützt.
+    runtime.runtimeState=null;
+    return true;
+  }
+  runtime.runtimeState=state;
+  const compatibility=schemaCompatibility(APP_CONFIG.schemaVersion,state);
+  const releaseOutOfSync=Boolean(state?.release_id&&state.release_id!==APP_CONFIG.releaseId);
+  if(!compatibility.ok||releaseOutOfSync){
+    if(compatibility.reason==='server_too_old'){
+      showReleaseUpdating('Finance-Datenbank wird aktualisiert. Bitte kurz warten …');
+      return false;
+    }
+    const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:state?.release_id||APP_CONFIG.releaseId}));
+    return reloadForRelease(manifest.releaseId||state?.release_id,'Finance-Version und Datenbank werden synchronisiert …');
+  }
+  return true;
+}
+
+async function pulsePresence({force=false,stateOverride=null}={}){
+  if(!runtime.user) return;
+  if(document.visibilityState==='hidden'&&!force) return;
+  const clock=sessionClock();
+  const activityState=stateOverride||presenceActivityState({
+    now:Date.now(),
+    lastInteractionAt:clock.lastInteractionAt,
+  });
   await financeApi.touchPresence({
     route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
-    appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}`,
+    appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}-${APP_CONFIG.releaseId}`,
     deviceLabel:currentDeviceLabel(),
+    activityState,
+    lastInteractionAt:new Date(clock.lastInteractionAt).toISOString(),
+    sessionStartedAt:new Date(clock.sessionStartedAt).toISOString(),
   }).catch(()=>null);
+}
+
+async function enforceSessionGuard(){
+  if(!runtime.user) return false;
+  const status=currentSessionStatus();
+  if(status.state==='expired'){
+    const message=status.reason==='max_session'
+      ? 'Maximale Sitzungsdauer erreicht. Bitte erneut anmelden.'
+      : 'Du wurdest nach längerer Inaktivität automatisch abgemeldet.';
+    await logoutCurrentUser({notice:message});
+    return true;
+  }
+  if(status.state==='warning') renderSessionWarning(status);
+  else hideSessionWarning();
+  return false;
 }
 
 function stopLiveTimers() {
   if (presenceTimer) window.clearInterval(presenceTimer);
   if (adminPresenceTimer) window.clearInterval(adminPresenceTimer);
-  presenceTimer=null; adminPresenceTimer=null;
+  if (sessionGuardTimer) window.clearInterval(sessionGuardTimer);
+  if (releaseTimer) window.clearInterval(releaseTimer);
+  presenceTimer=null;
+  adminPresenceTimer=null;
+  sessionGuardTimer=null;
+  releaseTimer=null;
 }
 
 function startLiveTimers() {
   stopLiveTimers();
+  ensureSessionClock();
   void pulsePresence();
+  void enforceSessionGuard();
   presenceTimer=window.setInterval(()=>{ void pulsePresence(); },45000);
+  sessionGuardTimer=window.setInterval(()=>{ void enforceSessionGuard(); },15000);
+  releaseTimer=window.setInterval(()=>{ void ensureCurrentRelease(); },RELEASE_CHECK_INTERVAL_MS);
   adminPresenceTimer=window.setInterval(async()=>{
     if (!runtime.user || !runtime.adminRole || resolveRoute()!=='admin' || document.visibilityState==='hidden') return;
     if (document.activeElement?.matches('input,select,textarea')) return;
@@ -467,21 +679,25 @@ function startLiveTimers() {
   },30000);
 }
 
-async function logoutCurrentUser() {
+async function logoutCurrentUser({notice=''}={}) {
   stopLiveTimers();
+  hideSessionWarning();
   closeProfileMenu();
   closeMobileNav();
   closeQuickAdd();
+  await financeApi.clearPresence().catch(()=>null);
   await backend.signOut();
-  runtime.session = null;
-  runtime.user = null;
-  runtime.profile = null;
-  runtime.household = null;
-  runtime.householdRole = null;
-  runtime.adminRole = null;
-  location.hash = '';
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  showAuth();
+  clearSessionClock();
+  runtime.session=null;
+  runtime.user=null;
+  runtime.profile=null;
+  runtime.household=null;
+  runtime.householdRole=null;
+  runtime.adminRole=null;
+  runtime.runtimeState=null;
+  location.hash='';
+  window.scrollTo({top:0,left:0,behavior:'auto'});
+  showAuth(notice);
 }
 
 function toggleProfileMenu() {
@@ -543,13 +759,14 @@ function humanError(error) {
   return message;
 }
 
-function showAuth() {
+function showAuth(notice='') {
   appShell.hidden = true;
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
       <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
+      ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
         <label class="field"><span>Passwort</span><input class="text-control" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
@@ -569,7 +786,7 @@ function showAuth() {
     errorBox.hidden = true;
     try {
       const result = await backend.signIn({ email: String(data.get('email') || '').trim(), password: String(data.get('password') || '') });
-      await enterApp({ ...result, user: result.user });
+      await enterApp({ ...result, user: result.user },{freshLogin:true});
     } catch (error) {
       errorBox.textContent = humanError(error);
       errorBox.hidden = false;
@@ -711,6 +928,10 @@ function render() {
     transactionQuery: uiState.transactionQuery,
     transactionCategory: uiState.transactionCategory,
     transactionAccount: uiState.transactionAccount,
+    transactionDirection: uiState.transactionDirection,
+    transactionSemantic: uiState.transactionSemantic,
+    transactionCategoryIds: uiState.transactionCategoryIds,
+    transactionSourceSet: uiState.transactionSourceSet,
     transactionFrom: uiState.transactionFrom,
     transactionTo: uiState.transactionTo,
     transactionPage: uiState.transactionPage,
@@ -1158,6 +1379,8 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const taxTreatment=document.querySelector('#transactionEditTaxTreatment'); if (taxTreatment) taxTreatment.value=tx.tax_treatment||transactionTaxDefaults(tx).treatment||'';
   const taxSection=document.querySelector('#transactionEditTaxSectionKey'); if (taxSection) taxSection.value=tx.tax_section_key||transactionTaxDefaults(tx).section||'';
   const taxCategory=document.querySelector('#transactionEditTaxCategory'); if (taxCategory) taxCategory.value=tx.tax_category||'';
+  const semantic=document.querySelector('#transactionEditSemantic'); if(semantic) semantic.value=tx.semantic_type||'';
+  const exclude=document.querySelector('#transactionEditExclude'); if(exclude) exclude.checked=tx.exclude_from_reports===true;
   const toggle=document.querySelector('#transactionMakeRecurring');
   const fields=document.querySelector('#transactionRecurringFields');
   if (toggle) toggle.checked=recurring;
@@ -1301,7 +1524,8 @@ async function handleForm(form) {
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
-      note:nullValue(data,'note'), tax,
+      note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
+      excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
     await refresh('Transaktion gespeichert und in allen Auswertungen aktualisiert.'); return;
   }
@@ -1316,7 +1540,7 @@ async function handleForm(form) {
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
-    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), semantic_type:nullValue(data,'semanticType'), exclude_from_reports:data.get('excludeFromReports')==='on' };
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -1752,16 +1976,35 @@ async function handleForm(form) {
       next_payment_date:nullValue(data,'nextPaymentDate'), start_date:nullValue(data,'startDate'), end_date:nullValue(data,'endDate'),
       status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
     };
+    const shouldPlanRate=payload.status==='active'
+      && payload.payment_cadence!=='manual'
+      && Number(payload.installment_amount)>0
+      && Boolean(payload.payment_account_id)
+      && Boolean(payload.next_payment_date);
+
     if (id==='debt-create') {
-      await financeApi.createDebt({household_id:h,...payload});
-      await refresh('Schuld / Kredit gespeichert.');
+      const created=await financeApi.createDebt({household_id:h,...payload});
+      if(shouldPlanRate){
+        const rule=await financeApi.createRecurringRule(debtRecurringPayload(created));
+        await financeApi.updateDebt(created.id,{recurring_rule_id:rule.id});
+      }
+      await refresh(shouldPlanRate
+        ? 'Schuld / Kredit gespeichert. Die Rate wurde automatisch unter Wiederkehrend geplant.'
+        : 'Schuld / Kredit gespeichert.');
     } else {
       const debtId=formValue(data,'debtId');
       const before=runtime.debts.find((row)=>row.id===debtId);
       if (!before) throw new Error('Schuld wurde nicht gefunden.');
       const updated=await financeApi.updateDebt(debtId,payload);
-      if (before.recurring_rule_id) await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
-      await refresh('Schuld / Kredit aktualisiert.');
+      if (before.recurring_rule_id) {
+        await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
+      } else if(shouldPlanRate) {
+        const rule=await financeApi.createRecurringRule(debtRecurringPayload(updated));
+        await financeApi.updateDebt(updated.id,{recurring_rule_id:rule.id});
+      }
+      await refresh(shouldPlanRate
+        ? 'Schuld / Kredit aktualisiert. Die Rate ist automatisch in der Planung verknüpft.'
+        : 'Schuld / Kredit aktualisiert.');
     }
     return;
   }
@@ -2285,7 +2528,13 @@ async function handleAction(target) {
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
-    const month=monthInputValue()+'-01'; await financeApi.upsertBudget({household_id:runtime.household.id,category_id:null,merchant_id:target.dataset.merchantId,month_start:month,amount:Number(target.dataset.amount)}); await refresh('Händler-Budget angelegt.'); return;
+    const cycle=resolveFinanceCycle({transactions:runtime.transactions,recurringRules:runtime.recurringRules,now:new Date(),fallbackDay:25});
+    const merchantId=target.dataset.merchantId||null;
+    const categoryId=merchantId?null:(target.dataset.categoryId||null);
+    if(!merchantId&&!categoryId) throw new Error('Budgetvorschlag hat keinen gültigen Händler oder keine Kategorie.');
+    const month=(target.dataset.month||cycle.budgetMonth)+'-01';
+    await financeApi.upsertBudget({household_id:runtime.household.id,category_id:categoryId,merchant_id:merchantId,month_start:month,amount:Number(target.dataset.amount)});
+    await refresh('Variables Budget aus dem erklärten Muster angelegt.'); return;
   }
   if (action === 'document-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
@@ -2408,6 +2657,7 @@ async function handleAction(target) {
     const merchant=runtime.merchants.find((row)=>row.id===tx.merchant_id);
     uiState.transactionQuery=merchant?.name||tx.counterparty||tx.description||'';
     uiState.transactionCategory='all';
+    uiState.transactionCategoryIds=[];
     uiState.transactionAccount='all';
     uiState.transactionFrom='';
     uiState.transactionTo='';
@@ -2418,11 +2668,49 @@ async function handleAction(target) {
     location.hash='#/transactions';
     return;
   }
+  if (action === 'overview-drilldown-expense') {
+    const key=target.dataset.key||'';
+    const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
+    uiState.transactionQuery='';
+    uiState.transactionDirection='expense';
+    uiState.transactionSemantic='all';
+    uiState.transactionAccount='all';
+    uiState.transactionFrom='';
+    uiState.transactionTo='';
+    uiState.transactionPeriod='all';
+    uiState.transactionView='details';
+    uiState.transactionPage=1;
+    uiState.transactionCategoryIds=[];
+    uiState.transactionSourceSet=[];
+    if(key==='uncategorized') uiState.transactionCategory='uncategorized';
+    else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
+    else uiState.transactionCategory=ids[0]||key||'all';
+    location.hash='#/transactions';
+    return;
+  }
+  if (action === 'overview-drilldown-income') {
+    const kind=target.dataset.kind||'earned';
+    const source=target.dataset.source||'';
+    const sources=String(target.dataset.sources||'').split('||').filter(Boolean);
+    uiState.transactionDirection='income';
+    uiState.transactionSemantic=kind;
+    uiState.transactionQuery=sources.length>1?'':source;
+    uiState.transactionSourceSet=sources.length>1?sources:[];
+    uiState.transactionCategory='all';
+    uiState.transactionAccount='all';
+    uiState.transactionFrom=`${new Date().getFullYear()}-01-01`;
+    uiState.transactionTo=`${new Date().getFullYear()}-12-31`;
+    uiState.transactionPeriod='custom';
+    uiState.transactionView='details';
+    uiState.transactionPage=1;
+    location.hash='#/transactions';
+    return;
+  }
   if (action === 'transaction-filter-category') {
     uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -2868,10 +3156,22 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
+    if (target.id === 'sessionTimeoutSelect') {
+      const minutes=normalizeIdleMinutes(target.value);
+      persistNumber(SESSION_KEYS.timeout,minutes);
+      await saveUserPreferences({session_timeout_minutes:minutes});
+      markInteraction(true);
+      startLiveTimers();
+      render();
+      showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
+      return;
+    }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionCategoryIds=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionSourceSet=[]; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
@@ -3062,15 +3362,52 @@ pageContent.addEventListener('input', (event) => {
   }
 });
 
-async function enterApp(session) {
-  runtime.session=session; runtime.user=session.user;
-  authGate.hidden=true; appShell.hidden=false; showLoading();
-  try { await loadContext(); render(); startLiveTimers(); }
-  catch (error) { pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`; }
+async function enterApp(session,{freshLogin=false}={}) {
+  runtime.session=session;
+  runtime.user=session.user;
+  ensureSessionClock({fresh:freshLogin});
+  authGate.hidden=true;
+  appShell.hidden=false;
+  showLoading();
+  const releaseCurrent=await ensureCurrentRelease();
+  if(!releaseCurrent) return;
+  const compatible=await ensureRuntimeCompatibility();
+  if(!compatible) return;
+  try {
+    await loadContext();
+    // Profile preference is authoritative after login, but keep it locally for pre-profile session checks.
+    persistNumber(SESSION_KEYS.timeout,configuredSessionTimeout());
+    render();
+    startLiveTimers();
+  } catch (error) {
+    pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`;
+  }
 }
 
 window.addEventListener('hashchange',()=>{ render(); void pulsePresence(); });
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') void pulsePresence(); });
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='hidden'){
+    hiddenAt=Date.now();
+    if(runtime.user) await pulsePresence({force:true,stateOverride:'idle'});
+    return;
+  }
+  const awayMs=hiddenAt?Date.now()-hiddenAt:0;
+  hiddenAt=null;
+  if(!runtime.user) return;
+  if(await enforceSessionGuard()) return;
+  if(!(await ensureCurrentRelease())) return;
+  if(!(await ensureRuntimeCompatibility())) return;
+  if(awayMs>=BACKGROUND_REFRESH_MS){
+    try {
+      showLoading('Daten werden synchronisiert …');
+      await loadContext();
+      render();
+    } catch(error){
+      pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht aktualisiert werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`;
+    }
+  }
+  await pulsePresence();
+});
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
@@ -3085,7 +3422,10 @@ quickAddSheet?.addEventListener('click',(event)=>{
   if (event.target.closest('[data-quick-add-close]')) { closeQuickAdd(); return; }
   if (event.target.closest('a.quick-add-option')) closeQuickAdd();
 });
-document.addEventListener('keydown',(event)=>{ if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
+document.addEventListener('keydown',(event)=>{ markInteraction(); if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
+for(const eventName of ['pointerdown','touchstart','wheel']){
+  document.addEventListener(eventName,()=>markInteraction(),{passive:true});
+}
 mobileLogoutButton?.addEventListener('click',async()=>{ try { await logoutCurrentUser(); } catch (error) { showToast(humanError(error),'error'); } });
 profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); toggleProfileMenu(); });
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
@@ -3097,6 +3437,9 @@ setTheme(store.getState().theme);
 document.documentElement.dataset.depth=store.getState().depth;
 applyPrivacyUI();
 syncMobileScrollState();
-const restored = await backend.restoreSession();
-if (restored?.user) await enterApp(restored); else showAuth();
+const initialReleaseCurrent=await ensureCurrentRelease();
+if(initialReleaseCurrent){
+  const restored=await backend.restoreSession();
+  if(restored?.user) await enterApp(restored); else { clearSessionClock(); showAuth(); }
+}
 window.__FINANCE_BOOT_COMPLETE__ = true;

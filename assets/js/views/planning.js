@@ -19,11 +19,11 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 
 export function renderPlanning({
   budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
-  transactions=[], debtPayments=[], categories=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[],
+  transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[],
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
-  const budget=budgetSummary({budgets,transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25});
+  const budget=budgetSummary({budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25});
   const goalRows=goalSummaries(goals).slice(0,4);
   const openBills=bills.filter((b)=>!['paid','cancelled'].includes(b.status));
   const activeRecurring=recurringRules.filter((r)=>r.active!==false);
@@ -83,13 +83,14 @@ export function renderPlanning({
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">
-        <div class="card-heading"><div><h3 class="card-title">Budget dieses Finanzmonats</h3><p class="card-subtitle">${budget.count?`${budget.count} Budgetposition${budget.count===1?'':'en'}`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">Bearbeiten</a></div>
+        <div class="card-heading"><div><h3 class="card-title">Variables Budget dieses Finanzmonats</h3><p class="card-subtitle">${budget.count?`${budget.count} variable Budgetposition${budget.count===1?'':'en'} · ${budget.allStoredCount-budget.count} getrennt behandelt`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">So wird gerechnet</a></div>
         <div class="budget-ring-wrap">
-          <div class="budget-ring budget-ring--large" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>verbraucht</span></div></div>
+          <div class="budget-ring budget-ring--large" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.rawPercent)}%</strong><span>verbraucht</span></div></div>
           <div class="budget-ring-copy">
-            <span>Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
-            <span>Ausgegeben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
-            <span>Noch verfügbar <strong>${money(budget.remaining,{currency,locale,decimals:0})}</strong></span>
+            <span>Variables Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
+            <span>Variabel ausgegeben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
+            <span>${budget.overBy>0?'Darüber':'Noch verfügbar'} <strong>${money(budget.overBy>0?budget.overBy:budget.remaining,{currency,locale,decimals:0})}</strong></span>
+            <span>Fixkosten separat <strong>${money(budget.fixedPlanned,{currency,locale,decimals:0})}</strong></span>
           </div>
         </div>
         ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budget einrichten</a>':''}

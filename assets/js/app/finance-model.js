@@ -1,7 +1,10 @@
 import { cadenceMonthlyFactor, localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
-import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
+import { buildDebtPaymentTransactionMap } from './financial-effects.js';
 import { occurrenceNear } from './recurrence.js';
+import { calculateBudgetSummary } from './budget-engine.js';
+import { inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
+import { semanticExpenseBase, semanticIncomeBase, semanticType } from './finance-semantics.js';
 
 function isActiveRecurring(rule, today) {
   return rule?.active !== false && (!rule?.end_date || String(rule.end_date).slice(0,10) >= today);
@@ -93,6 +96,8 @@ export function buildFinanceSnapshot({
   debtPayments = [],
   recurringRules = [],
   budgets = [],
+  categories = [],
+  merchants = [],
   bills = [],
   debts = [],
   receivables = [],
@@ -107,8 +112,9 @@ export function buildFinanceSnapshot({
 } = {}) {
   const currency = household?.base_currency || 'CHF';
   const today = now.toISOString().slice(0,10);
-  const monthKey = localMonthKey(now);
-  const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
+  const financeCycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay:25});
+  const monthKey = financeCycle.budgetMonth;
+  const monthEnd=new Date(financeCycle.endExclusive.getTime()-1);
   const inBase = (value, sourceCurrency = currency) => convertAmount(value, sourceCurrency || currency, currency, fxRates) ?? 0;
 
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
@@ -125,37 +131,40 @@ export function buildFinanceSnapshot({
   const fixedExpensesMonthly = recurringMonthly('expense');
   const fixedTransfersMonthly = recurringMonthly('transfer');
 
-  const monthBudgets = budgets.filter((budget)=>String(budget.month_start).slice(0,7)===monthKey);
-  const variableBudgets = monthBudgets.filter((budget)=>!isFixedBudget(budget,activeRecurring));
-  const variableBudgetMonthly = variableBudgets.reduce((sum,budget)=>sum+inBase(Number(budget.amount||0),budget.currency||currency),0);
+  const budgetState=calculateBudgetSummary({
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,
+    baseCurrency:currency,fxRates,now,fallbackDay:25,
+  });
+  const monthBudgets=budgetState.variableRows;
+  const variableBudgets=budgetState.variableRows;
+  const variableBudgetMonthly=budgetState.total;
 
   const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
   const bookedMonth = transactions.filter((tx)=>{
     const date=new Date(tx.occurred_at);
     return tx.status==='booked'
-      && localMonthKey(tx.occurred_at)===monthKey
+      && inFinanceCycle(tx,financeCycle)
       && !tx.transfer_group_id
       && !Number.isNaN(date.getTime())
       && date<=now;
   });
 
   const actualIncomeMonth = bookedMonth
-    .filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
-    .reduce((sum,tx)=>sum+inBase(tx.amount,tx.currency),0);
+    .reduce((sum,tx)=>sum+semanticIncomeBase(tx,{categories,recurringRules,baseCurrency:currency,fxRates}),0);
 
   const actualExpensesMonth = bookedMonth
-    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+    .reduce((sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency:currency,fxRates}),0);
 
   const actualVariableTransactions = bookedMonth.filter((tx)=>
     Number(tx.amount)<0
-    && consumptionExpenseBase(tx,paymentMap,currency,fxRates)>0
-    && !matchesRecurringExpense(tx,activeRecurring)
+    && semanticType(tx,{categories,recurringRules})==='variable_expense'
+    && semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency:currency,fxRates})>0
   );
   const actualVariableExpensesMonth = actualVariableTransactions
-    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+    .reduce((sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency:currency,fxRates}),0);
   const budgetedActualVariableExpensesMonth = actualVariableTransactions
     .filter((tx)=>budgetCoversTransaction(tx,variableBudgets))
-    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+    .reduce((sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency:currency,fxRates}),0);
   const unbudgetedActualVariableExpensesMonth = actualVariableExpensesMonth-budgetedActualVariableExpensesMonth;
 
   const futureExpenseTransactions = transactions.filter((tx)=>{
@@ -164,9 +173,10 @@ export function buildFinanceSnapshot({
       && !tx.transfer_group_id
       && tx.cashflow_type!=='debt_payment'
       && Number(tx.amount)<0
-      && localMonthKey(tx.occurred_at)===monthKey
+      && semanticType(tx,{categories,recurringRules})==='variable_expense'
       && !Number.isNaN(date.getTime())
-      && date>now;
+      && date>now
+      && date<financeCycle.endExclusive;
   });
   const plannedFutureExpenses = futureExpenseTransactions.filter((tx)=>!matchesRecurringExpense(tx,activeRecurring));
   const plannedFutureExpensesMonth = plannedFutureExpenses
@@ -184,14 +194,15 @@ export function buildFinanceSnapshot({
   });
   const distinctDueBills=dueOpenBills.filter((bill)=>!billMatchesFutureTransaction(bill,futureExpenseTransactions));
   const variableDueBills=distinctDueBills.filter((bill)=>{
-    const billMonth=String(bill.due_date||'').slice(0,7);
-    return billMonth!==monthKey || !billMatchesRecurring(bill,activeRecurring);
+    const due=new Date(`${String(bill.due_date||'').slice(0,10)}T12:00:00`);
+    const inCycle=!Number.isNaN(due.getTime())&&due>=financeCycle.start&&due<financeCycle.endExclusive;
+    return !inCycle || !billMatchesRecurring(bill,activeRecurring);
   });
   const budgetedOpenBillsMonth=variableDueBills
-    .filter((bill)=>String(bill.due_date||'').slice(0,7)===monthKey && budgetCoversTransaction(billTransactionShape(bill),variableBudgets))
+    .filter((bill)=>(()=>{const due=new Date(`${String(bill.due_date||'').slice(0,10)}T12:00:00`);return !Number.isNaN(due.getTime())&&due>=financeCycle.start&&due<financeCycle.endExclusive;})() && budgetCoversTransaction(billTransactionShape(bill),variableBudgets))
     .reduce((sum,bill)=>sum+inBase(bill.amount,bill.currency),0);
   const unbudgetedOpenBillsMonth=variableDueBills
-    .filter((bill)=>!(String(bill.due_date||'').slice(0,7)===monthKey && budgetCoversTransaction(billTransactionShape(bill),variableBudgets)))
+    .filter((bill)=>!((()=>{const due=new Date(`${String(bill.due_date||'').slice(0,10)}T12:00:00`);return !Number.isNaN(due.getTime())&&due>=financeCycle.start&&due<financeCycle.endExclusive;})() && budgetCoversTransaction(billTransactionShape(bill),variableBudgets)))
     .reduce((sum,bill)=>sum+inBase(bill.amount,bill.currency),0);
 
   const budgetTrackedPlanMonth=Math.max(
@@ -227,7 +238,7 @@ export function buildFinanceSnapshot({
         && date>=ninety
         && date<=now;
     })
-    .reduce((sum,tx)=>sum+consumptionExpenseBase(tx,paymentMap,currency,fxRates),0);
+    .reduce((sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency:currency,fxRates}),0);
   const avgMonthlyExpenses = trailingExpenses/3;
   const runwayMonths = avgMonthlyExpenses>0 ? cash/avgMonthlyExpenses : 0;
 
@@ -293,7 +304,8 @@ export function buildFinanceSnapshot({
     netWorth,
     debtRatio,
     activeRecurringCount: activeRecurring.length,
-    monthBudgetCount: monthBudgets.length,
+    monthBudgetCount: budgetState.allStoredCount,
     variableBudgetCount: variableBudgets.length,
+    financeCycle,
   };
 }

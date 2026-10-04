@@ -111,7 +111,7 @@ assert.equal(earlySalary.start.getDate(),24);
 const totals=currentFinanceCycleTotals({
   transactions,debtPayments:[],recurringRules,baseCurrency:'CHF',fxRates:null,now,fallbackDay:25,
 });
-assert.equal(totals.income,6420);
+assert.equal(totals.income,6400);
 assert.equal(totals.expenses,127.5);
 assert.equal(totals.transactionCount,4);
 
@@ -143,7 +143,7 @@ const series=financeCycleSeries({
 });
 assert.equal(series.length,2);
 assert.equal(series.at(-1).key,'2026-09');
-assert.equal(series.at(-1).income,6420);
+assert.equal(series.at(-1).income,6400);
 assert.equal(series.at(-1).expenses,127.5);
 
 console.log('payday finance-cycle assertions OK');
