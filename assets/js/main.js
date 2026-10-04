@@ -1013,14 +1013,14 @@ async function ensureCounterpartyFromForm(data) {
   return row||null;
 }
 
-async function ensureContextFromForm(data) {
+async function ensureContextFromForm(data, vehicleIdOverride=null) {
   const name=formValue(data,'contextName');
   if(!name) return null;
   const key=normalizeMerchantKey(name);
   if(!key) return null;
   const existing=runtime.transactionContexts.find((row)=>row.normalized_key===key);
   if(existing) return existing;
-  const vehicleId=nullValue(data,'vehicleId');
+  const vehicleId=vehicleIdOverride||nullValue(data,'vehicleId');
   const row=await financeApi.upsertTransactionContext({
     household_id:runtime.household.id,
     name,
@@ -1030,6 +1030,31 @@ async function ensureContextFromForm(data) {
     is_archived:false,
   });
   if(row && !runtime.transactionContexts.some((item)=>item.id===row.id)) runtime.transactionContexts.push(row);
+  return row||null;
+}
+
+async function ensureVehicleFromForm(data,{amount=0,occurredAt=null,categoryId=null}={}) {
+  const existingId=nullValue(data,'vehicleId');
+  if(existingId) return runtime.vehicles.find((row)=>row.id===existingId)||null;
+  const name=formValue(data,'vehicleName');
+  if(!name) return null;
+  const existing=runtime.vehicles.find((row)=>String(row.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(existing) return existing;
+  const category=runtime.categories.find((row)=>row.id===categoryId);
+  const isPurchase=String(category?.name||'').toLowerCase()==='fahrzeugkauf';
+  const purchasePrice=isPurchase?Math.abs(Number(amount||0)):null;
+  const row=await financeApi.createVehicle({
+    household_id:runtime.household.id,
+    name,
+    vehicle_type:formValue(data,'vehicleType')||'motorcycle',
+    current_value:purchasePrice||0,
+    currency:runtime.household.base_currency||'CHF',
+    purchase_date:isPurchase&&occurredAt?String(occurredAt).slice(0,10):null,
+    purchase_price:purchasePrice,
+    monthly_cost:0,
+    notes:isPurchase?'Direkt aus der Kaufbuchung angelegt.':'Direkt aus einer Transaktion angelegt.',
+  });
+  if(row && !runtime.vehicles.some((item)=>item.id===row.id)) runtime.vehicles.push(row);
   return row||null;
 }
 
@@ -1689,14 +1714,15 @@ async function handleForm(form) {
       } else tax={enabled:false};
     }
     const counterpartyEntity=await ensureCounterpartyFromForm(data);
-    const contextEntity=await ensureContextFromForm(data);
+    const vehicleEntity=await ensureVehicleFromForm(data,{amount:rawAmount,occurredAt,categoryId});
+    const contextEntity=await ensureContextFromForm(data,vehicleEntity?.id||null);
     await createEconomicTransaction({
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
       counterpartyId:counterpartyEntity?.id||null,
       contextId:contextEntity?.id||null,
-      vehicleId:nullValue(data,'vehicleId'),
+      vehicleId:vehicleEntity?.id||null,
       note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
       excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
@@ -1780,11 +1806,13 @@ async function handleForm(form) {
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
+    const resolvedCategoryId=merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants);
     const counterpartyEntity=await ensureCounterpartyFromForm(data);
-    const contextEntity=await ensureContextFromForm(data);
+    const vehicleEntity=await ensureVehicleFromForm(data,{amount,occurredAt:financeEventTimestamp(formValue(data,'occurredAt')),categoryId:resolvedCategoryId});
+    const contextEntity=await ensureContextFromForm(data,vehicleEntity?.id||null);
     const patch={
       account_id:account.account_id,
-      category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants),
+      category_id:resolvedCategoryId,
       merchant_id:merchantId,
       occurred_at:financeEventTimestamp(formValue(data,'occurredAt')),
       amount,
@@ -1793,7 +1821,7 @@ async function handleForm(form) {
       counterparty:nullValue(data,'counterparty'),
       counterparty_id:counterpartyEntity?.id||null,
       context_id:contextEntity?.id||null,
-      vehicle_id:nullValue(data,'vehicleId'),
+      vehicle_id:vehicleEntity?.id||null,
       note:nullValue(data,'note'),
       semantic_type:nullValue(data,'semanticType'),
       exclude_from_reports:data.get('excludeFromReports')==='on'
