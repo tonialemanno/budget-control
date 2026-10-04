@@ -1,6 +1,7 @@
 import { dataTable, formShell, pageHeader } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
+import { merchantDuplicateGroups } from '../app/merchant-intelligence.js';
 
 function usageLabel(merchant, transactions, recurringRules, budgets) {
   const txCount=transactions.filter((tx)=>tx.merchant_id===merchant.id).length;
@@ -11,6 +12,7 @@ function usageLabel(merchant, transactions, recurringRules, budgets) {
 
 export function renderMerchants({
   merchants = [],
+  merchantAliases = [],
   categories = [],
   transactions = [],
   recurringRules = [],
@@ -47,9 +49,11 @@ export function renderMerchants({
     const category=categories.find((c)=>c.id===merchant.default_category_id);
     const usage=usageLabel(merchant,transactions,recurringRules,budgets);
     const isCountryStandard=countryMasterMerchants.some((row)=>row.normalized_key===merchant.normalized_key);
+    const aliases=merchantAliases.filter((row)=>row.merchant_id===merchant.id);
+    const aliasMeta=aliases.length?` · ${aliases.length} Alias${aliases.length===1?'':'e'}`:'';
     const standardMeta=isCountryStandard
-      ? `<div class="table-meta">${escapeHtml(household?.country_code||'CH')}-Standard</div>`
-      : `<div class="table-meta">${escapeHtml(merchant.normalized_key||'')}</div>`;
+      ? `<div class="table-meta">${escapeHtml(household?.country_code||'CH')}-Standard${escapeHtml(aliasMeta)}</div>`
+      : `<div class="table-meta">${escapeHtml(merchant.normalized_key||'')}${escapeHtml(aliasMeta)}</div>`;
     const promoteAction=adminRole && !isCountryStandard && merchant.default_category_id
       ? `<button class="table-action" type="button" data-action="merchant-promote-master" data-id="${merchant.id}">Für ${escapeHtml(household?.country_code||'CH')} freigeben</button>`
       : '';
@@ -66,6 +70,27 @@ export function renderMerchants({
     </tr>`;
   });
 
+  const duplicateGroups=merchantDuplicateGroups(merchants);
+  const duplicateCards=duplicateGroups.map((group)=>{
+    const ranked=group.rows.slice().sort((a,b)=>{
+      const au=usageLabel(a,transactions,recurringRules,budgets).txCount;
+      const bu=usageLabel(b,transactions,recurringRules,budgets).txCount;
+      return bu-au || Number(Boolean(b.default_category_id))-Number(Boolean(a.default_category_id));
+    });
+    const target=ranked[0];
+    const extras=ranked.slice(1);
+    return `<div class="suggestion-card">
+      <div>
+        <strong>${escapeHtml(group.name)}</strong>
+        <span>${ranked.length} ähnliche Händler erkannt</span>
+        <small>Ziel: ${escapeHtml(target.name)} · ${usageLabel(target,transactions,recurringRules,budgets).txCount} Buchungen</small>
+      </div>
+      <div class="row-actions">
+        ${extras.map((source)=>`<button class="table-action" type="button" data-action="merchant-merge" data-source-id="${source.id}" data-target-id="${target.id}">${escapeHtml(source.name)} → ${escapeHtml(target.name)}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
   return `
     ${pageHeader({
       title:'Händler',
@@ -74,6 +99,13 @@ export function renderMerchants({
     })}
     ${canWrite?formShell('merchant-create','Neuer Händler','Händler einmal zentral anlegen und künftig wiederverwenden',createFields,{hidden:true,submitLabel:'Händler speichern'}):''}
     ${canWrite?formShell('merchant-edit','Händler bearbeiten','Name und Standardkategorie zentral pflegen',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
+
+    ${duplicateGroups.length?`<article class="card card-padding" style="margin-bottom:16px">
+      <div class="card-heading">
+        <div><h3 class="card-title">Händler bereinigen</h3><p class="card-subtitle">${duplicateGroups.length} mögliche Dublettengruppe${duplicateGroups.length===1?'':'n'} erkannt. Original-Banktexte bleiben erhalten.</p></div>
+      </div>
+      <div class="suggestion-grid">${duplicateCards}</div>
+    </article>`:''}
 
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
