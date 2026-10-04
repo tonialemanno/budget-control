@@ -2,6 +2,8 @@ import { cadenceMonthlyFactor, localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
 import { occurrenceNear } from './recurrence.js';
+import { budgetIsFixed, budgetIsSavings } from './budget-intelligence.js';
+import { countsAsCashIncome } from './finance-semantics.js';
 
 function isActiveRecurring(rule, today) {
   return rule?.active !== false && (!rule?.end_date || String(rule.end_date).slice(0,10) >= today);
@@ -44,13 +46,12 @@ export function budgetCoversTransaction(tx, budgets) {
   });
 }
 
-export function isFixedBudget(budget, activeRecurringRules) {
-  if(!budget?.merchant_id) return false;
-  return activeRecurringRules.some((rule)=>
-    rule.direction==='expense'
-    && Boolean(rule.merchant_id)
-    && rule.merchant_id===budget.merchant_id
-  );
+export function isFixedBudget(budget, activeRecurringRules, merchants=[]) {
+  return budgetIsFixed(budget,activeRecurringRules,merchants);
+}
+
+export function isSavingsBudget(budget) {
+  return budgetIsSavings(budget);
 }
 
 function billTransactionShape(bill) {
@@ -126,7 +127,7 @@ export function buildFinanceSnapshot({
   const fixedTransfersMonthly = recurringMonthly('transfer');
 
   const monthBudgets = budgets.filter((budget)=>String(budget.month_start).slice(0,7)===monthKey);
-  const variableBudgets = monthBudgets.filter((budget)=>!isFixedBudget(budget,activeRecurring));
+  const variableBudgets = monthBudgets.filter((budget)=>!isFixedBudget(budget,activeRecurring) && !isSavingsBudget(budget));
   const variableBudgetMonthly = variableBudgets.reduce((sum,budget)=>sum+inBase(Number(budget.amount||0),budget.currency||currency),0);
 
   const paymentMap = buildDebtPaymentTransactionMap(debtPayments);
@@ -140,7 +141,7 @@ export function buildFinanceSnapshot({
   });
 
   const actualIncomeMonth = bookedMonth
-    .filter((tx)=>Number(tx.amount)>0 && tx.cashflow_type!=='receivable_principal')
+    .filter((tx)=>countsAsCashIncome(tx))
     .reduce((sum,tx)=>sum+inBase(tx.amount,tx.currency),0);
 
   const actualExpensesMonth = bookedMonth
