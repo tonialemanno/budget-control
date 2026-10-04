@@ -263,14 +263,14 @@ export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) 
 }
 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
-  { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant' },
-  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Lebensmittel' },
-  { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Wohnen' },
-  { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mobilität' },
-  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant' },
-  { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant' },
-  { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant' },
-  { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant' },
+  { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
+  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
+  { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
+  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant & Café' },
+  { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant & Café' },
+  { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant & Café' },
   { pattern:/\bmigros\b/i, name:'Migros', key:'migros', category:'Lebensmittel' },
   { pattern:/\bcoop\b/i, name:'Coop', key:'coop', category:'Lebensmittel' },
   { pattern:/\bdenner\b/i, name:'Denner', key:'denner', category:'Lebensmittel' },
@@ -304,8 +304,20 @@ export function knownMerchantSuggestion(tx) {
   };
 }
 
-export function suggestKnownCategoryName(tx) {
+export function suggestKnownCategoryCandidates(tx) {
   const detected=merchantFromTransaction(tx);
   const probe={...tx,counterparty:detected?.name||tx?.counterparty,description:detected?.name||tx?.description};
-  return knownMerchantSuggestion(probe)?.category || null;
+  const category=knownMerchantSuggestion(probe)?.category||null;
+  if(!category) return [];
+  const fallback={
+    'Restaurant & Café':['Restaurant & Café','Restaurant','Freizeit'],
+    'Supermarkt':['Supermarkt','Lebensmittel'],
+    'Haushaltsabgaben':['Haushaltsabgaben','Wohnen'],
+    'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
+  };
+  return fallback[category]||[category];
+}
+
+export function suggestKnownCategoryName(tx) {
+  return suggestKnownCategoryCandidates(tx)[0]||null;
 }
