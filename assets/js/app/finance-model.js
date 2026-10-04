@@ -32,6 +32,7 @@ export function budgetCoversTransaction(tx, budgets) {
 }
 
 export function isFixedBudget(budget, activeRecurringRules, merchants=[]) {
+  if(!budget?.merchant_id) return false;
   return budgetIsFixed(budget,activeRecurringRules,merchants);
 }
 
