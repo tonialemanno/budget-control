@@ -224,6 +224,12 @@ export async function parseBankPdf(file) {
     rows,
     delimiter:'PDF',
     format:'pdf',
-    meta:{ pages:pdf.numPages, recognized:rows.length, ambiguous },
+    meta:{
+      pages:pdf.numPages,
+      recognized:rows.length,
+      ambiguous,
+      credits:rows.filter((row)=>Number(row.Betrag)>0).length,
+      debits:rows.filter((row)=>Number(row.Betrag)<0).length,
+    },
   };
 }
