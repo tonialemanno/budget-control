@@ -11,7 +11,7 @@ export const CH = Object.freeze({
     ['other','Sonstiges'],
   ],
   legalStatuses: ['offen','Mahnung','Zahlungsbefehl','Rechtsvorschlag','Fortsetzung','Pfändung','Verlustschein','abgeschlossen'],
-  starterCategories: [['Lohn','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Sparen','expense'],['Sonstiges','expense']],
+  starterCategories: [['Lohn','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Familie & Unterhalt','expense'],['Shopping','expense'],['Sparen','expense'],['Sonstiges','expense']],
   starterSubcategories: [
     ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],['Haushaltsabgaben','Wohnen','expense'],
     ['Supermarkt','Lebensmittel','expense'],
@@ -19,6 +19,7 @@ export const CH = Object.freeze({
     ['Mietfahrzeug','Mobilität','expense'],['Wartung & Reparatur','Mobilität','expense'],['Fahrzeugkauf','Mobilität','expense'],
     ['Unterhaltung','Freizeit','expense'],['Restaurant & Café','Freizeit','expense'],['Lotterie & Gewinnspiele','Freizeit','expense'],['Geschenke & Gedenken','Freizeit','expense'],['Ferien','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
+    ['Kinderunterhalt / Alimente','Familie & Unterhalt','expense'],['Kinderkosten','Familie & Unterhalt','expense'],
     ['Apotheke','Gesundheit','expense'],['Arzt & Zahnarzt','Gesundheit','expense'],
   ],
   starterMerchantCategories: [
