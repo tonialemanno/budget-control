@@ -996,6 +996,74 @@ function formValue(data, key) { return String(data.get(key) ?? '').trim(); }
 function numberValue(data, key, fallback = 0) { const n = Number(data.get(key)); return Number.isFinite(n) ? n : fallback; }
 function nullValue(data, key) { const v = formValue(data,key); return v || null; }
 
+async function ensureCounterpartyFromForm(data) {
+  const name=formValue(data,'counterparty');
+  if(!name) return null;
+  const key=normalizeCounterpartyKey(name);
+  if(!key) return null;
+  const existing=runtime.counterparties.find((row)=>row.normalized_key===key);
+  if(existing) return existing;
+  const row=await financeApi.upsertCounterparty({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:key,
+    kind:formValue(data,'counterpartyKind')||existing?.kind||'person',
+  });
+  if(row && !runtime.counterparties.some((item)=>item.id===row.id)) runtime.counterparties.push(row);
+  return row||null;
+}
+
+async function ensureContextFromForm(data) {
+  const name=formValue(data,'contextName');
+  if(!name) return null;
+  const key=normalizeMerchantKey(name);
+  if(!key) return null;
+  const existing=runtime.transactionContexts.find((row)=>row.normalized_key===key);
+  if(existing) return existing;
+  const vehicleId=nullValue(data,'vehicleId');
+  const row=await financeApi.upsertTransactionContext({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:key,
+    context_type:formValue(data,'contextType')||'other',
+    vehicle_id:vehicleId,
+    is_archived:false,
+  });
+  if(row && !runtime.transactionContexts.some((item)=>item.id===row.id)) runtime.transactionContexts.push(row);
+  return row||null;
+}
+
+function currentRecurringMatches(txLike) {
+  return matchingRecurringRules(txLike,runtime.recurringRules,{categories:runtime.categories});
+}
+
+function syncTransactionRecurringMatch() {
+  const form=document.querySelector('#transaction-edit');
+  const alert=document.querySelector('#transactionRecurringMatch');
+  const checkbox=document.querySelector('#transactionMakeRecurring');
+  if(!form||!alert||!checkbox||!checkbox.checked){ if(alert) alert.hidden=true; return []; }
+  const tx=runtime.transactions.find((row)=>row.id===form.querySelector('[name="transactionId"]')?.value);
+  if(!tx){ alert.hidden=true; return []; }
+  const accountId=document.querySelector('#transactionEditAccount')?.value||tx.account_id;
+  const merchantId=document.querySelector('#transactionEditMerchant')?.value||null;
+  const categoryId=document.querySelector('#transactionEditCategory')?.value||null;
+  const direction=(document.querySelector('#transactionEditDirection')?.value||'expense')==='income'?'income':'expense';
+  const amount=Math.abs(Number(document.querySelector('#transactionEditAmount')?.value||tx.amount||0));
+  const description=document.querySelector('#transactionEditDescription')?.value||tx.description||'';
+  const counterparty=document.querySelector('#transactionEditCounterparty')?.value||tx.counterparty||'';
+  const candidate={...tx,account_id:accountId,merchant_id:merchantId,category_id:categoryId,amount:direction==='expense'?-amount:amount,description,counterparty};
+  const matches=currentRecurringMatches(candidate);
+  if(matches.length){
+    const best=matches[0].rule;
+    alert.hidden=false;
+    alert.innerHTML=`<strong>Bereits wiederkehrend erkannt</strong><span>Diese Buchung passt zu „${escapeHtml(best.description)}“ · ${Math.abs(Number(best.amount)).toLocaleString(runtime.profile?.locale||'de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})} ${escapeHtml(best.currency)} · ${escapeHtml(best.cadence)}. Beim Speichern wird die bestehende Regel verknüpft, keine zweite erstellt.</span>`;
+  } else {
+    alert.hidden=false;
+    alert.innerHTML='<strong>Neue wiederkehrende Zahlung</strong><span>Finance hat keine passende bestehende Regel gefunden. Beim Speichern wird eine neue Regel erstellt.</span>';
+  }
+  return matches;
+}
+
 async function seedStarterCategoriesForHousehold(householdId, countryCode, existingCategories = []) {
   const cfg = countryConfig(countryCode || 'CH');
   let changed = 0;
