@@ -11,7 +11,7 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
-import { matchingRecurringRules, merchantDuplicateGroups, normalizeCounterpartyKey, resolvedMerchantForTransaction } from './app/merchant-intelligence.js';
+import { matchingRecurringRules, merchantDuplicateGroups, normalizeCounterpartyKey, personCandidateFromTransaction, resolvedMerchantForTransaction } from './app/merchant-intelligence.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
 import {
   DEFAULT_IDLE_MINUTES, MAX_SESSION_HOURS, formatRemainingMinutes, normalizeIdleMinutes,
@@ -1163,7 +1163,17 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   if (!targets.length) return 0;
 
   let merchantId = group.merchantId || null;
-  if (group.merchantKey && group.merchantKey !== 'unbekannt') {
+  let counterpartyId = null;
+  if (group.entityType==='person' && group.counterpartyKey) {
+    const existing=runtime.counterparties.find((row)=>row.normalized_key===group.counterpartyKey);
+    const counterparty=existing||await financeApi.upsertCounterparty({
+      household_id:runtime.household.id,
+      name:group.counterpartyName||group.name,
+      normalized_key:group.counterpartyKey,
+      kind:'person',
+    });
+    counterpartyId=counterparty?.id||null;
+  } else if (group.merchantKey && group.merchantKey !== 'unbekannt') {
     const merchant = await financeApi.upsertMerchant({
       household_id: runtime.household.id,
       normalized_key: group.merchantKey,
@@ -1174,7 +1184,13 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   }
 
   const patch = { category_id: category.id };
-  if (merchantId) patch.merchant_id = merchantId;
+  if (group.entityType==='person') {
+    patch.merchant_id=null;
+    patch.counterparty_id=counterpartyId;
+    patch.counterparty=group.counterpartyName||group.name;
+  } else if (merchantId) {
+    patch.merchant_id = merchantId;
+  }
   await financeApi.bulkUpdateTransactions(targets.map((row)=>row.id), patch);
   return targets.length;
 }
@@ -1408,12 +1424,15 @@ function renderImportReview() {
   for (const row of importState.parsed.rows) {
     const tx = rowToTransaction(row,mapping);
     if (!tx) continue;
-    const resolution=resolvedMerchantForTransaction(tx,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-    const merchant = resolution.merchant
-      ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
-      : resolution.detected||merchantFromTransaction(tx);
-    const existing = resolution.merchant || runtime.merchants.find((m)=>m.normalized_key===merchant.key);
-    const knownCategoryName=suggestKnownCategoryName(tx);
+    const person=personCandidateFromTransaction(tx);
+    const resolution=person?{merchant:null,detected:null}:resolvedMerchantForTransaction(tx,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+    const merchant = person
+      ? {name:person.name,key:`person:${person.key}`,entityType:'person',person}
+      : resolution.merchant
+        ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
+        : resolution.detected||merchantFromTransaction(tx);
+    const existing = person?null:(resolution.merchant || runtime.merchants.find((m)=>m.normalized_key===merchant.key));
+    const knownCategoryName=person?null:suggestKnownCategoryName(tx);
     const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
     const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
     const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
@@ -2574,18 +2593,25 @@ async function handleForm(form) {
       for (const row of importState.parsed.rows) {
         const tx = rowToTransaction(row,mapping);
         if (!tx) continue;
-        const resolution=resolvedMerchantForTransaction(tx,{merchants:[...merchantCache.values()],aliases:runtime.merchantAliases});
-        const merchantInfo=resolution.merchant
-          ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
-          : resolution.detected||merchantFromTransaction(tx);
-        const existingMerchant = resolution.merchant || merchantCache.get(merchantInfo.key);
+        const person=personCandidateFromTransaction(tx);
+        const resolution=person?{merchant:null,detected:null}:resolvedMerchantForTransaction(tx,{merchants:[...merchantCache.values()],aliases:runtime.merchantAliases});
+        const merchantInfo=person
+          ? {name:person.name,key:`person:${person.key}`,entityType:'person'}
+          : resolution.merchant
+            ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
+            : resolution.detected||merchantFromTransaction(tx);
+        const existingMerchant = person?null:(resolution.merchant || merchantCache.get(merchantInfo.key));
         const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
-        const knownCategoryName=suggestKnownCategoryName(tx);
+        const knownCategoryName=person?null:suggestKnownCategoryName(tx);
         const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
         const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
         let merchant = existingMerchant;
-        if (!merchant) {
+        let counterpartyEntity=null;
+        if(person){
+          counterpartyEntity=runtime.counterparties.find((row)=>row.normalized_key===person.key)
+            || await financeApi.upsertCounterparty({household_id:h,name:person.name,normalized_key:person.key,kind:'person'});
+        } else if (!merchant) {
           merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
           if (merchant) merchantCache.set(merchantInfo.key,merchant);
         } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
@@ -2605,7 +2631,7 @@ async function handleForm(form) {
           }
         }
         const externalReference = await transactionFingerprint(accountId,tx);
-        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, counterparty_id:counterpartyEntity?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:person?.name||tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
       }
       const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
       if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
