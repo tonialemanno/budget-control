@@ -1758,16 +1758,35 @@ async function handleForm(form) {
       next_payment_date:nullValue(data,'nextPaymentDate'), start_date:nullValue(data,'startDate'), end_date:nullValue(data,'endDate'),
       status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
     };
+    const shouldPlanRate=payload.status==='active'
+      && payload.payment_cadence!=='manual'
+      && Number(payload.installment_amount)>0
+      && Boolean(payload.payment_account_id)
+      && Boolean(payload.next_payment_date);
+
     if (id==='debt-create') {
-      await financeApi.createDebt({household_id:h,...payload});
-      await refresh('Schuld / Kredit gespeichert.');
+      const created=await financeApi.createDebt({household_id:h,...payload});
+      if(shouldPlanRate){
+        const rule=await financeApi.createRecurringRule(debtRecurringPayload(created));
+        await financeApi.updateDebt(created.id,{recurring_rule_id:rule.id});
+      }
+      await refresh(shouldPlanRate
+        ? 'Schuld / Kredit gespeichert. Die Rate wurde automatisch unter Wiederkehrend geplant.'
+        : 'Schuld / Kredit gespeichert.');
     } else {
       const debtId=formValue(data,'debtId');
       const before=runtime.debts.find((row)=>row.id===debtId);
       if (!before) throw new Error('Schuld wurde nicht gefunden.');
       const updated=await financeApi.updateDebt(debtId,payload);
-      if (before.recurring_rule_id) await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
-      await refresh('Schuld / Kredit aktualisiert.');
+      if (before.recurring_rule_id) {
+        await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
+      } else if(shouldPlanRate) {
+        const rule=await financeApi.createRecurringRule(debtRecurringPayload(updated));
+        await financeApi.updateDebt(updated.id,{recurring_rule_id:rule.id});
+      }
+      await refresh(shouldPlanRate
+        ? 'Schuld / Kredit aktualisiert. Die Rate ist automatisch in der Planung verknüpft.'
+        : 'Schuld / Kredit aktualisiert.');
     }
     return;
   }
