@@ -1,16 +1,35 @@
-create or replace function public.admin_reset_finance_user_data(p_user_id uuid)
+create or replace function public.admin_reset_finance_user_data(p_user_id uuid, p_confirmation_email text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, auth
 as $$
 declare
   v_household_id uuid;
   v_owned_count integer := 0;
   v_membership_count integer := 0;
+  v_target_email text;
 begin
+  if auth.uid() is null or not exists (
+    select 1 from public.app_admins a where a.user_id = auth.uid()
+  ) then
+    raise exception 'Forbidden';
+  end if;
+
   if p_user_id is null then
     raise exception 'user_id is required';
+  end if;
+
+  select lower(coalesce(u.email,'')) into v_target_email
+  from auth.users u
+  where u.id = p_user_id;
+
+  if v_target_email is null or v_target_email = '' then
+    raise exception 'User not found';
+  end if;
+
+  if lower(trim(coalesce(p_confirmation_email,''))) <> v_target_email then
+    raise exception 'Confirmation email does not match';
   end if;
 
   for v_household_id in
@@ -60,7 +79,7 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_reset_finance_user_data(uuid) from public;
-revoke all on function public.admin_reset_finance_user_data(uuid) from anon;
-revoke all on function public.admin_reset_finance_user_data(uuid) from authenticated;
-grant execute on function public.admin_reset_finance_user_data(uuid) to service_role;
+revoke all on function public.admin_reset_finance_user_data(uuid, text) from public;
+revoke all on function public.admin_reset_finance_user_data(uuid, text) from anon;
+grant execute on function public.admin_reset_finance_user_data(uuid, text) to authenticated;
+grant execute on function public.admin_reset_finance_user_data(uuid, text) to service_role;
