@@ -166,7 +166,7 @@ export function renderOverview({
           <span class="coach-mini-icon">${icon('receipt')}</span>
           <span class="coach-mini-label">Bis zum nächsten Finanzmonat</span>
           <strong>${daysLabel}</strong>
-          <small>Nächster Start: ${dateLabel(financeCycle.endExclusive,locale)}</small>
+          <small><span>Nächster Start</span> <b>${dateLabel(financeCycle.endExclusive,locale)}</b></small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('wallet')}</span>
@@ -184,7 +184,7 @@ export function renderOverview({
           <span class="coach-mini-icon">${icon('target')}</span>
           <span class="coach-mini-label">Variables Budget offen</span>
           <strong>${privacyMoney(coach.variableRemaining,{currency,locale,privacyEnabled,decimals:0})}</strong>
-          <small>${budget.count} aktive Budgetrahmen</small>
+          <small><b>${budget.count}</b> <span>aktive Budgetrahmen</span></small>
         </article>
       </div>
     </section>
