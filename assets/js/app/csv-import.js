@@ -179,6 +179,7 @@ function stripPaymentProcessor(value) {
 function canonicalMerchantIdentity(name) {
   const text=String(name||'').trim();
   if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\bswisslos\b|euro\s*millions?|eurodreams?/i.test(text)) return {name:'Swisslos',key:'swisslos'};
   if(/\belvetino\b/i.test(text)) return {name:'Elvetino',key:'elvetino'};
   if(/\bserafe\b/i.test(text)) return {name:'Serafe',key:'serafe'};
   if(/\bsp\s+motori\b/i.test(text)) return {name:'SP Motori',key:'sp motori'};
@@ -264,6 +265,7 @@ export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) 
 }
 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
+  { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
   { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
   { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
@@ -322,6 +324,7 @@ export function suggestKnownCategoryCandidates(tx) {
     'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
     'Wartung & Reparatur':['Wartung & Reparatur','Mobilität'],
     'Geschenke & Gedenken':['Geschenke & Gedenken','Freizeit'],
+    'Lotterie & Gewinnspiele':['Lotterie & Gewinnspiele','Freizeit'],
   };
   return fallback[category]||[category];
 }
