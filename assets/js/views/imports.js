@@ -1,9 +1,10 @@
 import { dataTable, pageHeader, statusPill, filePicker } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
+import { merchantFromTransaction } from '../app/csv-import.js';
 
 function txMerchant(tx) {
-  return tx.merchants?.name || tx.counterparty || tx.description || 'Unbekannt';
+  return merchantFromTransaction(tx)?.name || tx.merchants?.name || tx.counterparty || tx.description || 'Unbekannt';
 }
 
 function categoryTiles(transactions, categories, currency, locale) {
@@ -22,12 +23,15 @@ function openMerchantGroups(transactions, categories, query, categoryFilter) {
   const needle = String(query || '').trim().toLowerCase();
   const groups = new Map();
   for (const tx of transactions) {
-    const merchant = txMerchant(tx);
+    const detected=merchantFromTransaction(tx);
+    const merchant = detected?.name || txMerchant(tx);
     if (needle && !`${merchant} ${tx.description || ''}`.toLowerCase().includes(needle)) continue;
     if (categoryFilter === 'uncategorized' && tx.category_id) continue;
     if (categoryFilter && categoryFilter !== 'all' && categoryFilter !== 'uncategorized' && tx.category_id !== categoryFilter) continue;
-    const key = tx.merchant_id || merchant.toLowerCase();
-    const group = groups.get(key) || { key, merchant, merchantId:tx.merchant_id || '', rows:[], total:0 };
+    const kind=Number(tx.amount)<0?'expense':'income';
+    const stableKey=detected?.key || merchant.toLowerCase();
+    const key = `${kind}:${stableKey}`;
+    const group = groups.get(key) || { key, merchant, merchantKey:stableKey, merchantId:tx.merchant_id || '', rows:[], total:0 };
     group.rows.push(tx);
     group.total += Number(tx.amount);
     groups.set(key,group);
@@ -55,7 +59,7 @@ export function renderImports({
     const ids = g.rows.map((row)=>row.id).join(',');
     const currentCategoryIds = [...new Set(g.rows.map((row)=>row.category_id).filter(Boolean))];
     const currentCategory = currentCategoryIds.length===1 ? currentCategoryIds[0] : '';
-    return `<div class="import-group-row" data-tx-ids="${escapeHtml(ids)}" data-merchant-id="${escapeHtml(g.merchantId)}">
+    return `<div class="import-group-row" data-tx-ids="${escapeHtml(ids)}" data-merchant-key="${escapeHtml(g.merchantKey||'')}" data-merchant-id="${escapeHtml(g.merchantId)}">
       <div class="import-group-copy"><strong>${escapeHtml(g.merchant)}</strong><span>${g.rows.length} Buchung${g.rows.length===1?'':'en'} · ${money(Math.abs(g.total),{currency:g.rows[0]?.currency||currency,locale})}</span></div>
       <select class="text-control import-category-select" data-import-group-category><option value="">Ohne Kategorie</option>${categories.filter((c)=>c.kind===(g.total<0?'expense':'income')).map((c)=>`<option value="${c.id}" ${c.id===currentCategory?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>
       ${canWrite?`<button class="table-action" type="button" data-action="import-group-assign">Zuordnen & merken</button>`:''}
