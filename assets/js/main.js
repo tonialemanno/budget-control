@@ -1359,6 +1359,59 @@ async function ensureTransactionTaxCase(year) {
   return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
 }
 
+function syncTransactionTransferEditor() {
+  const form=document.querySelector('#transaction-edit');
+  if(!form) return;
+  const tx=runtime.transactions.find((row)=>row.id===form.querySelector('[name="transactionId"]')?.value);
+  if(!tx) return;
+  const transfer=document.querySelector('#transactionEditDirection')?.value==='transfer';
+  const account=document.querySelector('#transactionEditAccount');
+  const fields=document.querySelector('#transactionEditTransferFields');
+  const other=document.querySelector('#transactionEditOtherAccount');
+  const otherAmount=document.querySelector('#transactionEditOtherAmount');
+  const otherAmountField=document.querySelector('#transactionEditOtherAmountField');
+  const counterpart=document.querySelector('#transactionEditOtherTransaction');
+  if(fields) fields.hidden=!transfer;
+  if(account){ account.disabled=transfer; if(transfer) account.value=tx.account_id; }
+  if(other) other.required=transfer;
+  for(const name of ['categoryId','merchantId','counterparty','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports']){
+    const input=form.querySelector(`[name="${name}"]`);
+    if(!input) continue;
+    input.disabled=transfer;
+    const field=input.closest('.field');
+    if(field) field.hidden=transfer;
+  }
+  if(!transfer||!other||!counterpart) return;
+  for(const option of other.options){ if(option.value) option.disabled=option.value===tx.account_id; }
+  if(other.selectedOptions?.[0]?.disabled) other.value='';
+  const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+  const otherAccount=runtime.accounts.find((row)=>row.account_id===other.value);
+  counterpart.replaceChildren(new Option(otherAccount?'Keine passende Bankbuchung – Gegenbuchung erstellen':'Zuerst Gegenkonto wählen',''));
+  if(!currentAccount||!otherAccount) return;
+  const sameCurrency=currentAccount.currency===otherAccount.currency;
+  if(otherAmountField) otherAmountField.hidden=sameCurrency;
+  if(otherAmount){ otherAmount.disabled=sameCurrency; otherAmount.required=!sameCurrency; if(sameCurrency) otherAmount.value=''; }
+  const amount=Math.abs(Number(document.querySelector('#transactionEditAmount')?.value||tx.amount));
+  const targetAmount=sameCurrency?amount:Number(otherAmount?.value||0);
+  if(!(targetAmount>0)) return;
+  const when=new Date(financeEventTimestamp(document.querySelector('#transactionEditDate')?.value||tx.occurred_at));
+  const sign=Number(tx.amount)<0?-1:1;
+  const billIds=new Set(runtime.bills.filter((row)=>row.status==='paid'&&row.paid_transaction_id).map((row)=>row.paid_transaction_id));
+  const matches=runtime.transactions.filter((row)=>{
+    if(row.id===tx.id||row.account_id!==otherAccount.account_id||row.transfer_group_id||row.status!=='booked'||row.cashflow_type!=='standard'||billIds.has(row.id)) return false;
+    if((Number(row.amount)<0?-1:1)===sign) return false;
+    if(Math.abs(Math.abs(Number(row.amount))-targetAmount)>=0.005) return false;
+    return Math.abs(new Date(row.occurred_at).getTime()-when.getTime())<=7*86400000;
+  });
+  const locale=runtime.profile?.locale||'de-CH';
+  for(const row of matches){
+    const option=new Option(`${Math.abs(Number(row.amount)).toLocaleString(locale,{minimumFractionDigits:2,maximumFractionDigits:2})} ${row.currency} · ${new Intl.DateTimeFormat(locale).format(new Date(row.occurred_at))} · ${row.description||'Gegenposten'}`,row.id);
+    option.dataset.amount=String(Math.abs(Number(row.amount)));
+    counterpart.add(option);
+  }
+  if(matches.length===1) counterpart.value=matches[0].id;
+}
+
 function openTransactionEditor(tx, { recurring = false } = {}) {
   if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
   if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
@@ -1387,7 +1440,9 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (fields) fields.hidden=!recurring;
   const next=document.querySelector('#transactionRecurringNextDate');
   if (next) next.value=addMonthsToDate(tx.occurred_at,1);
-  const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
+  const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
+  const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
+  const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function handleForm(form) {
@@ -1536,6 +1591,65 @@ async function handleForm(form) {
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
     if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
     if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
+    const editDirection=formValue(data,'direction')||'expense';
+    if(editDirection==='transfer'){
+      const currentAccount=runtime.accounts.find((a)=>a.account_id===tx.account_id);
+      const otherAccount=runtime.accounts.find((a)=>a.account_id===formValue(data,'otherAccountId'));
+      if(!currentAccount||!otherAccount) throw new Error('Bitte das Gegenkonto der Umbuchung auswählen.');
+      if(currentAccount.account_id===otherAccount.account_id) throw new Error('Die Umbuchung braucht zwei verschiedene Konten.');
+      const currentAmount=Math.abs(numberValue(data,'amount'));
+      if(!(currentAmount>0)) throw new Error('Der Betrag muss grösser als 0 sein.');
+      const sameCurrency=currentAccount.currency===otherAccount.currency;
+      const otherAmount=sameCurrency?null:Math.abs(numberValue(data,'otherAmount'));
+      if(!sameCurrency&&!(otherAmount>0)) throw new Error('Bitte den Betrag auf dem Gegenkonto angeben.');
+      const makeRecurring=data.get('makeRecurring')==='on';
+      if(makeRecurring&&!sameCurrency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+      const description=formValue(data,'description')||'Umbuchung';
+      await financeApi.convertTransactionToTransferV2({
+        householdId:h,
+        transactionId:tx.id,
+        otherAccountId:otherAccount.account_id,
+        amount:currentAmount,
+        otherAmount,
+        otherTransactionId:nullValue(data,'otherTransactionId'),
+        occurredAt,
+        description,
+        note:formValue(data,'note'),
+      });
+      let recurringSaved=false;
+      if(makeRecurring){
+        const currentOutgoing=Number(tx.amount)<0;
+        const sourceAccount=currentOutgoing?currentAccount:otherAccount;
+        const destinationAccount=currentOutgoing?otherAccount:currentAccount;
+        const recurringPayload={
+          household_id:h,
+          account_id:sourceAccount.account_id,
+          destination_account_id:destinationAccount.account_id,
+          category_id:null,
+          merchant_id:null,
+          direction:'transfer',
+          description,
+          counterparty:null,
+          amount:currentAmount,
+          currency:sourceAccount.currency,
+          cadence:formValue(data,'recurringCadence')||'monthly',
+          next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
+          active:true,
+        };
+        const existing=runtime.recurringRules.find((rule)=>rule.direction==='transfer'&&rule.account_id===sourceAccount.account_id&&rule.destination_account_id===destinationAccount.account_id&&Math.abs(Number(rule.amount)-currentAmount)<0.01);
+        if(existing) await financeApi.updateRecurringRule(existing.id,recurringPayload);
+        else await financeApi.createRecurringRule(recurringPayload);
+        recurringSaved=true;
+      }
+      const currentOutgoing=Number(tx.amount)<0;
+      const from=currentOutgoing?currentAccount:otherAccount;
+      const to=currentOutgoing?otherAccount:currentAccount;
+      await refresh(recurringSaved
+        ? `Umbuchung ${from.name} → ${to.name} korrigiert und als wiederkehrend gespeichert.`
+        : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`);
+      return;
+    }
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
@@ -3189,6 +3303,19 @@ pageContent.addEventListener('change', async (event) => {
       }
       return;
     }
+    if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
+      syncTransactionTransferEditor();
+      return;
+    }
+    if (target.id === 'transactionEditOtherTransaction') {
+      const option=target.selectedOptions?.[0];
+      const amount=document.querySelector('#transactionEditOtherAmount');
+      const current=runtime.transactions.find((row)=>row.id===document.querySelector('#transactionEditId')?.value);
+      const currentAccount=runtime.accounts.find((row)=>row.account_id===current?.account_id);
+      const otherAccount=runtime.accounts.find((row)=>row.account_id===document.querySelector('#transactionEditOtherAccount')?.value);
+      if(option?.value&&amount&&currentAccount&&otherAccount&&currentAccount.currency!==otherAccount.currency&&option.dataset.amount) amount.value=option.dataset.amount;
+      return;
+    }
     if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
       const merchant=runtime.merchants.find((row)=>row.id===target.value);
       const category=target.closest('form')?.querySelector('[name="categoryId"]');
@@ -3332,6 +3459,10 @@ pageContent.addEventListener('change', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target = event.target;
+  if (['transactionEditAmount','transactionEditDate','transactionEditOtherAmount'].includes(target.id)) {
+    syncTransactionTransferEditor();
+    return;
+  }
   if (['debtPaymentAmount','debtPaymentInterest','debtPaymentFee'].includes(target.id)) {
     const amount=Number(document.querySelector('#debtPaymentAmount')?.value||0);
     const interest=Number(document.querySelector('#debtPaymentInterest')?.value||0);
