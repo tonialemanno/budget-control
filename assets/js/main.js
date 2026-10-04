@@ -5,7 +5,7 @@ import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates, suggestKnownCategoryName } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -1333,7 +1333,7 @@ function renderImportReview() {
     const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
     group.rows.push(tx); group.total += Number(tx.amount);
     if (!group.categoryId && categoryId) group.categoryId = categoryId;
-    groups.set(merchant.key,group);
+    groups.set(groupKey,group);
   }
   const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
