@@ -1637,6 +1637,10 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
   const vehicleName=document.querySelector('#transactionEditVehicleName'); if(vehicleName) vehicleName.value='';
   const vehicleType=document.querySelector('#transactionEditVehicleType'); if(vehicleType) vehicleType.value='motorcycle';
+  const optionalDetails=document.querySelector('#transactionEditOptionalDetails');
+  if(optionalDetails) optionalDetails.open=Boolean(tx.context_id||tx.vehicle_id||tx.semantic_type==='asset_acquisition');
+  const vehicleTypeField=document.querySelector('#transactionEditVehicleTypeField');
+  if(vehicleTypeField) vehicleTypeField.hidden=true;
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
@@ -3707,6 +3711,30 @@ async function handleAction(target) {
     const password=prompt(t('Neues temporäres Passwort (mind. 8 Zeichen):')); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
   }
+  if (action === 'admin-finance-reset') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Finance-Daten zurücksetzen.');
+    const userId=target.dataset.userId||'';
+    const email=String(target.dataset.userEmail||'').trim();
+    if(!userId||!email) throw new Error('Benutzer konnte nicht eindeutig bestimmt werden.');
+    const accepted=confirm(`Finance-Daten von ${email} wirklich unwiderruflich zurücksetzen?\n\nKonten, Transaktionen, Importe, Budgets, Planung, Händler, Steuer- und Vermögensdaten werden entfernt. Login und Modulfreigaben bleiben bestehen.`);
+    if(!accepted) return;
+    const confirmation=prompt(`Zur Bestätigung die E-Mail-Adresse exakt eingeben:\n${email}`);
+    if(confirmation===null) return;
+    if(confirmation.trim().toLowerCase()!==email.toLowerCase()) throw new Error('Die Bestätigung stimmt nicht mit der E-Mail-Adresse überein.');
+    await backend.rpc('admin_reset_user_finance',{p_user_id:userId,p_confirmation_email:confirmation.trim()});
+    if(userId===runtime.user?.id){
+      await loadContext();
+      location.hash='#/setup';
+      render();
+      showToast('Deine Finance-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
+      return;
+    }
+    runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+    uiState.adminExpandedUserId=null;
+    render();
+    showToast(`Finance-Daten von ${email} wurden zurückgesetzt.`);
+    return;
+  }
   if (action === 'admin-demo-copy') {
     const value=`E-Mail: ${target.dataset.email||''}\nPasswort: ${target.dataset.password||''}`;
     await navigator.clipboard.writeText(value);
@@ -3808,6 +3836,16 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
       syncTransactionTransferEditor();
+      return;
+    }
+    if (target.id === 'transactionEditSemantic' && target.value==='asset_acquisition') {
+      const details=document.querySelector('#transactionEditOptionalDetails');
+      if(details) details.open=true;
+      return;
+    }
+    if (target.id === 'transactionEditVehicle' && target.value) {
+      const details=document.querySelector('#transactionEditOptionalDetails');
+      if(details) details.open=true;
       return;
     }
     if (target.id === 'transactionEditOtherTransaction') {
@@ -3988,6 +4026,11 @@ pageContent.addEventListener('input', (event) => {
   const target = event.target;
   if (['transactionEditAmount','transactionEditDate','transactionEditOtherAmount'].includes(target.id)) {
     syncTransactionTransferEditor();
+    return;
+  }
+  if (target.id === 'transactionEditVehicleName' || target.id === 'transactionCreateVehicleName') {
+    const field=document.querySelector(target.id==='transactionEditVehicleName'?'#transactionEditVehicleTypeField':'#transactionCreateVehicleTypeField');
+    if(field) field.hidden=!String(target.value||'').trim();
     return;
   }
   if (['debtPaymentAmount','debtPaymentInterest','debtPaymentFee'].includes(target.id)) {
