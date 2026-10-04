@@ -162,7 +162,7 @@ export function renderBudget({
               <div><strong>${escapeHtml(series.name)} · ${escapeHtml(series.categoryName)}</strong><span>${series.bookingCount} Buchungen · ${series.monthsCovered} Monate · ${money(series.total,{currency,locale})} gesamt</span><small>Budgetvorschlag: ${money(suggested,{currency,locale})}/Monat</small></div>
               <div class="row-actions">
                 <button class="table-action" type="button" data-action="budget-suggestion-toggle" data-merchant-id="${escapeHtml(series.key)}">${expanded?'Buchungen schliessen':'Buchungen anzeigen'}</button>
-                ${canWrite?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${escapeHtml(series.merchantId||'')}" data-category-id="${escapeHtml(series.categoryId||'')}" data-amount="${suggested}">Budget übernehmen</button>`:''}
+                ${canWrite?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${escapeHtml(series.merchantId||'')}" data-category-id="${escapeHtml(series.categoryId||'')}" data-month="${currentMonth}" data-amount="${suggested}">Budget übernehmen</button>`:''}
               </div>
             </div>
             ${details}
