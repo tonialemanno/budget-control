@@ -1709,6 +1709,10 @@ async function handleForm(form) {
     const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
     const merchantId=nullValue(data,'merchantId');
     const categoryId=nullValue(data,'categoryId');
+    const counterpartyEntity=await resolveCounterpartyFromForm(data);
+    const contextId=await resolveContextFromForm(data);
+    const vehicleId=nullValue(data,'vehicleId');
+    if(vehicleId&&!runtime.vehicles.some((row)=>row.id===vehicleId)) throw new Error('Fahrzeug wurde nicht gefunden.');
     let tax=null;
     if (moduleEnabled('tax')) {
       const enabled=formValue(data,'taxRelevant')==='true';
@@ -1733,6 +1737,9 @@ async function handleForm(form) {
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
+      counterpartyId:counterpartyEntity?.id||null,
+      contextId,
+      vehicleId,
       note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
       excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
