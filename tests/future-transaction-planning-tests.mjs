@@ -33,7 +33,7 @@ assert.equal(base.plannedVariableMonthly,243.25,'future unbudgeted transaction m
 const withBudget = buildFinanceSnapshot({
   accounts,
   transactions:[futureTx],
-  budgets:[{ month_start:'2026-10-01', category_id:'cat-variable', merchant_id:null, amount:500 }],
+  budgets:[{ month_start:'2026-09-01', category_id:'cat-variable', merchant_id:null, amount:500 }],
   household,
   now,
 });
@@ -128,7 +128,7 @@ assert.equal(staleRecurring.plannedFutureExpensesMonth,0,'a stale recurring anch
 const fixedMerchantBudget=buildFinanceSnapshot({
   accounts,
   transactions:[],
-  budgets:[{month_start:'2026-10-01',category_id:null,merchant_id:'merchant-fixed',amount:300}],
+  budgets:[{month_start:'2026-09-01',category_id:null,merchant_id:'merchant-fixed',amount:300}],
   recurringRules:[{
     id:'rule-fixed-budget',
     account_id:'ubs',
@@ -162,7 +162,7 @@ assert.equal(spentSnapshot.remainingPlannedExpensesMonth,0,'already-spent money 
 const categoryBudgetBesideFixed=buildFinanceSnapshot({
   accounts,
   transactions:[],
-  budgets:[{month_start:'2026-10-01',category_id:'housing',merchant_id:null,amount:400}],
+  budgets:[{month_start:'2026-09-01',category_id:'housing',merchant_id:null,amount:400}],
   recurringRules:[{
     id:'rent-rule',
     account_id:'ubs',
@@ -206,7 +206,7 @@ assert.equal(billSnapshot.plannedVariableMonthly,200);
 const budgetedBillSnapshot=buildFinanceSnapshot({
   accounts,
   bills:[openBill],
-  budgets:[{month_start:'2026-10-01',category_id:'utilities',merchant_id:null,amount:500}],
+  budgets:[{month_start:'2026-09-01',category_id:'utilities',merchant_id:null,amount:500}],
   household,
   now,
 });
