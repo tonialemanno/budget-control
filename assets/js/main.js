@@ -424,8 +424,8 @@ function applyReleaseChannelUI() {
   const pill=document.querySelector('#releaseVersionPill');
   const heading=document.querySelector('#releaseChannelLabel');
   const caption=document.querySelector('#releaseChannelCaption');
-  if(pill) pill.textContent=`V2.3 · ${label.toUpperCase()}`;
-  if(heading) heading.textContent=`${label} 2.3`;
+  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()}`;
+  if(heading) heading.textContent=`${label} ${APP_CONFIG.version}`;
   if(caption) caption.textContent=channel==='beta'
     ? t('Teststand · kann sich ändern')
     : channel==='local'
