@@ -1697,6 +1697,76 @@ async function handleForm(form) {
     location.hash = '#/setup';
     return;
   }
+  if (id === 'setup-income-create') {
+    const account=runtime.accounts.find((row)=>row.account_id===formValue(data,'accountId'));
+    if(!account) throw new Error('Bitte ein Zielkonto für die Einnahme auswählen.');
+    const amount=Math.abs(numberValue(data,'amount'));
+    if(!amount) throw new Error('Bitte einen gültigen Monatsbetrag eingeben.');
+    const incomeCategory=runtime.categories.find((row)=>row.kind==='income'&&String(row.name||'').toLowerCase()==='lohn')
+      || runtime.categories.find((row)=>row.kind==='income')
+      || null;
+    await financeApi.createRecurringRule({
+      household_id:h,
+      account_id:account.account_id,
+      destination_account_id:null,
+      category_id:incomeCategory?.id||null,
+      merchant_id:null,
+      direction:'income',
+      description:formValue(data,'description')||'Lohn',
+      counterparty:nullValue(data,'counterparty'),
+      amount,
+      currency:account.currency||currency,
+      cadence:'monthly',
+      next_date:formValue(data,'nextDate'),
+      end_date:null,
+      active:true,
+    });
+    await refresh('Monatseinnahme gespeichert.');
+    location.hash='#/setup';
+    return;
+  }
+  if (id === 'setup-expense-create') {
+    const account=runtime.accounts.find((row)=>row.account_id===formValue(data,'accountId'));
+    if(!account) throw new Error('Bitte ein Zahlungskonto auswählen.');
+    const category=runtime.categories.find((row)=>row.id===formValue(data,'categoryId'));
+    if(!category||category.kind!=='expense') throw new Error('Bitte eine Ausgaben-Kategorie auswählen.');
+    const amount=Math.abs(numberValue(data,'amount'));
+    if(!amount) throw new Error('Bitte einen gültigen Betrag eingeben.');
+    const counterpartyName=String(formValue(data,'counterparty')||'').trim();
+    let merchant=null;
+    if(counterpartyName){
+      const key=normalizeMerchantKey(counterpartyName);
+      merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
+        household_id:h,
+        name:counterpartyName,
+        normalized_key:key,
+        default_category_id:category.id,
+      });
+      if(merchant && merchant.default_category_id!==category.id){
+        await financeApi.updateMerchant(merchant.id,{default_category_id:category.id});
+      }
+    }
+    await financeApi.createRecurringRule({
+      household_id:h,
+      account_id:account.account_id,
+      destination_account_id:null,
+      category_id:category.id,
+      merchant_id:merchant?.id||null,
+      direction:'expense',
+      description:formValue(data,'description'),
+      counterparty:counterpartyName||null,
+      amount,
+      currency:account.currency||currency,
+      cadence:'monthly',
+      next_date:formValue(data,'nextDate'),
+      end_date:null,
+      active:true,
+    });
+    await refresh(merchant?'Fixkosten gespeichert und Empfänger verknüpft.':'Fixkosten gespeichert.');
+    location.hash='#/setup';
+    return;
+  }
+
   if (id === 'setup-complete') {
     const setup=buildSetupStatus({...runtime,profile:runtime.profile,household:runtime.household});
     if (!setup.states.accounts) throw new Error('Bitte zuerst mindestens ein Konto oder eine Geldbörse einrichten.');
