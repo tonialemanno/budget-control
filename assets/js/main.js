@@ -2724,7 +2724,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -2926,6 +2926,16 @@ async function handleAction(target) {
       await financeApi.updateTransaction(tx.id,{tax_relevant:false,tax_category:null,tax_year:null,tax_treatment:null,tax_section_key:null});
     }
     await refresh(value?'Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.':'Steuermarkierung entfernt.'); return;
+  }
+  if (action === 'transaction-cash-withdrawal') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
+    openTransactionEditor(tx);
+    const direction=document.querySelector('#transactionEditDirection');
+    if(direction) direction.value='cash_withdrawal';
+    syncTransactionTransferEditor();
+    document.querySelector('#transaction-edit')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
   }
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
@@ -3699,7 +3709,16 @@ pageContent.addEventListener('change', async (event) => {
       await financeApi.createDocument({household_id:runtime.household.id,object_type:'transaction',object_id:tx.id,name:file.name,storage_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:dateInputValue(new Date(tx.occurred_at)),notes:'Quittung zur Transaktion',tax_relevant:true,tax_year:new Date(tx.occurred_at).getFullYear(),tax_category:tx.tax_category||null});
       uiState.taxReceiptTxId=null; await refresh('Quittung gespeichert und mit der Transaktion verknüpft.'); return;
     }
-    if (target.id === 'transactionMakeRecurring') { const fields=document.querySelector('#transactionRecurringFields'); if (fields) fields.hidden=!target.checked; return; }
+    if (target.id === 'transactionMakeRecurring') {
+      const fields=document.querySelector('#transactionRecurringFields');
+      const matched=Boolean(target.dataset.matchRuleId);
+      if (fields) fields.hidden=!target.checked||matched;
+      const hint=document.querySelector('#transactionRecurringMatchHint');
+      if(hint&&matched) hint.textContent=target.checked
+        ? 'Diese Buchung wird mit der bereits erkannten Wiederholung verknüpft. Es entsteht keine zweite Regel.'
+        : 'Die erkannte Wiederholung bleibt bestehen; diese einzelne Buchung wird nicht damit verknüpft.';
+      return;
+    }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
     if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
