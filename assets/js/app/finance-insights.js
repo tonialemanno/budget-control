@@ -220,6 +220,35 @@ export function goalSummaries(goals = []) {
   }).sort((a,b)=>b.progressPercent-a.progressPercent);
 }
 
+export function primaryOperatingAccount(accounts = [], recurringRules = [], baseCurrency='CHF') {
+  const eligible=accounts.filter((account)=>!account.is_archived);
+  if(!eligible.length) return null;
+
+  const incomeByAccount=new Map();
+  recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction==='income'&&rule.account_id)
+    .forEach((rule)=>{
+      const amount=Math.max(0,Number(rule.amount||0));
+      incomeByAccount.set(rule.account_id,(incomeByAccount.get(rule.account_id)||0)+amount);
+    });
+
+  const incomeCandidates=eligible
+    .filter((account)=>incomeByAccount.has(account.account_id))
+    .sort((a,b)=>{
+      const currencyA=a.currency===baseCurrency?1:0;
+      const currencyB=b.currency===baseCurrency?1:0;
+      if(currencyA!==currencyB) return currencyB-currencyA;
+      return (incomeByAccount.get(b.account_id)||0)-(incomeByAccount.get(a.account_id)||0);
+    });
+  if(incomeCandidates.length) return incomeCandidates[0];
+
+  return eligible.find((account)=>account.account_type==='checking'&&account.currency===baseCurrency)
+    || eligible.find((account)=>account.account_type==='checking')
+    || eligible.find((account)=>account.currency===baseCurrency&&['cash','wallet'].includes(account.account_type))
+    || eligible.find((account)=>account.currency===baseCurrency)
+    || eligible[0];
+}
+
 export function accountShare(accounts = [], baseCurrency='CHF', fxRates=null) {
   const eligible=accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type));
   const rows=eligible.map((account)=>({
