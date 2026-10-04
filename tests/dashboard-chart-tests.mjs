@@ -8,12 +8,13 @@ const categories=[
   {id:'supermarket',name:'Supermarkt',parent_id:'food'},
   {id:'rent',name:'Wohnen',parent_id:null},
   {id:'fun',name:'Freizeit',parent_id:null},
+  {id:'salary',name:'Lohn',kind:'income',parent_id:null},
 ];
 const tx=[
   {id:'t1',status:'booked',occurred_at:'2026-10-01T12:00:00Z',amount:-50,currency:'CHF',category_id:'supermarket',cashflow_type:'standard',transfer_group_id:null},
   {id:'t2',status:'booked',occurred_at:'2026-10-02T12:00:00Z',amount:-30,currency:'CHF',category_id:'rent',cashflow_type:'standard',transfer_group_id:null},
   {id:'t3',status:'booked',occurred_at:'2026-10-03T10:00:00Z',amount:-20,currency:'CHF',category_id:'fun',cashflow_type:'standard',transfer_group_id:null},
-  {id:'t4',status:'booked',occurred_at:'2026-10-03T10:30:00Z',amount:200,currency:'CHF',category_id:null,cashflow_type:'standard',transfer_group_id:null},
+  {id:'t4',status:'booked',occurred_at:'2026-10-03T10:30:00Z',amount:200,currency:'CHF',category_id:'salary',categories:{id:'salary',name:'Lohn',kind:'income'},semantic_type:'earned_income',cashflow_type:'standard',transfer_group_id:null},
 ];
 
 const breakdown=categorySpending({

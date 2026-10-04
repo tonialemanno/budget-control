@@ -120,17 +120,19 @@ export function renderExpenseDonut({
     const title=privacy
       ? `${displayLabel}: ${Math.round(share)}%`
       : `${displayLabel}: ${moneyText(row.value,{currency,locale})} · ${Math.round(share)}%`;
-    return `<circle class="donut-segment donut-segment--${index%6}" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}"><title>${escapeHtml(title)}</title></circle>`;
+    const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
+    return `<circle class="donut-segment donut-segment--${index%6} donut-segment--interactive" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}" tabindex="0" role="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}"><title>${escapeHtml(title)}</title></circle>`;
   }).join('');
 
   const legend=rows.map((row,index)=>{
     const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
-    return `<div class="donut-legend-row">
+    const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
+    return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}">
       <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
       <strong>${escapeHtml(displayLabel)}</strong>
       <span>${privacy?'•••':money(row.value,{currency,locale,decimals:0})}</span>
       <small>${Math.round(row.share)}%</small>
-    </div>`;
+    </button>`;
   }).join('');
 
   return `<div class="donut-layout">
