@@ -41,7 +41,7 @@ export function renderBudget({
   const locale=profile?.locale||'de-CH';
   const now=new Date();
   const summary=calculateBudgetSummary({
-    budgets,transactions,debtPayments,categories,merchants,recurringRules,
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
     baseCurrency:currency,fxRates,now,fallbackDay:25,
   });
   const financePeriodLabel=financeCycleLabel(summary.cycle,locale);
