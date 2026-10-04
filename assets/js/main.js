@@ -2,7 +2,7 @@ import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
-import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp } from './app/format.js';
+import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
@@ -12,6 +12,7 @@ import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
+import { buildBudgetDecisionGuide } from './app/finance-coach.js';
 import {
   DEFAULT_IDLE_MINUTES, MAX_SESSION_HOURS, formatRemainingMinutes, normalizeIdleMinutes,
   presenceActivityState, sessionStatus,
@@ -1593,6 +1594,54 @@ async function ensureCashAccount(currency, occurredAt) {
     account_id:created?.id||created?.account_id,
     current_balance:0,
   };
+}
+
+function syncTransactionBudgetCoach(form=document.querySelector('#transaction-create')) {
+  if(!form) return;
+  const hint=form.querySelector('#transactionCreateBudgetCoach');
+  if(!hint) return;
+  const direction=form.querySelector('[name="direction"]')?.value||'expense';
+  const categoryId=form.querySelector('[name="categoryId"]')?.value||null;
+  const merchantId=form.querySelector('[name="merchantId"]')?.value||null;
+  if(direction!=='expense'||(!categoryId&&!merchantId)){
+    hint.hidden=true;
+    hint.innerHTML='';
+    return;
+  }
+
+  const guide=buildBudgetDecisionGuide({
+    categoryId,merchantId,
+    budgets:runtime.budgets,
+    transactions:runtime.transactions,
+    debtPayments:runtime.debtPayments,
+    categories:runtime.categories,
+    merchants:runtime.merchants,
+    recurringRules:runtime.recurringRules,
+    accounts:runtime.accounts,
+    household:runtime.household,
+    fxRates:runtime.fxRates,
+    now:new Date(),
+  });
+  const locale=runtime.profile?.locale||'de-CH';
+  const currency=runtime.household?.base_currency||'CHF';
+  const entered=Math.max(0,Number(form.querySelector('[name="amount"]')?.value||0));
+  hint.hidden=false;
+
+  if(!guide.found){
+    hint.className='budget-decision-hint budget-decision-hint--neutral form-grid-span';
+    hint.innerHTML='<div><strong>Kein Budgetrahmen für diese Auswahl</strong><span>Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.</span></div><a href="#/budget">Budget festlegen</a>';
+    return;
+  }
+
+  const after=guide.remaining-entered;
+  const tone=after<0?'negative':guide.percent>=80?'warning':'positive';
+  hint.className=`budget-decision-hint budget-decision-hint--${tone} form-grid-span`;
+  const remaining=moneyText(guide.remaining,{currency,locale,decimals:0});
+  const afterText=moneyText(Math.max(0,after),{currency,locale,decimals:0});
+  const overshoot=moneyText(Math.abs(Math.min(0,after)),{currency,locale,decimals:0});
+  hint.innerHTML=after<0
+    ? `<div><strong>${escapeHtml(guide.label)} · Budget würde überschritten</strong><span>Vor dieser Ausgabe noch ${escapeHtml(remaining)} verfügbar. Danach ${escapeHtml(overshoot)} über dem Rahmen.</span></div><a href="#/budget">Budget prüfen</a>`
+    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % verbraucht</strong><span>Aktuell ${escapeHtml(remaining)} verfügbar${entered>0?` · nach dieser Ausgabe ${escapeHtml(afterText)}`:''}.</span></div><a href="#/budget">Budget prüfen</a>`;
 }
 
 function syncTransactionTransferEditor() {
@@ -3923,6 +3972,11 @@ pageContent.addEventListener('click', async (event) => {
   catch (error) { showToast(humanError(error),'error'); }
 });
 
+pageContent.addEventListener('input', (event) => {
+  const target=event.target;
+  if(target?.name==='amount' && target.closest?.('#transaction-create')) syncTransactionBudgetCoach(target.closest('form'));
+});
+
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
   const filePicker = target.closest?.('.file-picker');
@@ -3991,7 +4045,11 @@ pageContent.addEventListener('change', async (event) => {
       }
       return;
     }
-    if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
+    if (target.name==='direction' && target.closest('#transaction-create')) {
+      syncTransactionBudgetCoach(target.closest('form'));
+      return;
+    }
+        if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
       syncTransactionTransferEditor();
       return;
     }
@@ -4006,6 +4064,7 @@ pageContent.addEventListener('change', async (event) => {
         const details=document.querySelector(target.id==='transactionEditCategory'?'#transactionEditOptionalDetails':'#transactionCreateOptionalDetails');
         if(details) details.open=true;
       }
+      if(target.id==='transactionCreateCategory') syncTransactionBudgetCoach(target.closest('form'));
       return;
     }
     if (target.id === 'transactionEditVehicle' && target.value) {
@@ -4024,8 +4083,10 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
       const merchant=runtime.merchants.find((row)=>row.id===target.value);
-      const category=target.closest('form')?.querySelector('[name="categoryId"]');
+      const form=target.closest('form');
+      const category=form?.querySelector('[name="categoryId"]');
       if(category && merchant?.default_category_id) category.value=merchant.default_category_id;
+      if(form?.id==='transaction-create') syncTransactionBudgetCoach(form);
       return;
     }
     if (target.id === 'debtPaymentTransaction') {
