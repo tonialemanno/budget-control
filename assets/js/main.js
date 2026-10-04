@@ -1683,10 +1683,15 @@ async function handleForm(form) {
         };
       } else tax={enabled:false};
     }
+    const counterpartyEntity=await ensureCounterpartyFromForm(data);
+    const contextEntity=await ensureContextFromForm(data);
     await createEconomicTransaction({
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
+      counterpartyId:counterpartyEntity?.id||null,
+      contextId:contextEntity?.id||null,
+      vehicleId:nullValue(data,'vehicleId'),
       note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
       excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
@@ -1700,9 +1705,15 @@ async function handleForm(form) {
     if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
     if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
     const editDirection=formValue(data,'direction')||'expense';
-    if(editDirection==='transfer'){
+    if(['transfer','cash_withdrawal'].includes(editDirection)){
       const currentAccount=runtime.accounts.find((a)=>a.account_id===tx.account_id);
-      const otherAccount=runtime.accounts.find((a)=>a.account_id===formValue(data,'otherAccountId'));
+      let otherAccount=runtime.accounts.find((a)=>a.account_id===formValue(data,'otherAccountId'));
+      if(editDirection==='cash_withdrawal'){
+        if(Number(tx.amount)>=0) throw new Error('Ein Bargeldbezug muss ein Abgang vom Bankkonto sein.');
+        const cashAccounts=runtime.accounts.filter((a)=>a.account_type==='cash'&&a.currency===currentAccount?.currency&&a.account_id!==tx.account_id);
+        if(!otherAccount&&cashAccounts.length===1) otherAccount=cashAccounts[0];
+        if(!otherAccount||otherAccount.account_type!=='cash') throw new Error('Bitte ein Bargeldkonto / eine Kasse als Gegenkonto wählen.');
+      }
       if(!currentAccount||!otherAccount) throw new Error('Bitte das Gegenkonto der Umbuchung auswählen.');
       if(currentAccount.account_id===otherAccount.account_id) throw new Error('Die Umbuchung braucht zwei verschiedene Konten.');
       const currentAmount=Math.abs(numberValue(data,'amount'));
@@ -1713,7 +1724,7 @@ async function handleForm(form) {
       const makeRecurring=data.get('makeRecurring')==='on';
       if(makeRecurring&&!sameCurrency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
-      const description=formValue(data,'description')||'Umbuchung';
+      const description=formValue(data,'description')||(editDirection==='cash_withdrawal'?'Bargeldbezug':'Umbuchung');
       await financeApi.convertTransactionToTransferV2({
         householdId:h,
         transactionId:tx.id,
@@ -1754,15 +1765,34 @@ async function handleForm(form) {
       const from=currentOutgoing?currentAccount:otherAccount;
       const to=currentOutgoing?otherAccount:currentAccount;
       await refresh(recurringSaved
-        ? `Umbuchung ${from.name} → ${to.name} korrigiert und als wiederkehrend gespeichert.`
-        : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`);
+        ? `${editDirection==='cash_withdrawal'?'Bargeldbezug':'Umbuchung'} ${from.name} → ${to.name} korrigiert und als wiederkehrend gespeichert.`
+        : editDirection==='cash_withdrawal'
+          ? `Bargeldbezug korrekt als Umbuchung ${from.name} → ${to.name} verbucht. Keine Ausgabe entstanden.`
+          : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`);
       return;
     }
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
-    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), semantic_type:nullValue(data,'semanticType'), exclude_from_reports:data.get('excludeFromReports')==='on' };
+    const counterpartyEntity=await ensureCounterpartyFromForm(data);
+    const contextEntity=await ensureContextFromForm(data);
+    const patch={
+      account_id:account.account_id,
+      category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants),
+      merchant_id:merchantId,
+      occurred_at:financeEventTimestamp(formValue(data,'occurredAt')),
+      amount,
+      currency:account.currency,
+      description:formValue(data,'description'),
+      counterparty:nullValue(data,'counterparty'),
+      counterparty_id:counterpartyEntity?.id||null,
+      context_id:contextEntity?.id||null,
+      vehicle_id:nullValue(data,'vehicleId'),
+      note:nullValue(data,'note'),
+      semantic_type:nullValue(data,'semanticType'),
+      exclude_from_reports:data.get('excludeFromReports')==='on'
+    };
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -1778,15 +1808,30 @@ async function handleForm(form) {
     }
     await financeApi.updateTransaction(transactionId,patch);
     let recurringSaved = false;
+    let recurringLinkedExisting = false;
     if (data.get('makeRecurring') === 'on') {
       const direction = amount < 0 ? 'expense' : 'income';
       const recurringPayload = { household_id:h, account_id:account.account_id, category_id:patch.category_id, merchant_id:patch.merchant_id, direction, description:patch.description, counterparty:patch.counterparty, amount:Math.abs(amount), currency:account.currency, cadence:formValue(data,'recurringCadence')||'monthly', next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1), active:true };
-      const existing = runtime.recurringRules.find((r)=>r.account_id===account.account_id && r.direction===direction && r.description.trim().toLowerCase()===patch.description.trim().toLowerCase() && Math.abs(Number(r.amount)-Math.abs(amount))<0.01);
-      if (existing) await financeApi.updateRecurringRule(existing.id, recurringPayload);
-      else await financeApi.createRecurringRule(recurringPayload);
-      recurringSaved = true;
+      const txCandidate={...tx,...patch};
+      const linked=tx.recurring_rule_id?runtime.recurringRules.find((rule)=>rule.id===tx.recurring_rule_id):null;
+      const matches=currentRecurringMatches(txCandidate);
+      let rule=linked||matches[0]?.rule||null;
+      if(rule){
+        recurringLinkedExisting=true;
+      } else {
+        rule=await financeApi.createRecurringRule(recurringPayload);
+      }
+      if(rule?.id){
+        await financeApi.updateTransaction(transactionId,{recurring_rule_id:rule.id});
+        recurringSaved=true;
+      }
     }
-    await refresh(recurringSaved ? 'Transaktion korrigiert und unter Wiederkehrend übernommen.' : 'Transaktion korrigiert.'); return;
+    await refresh(recurringSaved
+      ? recurringLinkedExisting
+        ? 'Transaktion korrigiert und mit der bereits vorhandenen wiederkehrenden Zahlung verknüpft. Keine Dublette erstellt.'
+        : 'Transaktion korrigiert und als neue wiederkehrende Zahlung gespeichert.'
+      : 'Transaktion korrigiert.');
+    return;
   }
 
   if (id === 'transfer-create') {
