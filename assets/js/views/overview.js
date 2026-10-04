@@ -60,6 +60,12 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
       <div><strong>Ausgaben sichtbar, aber noch ohne Rahmen</strong><p>Du hast variable Ausgaben, aber noch kein aktives variables Budget.</p><small>Mit wenigen Kategorien kann Finance dir vor dem Ausgeben sagen, was noch verfügbar ist.</small></div>
     </a>`;
   }
+  if(insight.type==='subscriptions'){
+    return `<a class="coach-insight" href="${insight.href}">
+      <span class="coach-insight-icon">${icon('repeat')}</span>
+      <div><strong>Abos im Blick behalten</strong><p><b>${insight.count}</b> erkannte Abos kosten zusammen ${amount(insight.monthly)} pro Monat und ${amount(insight.annual)} pro Jahr.</p><small>Finance zeigt die Belastung. Ob du ein Abo behalten willst, entscheidest du selbst.</small></div>
+    </a>`;
+  }
   return `<a class="coach-insight coach-insight--positive" href="${insight.href}">
     <span class="coach-insight-icon">${icon('shield')}</span>
     <div><strong>Dein Plan ist aktuell im Rahmen</strong><p>Finance sieht im Moment keinen akuten Budget- oder Ausgabenalarm.</p><small>Die Einschätzung wird mit jeder neuen Buchung neu berechnet.</small></div>
