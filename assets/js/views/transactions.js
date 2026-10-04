@@ -59,7 +59,7 @@ function periodLabel(period){
 }
 function monthKey(value){ const d=new Date(value); return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function monthLabel(key,locale){ const [y,m]=key.split('-').map(Number); return new Intl.DateTimeFormat(locale,{month:'short',year:'numeric'}).format(new Date(y,m-1,1)); }
-function normalizedSearch(tx){ return `${tx.description||''} ${tx.counterparty||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''}`.toLowerCase(); }
+function normalizedSearch(tx){ return `${tx.description||''} ${tx.counterparty||''} ${tx.counterparties?.name||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''} ${tx.transaction_contexts?.name||''} ${tx.vehicles?.name||''}`.toLowerCase(); }
 function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,direction='all',semantic='all',categories=[],recurringRules=[]}){
   const start=period==='custom'||period==='all'?null:periodStart(period);
   const needle=String(query||'').trim().toLowerCase();
@@ -103,8 +103,8 @@ function cashSuggestion(tx,accounts){
   const text=`${tx.description||''} ${tx.counterparty||''}`.toLowerCase();
   const cash=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='cash');
   const savings=accounts.find((a)=>a.account_id!==tx.account_id&&a.currency===tx.currency&&a.account_type==='savings');
-  if(cash && /(bancomat|atm|bargeld|cash|barbezug|withdraw|geldautomat)/i.test(text)) return {account:cash,label:`War das für ${cash.name}?`};
-  if(savings && /(spar|übertrag|uebertrag|transfer|umbuch|eigenes konto)/i.test(text)) return {account:savings,label:`War das Sparen auf ${savings.name}?`};
+  if(/(bancomat|atm|bargeld|cash|barbezug|withdraw|geldautomat)/i.test(text)) return {kind:'cash',account:cash||null,label:cash?`Bargeldbezug nach ${cash.name}?`:'Bargeldbezug erkannt – Bargeld-Wallet anlegen?'};
+  if(savings && /(spar|übertrag|uebertrag|transfer|umbuch|eigenes konto)/i.test(text)) return {kind:'transfer',account:savings,label:`War das Sparen auf ${savings.name}?`};
   return null;
 }
 function txRow(tx,{locale,canWrite,accounts,canTax,paymentMap,billMap}){
@@ -121,8 +121,20 @@ function txRow(tx,{locale,canWrite,accounts,canTax,paymentMap,billMap}){
   const split=debtPayment?` · Tilgung ${money(debtPayment.principal_amount,{currency:debtPayment.currency||tx.currency,locale})}${Number(debtPayment.interest_amount||0)>0?` · Zins ${money(debtPayment.interest_amount,{currency:debtPayment.currency||tx.currency,locale})}`:''}${Number(debtPayment.fee_amount||0)>0?` · Gebühren ${money(debtPayment.fee_amount,{currency:debtPayment.currency||tx.currency,locale})}`:''}`:'';
   const taxAction=canTax&&!receivableManaged?`<button class="table-action" type="button" data-action="transaction-tax-toggle" data-id="${tx.id}" data-value="${tx.tax_relevant?'false':'true'}">${tx.tax_relevant?'Steuer ✓':'Steuer'}</button>`:'';
   const managedAction=debtPayment?`<a class="table-action" href="#/debts">Schuld anzeigen</a>${taxAction}`:receivableManaged?`<a class="table-action" href="#/receivables">Forderung anzeigen</a>`:billPayment?`<a class="table-action" href="#/bills">Rechnung anzeigen</a>${taxAction}`:'';
-  const actions=canWrite?`<div class="row-actions">${managed?managedAction:transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">Wiederkehrend</button>${taxAction}`}${managed?'':`<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button>`}</div>`:'';
-  return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':debtPayment?'credit-card':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}${future?' · Geplant':''}</div><div class="list-row-meta">${escapeHtml(categoryLabel)} · ${escapeHtml(tx.merchants?.name||tx.counterparty||'')} ${tx.merchants?.name||tx.counterparty?'· ':''}${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}${split}</div>${suggestion&&canWrite?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span><button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button></div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${actions}</div></div>`;
+  const recurringLabel=tx.recurring_rule_id?'Wiederkehrend ✓':'Wiederkehrend';
+  const actions=canWrite?`<div class="row-actions">${managed?managedAction:transfer?'':`<button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Bearbeiten</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${tx.id}">${recurringLabel}</button>${taxAction}`}${managed?'':`<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${tx.id}">${transfer?'Umbuchung löschen':'Löschen'}</button>`}</div>`:'';
+  const entityMeta=[
+    tx.merchants?.name||'',
+    tx.counterparties?.name?`${tx.counterparties.name} (${({person:'Person',authority:'Behörde',employer:'Arbeitgeber',organization:'Organisation',other:'Gegenpartei'})[tx.counterparties.kind]||'Gegenpartei'})`:(tx.merchants?.name?'':tx.counterparty||''),
+    tx.transaction_contexts?.name?`Kontext: ${tx.transaction_contexts.name}`:'',
+    tx.vehicles?.name?`Fahrzeug: ${tx.vehicles.name}`:'',
+  ].filter(Boolean).join(' · ');
+  const suggestionAction=suggestion?.kind==='cash'
+    ? `<button class="table-action" type="button" data-action="transaction-cash-withdrawal" data-id="${tx.id}">Als Bargeldbezug</button>`
+    : suggestion?.account
+      ? `<button class="table-action" type="button" data-action="transaction-to-transfer" data-id="${tx.id}" data-to-account="${suggestion.account.account_id}">Ja, als Umbuchung</button>`
+      : '';
+  return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':debtPayment?'credit-card':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}${future?' · Geplant':''}</div><div class="list-row-meta">${escapeHtml(categoryLabel)}${entityMeta?` · ${escapeHtml(entityMeta)}`:''} · ${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}${split}</div>${suggestion&&canWrite&&suggestionAction?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span>${suggestionAction}</div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${actions}</div></div>`;
 }
 
 function renderCategorizationReview({
