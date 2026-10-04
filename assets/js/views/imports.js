@@ -67,7 +67,7 @@ export function renderImports({
   }).join('');
 
   return `
-    ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen, Händler erkennen, direkt kategorisieren und Dubletten sicher überspringen.'})}
+    ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen. Finance fasst gleiche Händler und Zahler trotz Filiale, Datum, SBB-/TWINT-Zusätzen oder Schreibvarianten zusammen.'})}
     <div class="grid-main-aside">
       <form class="card card-padding" id="bank-import" data-form="bank-import">
         <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">CSV oder textbasierter PDF-Kontoauszug</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
@@ -91,7 +91,7 @@ export function renderImports({
           <div class="form-actions"><button class="action-button action-button--primary" type="submit">Import starten</button></div>
         </div>
       </form>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• CSV und textbasierte PDF-Kontoauszüge werden vor dem Import analysiert.</p><p>• Händler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• CSV und textbasierte PDF-Kontoauszüge werden vor dem Import analysiert.</p><p>• Händler und Zahler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert; Zahlungsweg, Datum, Filiale und bekannte Markenvarianten verändern die Identität nicht.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
     </div>
 
     ${latest ? `<article class="card card-padding import-latest" style="margin-top:16px">
