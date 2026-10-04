@@ -133,11 +133,14 @@ export function calculateBudgetSummary({
 
   const total=variableRows.reduce((sum,row)=>sum+base(Number(row.amount||0),row.currency||baseCurrency,baseCurrency,fxRates),0);
   const fixedPlanned=recurringRules
-    .filter((rule)=>rule.active!==false&&rule.direction==='expense')
+    .filter((rule)=>rule.active!==false&&rule.direction==='expense'&&!rule.reserve_enabled)
+    .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0);
+  const reservePlanned=recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction==='expense'&&rule.reserve_enabled)
     .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0);
   const savingPlanned=recurringRules
     .filter((rule)=>rule.active!==false&&rule.direction==='transfer')
-    .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0);
+    .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0) + reservePlanned;
 
   const actualRows=transactions.filter((tx)=>{
     const date=new Date(tx.occurred_at);
