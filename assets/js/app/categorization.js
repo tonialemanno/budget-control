@@ -1,4 +1,4 @@
-import { applyCategoryRules, merchantFromTransaction, suggestKnownCategoryName } from './csv-import.js';
+import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryName } from './csv-import.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -14,6 +14,7 @@ export function buildCategorizationGroups({
   transactions = [],
   categories = [],
   merchants = [],
+  aliases = [],
   rules = [],
 } = {}) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
@@ -24,12 +25,13 @@ export function buildCategorizationGroups({
   for (const tx of transactions) {
     if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
-    const linkedMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
+    const directMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
       || null;
-    const detected = linkedMerchant
-      ? { name: linkedMerchant.name, key: linkedMerchant.normalized_key }
+    const detected = directMerchant
+      ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
       : merchantFromTransaction(tx);
+    const linkedMerchant = directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases});
     const merchantKey = detected.key || 'unbekannt';
     const key = `${kind}:${merchantKey}`;
     const group = groups.get(key) || {
