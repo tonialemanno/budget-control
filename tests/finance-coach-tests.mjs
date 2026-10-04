@@ -64,6 +64,26 @@ assert.equal(coach.flow.reserves,100);
 assert.equal(coach.flow.variable,300);
 assert.equal(coach.flow.free,1400);
 
+const coachWithFutureFixedTransaction=buildFinanceCoach({
+  snapshot,
+  primaryAccount,
+  accounts:[primaryAccount],
+  transactions:[{
+    id:'future-rent',status:'booked',account_id:'main',category_id:null,merchant_id:null,
+    amount:-200,currency:'CHF',occurred_at:'2026-10-10T12:00:00Z',
+    description:'Rent',transfer_group_id:null,recurring_rule_id:'rent',
+  }],
+  debtPayments:[],
+  recurringRules,
+  budgets:[],
+  categories:[],
+  merchants:[],
+  household:{base_currency:'CHF'},
+  fxRates:null,
+  now,
+});
+assert.equal(coachWithFutureFixedTransaction.fixedRemaining,200,'A future-dated planned transaction must not make the upcoming commitment disappear.');
+
 const categories=[{id:'food',name:'Lebensmittel',kind:'expense',parent_id:null}];
 const budgets=[{
   id:'budget-food',household_id:'h',category_id:'food',merchant_id:null,
