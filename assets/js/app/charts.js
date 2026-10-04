@@ -72,11 +72,12 @@ export function renderCashflowChart({
     const expenseTitle=privacy
       ? `${t('Ausgaben',locale)} · ${month}`
       : `${t('Ausgaben',locale)} · ${month}: ${moneyText(row.expenses,{currency,locale})}`;
-    return `<g class="cashflow-month">
+    const body=`<g class="cashflow-month">
       <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
       <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
       <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(month)}</text>
     </g>`;
+    return row.href ? `<a class="chart-link" href="${escapeHtml(row.href)}">${body}</a>` : body;
   }).join('');
 
   const latest=series[series.length-1]||{};
@@ -120,17 +121,19 @@ export function renderExpenseDonut({
     const title=privacy
       ? `${displayLabel}: ${Math.round(share)}%`
       : `${displayLabel}: ${moneyText(row.value,{currency,locale})} · ${Math.round(share)}%`;
-    return `<circle class="donut-segment donut-segment--${index%6}" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}"><title>${escapeHtml(title)}</title></circle>`;
+    const circle=`<circle class="donut-segment donut-segment--${index%6}" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}"><title>${escapeHtml(title)}</title></circle>`;
+    return row.href ? `<a class="chart-link" href="${escapeHtml(row.href)}">${circle}</a>` : circle;
   }).join('');
 
   const legend=rows.map((row,index)=>{
     const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
-    return `<div class="donut-legend-row">
-      <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
+    const body=`<span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
       <strong>${escapeHtml(displayLabel)}</strong>
       <span>${privacy?'•••':money(row.value,{currency,locale,decimals:0})}</span>
-      <small>${Math.round(row.share)}%</small>
-    </div>`;
+      <small>${Math.round(row.share)}%</small>`;
+    return row.href
+      ? `<a class="donut-legend-row donut-legend-row--link" href="${escapeHtml(row.href)}">${body}</a>`
+      : `<div class="donut-legend-row">${body}</div>`;
   }).join('');
 
   return `<div class="donut-layout">
