@@ -1428,7 +1428,8 @@ function findMatchingRecurringRule(txLike={}) {
       if(rule.account_id&&txLike.account_id===rule.account_id) score+=2;
       if(rule.merchant_id&&txLike.merchant_id===rule.merchant_id) score+=8;
       if(rule.category_id&&txLike.category_id===rule.category_id) score+=2;
-      if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
+      if(rule.amount_mode==='variable'&&amount>0) score+=3;
+      else if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
       const ruleText=normalizeMerchantKey([rule.merchants?.name,rule.counterparty,rule.description].filter(Boolean).join(' '));
       if(text&&ruleText&&(text.includes(ruleText)||ruleText.includes(text))) score+=6;
       return {rule,score};
@@ -2191,8 +2192,10 @@ async function handleForm(form) {
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:true
@@ -2233,8 +2236,10 @@ async function handleForm(form) {
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true'
@@ -2276,6 +2281,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const reserveEnabled=direction==='expense'&&data.get('reserveEnabled')==='on';
+    let reserveAccountId=null;
+    if(reserveEnabled){
+      const reserve=runtime.accounts.find((a)=>a.account_id===formValue(data,'reserveAccountId'));
+      if(!reserve) throw new Error('Bitte einen Rücklagetopf auswählen.');
+      if(reserve.account_id===account.account_id) throw new Error('Rücklagetopf und Zahlungskonto müssen unterschiedlich sein.');
+      if(reserve.currency!==account.currency) throw new Error('Rücklagetopf und Zahlungskonto müssen dieselbe Währung haben.');
+      reserveAccountId=reserve.account_id;
+    }
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
@@ -2286,8 +2300,13 @@ async function handleForm(form) {
       description:formValue(data,'description'),
       counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
+      interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:reserveEnabled,
+      reserve_account_id:reserveAccountId,
+      reserve_strategy:'monthly',
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:true,
@@ -2351,6 +2370,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Fixe Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const reserveEnabled=direction==='expense'&&data.get('reserveEnabled')==='on';
+    let reserveAccountId=null;
+    if(reserveEnabled){
+      const reserve=runtime.accounts.find((a)=>a.account_id===formValue(data,'reserveAccountId'));
+      if(!reserve) throw new Error('Bitte einen Rücklagetopf auswählen.');
+      if(reserve.account_id===account.account_id) throw new Error('Rücklagetopf und Zahlungskonto müssen unterschiedlich sein.');
+      if(reserve.currency!==account.currency) throw new Error('Rücklagetopf und Zahlungskonto müssen dieselbe Währung haben.');
+      reserveAccountId=reserve.account_id;
+    }
     const rule=await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
@@ -2360,8 +2388,13 @@ async function handleForm(form) {
       description:formValue(data,'description'),
       counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
+      amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:linkedDebt?linkedDebt.currency:(account.currency||currency),
       cadence,
+      interval_months:cadence==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:reserveEnabled,
+      reserve_account_id:reserveAccountId,
+      reserve_strategy:'monthly',
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true',
