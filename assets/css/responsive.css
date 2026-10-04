@@ -697,6 +697,8 @@
   .money-flow-svg { height:240px; }
   .budget-coach-value strong { font-size:36px; }
   .coach-account-summary { gap:6px; }
+  .budget-decision-hint { align-items:flex-start; flex-direction:column; gap:8px; padding:13px; }
+  .budget-decision-hint a { min-height:36px; display:inline-flex; align-items:center; }
     .dashboard-chart-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
   .dashboard-donut-card,
   .finance-chart-card { min-height:0; padding:16px; }
