@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.3\.7'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.3\.8'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /Finance wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
