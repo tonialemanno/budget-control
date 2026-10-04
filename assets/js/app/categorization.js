@@ -1,4 +1,4 @@
-import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryName } from './csv-import.js';
+import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './csv-import.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -73,9 +73,9 @@ export function buildCategorizationGroups({
 
     if (!suggestion) {
       const knownIds = group.rows.map((row) => {
-        const name = suggestKnownCategoryName(row);
-        if (!name) return null;
-        return categories.find((category) => category.kind === group.kind && category.name.toLowerCase() === name.toLowerCase())?.id || null;
+        const names=suggestKnownCategoryCandidates(row);
+        if (!names.length) return null;
+        return names.map((name)=>categories.find((category)=>category.kind===group.kind&&category.name.toLowerCase()===name.toLowerCase())?.id||null).find(Boolean)||null;
       }).filter(Boolean);
       const knownId = uniform(knownIds);
       if (knownId) suggestion = { categoryId: knownId, source: 'known', safe: true };
