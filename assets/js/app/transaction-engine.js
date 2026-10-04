@@ -46,6 +46,8 @@ export async function createEconomicTransaction({
   source = 'manual',
   status = 'booked',
   tax = null,
+  incomeKind = null,
+  analyticsExcluded = false,
 }) {
   required(api, 'Finance API fehlt.');
   required(householdId, 'Haushalt fehlt.');
@@ -64,6 +66,8 @@ export async function createEconomicTransaction({
     note: note || null,
     status,
     source,
+    income_kind: direction === 'income' ? (incomeKind || null) : null,
+    analytics_excluded: Boolean(analyticsExcluded),
   };
   if (tax?.enabled) {
     payload.tax_relevant = true;
