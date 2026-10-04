@@ -147,3 +147,85 @@ export function renderExpenseDonut({
     <div class="donut-legend">${legend}</div>
   </div>`;
 }
+
+
+export function renderMoneyFlow({
+  flow={},
+  currency='CHF',
+  locale='de-CH',
+  privacy=false,
+}={}) {
+  const rows=[
+    {key:'fixed',label:'Fixkosten',value:Math.max(0,finite(flow.fixed))},
+    {key:'reserves',label:'Rücklagen & Sparen',value:Math.max(0,finite(flow.reserves))},
+    {key:'variable',label:'Variable Ausgaben',value:Math.max(0,finite(flow.variable))},
+    {key:'free',label:'Frei verfügbar',value:Math.max(0,finite(flow.free))},
+  ].filter((row)=>row.value>0);
+  const income=Math.max(0,finite(flow.income));
+  const gap=Math.max(0,finite(flow.gap));
+  if(gap>0) rows.push({key:'gap',label:'Über Plan',value:gap});
+  if(!rows.length && !(income>0)) return '<div class="chart-empty">Noch nicht genug Planungsdaten für den Geldfluss.</div>';
+
+  const width=920;
+  const height=310;
+  const top=28;
+  const bottom=28;
+  const sourceX=70;
+  const sourceW=26;
+  const targetX=760;
+  const targetW=28;
+  const plotH=height-top-bottom;
+  const gapY=12;
+  const totalRows=Math.max(1,rows.length);
+  const availableH=plotH-gapY*(totalRows-1);
+  const branchTotal=Math.max(1,rows.reduce((sum,row)=>sum+row.value,0));
+  const maxTotal=Math.max(income,branchTotal,1);
+  const sourceH=plotH*(income/maxTotal);
+  const sourceY=top+(plotH-sourceH)/2;
+  let sourceCursor=sourceY;
+  let targetCursor=top;
+
+  const bands=rows.map((row,index)=>{
+    const thickness=Math.max(6,plotH*(row.value/maxTotal));
+    const targetH=Math.max(24,availableH*(row.value/branchTotal));
+    const sy1=sourceCursor;
+    const sy2=sourceCursor+thickness;
+    const ty1=targetCursor+(targetH-thickness)/2;
+    const ty2=ty1+thickness;
+    sourceCursor+=thickness;
+    targetCursor+=targetH+gapY;
+    const c1=sourceX+170;
+    const c2=targetX-170;
+    const d=[
+      `M ${sourceX+sourceW} ${sy1}`,
+      `C ${c1} ${sy1}, ${c2} ${ty1}, ${targetX} ${ty1}`,
+      `L ${targetX} ${ty2}`,
+      `C ${c2} ${ty2}, ${c1} ${sy2}, ${sourceX+sourceW} ${sy2}`,
+      'Z',
+    ].join(' ');
+    const amount=privacy?'•••':moneyText(row.value,{currency,locale,decimals:0});
+    return `<g class="money-flow-branch money-flow-branch--${row.key}">
+      <path d="${d}"></path>
+      <rect x="${targetX}" y="${targetCursor-targetH-gapY}" width="${targetW}" height="${targetH}" rx="8"></rect>
+      <text class="money-flow-label" x="${targetX+targetW+14}" y="${targetCursor-targetH-gapY+targetH/2-2}">${escapeHtml(t(row.label,locale))}</text>
+      <text class="money-flow-value" x="${targetX+targetW+14}" y="${targetCursor-targetH-gapY+targetH/2+15}">${escapeHtml(amount)}</text>
+    </g>`;
+  }).join('');
+
+  const incomeText=privacy?'•••':moneyText(income,{currency,locale,decimals:0});
+  const note=gap>0
+    ? `<div class="money-flow-note money-flow-note--warning">${escapeHtml(t('Geplante Verpflichtungen liegen über dem geplanten Einkommen.',locale))}</div>`
+    : '';
+
+  return `<div class="money-flow">
+    <svg class="money-flow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Geldfluss des geplanten Finanzmonats',locale))}" preserveAspectRatio="xMidYMid meet">
+      <g class="money-flow-source">
+        <rect x="${sourceX}" y="${sourceY}" width="${sourceW}" height="${Math.max(14,sourceH)}" rx="8"></rect>
+        <text class="money-flow-source-label" x="${sourceX}" y="${Math.max(18,sourceY-9)}">${escapeHtml(t('Geplantes Einkommen',locale))}</text>
+        <text class="money-flow-source-value" x="${sourceX}" y="${Math.min(height-8,sourceY+Math.max(14,sourceH)+19)}">${escapeHtml(incomeText)}</text>
+      </g>
+      ${bands}
+    </svg>
+    ${note}
+  </div>`;
+}
