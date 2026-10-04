@@ -20,19 +20,19 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
   const amount=(value)=>privacyMoney(value,{currency,locale,privacyEnabled,decimals:0});
   if(insight.type==='cash_shortfall'){
     return `<a class="coach-insight coach-insight--negative" href="${insight.href}">
-      <span class="coach-insight-icon">${icon('alert-triangle')}</span>
+      <span class="coach-insight-icon">${icon('info')}</span>
       <div><strong>Engpass vor dem nächsten Lohn</strong><p>Deine geplanten Verpflichtungen übersteigen das verfügbare Hauptkonto um <b>${amount(insight.amount)}</b>.</p><small>Planung öffnen und zuerst Fixkosten, Rücklagen und variable Rahmen prüfen.</small></div>
     </a>`;
   }
   if(insight.type==='budget_risk'){
     return `<a class="coach-insight coach-insight--warning" href="${insight.href}">
-      <span class="coach-insight-icon">${icon('gauge')}</span>
+      <span class="coach-insight-icon">${icon('chart')}</span>
       <div><strong>Budget läuft schneller als der Finanzmonat</strong><p><b>${escapeHtml(insight.label)}</b>: ${amount(insight.spent)} von ${amount(insight.amount)} bereits verbraucht.</p><small>Finance vergleicht Verbrauch und vergangenen Anteil des Finanzmonats.</small></div>
     </a>`;
   }
   if(insight.type==='spending_spike'){
     return `<a class="coach-insight coach-insight--warning" href="${insight.href}">
-      <span class="coach-insight-icon">${icon('trending-up')}</span>
+      <span class="coach-insight-icon">${icon('chart')}</span>
       <div><strong>Ungewöhnlicher Anstieg erkannt</strong><p><b>${escapeHtml(insight.label)}</b>: letzte 7 Tage ${amount(insight.recent)}, üblicher Wochenwert etwa ${amount(insight.baseline)}.</p><small>Kein Urteil: Finance zeigt nur eine deutliche Abweichung von deinem bisherigen Muster.</small></div>
     </a>`;
   }
@@ -61,7 +61,7 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
     </a>`;
   }
   return `<a class="coach-insight coach-insight--positive" href="${insight.href}">
-    <span class="coach-insight-icon">${icon('check-circle')}</span>
+    <span class="coach-insight-icon">${icon('shield')}</span>
     <div><strong>Dein Plan ist aktuell im Rahmen</strong><p>Finance sieht im Moment keinen akuten Budget- oder Ausgabenalarm.</p><small>Die Einschätzung wird mit jeder neuen Buchung neu berechnet.</small></div>
   </a>`;
 }
@@ -163,7 +163,7 @@ export function renderOverview({
 
       <div class="coach-mini-grid">
         <article class="card coach-mini-card">
-          <span class="coach-mini-icon">${icon('calendar')}</span>
+          <span class="coach-mini-icon">${icon('receipt')}</span>
           <span class="coach-mini-label">Bis zum nächsten Finanzmonat</span>
           <strong>${daysLabel}</strong>
           <small>Nächster Start: ${dateLabel(financeCycle.endExclusive,locale)}</small>
@@ -175,7 +175,7 @@ export function renderOverview({
           <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled,decimals:0})}</small>
         </article>
         <article class="card coach-mini-card">
-          <span class="coach-mini-icon">${icon('lock')}</span>
+          <span class="coach-mini-icon">${icon('shield')}</span>
           <span class="coach-mini-label">Fix & reserviert</span>
           <strong>${privacyMoney(coach.fixedRemaining+coach.reserveRemaining+coach.transferRemaining,{currency,locale,privacyEnabled,decimals:0})}</strong>
           <small>bis zum nächsten Finanzmonat</small>
