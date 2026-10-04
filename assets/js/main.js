@@ -150,7 +150,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -931,6 +931,8 @@ function render() {
     transactionQuery: uiState.transactionQuery,
     transactionCategory: uiState.transactionCategory,
     transactionAccount: uiState.transactionAccount,
+    transactionContext: uiState.transactionContext,
+    transactionVehicle: uiState.transactionVehicle,
     transactionDirection: uiState.transactionDirection,
     transactionSemantic: uiState.transactionSemantic,
     transactionCategoryIds: uiState.transactionCategoryIds,
@@ -3204,7 +3206,7 @@ async function handleAction(target) {
     uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionContext='all'; uiState.transactionVehicle='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -3664,6 +3666,8 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionCategoryIds=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionContextFilter') { uiState.transactionContext=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionVehicleFilter') { uiState.transactionVehicle=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionSourceSet=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
