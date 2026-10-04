@@ -38,7 +38,7 @@ assert.match(main,/allowed\.add\('merchants'\)/,'settings merchant route must be
 
 assert.match(read('assets/js/app/finance-model.js'), /remainingPlannedExpensesMonth/);
 assert.match(read('assets/js/app/finance-model.js'), /budgetedOpenBillsMonth/);
-assert.match(read('assets/js/views/overview.js'), /snapshot\.remainingPlannedExpensesMonth/);
+assert.match(read('assets/js/app/finance-coach.js'), /snapshot\.remainingPlannedExpensesMonth/);
 assert.match(read('assets/js/views/intelligence.js'), /Davon noch ausstehend/);
 assert.match(read('assets/js/views/recurring.js'), /recurring-edit/);
 assert.match(main,/if \(id === 'recurring-edit'\)/);
