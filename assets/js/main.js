@@ -1749,8 +1749,7 @@ async function handleForm(form) {
     const categoryId=nullValue(data,'categoryId');
     const counterpartyEntity=await resolveCounterpartyFromForm(data);
     const contextId=await resolveContextFromForm(data);
-    const vehicleId=nullValue(data,'vehicleId');
-    if(vehicleId&&!runtime.vehicles.some((row)=>row.id===vehicleId)) throw new Error('Fahrzeug wurde nicht gefunden.');
+    const vehicleId=await resolveVehicleFromForm(data,{amount:rawAmount,occurredAt,currency:account.currency});
     let tax=null;
     if (moduleEnabled('tax')) {
       const enabled=formValue(data,'taxRelevant')==='true';
@@ -1889,8 +1888,8 @@ async function handleForm(form) {
     const merchantId=nullValue(data,'merchantId');
     const counterpartyEntity=await resolveCounterpartyFromForm(data);
     const contextId=await resolveContextFromForm(data);
-    const vehicleId=nullValue(data,'vehicleId');
-    if(vehicleId&&!runtime.vehicles.some((row)=>row.id===vehicleId)) throw new Error('Fahrzeug wurde nicht gefunden.');
+    const editOccurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+    const vehicleId=await resolveVehicleFromForm(data,{amount:Math.abs(amount),occurredAt:editOccurredAt,currency:account.currency});
 
     const patch={
       account_id:account.account_id,
@@ -1899,7 +1898,7 @@ async function handleForm(form) {
       counterparty_id:counterpartyEntity?.id||null,
       context_id:contextId,
       vehicle_id:vehicleId,
-      occurred_at:financeEventTimestamp(formValue(data,'occurredAt')),
+      occurred_at:editOccurredAt,
       amount,
       currency:account.currency,
       description:formValue(data,'description'),
