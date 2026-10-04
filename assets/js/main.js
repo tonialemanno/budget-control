@@ -2245,6 +2245,8 @@ async function handleForm(form) {
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
       interval_months:formValue(data,'cadence')==='monthly'?Math.max(1,numberValue(data,'intervalMonths',1)):1,
+      reserve_enabled:direction==='expense'?Boolean(rule.reserve_enabled):false,
+      reserve_account_id:direction==='expense'?(rule.reserve_account_id||null):null,
       next_date:formValue(data,'nextDate'),
       end_date:nullValue(data,'endDate'),
       active:formValue(data,'active')==='true'
