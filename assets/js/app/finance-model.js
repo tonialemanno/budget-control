@@ -1,4 +1,5 @@
-import { cadenceMonthlyFactor, localMonthKey } from './format.js';
+import { localMonthKey } from './format.js';
+import { plannedMonthlyAmount, reserveMonthlyAmount } from './recurring-planning.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap } from './financial-effects.js';
 import { occurrenceNear } from './recurrence.js';
@@ -29,7 +30,7 @@ export function matchesRecurringExpense(tx, rules) {
     if(rule.account_id && rule.account_id!==tx.account_id) return false;
     if(rule.merchant_id && tx.merchant_id && rule.merchant_id!==tx.merchant_id) return false;
     if((rule.currency||tx.currency)!==tx.currency) return false;
-    if(Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
+    if(rule.amount_mode!=='variable' && Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
     if(rule.next_date && !occurrenceNear(rule,tx.occurred_at,3)) return false;
     const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
     const merchantMatch=Boolean(rule.merchant_id && tx.merchant_id && rule.merchant_id===tx.merchant_id);
@@ -125,14 +126,19 @@ export function buildFinanceSnapshot({
   const activeRecurring = recurringRules.filter((rule)=>isActiveRecurring(rule,today));
   const recurringMonthly = (direction) => activeRecurring
     .filter((rule)=>rule.direction===direction)
-    .reduce((sum,rule)=>sum+inBase(Number(rule.amount||0)*cadenceMonthlyFactor(rule.cadence),rule.currency),0);
+    .reduce((sum,rule)=>sum+inBase(plannedMonthlyAmount(rule),rule.currency),0);
+  const reserveTransfersMonthly = activeRecurring
+    .filter((rule)=>rule.direction==='expense'&&rule.reserve_enabled)
+    .reduce((sum,rule)=>sum+inBase(reserveMonthlyAmount(rule,accounts,now),rule.currency),0);
 
   const plannedIncomeRecurring = recurringMonthly('income');
-  const fixedExpensesMonthly = recurringMonthly('expense');
-  const fixedTransfersMonthly = recurringMonthly('transfer');
+  const fixedExpensesMonthly = activeRecurring
+    .filter((rule)=>rule.direction==='expense'&&!rule.reserve_enabled)
+    .reduce((sum,rule)=>sum+inBase(plannedMonthlyAmount(rule),rule.currency),0);
+  const fixedTransfersMonthly = recurringMonthly('transfer') + reserveTransfersMonthly;
 
   const budgetState=calculateBudgetSummary({
-    budgets,transactions,debtPayments,categories,merchants,recurringRules,
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
     baseCurrency:currency,fxRates,now,fallbackDay:25,
   });
   const monthBudgets=budgetState.variableRows;
@@ -289,6 +295,7 @@ export function buildFinanceSnapshot({
     remainingPlannedExpensesMonth,
     plannedVariableMonthly,
     fixedTransfersMonthly,
+    reserveTransfersMonthly,
     plannedCommitmentsMonthly,
     plannedFreeMonthly,
     actualIncomeMonth,

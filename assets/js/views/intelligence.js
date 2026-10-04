@@ -45,7 +45,7 @@ export function renderIntelligence({
             Einnahmen ${money(snapshot.incomePlanMonthly,{currency,locale})}
             · Fixkosten ${money(snapshot.fixedExpensesMonthly,{currency,locale})}
             · weitere Planung ${money(snapshot.plannedVariableMonthly,{currency,locale})}
-            · Umbuchungen ${money(snapshot.fixedTransfersMonthly,{currency,locale})}
+            · Rücklagen/Umbuchungen ${money(snapshot.fixedTransfersMonthly,{currency,locale})}
           </div>
         </div>
       </article>
@@ -54,7 +54,7 @@ export function renderIntelligence({
         ${metricCard('Fixe Ausgaben / Monat',money(snapshot.fixedExpensesMonthly,{currency,locale}),'aus Fixkosten / Wiederkehrend')}
         ${metricCard('Variabler Monatsplan',money(snapshot.plannedVariableMonthly,{currency,locale}),`Budgetplan ${moneyText(snapshot.budgetTrackedPlanMonth,{currency,locale})} · bereits ausserhalb Budget ${moneyText(snapshot.unbudgetedActualVariableExpensesMonth,{currency,locale})} · künftig ausserhalb Budget ${moneyText(snapshot.unbudgetedFutureExpensesMonth,{currency,locale})} · offene Rechnungen ${moneyText(snapshot.unbudgetedOpenBillsMonth,{currency,locale})}`)}
         ${metricCard('Davon noch ausstehend',money(snapshot.remainingPlannedExpensesMonth,{currency,locale}),`Restbudget ${moneyText(snapshot.remainingVariableBudgetMonth,{currency,locale})} · zukünftige Einzelbuchungen und fällige Rechnungen`)}
-        ${metricCard('Fixe Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),'Töpfe und Sparen')}
+        ${metricCard('Rücklagen & Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),snapshot.reserveTransfersMonthly>0?`davon Rücklagen ${money(snapshot.reserveTransfersMonthly,{currency,locale})}`:'Töpfe und Sparen')}
       </div>
     </div>
 
@@ -92,7 +92,7 @@ export function renderIntelligence({
       </div>
       <div class="stack compact-copy">
         <p><strong>Konten & Umbuchungen:</strong> bestimmen echte Liquidität; interne Umbuchungen verändern nicht deine Ausgaben oder dein Vermögen.</p>
-        <p><strong>Wiederkehrend / Fixkosten:</strong> liefert geplante Einnahmen, feste Ausgaben und feste Umbuchungen auf Töpfe.</p>
+        <p><strong>Wiederkehrend / Fixkosten:</strong> liefert geplante Einnahmen, feste Ausgaben sowie monatliche Rücklagen und Umbuchungen auf Töpfe.</p>
         <p><strong>Budget:</strong> ist der variable Monatsrahmen. Bereits verbrauchte Beträge reduzieren nur den noch verfügbaren Rest; Überschreitungen bleiben im vollständigen Monatsplan sichtbar.</p>
         <p><strong>Rechnungen:</strong> reduzieren die Liquidität solange sie offen sind. Fällige oder überfällige Rechnungen fliessen zusätzlich in „noch ausstehend“ ein, sofern sie nicht bereits durch Fixkosten, Budget oder eine zukünftige Buchung abgedeckt sind.</p>
         <p><strong>Forderungen:</strong> zählen zum Vermögen, bis sie bezahlt oder abgeschrieben sind.</p>

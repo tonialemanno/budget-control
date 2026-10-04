@@ -1,6 +1,7 @@
 import { convertAmount } from './fx.js';
 import { categoryLineage, matchingRecurringRule, monthlyRuleAmount, semanticExpenseBase, semanticType } from './finance-semantics.js';
 import { inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
+import { reserveMonthlyAmount } from './recurring-planning.js';
 
 function base(value,currency,target,fxRates){
   return convertAmount(value,currency||target,target,fxRates)??0;
@@ -120,7 +121,7 @@ function budgetMatchesTx(budget,tx,categories=[]){
 }
 
 export function calculateBudgetSummary({
-  budgets=[],transactions=[],debtPayments=[],categories=[],merchants=[],recurringRules=[],
+  budgets=[],transactions=[],debtPayments=[],categories=[],merchants=[],recurringRules=[],accounts=[],
   baseCurrency='CHF',fxRates=null,now=new Date(),fallbackDay=25,
 }={}){
   const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay});
@@ -133,11 +134,14 @@ export function calculateBudgetSummary({
 
   const total=variableRows.reduce((sum,row)=>sum+base(Number(row.amount||0),row.currency||baseCurrency,baseCurrency,fxRates),0);
   const fixedPlanned=recurringRules
-    .filter((rule)=>rule.active!==false&&rule.direction==='expense')
+    .filter((rule)=>rule.active!==false&&rule.direction==='expense'&&!rule.reserve_enabled)
     .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0);
+  const reservePlanned=recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction==='expense'&&rule.reserve_enabled)
+    .reduce((sum,rule)=>sum+base(reserveMonthlyAmount(rule,accounts,now),rule.currency||baseCurrency,baseCurrency,fxRates),0);
   const savingPlanned=recurringRules
     .filter((rule)=>rule.active!==false&&rule.direction==='transfer')
-    .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0);
+    .reduce((sum,rule)=>sum+monthlyRuleAmount(rule,baseCurrency,fxRates),0) + reservePlanned;
 
   const actualRows=transactions.filter((tx)=>{
     const date=new Date(tx.occurred_at);

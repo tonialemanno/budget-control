@@ -69,6 +69,6 @@ export function renderAccounts({ accounts = [], recurringRules = [], household, 
       ${metricCard(`Kreditkarten ${baseCurrency}`, money(baseCredit,{currency:baseCurrency,locale}), 'nicht zur Liquidität gezählt')}
       ${metricCard('Fremdwährungen', foreignSummary, foreign.size ? `${foreign.size} Währung${foreign.size===1?'':'en'}` : 'keine Fremdwährungskonten')}
     </div>
-    ${accounts.length ? `<div class="grid-3">${accounts.map((a)=>accountCard(a,{locale,canWrite,projection:buildAccountProjection(a,recurringRules),isPrimary:a.account_id===primaryAccountId})).join('')}</div>` : emptyState('wallet','Noch kein Konto','Erfasse zuerst ein Konto mit dem Stand, den du heute tatsächlich siehst.')}
+    ${accounts.length ? `<div class="grid-3">${accounts.map((a)=>accountCard(a,{locale,canWrite,projection:buildAccountProjection(a,recurringRules,accounts),isPrimary:a.account_id===primaryAccountId})).join('')}</div>` : emptyState('wallet','Noch kein Konto','Erfasse zuerst ein Konto mit dem Stand, den du heute tatsächlich siehst.')}
   `;
 }
