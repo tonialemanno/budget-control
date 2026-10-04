@@ -3442,4 +3442,4 @@ if(initialReleaseCurrent){
   const restored=await backend.restoreSession();
   if(restored?.user) await enterApp(restored); else { clearSessionClock(); showAuth(); }
 }
-window.__FINANCE_BOOT_COMPLETE__=true;
+window.__FINANCE_BOOT_COMPLETE__ = true;
