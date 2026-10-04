@@ -22,8 +22,10 @@ assert.doesNotMatch(bills,/\\\$\{/,'bills view must not contain escaped template
 assert.doesNotMatch(main,/const\s+_v\d+\w*\s*=|renderAll\s*=\s*function/,'stable must not reintroduce patch-wrapper chains');
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'),/new MutationObserver\(syncVersionLabel\)/);
 assert.match(settings,/Sprache & Region/);
-assert.match(read('assets/js/views/budget.js'),/Davon verbraucht/);
-assert.match(read('assets/js/views/budget.js'),/Ausserhalb Budget/);
+assert.match(read('assets/js/views/budget.js'),/Variabel ausgegeben/);
+assert.match(read('assets/js/views/budget.js'),/Nicht im variablen Budget/);
+assert.match(read('assets/js/app/budget-engine.js'),/calculateBudgetSummary/);
+assert.match(read('assets/js/app/finance-semantics.js'),/semanticType/);
 assert.match(read('assets/js/app/recurrence.js'),/effectiveNextDate/);
 assert.match(read('assets/js/views/recurring.js'),/Nächster Plantermin/);
 assert.match(read('assets/js/views/fixed-costs.js'),/Nächster Plantermin/);
@@ -41,7 +43,7 @@ assert.match(read('assets/js/views/intelligence.js'), /Davon noch ausstehend/);
 assert.match(read('assets/js/views/recurring.js'), /recurring-edit/);
 assert.match(main,/if \(id === 'recurring-edit'\)/);
 assert.match(main,/if \(action === 'recurring-edit'\)/);
-assert.match(read('assets/js/app/finance-model.js'), /if\(!budget\?\.merchant_id\) return false/,'category budgets must not be suppressed merely because a fixed cost uses the same category');
+assert.match(read('assets/js/app/budget-engine.js'), /const fixed=budget\.merchant_id \?/,'category budgets must remain variable unless the budget itself is merchant-scoped');
 
 assert.match(read('assets/js/app/config.js'), /releaseChannel/);
 assert.match(index,/releaseVersionPill/);
