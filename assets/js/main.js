@@ -3458,6 +3458,7 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
       syncTransactionTransferEditor();
+      syncTransactionRecurringMatch();
       return;
     }
     if (target.id === 'transactionEditOtherTransaction') {
@@ -3473,6 +3474,11 @@ pageContent.addEventListener('change', async (event) => {
       const merchant=runtime.merchants.find((row)=>row.id===target.value);
       const category=target.closest('form')?.querySelector('[name="categoryId"]');
       if(category && merchant?.default_category_id) category.value=merchant.default_category_id;
+      if(target.closest('#transaction-edit')) syncTransactionRecurringMatch();
+      return;
+    }
+    if (target.id === 'transactionEditCategory' || target.id === 'transactionEditCounterpartyKind' || target.id === 'transactionEditVehicle') {
+      syncTransactionRecurringMatch();
       return;
     }
     if (target.id === 'debtPaymentTransaction') {
@@ -3558,7 +3564,12 @@ pageContent.addEventListener('change', async (event) => {
       await financeApi.createDocument({household_id:runtime.household.id,object_type:'transaction',object_id:tx.id,name:file.name,storage_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:dateInputValue(new Date(tx.occurred_at)),notes:'Quittung zur Transaktion',tax_relevant:true,tax_year:new Date(tx.occurred_at).getFullYear(),tax_category:tx.tax_category||null});
       uiState.taxReceiptTxId=null; await refresh('Quittung gespeichert und mit der Transaktion verknüpft.'); return;
     }
-    if (target.id === 'transactionMakeRecurring') { const fields=document.querySelector('#transactionRecurringFields'); if (fields) fields.hidden=!target.checked; return; }
+    if (target.id === 'transactionMakeRecurring') {
+      const fields=document.querySelector('#transactionRecurringFields');
+      if (fields) fields.hidden=!target.checked;
+      syncTransactionRecurringMatch();
+      return;
+    }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
     if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
@@ -3614,7 +3625,11 @@ pageContent.addEventListener('input', (event) => {
   const target = event.target;
   if (['transactionEditAmount','transactionEditDate','transactionEditOtherAmount'].includes(target.id)) {
     syncTransactionTransferEditor();
+    syncTransactionRecurringMatch();
     return;
+  }
+  if (['transactionEditDescription','transactionEditCounterparty'].includes(target.id)) {
+    syncTransactionRecurringMatch();
   }
   if (['debtPaymentAmount','debtPaymentInterest','debtPaymentFee'].includes(target.id)) {
     const amount=Number(document.querySelector('#debtPaymentAmount')?.value||0);
