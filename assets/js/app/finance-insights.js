@@ -3,7 +3,7 @@ import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap } from './financial-effects.js';
 import { financeCycles, inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
 import { calculateBudgetSummary, effectiveBudgetSet } from './budget-engine.js';
-import { semanticExpenseBase, semanticIncomeBase } from './finance-semantics.js';
+import { semanticExpenseBase, semanticIncomeBase, semanticType } from './finance-semantics.js';
 
 function base(value, currency, target, fxRates) {
   return convertAmount(value, currency || target, target, fxRates) ?? 0;
@@ -135,10 +135,14 @@ export function categorySpending({
     const parent = category?.parent_id ? parentById.get(category.parent_id) : category;
     const key = parent?.id || 'uncategorized';
     const label = parent?.name || 'Ohne Kategorie';
-    totals.set(key,{ key,label,value:(totals.get(key)?.value||0)+value });
+    const existing=totals.get(key)||{key,label,value:0,categoryIds:new Set()};
+    existing.value+=value;
+    if(category?.id) existing.categoryIds.add(category.id);
+    if(parent?.id) existing.categoryIds.add(parent.id);
+    totals.set(key,existing);
   }
 
-  const allRows=[...totals.values()].sort((a,b)=>b.value-a.value);
+  const allRows=[...totals.values()].map((row)=>({...row,categoryIds:[...row.categoryIds]})).sort((a,b)=>b.value-a.value);
   const total=allRows.reduce((sum,row)=>sum+row.value,0);
   const visible=allRows.slice(0,Math.max(1,limit));
   const hidden=allRows.slice(visible.length);
@@ -147,10 +151,54 @@ export function categorySpending({
       key:'other',
       label:'Sonstiges',
       value:hidden.reduce((sum,row)=>sum+row.value,0),
+      categoryIds:[...new Set(hidden.flatMap((row)=>row.categoryIds||[]))],
     });
   }
 
   return visible.map((row)=>({...row,share:total>0?row.value/total*100:0,total}));
+}
+
+export function annualIncomeBreakdown({
+  transactions=[],categories=[],recurringRules=[],baseCurrency='CHF',fxRates=null,year=new Date().getFullYear(),limit=6,
+}={}) {
+  const start=new Date(year,0,1);
+  const end=new Date(year+1,0,1);
+  const earned=new Map();
+  let refunds=0;
+  let repayments=0;
+  let unclassified=0;
+  let otherIncome=0;
+
+  for(const tx of transactions){
+    const date=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||Number.isNaN(date.getTime())||date<start||date>=end||Number(tx.amount)<=0) continue;
+    const type=semanticType(tx,{categories,recurringRules});
+    const value=Math.max(0,base(tx.amount,tx.currency,baseCurrency,fxRates));
+    if(type==='earned_income'||type==='other_income'){
+      const source=tx.merchants?.name||tx.counterparty||tx.description||'Sonstige Einnahmen';
+      const key=String(source).trim()||'Sonstige Einnahmen';
+      earned.set(key,(earned.get(key)||0)+value);
+      if(type==='other_income') otherIncome+=value;
+    } else if(type==='refund'||type==='tax_refund') refunds+=value;
+    else if(type==='receivable_repayment') repayments+=value;
+    else if(type==='unclassified_inflow') unclassified+=value;
+  }
+
+  const allSources=[...earned.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value);
+  const top=allSources.slice(0,Math.max(1,limit));
+  const hidden=allSources.slice(top.length);
+  if(hidden.length) top.push({label:'Sonstige Verdienste',value:hidden.reduce((sum,row)=>sum+row.value,0),other:true});
+  const earnedTotal=allSources.reduce((sum,row)=>sum+row.value,0);
+  return {
+    year,
+    earnedTotal,
+    sources:top,
+    refunds,
+    repayments,
+    unclassified,
+    otherIncome,
+    cashInflows:earnedTotal+refunds+repayments+unclassified,
+  };
 }
 
 export { effectiveBudgetSet };
