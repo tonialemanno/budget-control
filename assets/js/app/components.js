@@ -111,10 +111,10 @@ export function accountCard(account, { locale = 'de-CH', canWrite = false, proje
       <div class="account-balance">${money(account.current_balance, { currency: account.currency, locale })}</div>
       <div class="account-change">${escapeHtml(account.currency)} · ${escapeHtml(t('Stand-Anker'))} ${dateLabel(account.balance_anchor_at, locale)}</div>
       ${projectionHtml}
-      <div class="card-footer-actions">
+      ${canWrite || !isPrimary ? `<div class="card-footer-actions">
         ${canWrite ? `<button class="table-action" type="button" data-action="account-edit" data-id="${escapeHtml(account.account_id)}">${escapeHtml(t('Bearbeiten / korrigieren'))}</button>` : ''}
         ${isPrimary ? '' : `<button class="table-action" type="button" data-action="account-set-primary" data-id="${escapeHtml(account.account_id)}">${escapeHtml(t('Als Hauptkonto festlegen'))}</button>`}
-      </div>
+      </div>` : ''}
     </article>`;
 }
 
