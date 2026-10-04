@@ -44,4 +44,9 @@ assert.match(budget,/name="month" type="hidden"/);
 assert.match(budget,/Weitere gespeicherte Budgetperioden/);
 assert.doesNotMatch(budget,/name="month" type="month"/);
 
+const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
+assert.match(main,/activeCycle=resolveFinanceCycle/);
+assert.match(main,/Budget für den aktuellen Finanzmonat gespeichert/);
+assert.match(main,/const month=\`\$\{cycle\.budgetMonth\}-01\`/);
+
 console.log('merchant-intelligence-budget-ux-tests: ok');
