@@ -80,17 +80,54 @@ function lineGroups(items) {
   return groups;
 }
 
-function detectColumns(lines) {
-  const positions = { debit: [], credit: [], amount: [], balance: [] };
+export function detectColumns(lines) {
   const tests = {
-    debit: /\b(belastung|debit|soll)\b/i,
-    credit: /\b(gutschrift|credit|haben)\b/i,
-    amount: /\b(betrag|amount)\b/i,
-    balance: /\b(saldo|balance|kontostand)\b/i,
+    debit: /^(?:belastung|debit|soll)$/i,
+    credit: /^(?:gutschrift|credit|haben)$/i,
+    amount: /^(?:betrag|amount)$/i,
+    balance: /^(?:saldo|balance|kontostand)$/i,
   };
-  for (const line of lines) {
-    for (const item of line.items) {
-      for (const [key, regex] of Object.entries(tests)) if (regex.test(item.str)) positions[key].push(item.x);
+
+  // Column names must come from a real table header. Transaction descriptions
+  // can contain words such as "Belastung UBS TWINT" or "Gutschrift UBS TWINT";
+  // counting those as headers shifts the detected columns and causes unsigned
+  // credits to be discarded.
+  const headerCandidates = (lines || []).map((line) => {
+    const matched = {};
+    for (const item of line.items || []) {
+      const value = normalize(item.str);
+      for (const [key, regex] of Object.entries(tests)) {
+        if (regex.test(value) && matched[key] === undefined) matched[key] = item.x;
+      }
+    }
+    const keys = Object.keys(matched);
+    const hasFlowColumn = matched.debit !== undefined || matched.credit !== undefined || matched.amount !== undefined;
+    const score = keys.length
+      + (matched.debit !== undefined && matched.credit !== undefined ? 4 : 0)
+      + (matched.balance !== undefined ? 2 : 0);
+    return { matched, keys, hasFlowColumn, score };
+  }).filter((entry) => entry.hasFlowColumn && entry.keys.length >= 2);
+
+  headerCandidates.sort((a,b) => b.score - a.score);
+  const header = headerCandidates[0]?.matched || null;
+  if (header) {
+    return {
+      debit: header.debit ?? null,
+      credit: header.credit ?? null,
+      amount: header.amount ?? null,
+      balance: header.balance ?? null,
+    };
+  }
+
+  // Conservative fallback for simpler statements: only accept exact, standalone
+  // header labels. This deliberately ignores prose in transaction descriptions.
+  const positions = { debit: [], credit: [], amount: [], balance: [] };
+  for (const line of lines || []) {
+    for (const item of line.items || []) {
+      const value = normalize(item.str);
+      for (const [key, regex] of Object.entries(tests)) {
+        if (regex.test(value)) positions[key].push(item.x);
+      }
     }
   }
   const median = (values) => {
@@ -105,7 +142,7 @@ function distance(a,b) {
   return a === null || b === null ? Number.POSITIVE_INFINITY : Math.abs(a-b);
 }
 
-function chooseAmount(line, columns) {
+export function chooseAmount(line, columns) {
   const candidates = line.items
     .map((item,index)=>({ item, index, parsed:parsePdfAmount(item.str) }))
     .filter((entry)=>entry.parsed);
