@@ -3258,13 +3258,35 @@ pageContent.addEventListener('input', (event) => {
 
 async function enterApp(session) {
   runtime.session=session; runtime.user=session.user;
+  const securityState=startSessionSecurity(runtime.user.id);
+  if(securityState?.expired) return;
   authGate.hidden=true; appShell.hidden=false; showLoading();
-  try { await loadContext(); render(); startLiveTimers(); }
-  catch (error) { pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`; }
+  try {
+    const compatible=await checkReleaseCompatibility();
+    if(!compatible) return;
+    await loadContext();
+    render();
+    startLiveTimers();
+  } catch (error) {
+    pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`;
+  }
 }
 
-window.addEventListener('hashchange',()=>{ render(); void pulsePresence(); });
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') void pulsePresence(); });
+window.addEventListener('hashchange',()=>{ render(); sessionGuard?.activity(); void pulsePresence(); });
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){
+    lastHiddenAt=Date.now();
+    return;
+  }
+  const hiddenFor=lastHiddenAt?Date.now()-lastHiddenAt:0;
+  lastHiddenAt=null;
+  const state=sessionGuard?.check();
+  if(state?.expired) return;
+  void checkReleaseAndRefreshAfterResume(hiddenFor);
+});
+for(const eventName of ['pointerdown','keydown','touchstart','wheel']){
+  window.addEventListener(eventName,()=>{ if(runtime.user) sessionGuard?.activity(); },{passive:true});
+}
 window.addEventListener('scroll', syncMobileScrollState, { passive: true });
 window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu(); });
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
