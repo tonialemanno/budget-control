@@ -11,6 +11,7 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
+import { matchingRecurringRules, merchantDuplicateGroups, normalizeCounterpartyKey, resolvedMerchantForTransaction } from './app/merchant-intelligence.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
 import {
   DEFAULT_IDLE_MINUTES, MAX_SESSION_HOURS, formatRemainingMinutes, normalizeIdleMinutes,
