@@ -1,4 +1,5 @@
 import { applyCategoryRules, merchantFromTransaction, suggestKnownCategoryName } from './csv-import.js';
+import { personCandidateFromTransaction } from './merchant-intelligence.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -26,24 +27,32 @@ export function buildCategorizationGroups({
   for (const tx of transactions) {
     if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
-    const detectedRaw=merchantFromTransaction(tx);
+    const person=personCandidateFromTransaction(tx);
+    const detectedRaw=person?null:merchantFromTransaction(tx);
     const alias=detectedRaw?.key ? aliasByKey.get(detectedRaw.key) : null;
-    const linkedMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
+    const linkedMerchant = person?null:(
+      (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
       || (alias?.merchant_id && merchantById.get(alias.merchant_id))
       || (detectedRaw?.key && merchantByKey.get(detectedRaw.key))
-      || null;
-    const detected = linkedMerchant
-      ? { name: linkedMerchant.name, key: linkedMerchant.normalized_key }
-      : detectedRaw;
-    const merchantKey = detected.key || 'unbekannt';
-    const key = `${kind}:${merchantKey}`;
+      || null
+    );
+    const detected = person
+      ? {name:person.name,key:`person:${person.key}`}
+      : linkedMerchant
+        ? { name: linkedMerchant.name, key: linkedMerchant.normalized_key }
+        : detectedRaw;
+    const merchantKey = person?null:(detected?.key || 'unbekannt');
+    const key = `${kind}:${detected?.key||'unbekannt'}`;
     const group = groups.get(key) || {
       key,
       merchantKey,
-      merchantId: linkedMerchant?.id || tx.merchant_id || null,
+      merchantId: linkedMerchant?.id || (person?null:tx.merchant_id) || null,
       merchant: linkedMerchant || null,
-      name: linkedMerchant?.name || detected.name || 'Unbekannter Händler',
+      entityType:person?'person':'merchant',
+      counterpartyName:person?.name||null,
+      counterpartyKey:person?.key||null,
+      name: person?person.name:(linkedMerchant?.name || detected?.name || 'Unbekannter Händler'),
       kind,
       rows: [],
     };
