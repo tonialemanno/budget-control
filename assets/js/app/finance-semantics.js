@@ -73,7 +73,7 @@ function recurringRuleScore(tx,rule,categories=[]) {
 
   const haystack=txText(tx);
   const needles=[rule.description,rule.counterparty,rule.merchants?.name].map(norm).filter((value)=>value.length>=4);
-  if(needles.some((needle)=>haystack.includes(needle)||needle.includes(haystack))) score+=7;
+  if(haystack.length>=4 && needles.some((needle)=>haystack.includes(needle)||needle.includes(haystack))) score+=7;
 
   const expected=Math.abs(Number(rule.amount||0));
   const actual=Math.abs(Number(tx.amount||0));
