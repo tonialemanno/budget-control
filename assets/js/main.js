@@ -1419,10 +1419,11 @@ async function ensureTransactionTaxCase(year) {
 
 function findMatchingRecurringRule(txLike={}) {
   const amount=Math.abs(Number(txLike.amount||0));
+  const refund=txLike.semantic_type==='refund'||txLike.semanticType==='refund';
   const direction=Number(txLike.amount||0)<0?'expense':'income';
   const text=normalizeMerchantKey([txLike.merchants?.name,txLike.counterparty,txLike.description].filter(Boolean).join(' '));
   const candidates=runtime.recurringRules
-    .filter((rule)=>rule.active!==false&&rule.direction===direction)
+    .filter((rule)=>rule.active!==false&&(rule.direction===direction||(refund&&rule.direction==='expense'&&rule.amount_mode==='variable')))
     .map((rule)=>{
       let score=0;
       if(rule.account_id&&txLike.account_id===rule.account_id) score+=2;
@@ -1986,6 +1987,8 @@ async function handleForm(form) {
             amount:currentAmount,
             currency:sourceAccount.currency,
             cadence:formValue(data,'recurringCadence')||'monthly',
+            interval_months:(formValue(data,'recurringCadence')||'monthly')==='monthly'?Math.max(1,numberValue(data,'recurringIntervalMonths',1)):1,
+            amount_mode:'fixed',
             next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
             active:true,
           });
@@ -2088,6 +2091,8 @@ async function handleForm(form) {
         amount:Math.abs(amount),
         currency:account.currency,
         cadence:formValue(data,'recurringCadence')||'monthly',
+        interval_months:(formValue(data,'recurringCadence')||'monthly')==='monthly'?Math.max(1,numberValue(data,'recurringIntervalMonths',1)):1,
+        amount_mode:formValue(data,'recurringAmountMode')||'fixed',
         next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1),
         active:true
       });
@@ -4018,6 +4023,11 @@ pageContent.addEventListener('change', async (event) => {
       const edit=target.id==='fixedCostEditReserveEnabled';
       const field=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
       if(field) field.hidden=!target.checked;
+      return;
+    }
+    if (target.id === 'transactionRecurringCadence') {
+      const field=document.querySelector('#transactionRecurringIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
       return;
     }
     if (target.id === 'setupExpensePreset') {
