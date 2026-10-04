@@ -138,7 +138,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -714,6 +714,8 @@ function render() {
     transactionAccount: uiState.transactionAccount,
     transactionDirection: uiState.transactionDirection,
     transactionSemantic: uiState.transactionSemantic,
+    transactionCategoryIds: uiState.transactionCategoryIds,
+    transactionSourceSet: uiState.transactionSourceSet,
     transactionFrom: uiState.transactionFrom,
     transactionTo: uiState.transactionTo,
     transactionPage: uiState.transactionPage,
@@ -2439,6 +2441,7 @@ async function handleAction(target) {
     const merchant=runtime.merchants.find((row)=>row.id===tx.merchant_id);
     uiState.transactionQuery=merchant?.name||tx.counterparty||tx.description||'';
     uiState.transactionCategory='all';
+    uiState.transactionCategoryIds=[];
     uiState.transactionAccount='all';
     uiState.transactionFrom='';
     uiState.transactionTo='';
@@ -2454,15 +2457,17 @@ async function handleAction(target) {
     const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
     uiState.transactionQuery='';
     uiState.transactionDirection='expense';
-    uiState.transactionSemantic='variable';
+    uiState.transactionSemantic='all';
     uiState.transactionAccount='all';
     uiState.transactionFrom='';
     uiState.transactionTo='';
     uiState.transactionPeriod='all';
     uiState.transactionView='details';
     uiState.transactionPage=1;
+    uiState.transactionCategoryIds=[];
+    uiState.transactionSourceSet=[];
     if(key==='uncategorized') uiState.transactionCategory='uncategorized';
-    else if(key==='other') uiState.transactionCategory='all';
+    else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
     location.hash='#/transactions';
     return;
@@ -2470,9 +2475,11 @@ async function handleAction(target) {
   if (action === 'overview-drilldown-income') {
     const kind=target.dataset.kind||'earned';
     const source=target.dataset.source||'';
+    const sources=String(target.dataset.sources||'').split('||').filter(Boolean);
     uiState.transactionDirection='income';
     uiState.transactionSemantic=kind;
-    uiState.transactionQuery=source;
+    uiState.transactionQuery=sources.length>1?'':source;
+    uiState.transactionSourceSet=sources.length>1?sources:[];
     uiState.transactionCategory='all';
     uiState.transactionAccount='all';
     uiState.transactionFrom=`${new Date().getFullYear()}-01-01`;
@@ -2487,7 +2494,7 @@ async function handleAction(target) {
     uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -2935,9 +2942,9 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionCategoryIds=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionSourceSet=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
