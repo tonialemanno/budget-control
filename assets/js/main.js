@@ -1629,7 +1629,7 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
 
   if(!guide.found){
     hint.className='budget-decision-hint budget-decision-hint--neutral form-grid-span';
-    hint.innerHTML='<div><strong>Kein Budgetrahmen für diese Auswahl</strong><span>Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.</span></div><a href="#/budget">Budget festlegen</a>';
+    hint.innerHTML=`<div><strong>${escapeHtml(t('Kein Budgetrahmen für diese Auswahl'))}</strong><span>${escapeHtml(t('Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget festlegen'))}</a>`;
     return;
   }
 
@@ -1640,8 +1640,8 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
   const afterText=moneyText(Math.max(0,after),{currency,locale,decimals:0});
   const overshoot=moneyText(Math.abs(Math.min(0,after)),{currency,locale,decimals:0});
   hint.innerHTML=after<0
-    ? `<div><strong>${escapeHtml(guide.label)} · Budget würde überschritten</strong><span>Vor dieser Ausgabe noch ${escapeHtml(remaining)} verfügbar. Danach ${escapeHtml(overshoot)} über dem Rahmen.</span></div><a href="#/budget">Budget prüfen</a>`
-    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % verbraucht</strong><span>Aktuell ${escapeHtml(remaining)} verfügbar${entered>0?` · nach dieser Ausgabe ${escapeHtml(afterText)}`:''}.</span></div><a href="#/budget">Budget prüfen</a>`;
+    ? `<div><strong>${escapeHtml(guide.label)} · ${escapeHtml(t('Budget würde überschritten'))}</strong><span>${escapeHtml(t('Vor dieser Ausgabe noch'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar. Danach'))} ${escapeHtml(overshoot)} ${escapeHtml(t('über dem Rahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`
+    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % ${escapeHtml(t('verbraucht'))}</strong><span>${escapeHtml(t('Aktuell'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar'))}${entered>0?` · ${escapeHtml(t('nach dieser Ausgabe'))} ${escapeHtml(afterText)}`:''}.</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`;
 }
 
 function syncTransactionTransferEditor() {
