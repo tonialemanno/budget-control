@@ -50,7 +50,7 @@ export function transactionMatchesRecurringExpense(tx,rules=[]) {
     const amountClose=expected>0&&Math.abs(expected-txAmount)<=Math.max(2,expected*.20);
     const categoryMatch=Boolean(rule.category_id&&tx.category_id&&(rule.category_id===tx.category_id||rule.category_id===tx.categories?.parent_id));
 
-    return merchantMatch || (textMatch&&amountClose) || (categoryMatch&&amountClose);
+    return (merchantMatch&&amountClose) || (textMatch&&amountClose) || (categoryMatch&&amountClose);
   });
 }
 
@@ -109,6 +109,7 @@ export function buildExpenseSeries({
   const historyEnd=new Date(cycle.start.getTime()-1);
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const categoryById=new Map(categories.map((row)=>[row.id,row]));
+  const activeExpenseRules=recurringRules.filter((rule)=>rule.active!==false&&rule.direction==='expense');
   const groups=new Map();
 
   for(const tx of transactions){
@@ -124,15 +125,25 @@ export function buildExpenseSeries({
       : tx.category_id||null;
     const category=categoryById.get(categoryId)||(categoryId===tx.category_id?tx.categories:null)||null;
     const categoryName=category?.name||'Ohne Kategorie';
+    const matchedRule=activeExpenseRules.find((rule)=>transactionMatchesRecurringExpense({
+      ...tx,
+      merchant_id:tx.merchant_id||resolvedMerchant?.id||null,
+      category_id:categoryId,
+      categories:category,
+      merchants:resolvedMerchant||tx.merchants||null,
+    },[rule]))||null;
+
     const sourceKey=resolvedMerchant?.id
       ? `merchant:${resolvedMerchant.id}`
       : `text:${normalized(tx.counterparty||tx.description||'unbekannt')}`;
-    const key=`${sourceKey}|category:${categoryId||'none'}`;
-    const name=resolvedMerchant?.name||tx.counterparty||tx.description||'Unbekannt';
+    const key=matchedRule
+      ? `recurring:${matchedRule.id}`
+      : `${sourceKey}|category:${categoryId||'none'}`;
+    const name=matchedRule?.counterparty||resolvedMerchant?.name||tx.counterparty||tx.description||matchedRule?.description||'Unbekannt';
 
     const row=groups.get(key)||{
-      key,name,merchantId:resolvedMerchant?.id||null,categoryId,categoryName,
-      rows:[],total:0,firstDate:occurred,lastDate:occurred,
+      key,name,merchantId:resolvedMerchant?.id||matchedRule?.merchant_id||null,categoryId,categoryName,
+      rows:[],total:0,firstDate:occurred,lastDate:occurred,recurringRule:matchedRule,
     };
     row.rows.push(tx);
     row.total+=value;
@@ -144,7 +155,7 @@ export function buildExpenseSeries({
   return [...groups.values()].map((series)=>{
     const monthsCovered=monthsBetweenInclusive(series.firstDate,historyEnd);
     const historicalMonthly=series.total/monthsCovered;
-    const recurringRule=matchingRecurringRule(series,recurringRules);
+    const recurringRule=series.recurringRule||null;
     const recurringMonthly=recurringRule
       ? moneyBase(Number(recurringRule.amount||0)*cadenceMonthlyFactor(recurringRule.cadence),recurringRule.currency||baseCurrency,baseCurrency,fxRates)
       : null;
