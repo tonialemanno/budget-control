@@ -1315,9 +1315,12 @@ function renderImportReview() {
     const tx = rowToTransaction(row,mapping);
     if (!tx) continue;
     const merchant = merchantFromTransaction(tx);
-    const existing = runtime.merchants.find((m)=>m.normalized_key===merchant.key);
-    const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
-    const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
+    const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+    const knownCategoryName=suggestKnownCategoryName(tx);
+    const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+    const groupKey=existing?.normalized_key||merchant.key;
+    const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
     group.rows.push(tx); group.total += Number(tx.amount);
     if (!group.categoryId && categoryId) group.categoryId = categoryId;
     groups.set(merchant.key,group);
@@ -2389,21 +2392,34 @@ async function handleForm(form) {
     try {
       const prepared = [];
       const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
+      const aliasCache = [...runtime.merchantAliases];
       for (const row of importState.parsed.rows) {
         const tx = rowToTransaction(row,mapping);
         if (!tx) continue;
         const merchantInfo = merchantFromTransaction(tx);
-        const existingMerchant = merchantCache.get(merchantInfo.key);
-        const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
-        const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+        let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+        const groupKey=merchant?.normalized_key||merchantInfo.key;
+        const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
+        const knownCategoryName=suggestKnownCategoryName(tx);
+        const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+        const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
-        let merchant = existingMerchant;
         if (!merchant) {
           merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
-          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
         } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
-          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId, name:merchantInfo.name });
-          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
+          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
+        }
+        if(merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+          const alias=await financeApi.upsertMerchantAlias({
+            household_id:h,
+            merchant_id:merchant.id,
+            alias_name:merchantInfo.rawName||merchantInfo.name,
+            normalized_key:merchantInfo.aliasKey,
+            payment_processor:merchantInfo.paymentProcessor||null,
+          });
+          if(alias) aliasCache.push(alias);
         }
         const externalReference = await transactionFingerprint(accountId,tx);
         prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
