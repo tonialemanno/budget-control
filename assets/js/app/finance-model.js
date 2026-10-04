@@ -138,7 +138,7 @@ export function buildFinanceSnapshot({
   const fixedTransfersMonthly = recurringMonthly('transfer') + reserveTransfersMonthly;
 
   const budgetState=calculateBudgetSummary({
-    budgets,transactions,debtPayments,categories,merchants,recurringRules,
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
     baseCurrency:currency,fxRates,now,fallbackDay:25,
   });
   const monthBudgets=budgetState.variableRows;
