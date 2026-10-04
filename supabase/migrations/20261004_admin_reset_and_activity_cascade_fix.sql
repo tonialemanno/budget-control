@@ -109,6 +109,27 @@ begin
   from public.households h
   where h.owner_user_id=p_user_id;
 
+  -- Managed transactions have protective triggers. Remove/unlink their owning
+  -- ledger rows first so the household cascade can proceed without exceptions.
+  update public.bills
+  set status='open',
+      paid_transaction_id=null,
+      paid_at=null,
+      payment_source=null,
+      updated_at=now()
+  where household_id in (select id from public.households where owner_user_id=p_user_id)
+    and paid_transaction_id is not null;
+
+  delete from public.debt_payments
+  where household_id in (select id from public.households where owner_user_id=p_user_id);
+  delete from public.debts
+  where household_id in (select id from public.households where owner_user_id=p_user_id);
+
+  delete from public.receivable_payments
+  where household_id in (select id from public.households where owner_user_id=p_user_id);
+  delete from public.receivables
+  where household_id in (select id from public.households where owner_user_id=p_user_id);
+
   delete from public.households
   where owner_user_id=p_user_id;
 
