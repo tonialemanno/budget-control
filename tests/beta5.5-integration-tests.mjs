@@ -84,7 +84,7 @@ assert.match(read('assets/js/views/fixed-costs.js'), /fixedCost\$\{suffix\}Merch
 assert.match(read('assets/js/main.js'), /merchant_id:merchantId/);
 assert.match(read('assets/js/main.js'), /default_category_id/);
 assert.match(read('assets/js/app/finance-api.js'), /merchants\(name,normalized_key,default_category_id\)/);
-assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
+assert.match(read('assets/js/app/budget-intelligence.js'), /merchantMatch/);
 assert.match(read('assets/js/app/budget-intelligence.js'), /rule\.merchant_id/);
 
 assert.equal(exists('assets/js/views/merchants.js'), true);
