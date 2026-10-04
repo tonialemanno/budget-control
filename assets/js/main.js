@@ -5,7 +5,7 @@ import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryName } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates, suggestKnownCategoryName } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -1326,8 +1326,8 @@ function renderImportReview() {
     if (!tx) continue;
     const merchant = merchantFromTransaction(tx);
     const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-    const knownCategoryName=suggestKnownCategoryName(tx);
-    const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+    const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+    const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
     const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
     const groupKey=existing?.normalized_key||merchant.key;
     const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
@@ -2662,8 +2662,8 @@ async function handleForm(form) {
         let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
         const groupKey=merchant?.normalized_key||merchantInfo.key;
         const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
-        const knownCategoryName=suggestKnownCategoryName(tx);
-        const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+        const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+        const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
         const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
         if (!merchant) {
