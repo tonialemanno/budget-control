@@ -1,4 +1,4 @@
-import { MODULES } from '../app/config.js';
+import { APP_CONFIG, MODULES } from '../app/config.js';
 import { buildSetupStatus } from '../app/setup-model.js';
 import { pageHeader, statusPill } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
@@ -22,7 +22,7 @@ export function renderSettings({
   hiddenModules=[], privacyEnabled=false, canWrite=false, canAdminHousehold=false,
   masterDataHouseholds=[], countryMasterCategories=[], countryMasterMerchants=[],
   accounts=[], categories=[], merchants=[], categorizationRules=[], recurringRules=[],
-  budgets=[], goals=[], debts=[], receivables=[], taxCases=[],
+  budgets=[], goals=[], debts=[], receivables=[], taxCases=[], releaseState=null, releaseManifest=null,
 } = {}) {
   const hidden = new Set(hiddenModules || []);
   const catalog = (productModules || []).filter((module)=>module.key !== 'admin');
@@ -85,6 +85,18 @@ export function renderSettings({
         <article class="card card-padding">
           <div class="card-heading"><div><h3 class="card-title">Mein Login & Zugriff</h3><p class="card-subtitle">Identität und Berechtigungen auf einen Blick</p></div></div>
           <div class="mini-detail-list"><span>Name <strong>${escapeHtml(profile?.display_name||'—')}</strong></span><span>E-Mail <strong>${escapeHtml(user?.email||'—')}</strong></span><span>Haushalt <strong>${escapeHtml(household?.name||'—')}</strong></span><span>Haushaltsrolle <strong>${escapeHtml(householdRoleLabel(householdRole))}</strong></span><span>Systemrolle <strong>${escapeHtml(adminRole ? `App-${adminRole}` : 'Benutzer')}</strong></span><span>Land <strong>${escapeHtml(household?.country_code||'—')}</strong></span><span>Basiswährung <strong>${escapeHtml(household?.base_currency||'—')}</strong></span></div>
+        </article>
+        <article class="card card-padding">
+          <div class="card-heading"><div><h3 class="card-title">Sitzung & Aktualität</h3><p class="card-subtitle">Finance schützt die Sitzung und prüft App- und Datenbankstand automatisch.</p></div><span class="list-row-leading">${icon('shield')}</span></div>
+          <div class="mini-detail-list">
+            <span>Auto-Logout bei Inaktivität <strong>${APP_CONFIG.idleTimeoutMinutes} Minuten</strong></span>
+            <span>Warnung vorher <strong>${APP_CONFIG.idleWarningMinutes} Minuten</strong></span>
+            <span>Maximale Sitzung <strong>${APP_CONFIG.maxSessionHours} Stunden</strong></span>
+            <span>App-Version <strong>V${escapeHtml(APP_CONFIG.version)}</strong></span>
+            <span>Build <strong>${escapeHtml(APP_CONFIG.buildId)}</strong></span>
+            <span>Datenbankschema <strong>${escapeHtml(String(releaseState?.schema_version??'–'))} / ${escapeHtml(String(APP_CONFIG.schemaVersion))}</strong></span>
+          </div>
+          <div class="inline-alert inline-alert--success" style="margin-top:12px"><strong>Release Guard aktiv</strong><span>Beim Start und beim Zurückkehren in die App wird geprüft, ob App und Datenbank kompatibel sind. Veraltete Finance-Caches werden nicht weiterverwendet.</span></div>
         </article>
         <form class="card card-padding" id="password-change" data-form="password-change"><div class="card-heading"><div><h3 class="card-title">Passwort ändern</h3><p class="card-subtitle">Mindestens 8 Zeichen</p></div><span class="list-row-leading">${icon('shield')}</span></div><div class="form-grid"><label class="field"><span>Neues Passwort</span><input class="text-control" name="password" type="password" minlength="8" required autocomplete="new-password"></label><label class="field"><span>Wiederholen</span><input class="text-control" name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password"></label></div><div class="form-actions"><button class="action-button action-button--primary" type="submit">Passwort speichern</button></div></form>
       </div>
