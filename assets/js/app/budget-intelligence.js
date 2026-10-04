@@ -118,8 +118,11 @@ export function buildExpenseSeries({
     if(!(value>0)) continue;
 
     const resolvedMerchant=resolveHistoricalMerchant(tx,merchants);
-    const category=categoryById.get(tx.category_id)||tx.categories||null;
-    const categoryId=tx.category_id||null;
+    const inferredMerchant=Boolean(!tx.merchant_id&&resolvedMerchant?.id);
+    const categoryId=inferredMerchant&&resolvedMerchant?.default_category_id
+      ? resolvedMerchant.default_category_id
+      : tx.category_id||null;
+    const category=categoryById.get(categoryId)||(categoryId===tx.category_id?tx.categories:null)||null;
     const categoryName=category?.name||'Ohne Kategorie';
     const sourceKey=resolvedMerchant?.id
       ? `merchant:${resolvedMerchant.id}`
