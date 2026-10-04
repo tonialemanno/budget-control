@@ -137,7 +137,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionCategories: [], transactionIncomeKind: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -324,50 +324,66 @@ function closeQuickAdd() {
 }
 
 function applyRouteIntent(route) {
-  if (!canWriteHousehold()) return;
-  const query = (location.hash.split('?')[1] || '').trim();
-  if (!query) return;
-  const params = new URLSearchParams(query);
-  const create = params.get('create');
-  const accountId = params.get('account');
-  if (route === 'transactions' && accountId && runtime.accounts.some((row)=>row.account_id===accountId)) {
-    uiState.transactionAccount = accountId;
-    uiState.transactionPage = 1;
+  const query=(location.hash.split('?')[1]||'').trim();
+  if(!query) return;
+  const params=new URLSearchParams(query);
+  const create=params.get('create');
+  const accountId=params.get('account');
+
+  if(route==='transactions'){
+    const period=params.get('period');
+    const view=params.get('view');
+    const search=params.get('query');
+    const category=params.get('category');
+    const categories=params.get('categories');
+    const incomeKind=params.get('incomeKind');
+    const from=params.get('from');
+    const to=params.get('to');
+
+    if(period&&['month','quarter','year','all','custom'].includes(period)) uiState.transactionPeriod=period;
+    if(view&&['summary','details'].includes(view)) uiState.transactionView=view;
+    if(search!==null) uiState.transactionQuery=search;
+    if(category!==null) uiState.transactionCategory=category||'all';
+    if(categories!==null) uiState.transactionCategories=categories.split(',').map((value)=>value.trim()).filter(Boolean);
+    if(incomeKind!==null) uiState.transactionIncomeKind=incomeKind||'all';
+    if(from!==null){ uiState.transactionFrom=from; if(!period) uiState.transactionPeriod='custom'; }
+    if(to!==null){ uiState.transactionTo=to; if(!period) uiState.transactionPeriod='custom'; }
+    if(accountId&&runtime.accounts.some((row)=>row.account_id===accountId)) uiState.transactionAccount=accountId;
+    uiState.transactionPage=1;
   }
-  if (!create) {
-    if (accountId) history.replaceState(null, '', `#/${route}`);
+
+  if(!create) return;
+  if(!canWriteHousehold()) return;
+  history.replaceState(null,'',`#/${route}`);
+
+  if(route==='transactions'&&create==='receipt'){
+    requestAnimationFrame(()=>pageContent.querySelector('[data-action="receipt-camera"]')?.click());
     return;
   }
 
-  history.replaceState(null, '', `#/${route}`);
-
-  if (route === 'transactions' && create === 'receipt') {
-    requestAnimationFrame(() => pageContent.querySelector('[data-action="receipt-camera"]')?.click());
-    return;
-  }
-
-  const formId = ({
-    accounts: { account: 'account-create' },
-    transactions: { expense: 'transaction-create', income: 'transaction-create', transaction: 'transaction-create', transfer: 'transfer-create' },
-    debts: { debt: 'debt-create' },
-    receivables: { receivable: 'receivable-create' },
+  const formId=({
+    accounts:{account:'account-create'},
+    transactions:{expense:'transaction-create',income:'transaction-create',transaction:'transaction-create',transfer:'transfer-create'},
+    debts:{debt:'debt-create'},
+    receivables:{receivable:'receivable-create'},
   })[route]?.[create];
 
-  if (!formId) return;
-  const form = document.getElementById(formId);
-  if (!form) return;
+  if(!formId) return;
+  const form=document.getElementById(formId);
+  if(!form) return;
   form.removeAttribute('hidden');
-  if (formId === 'transaction-create' && ['expense','income'].includes(create)) {
-    const direction = form.querySelector('[name="direction"]');
-    if (direction) direction.value = create;
-    const account = form.querySelector('[name="accountId"]');
-    if (account && accountId) account.value = accountId;
+
+  if(formId==='transaction-create'&&['expense','income'].includes(create)){
+    const direction=form.querySelector('[name="direction"]');
+    if(direction) direction.value=create;
+    const account=form.querySelector('[name="accountId"]');
+    if(account&&accountId) account.value=accountId;
   }
-  if (formId === 'transfer-create' && accountId) {
-    const source = form.querySelector('[name="fromAccountId"]');
-    if (source) source.value = accountId;
+  if(formId==='transfer-create'&&accountId){
+    const source=form.querySelector('[name="fromAccountId"]');
+    if(source) source.value=accountId;
   }
-  requestAnimationFrame(() => form.scrollIntoView({ behavior:'smooth', block:'start' }));
+  requestAnimationFrame(()=>form.scrollIntoView({behavior:'smooth',block:'start'}));
 }
 
 function syncMobileScrollState() {
@@ -1153,6 +1169,8 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
   document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
   document.querySelector('#transactionEditNote').value=tx.note||'';
+  const incomeKind=document.querySelector('#transactionEditIncomeKind'); if(incomeKind) incomeKind.value=tx.income_kind||'';
+  const analyticsExcluded=document.querySelector('#transactionEditAnalyticsExcluded'); if(analyticsExcluded) analyticsExcluded.checked=tx.analytics_excluded===true;
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
   const taxTreatment=document.querySelector('#transactionEditTaxTreatment'); if (taxTreatment) taxTreatment.value=tx.tax_treatment||transactionTaxDefaults(tx).treatment||'';
@@ -1302,6 +1320,8 @@ async function handleForm(form) {
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
       note:nullValue(data,'note'), tax,
+      incomeKind:direction==='income'?nullValue(data,'incomeKind'):null,
+      analyticsExcluded:data.get('analyticsExcluded')==='on',
     });
     await refresh('Transaktion gespeichert und in allen Auswertungen aktualisiert.'); return;
   }
@@ -1316,7 +1336,7 @@ async function handleForm(form) {
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
-    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), income_kind:amount>0?nullValue(data,'incomeKind'):null, analytics_excluded:data.get('analyticsExcluded')==='on' };
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -2420,6 +2440,8 @@ async function handleAction(target) {
     const merchant=runtime.merchants.find((row)=>row.id===tx.merchant_id);
     uiState.transactionQuery=merchant?.name||tx.counterparty||tx.description||'';
     uiState.transactionCategory='all';
+    uiState.transactionCategories=[];
+    uiState.transactionIncomeKind='all';
     uiState.transactionAccount='all';
     uiState.transactionFrom='';
     uiState.transactionTo='';
@@ -2431,10 +2453,10 @@ async function handleAction(target) {
     return;
   }
   if (action === 'transaction-filter-category') {
-    uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
+    uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionCategories=[]; uiState.transactionIncomeKind='all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategories=[]; uiState.transactionIncomeKind='all'; uiState.transactionAccount='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -2882,7 +2904,8 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionCategories=[]; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionIncomeKindFilter') { uiState.transactionIncomeKind=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
