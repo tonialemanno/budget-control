@@ -176,6 +176,20 @@ function stripPaymentProcessor(value) {
   return {text,paymentProcessor};
 }
 
+function stripVolatileMerchantSuffix(value) {
+  let text=String(value||'').trim();
+  let previous='';
+  while(text && text!==previous){
+    previous=text;
+    text=text
+      .replace(/(?:\s+|[,;\-–]\s*)\b(?:0?[1-9]|[12]\d|3[01])[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:19|20)\d{2}\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
+      .replace(/(?:\s+|[,;\-–]\s*)\b(?:19|20)\d{2}[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:0?[1-9]|[12]\d|3[01])\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  return text;
+}
+
 function canonicalMerchantIdentity(name) {
   const text=String(name||'').trim();
   if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
@@ -208,14 +222,16 @@ export function merchantFromTransaction(tx) {
     .replace(/\s+/g, ' ')
     .trim();
   if (!name) name = merchantRaw || raw || 'Unbekannter Händler';
+  const rawName=name.length>120 ? name.slice(0,120).trim() : name;
+  name=stripVolatileMerchantSuffix(name) || rawName;
   if (name.length > 80) name = name.slice(0, 80).trim();
 
   const canonical=canonicalMerchantIdentity(name);
   if(canonical){
     return {
       ...canonical,
-      rawName:name,
-      aliasKey:normalizeMerchantKey(name),
+      rawName,
+      aliasKey:normalizeMerchantKey(rawName),
       sourceField:tx?.counterparty ? 'counterparty' : 'description',
       paymentProcessor:processor.paymentProcessor,
       known:true,
@@ -227,8 +243,8 @@ export function merchantFromTransaction(tx) {
     return {
       name:known.name,
       key:known.key,
-      rawName:name,
-      aliasKey:normalizeMerchantKey(name),
+      rawName,
+      aliasKey:normalizeMerchantKey(rawName),
       sourceField:tx?.counterparty ? 'counterparty' : 'description',
       paymentProcessor:processor.paymentProcessor,
       known:true,
@@ -238,8 +254,8 @@ export function merchantFromTransaction(tx) {
   return {
     name,
     key: normalizeMerchantKey(name) || normalizeMerchantKey(merchantRaw) || normalizeMerchantKey(raw) || 'unbekannt',
-    rawName:name,
-    aliasKey:normalizeMerchantKey(name),
+    rawName,
+    aliasKey:normalizeMerchantKey(rawName),
     sourceField: tx?.counterparty ? 'counterparty' : 'description',
     paymentProcessor:processor.paymentProcessor,
   };
