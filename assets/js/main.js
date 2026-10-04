@@ -1038,20 +1038,62 @@ function debtRecurringPayload(debt) {
   };
 }
 
-async function syncLinkedDebtRecurring(debt) {
-  if (!debt?.recurring_rule_id) return;
-  const rule = runtime.recurringRules.find((row)=>row.id===debt.recurring_rule_id);
-  if (!rule) {
-    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
-    return;
+function debtRecurringCandidate(debt) {
+  const debtTokens=new Set(
+    `${debt?.name||''} ${debt?.creditor||''}`
+      .toLowerCase()
+      .replace(/[^a-z0-9äöü]+/gi,' ')
+      .split(' ')
+      .filter((token)=>token.length>=4)
+  );
+  return runtime.recurringRules.find((rule)=>{
+    if(rule.active===false||rule.direction!=='expense') return false;
+    if(rule.account_id!==debt.payment_account_id) return false;
+    if((rule.currency||debt.currency)!==debt.currency) return false;
+    if(rule.cadence!==debt.payment_cadence) return false;
+    if(Math.abs(Number(rule.amount||0)-Number(debt.installment_amount||0))>0.01) return false;
+    if(runtime.debts.some((row)=>row.id!==debt.id&&row.recurring_rule_id===rule.id)) return false;
+    if(runtime.contracts.some((row)=>row.recurring_rule_id===rule.id)) return false;
+    if(runtime.insurance.some((row)=>row.recurring_rule_id===rule.id)) return false;
+    if(runtime.goalSources.some((row)=>row.recurring_rule_id===rule.id)) return false;
+    const ruleTokens=`${rule.description||''} ${rule.counterparty||''}`
+      .toLowerCase()
+      .replace(/[^a-z0-9äöü]+/gi,' ')
+      .split(' ')
+      .filter((token)=>token.length>=4);
+    return ruleTokens.some((token)=>debtTokens.has(token));
+  })||null;
+}
+
+async function syncDebtRecurring(debt) {
+  if(!debt?.id) return null;
+  const valid=debt.payment_account_id
+    && debt.payment_cadence!=='manual'
+    && Number(debt.installment_amount)>0
+    && debt.next_payment_date
+    && debt.status==='active'
+    && Number(debt.outstanding_amount)>0;
+
+  const linked=debt.recurring_rule_id
+    ? runtime.recurringRules.find((row)=>row.id===debt.recurring_rule_id)||null
+    : null;
+
+  if(!valid){
+    if(linked) await financeApi.updateRecurringRule(linked.id,{active:false});
+    if(debt.recurring_rule_id) await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
+    return null;
   }
-  const valid = debt.payment_account_id && debt.payment_cadence !== 'manual' && Number(debt.installment_amount)>0 && debt.next_payment_date;
-  if (!valid) {
-    await financeApi.updateRecurringRule(rule.id,{active:false});
-    await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
-    return;
+
+  const payload=debtRecurringPayload(debt);
+  const candidate=linked||debtRecurringCandidate(debt);
+  const rule=candidate
+    ? await financeApi.updateRecurringRule(candidate.id,payload)
+    : await financeApi.createRecurringRule(payload);
+
+  if(rule?.id&&debt.recurring_rule_id!==rule.id){
+    await financeApi.updateDebt(debt.id,{recurring_rule_id:rule.id});
   }
-  await financeApi.updateRecurringRule(rule.id,debtRecurringPayload(debt));
+  return rule;
 }
 
 function showDebtPaymentSource(source) {
@@ -1786,15 +1828,16 @@ async function handleForm(form) {
       status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
     };
     if (id==='debt-create') {
-      await financeApi.createDebt({household_id:h,...payload});
-      await refresh('Schuld / Kredit gespeichert.');
+      const created=await financeApi.createDebt({household_id:h,...payload});
+      const rule=await syncDebtRecurring(created);
+      await refresh(rule?'Schuld / Kredit gespeichert und Rate automatisch geplant.':'Schuld / Kredit gespeichert.');
     } else {
       const debtId=formValue(data,'debtId');
       const before=runtime.debts.find((row)=>row.id===debtId);
       if (!before) throw new Error('Schuld wurde nicht gefunden.');
       const updated=await financeApi.updateDebt(debtId,payload);
-      if (before.recurring_rule_id) await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
-      await refresh('Schuld / Kredit aktualisiert.');
+      const rule=await syncDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
+      await refresh(rule?'Schuld / Kredit aktualisiert und Rate synchronisiert.':'Schuld / Kredit aktualisiert.');
     }
     return;
   }
@@ -2791,11 +2834,8 @@ async function handleAction(target) {
   }
   if (action === 'debt-recurring') {
     const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
-    const payload=debtRecurringPayload(debt);
-    let rule=null;
-    if(debt.recurring_rule_id) rule=await financeApi.updateRecurringRule(debt.recurring_rule_id,payload);
-    else rule=await financeApi.createRecurringRule(payload);
-    if(!debt.recurring_rule_id) await financeApi.updateDebt(debt.id,{recurring_rule_id:rule.id});
+    const rule=await syncDebtRecurring(debt);
+    if(!rule) throw new Error('Für diese Schuld fehlen Zahlungskonto, Rate, Rhythmus oder nächster Termin.');
     await refresh('Schuldenrate unter Wiederkehrend verknüpft.'); return;
   }
   if (action === 'debt-recurring-remove') {
