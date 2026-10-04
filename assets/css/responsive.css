@@ -666,23 +666,40 @@
   .category-child-row { padding:11px 14px 11px 67px; }
   .category-empty-child { padding:11px 14px 13px 67px; }
 
-  .overview-hero-grid,
   .planning-focus-grid { grid-template-columns:1fr; gap:10px; }
-  .finance-balance-card,
   .wallet-summary-card { min-height:210px; padding:20px; }
-  .finance-balance-actions,
   .wallet-summary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .finance-balance-actions .action-button:first-child,
   .wallet-summary-actions .action-button:first-child { grid-column:1 / -1; }
-  .finance-balance-foot { grid-template-columns:1fr 1fr; }
-  .overview-metric-strip,
   .profile-stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-  .overview-metric-strip .metric-card,
   .profile-stat { min-height:100px; padding:13px; }
   .budget-ring-wrap { gap:16px; }
   .budget-ring { width:104px; }
   .budget-ring--large { width:116px; }
-  .dashboard-chart-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
+  .coach-cockpit { grid-template-columns:1fr; gap:10px; margin-bottom:12px; }
+  .coach-hero { min-height:260px; padding:20px; border-radius:22px; }
+  .coach-free-value { font-size:48px; }
+  .coach-hero-icon { width:46px; height:46px; border-radius:15px; }
+  .coach-hero-icon svg { width:22px; height:22px; }
+  .coach-commitment-row { gap:8px; }
+  .coach-commitment-row strong { font-size:15px; }
+  .coach-primary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .coach-primary-actions .action-button:first-child { grid-column:1 / -1; }
+  .coach-mini-grid { gap:8px; }
+  .coach-mini-card { min-height:132px; padding:14px; border-radius:18px; }
+  .coach-mini-card > strong { font-size:19px; }
+  .coach-notice-section { margin:16px 0 12px; }
+  .coach-section-head { align-items:flex-start; }
+  .coach-section-head h3 { font-size:19px; }
+  .coach-insight-grid { grid-template-columns:1fr; gap:8px; }
+  .coach-insight { min-height:0; padding:14px; border-radius:17px; }
+  .coach-analysis-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
+  .money-flow-card,.budget-coach-card { min-height:0; padding:16px; }
+  .money-flow-svg { height:240px; }
+  .budget-coach-value strong { font-size:36px; }
+  .coach-account-summary { gap:6px; }
+  .budget-decision-hint { align-items:flex-start; flex-direction:column; gap:8px; padding:13px; }
+  .budget-decision-hint a { min-height:36px; display:inline-flex; align-items:center; }
+    .dashboard-chart-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
   .dashboard-donut-card,
   .finance-chart-card { min-height:0; padding:16px; }
   .donut-layout { grid-template-columns:128px minmax(0,1fr); gap:12px; min-height:190px; }
@@ -747,9 +764,14 @@
 }
 
 @media (max-width: 390px) {
+  .coach-mini-grid { grid-template-columns:1fr 1fr; }
+  .coach-mini-card { min-height:124px; }
+  .coach-free-value { font-size:42px; }
+  .coach-primary-actions { grid-template-columns:1fr; }
+  .coach-primary-actions .action-button:first-child { grid-column:auto; }
+  .money-flow-svg { height:215px; }
   .budget-ring-wrap { align-items:flex-start; }
   .budget-ring { width:92px; }
-  .overview-metric-strip,
   .profile-stat-grid { grid-template-columns:1fr 1fr; }
   .donut-layout { grid-template-columns:112px minmax(0,1fr); }
   .donut-svg { width:112px; }
@@ -761,8 +783,6 @@
   .donut-layout { grid-template-columns:1fr; }
   .donut-svg { width:150px; }
   .donut-legend-row small { display:block; }
-  .finance-balance-actions,
   .wallet-summary-actions { grid-template-columns:1fr; }
-  .finance-balance-actions .action-button:first-child,
   .wallet-summary-actions .action-button:first-child { grid-column:auto; }
 }
