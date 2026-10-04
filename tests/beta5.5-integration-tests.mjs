@@ -69,7 +69,7 @@ assert.match(read('assets/js/views/intelligence.js'), /moneyText\(snapshot\.unbu
 assert.match(read('assets/js/views/transactions.js'), /Ø Ausgaben \/ Monat/);
 assert.match(read('assets/js/views/transactions.js'), /monthlyAverage/);
 
-assert.match(read('assets/js/views/budget.js'), /Ausgabenmuster & Budgetvorschläge/);
+assert.match(read('assets/js/views/budget.js'), /Variable Ausgabenmuster/);
 assert.match(read('assets/js/views/budget.js'), /budget-suggestion-toggle/);
 assert.match(read('assets/js/views/budget.js'), /budget-transaction-edit/);
 assert.match(read('assets/js/main.js'), /budgetExpandedMerchantId/);
@@ -85,7 +85,7 @@ assert.match(read('assets/js/main.js'), /merchant_id:merchantId/);
 assert.match(read('assets/js/main.js'), /default_category_id/);
 assert.match(read('assets/js/app/finance-api.js'), /merchants\(name,normalized_key,default_category_id\)/);
 assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
-assert.match(read('assets/js/views/budget.js'), /rule\.merchant_id/);
+assert.match(read('assets/js/app/budget-intelligence.js'), /rule\.merchant_id/);
 
 assert.equal(exists('assets/js/views/merchants.js'), true);
 assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler'/);
@@ -114,6 +114,9 @@ assert.equal(exists('assets/js/app/recurrence.js'), true);
 assert.match(read('assets/js/views/recurring.js'), /effectiveNextDate/);
 assert.match(read('assets/js/views/fixed-costs.js'), /effectiveNextDate/);
 assert.match(read('assets/js/views/budget.js'), /Davon verbraucht/);
+assert.match(read('assets/js/views/budget.js'), /vollständigen verfügbaren Historie/);
+assert.match(read('assets/js/app/budget-intelligence.js'), /variableBudgetSuggestions/);
+assert.match(read('assets/js/app/finance-semantics.js'), /countsAsEarnedIncome/);
 assert.match(read('assets/js/views/budget.js'), /Ausserhalb Budget/);
 assert.match(read('assets/js/app/finance-model.js'), /unbudgetedActualVariableExpensesMonth/);
 assert.match(read('assets/js/app/finance-model.js'), /isFixedBudget/);
