@@ -35,6 +35,7 @@ async function listByHousehold(table, householdId, { select = '*', order = 'crea
 }
 
 export const financeApi = Object.freeze({
+  async getReleaseState() { const rows=await backend.rest(buildQuery('app_release_state',{select:'schema_version,updated_at',id:'eq.1',limit:'1'})); return rows?.[0]||null; },
   async getProfile(userId) { const rows = await backend.rest(buildQuery('profiles', { select: '*', user_id: `eq.${userId}`, limit: '1' })); return rows?.[0] || null; },
   async updateProfile(userId, patch) { const rows = await backend.rest(buildQuery('profiles', { user_id: `eq.${userId}` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=representation' } }); return rows?.[0] || null; },
   async getAdminRole(userId) { const rows = await backend.rest(buildQuery('app_admins', { select: 'role', user_id: `eq.${userId}`, limit: '1' })); return rows?.[0]?.role || null; },
