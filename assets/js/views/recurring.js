@@ -54,7 +54,9 @@ export function renderRecurring({ recurringRules = [], accounts = [], categories
           ? {label:'Schuld',href:'#/debts'}
           : goal
             ? {label:'Sparziel',href:'#/goals'}
-            : null;
+            : r.reserve_enabled
+              ? {label:'Rücklage',href:'#/fixed-costs'}
+              : null;
 
     const action=canWrite
       ? source
