@@ -64,6 +64,28 @@ assert.equal(coach.flow.reserves,100);
 assert.equal(coach.flow.variable,300);
 assert.equal(coach.flow.free,1400);
 
+const subscriptionCoach=buildFinanceCoach({
+  snapshot,
+  primaryAccount,
+  accounts:[primaryAccount],
+  transactions:[],
+  debtPayments:[],
+  recurringRules:[
+    ...recurringRules,
+    {id:'netflix',active:true,direction:'expense',amount:19,currency:'CHF',cadence:'monthly',interval_months:1,next_date:'2026-10-20',reserve_enabled:false,description:'Netflix Abo'},
+    {id:'spotify',active:true,direction:'expense',amount:13,currency:'CHF',cadence:'monthly',interval_months:1,next_date:'2026-10-21',reserve_enabled:false,description:'Spotify Abo'},
+  ],
+  budgets:[],
+  categories:[],
+  merchants:[],
+  household:{base_currency:'CHF'},
+  fxRates:null,
+  now,
+});
+assert.equal(subscriptionCoach.subscriptions.count,2);
+assert.equal(subscriptionCoach.subscriptions.monthly,32);
+assert.ok(subscriptionCoach.insights.some((row)=>row.type==='subscriptions'));
+
 const coachWithFutureFixedTransaction=buildFinanceCoach({
   snapshot,
   primaryAccount,
