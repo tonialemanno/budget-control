@@ -13,9 +13,10 @@ export const DE = Object.freeze({
   legalStatuses: ['offen','Mahnung','Inkasso','Mahnbescheid','Widerspruch','Vollstreckungsbescheid','Zwangsvollstreckung','abgeschlossen'],
   starterCategories: [['Gehalt','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenversicherung','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Sparen','expense'],['Sonstiges','expense']],
   starterSubcategories: [
-    ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],
+    ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],['Haushaltsabgaben','Wohnen','expense'],
     ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
     ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
+    ['Mietfahrzeug','Mobilität','expense'],['Wartung & Reparatur','Mobilität','expense'],['Fahrzeugkauf','Mobilität','expense'],
     ['Unterhaltung','Freizeit','expense'],['Urlaub','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
     ['Apotheke','Gesundheit','expense'],['Arzt & Zahnarzt','Gesundheit','expense'],
