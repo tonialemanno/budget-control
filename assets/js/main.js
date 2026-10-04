@@ -1383,9 +1383,14 @@ function renderImportReview() {
   for (const row of importState.parsed.rows) {
     const tx = rowToTransaction(row,mapping);
     if (!tx) continue;
-    const merchant = merchantFromTransaction(tx);
-    const existing = runtime.merchants.find((m)=>m.normalized_key===merchant.key);
-    const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+    const resolution=resolvedMerchantForTransaction(tx,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+    const merchant = resolution.merchant
+      ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
+      : resolution.detected||merchantFromTransaction(tx);
+    const existing = resolution.merchant || runtime.merchants.find((m)=>m.normalized_key===merchant.key);
+    const knownCategoryName=suggestKnownCategoryName(tx);
+    const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
     const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
     group.rows.push(tx); group.total += Number(tx.amount);
     if (!group.categoryId && categoryId) group.categoryId = categoryId;
@@ -2541,10 +2546,15 @@ async function handleForm(form) {
       for (const row of importState.parsed.rows) {
         const tx = rowToTransaction(row,mapping);
         if (!tx) continue;
-        const merchantInfo = merchantFromTransaction(tx);
-        const existingMerchant = merchantCache.get(merchantInfo.key);
+        const resolution=resolvedMerchantForTransaction(tx,{merchants:[...merchantCache.values()],aliases:runtime.merchantAliases});
+        const merchantInfo=resolution.merchant
+          ? {name:resolution.merchant.name,key:resolution.merchant.normalized_key,paymentProcessor:resolution.detected?.paymentProcessor||null}
+          : resolution.detected||merchantFromTransaction(tx);
+        const existingMerchant = resolution.merchant || merchantCache.get(merchantInfo.key);
         const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
-        const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+        const knownCategoryName=suggestKnownCategoryName(tx);
+        const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null;
+        const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
         let merchant = existingMerchant;
         if (!merchant) {
@@ -2553,6 +2563,18 @@ async function handleForm(form) {
         } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
           merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId, name:merchantInfo.name });
           if (merchant) merchantCache.set(merchantInfo.key,merchant);
+        }
+        if(merchant && remember){
+          const rawDetected=merchantFromTransaction(tx);
+          if(rawDetected?.key && rawDetected.key!==merchant.normalized_key){
+            await financeApi.upsertMerchantAlias({
+              household_id:h,
+              merchant_id:merchant.id,
+              alias_name:rawDetected.name||tx.description,
+              normalized_key:rawDetected.key,
+              payment_processor:rawDetected.paymentProcessor||null,
+            }).catch(()=>null);
+          }
         }
         const externalReference = await transactionFingerprint(accountId,tx);
         prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
