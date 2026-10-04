@@ -1565,7 +1565,11 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditDescription').value=tx.description||'';
   document.querySelector('#transactionEditCategory').value=tx.category_id||'';
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
-  document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
+  document.querySelector('#transactionEditCounterparty').value=tx.counterparties?.name||tx.counterparty||'';
+  const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'person';
+  const context=document.querySelector('#transactionEditContext'); if(context) context.value=tx.context_id||'';
+  const contextName=document.querySelector('#transactionEditContextName'); if(contextName) contextName.value='';
+  const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
@@ -1576,10 +1580,19 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const exclude=document.querySelector('#transactionEditExclude'); if(exclude) exclude.checked=tx.exclude_from_reports===true;
   const toggle=document.querySelector('#transactionMakeRecurring');
   const fields=document.querySelector('#transactionRecurringFields');
-  if (toggle) toggle.checked=recurring;
-  if (fields) fields.hidden=!recurring;
+  const linkedRule=(tx.recurring_rule_id&&runtime.recurringRules.find((row)=>row.id===tx.recurring_rule_id))||findMatchingRecurringRule(tx);
+  const recurringWanted=recurring||Boolean(linkedRule);
+  if (toggle) {
+    toggle.checked=recurringWanted;
+    toggle.dataset.matchRuleId=linkedRule?.id||'';
+  }
+  if (fields) fields.hidden=!recurringWanted||Boolean(linkedRule);
+  const recurringHint=document.querySelector('#transactionRecurringMatchHint');
+  if(recurringHint) recurringHint.textContent=linkedRule
+    ? `Bereits erkannt: ${linkedRule.description} · ${Number(linkedRule.amount).toFixed(2)} ${linkedRule.currency} · ${linkedRule.cadence}. Finance verknüpft die Buchung und erstellt keine zweite Regel.`
+    : 'Keine bestehende Wiederholung erkannt. Nur wenn aktiviert, wird eine neue Regel angelegt.';
   const next=document.querySelector('#transactionRecurringNextDate');
-  if (next) next.value=addMonthsToDate(tx.occurred_at,1);
+  if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
   const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
   const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
   const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
