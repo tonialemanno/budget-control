@@ -1376,6 +1376,81 @@ async function ensureTransactionTaxCase(year) {
   return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
 }
 
+function findMatchingRecurringRule(txLike={}) {
+  const amount=Math.abs(Number(txLike.amount||0));
+  const direction=Number(txLike.amount||0)<0?'expense':'income';
+  const text=normalizeMerchantKey([txLike.merchants?.name,txLike.counterparty,txLike.description].filter(Boolean).join(' '));
+  const candidates=runtime.recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction===direction)
+    .map((rule)=>{
+      let score=0;
+      if(rule.account_id&&txLike.account_id===rule.account_id) score+=2;
+      if(rule.merchant_id&&txLike.merchant_id===rule.merchant_id) score+=8;
+      if(rule.category_id&&txLike.category_id===rule.category_id) score+=2;
+      if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
+      const ruleText=normalizeMerchantKey([rule.merchants?.name,rule.counterparty,rule.description].filter(Boolean).join(' '));
+      if(text&&ruleText&&(text.includes(ruleText)||ruleText.includes(text))) score+=6;
+      return {rule,score};
+    })
+    .filter((row)=>row.score>=7)
+    .sort((a,b)=>b.score-a.score);
+  return candidates[0]?.rule||null;
+}
+
+async function resolveCounterpartyFromForm(data) {
+  const name=String(formValue(data,'counterparty')||'').trim();
+  if(!name) return null;
+  const kind=formValue(data,'counterpartyKind')||'other';
+  const normalizedKey=normalizeMerchantKey(name);
+  if(!normalizedKey) return null;
+  const existing=runtime.counterparties.find((row)=>row.kind===kind&&row.normalized_key===normalizedKey);
+  return existing||financeApi.upsertCounterparty({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:normalizedKey,
+    kind,
+  });
+}
+
+async function resolveContextFromForm(data) {
+  const selected=nullValue(data,'contextId');
+  const name=String(formValue(data,'contextName')||'').trim();
+  if(!name) return selected;
+  const normalizedKey=normalizeMerchantKey(name);
+  if(!normalizedKey) return selected;
+  const existing=runtime.transactionContexts.find((row)=>row.normalized_key===normalizedKey);
+  if(existing) return existing.id;
+  const created=await financeApi.upsertTransactionContext({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:normalizedKey,
+    context_type:'project',
+  });
+  return created?.id||selected;
+}
+
+async function ensureCashAccount(currency, occurredAt) {
+  const existing=runtime.accounts.find((row)=>row.account_type==='cash'&&row.currency===currency&&!row.is_archived);
+  if(existing) return existing;
+  const event=new Date(occurredAt||Date.now());
+  const anchor=new Date((Number.isNaN(event.getTime())?Date.now():event.getTime())-1000).toISOString();
+  const created=await financeApi.createAccount({
+    household_id:runtime.household.id,
+    name:`Bargeld ${currency}`,
+    account_type:'cash',
+    institution_name:null,
+    currency,
+    balance_anchor_amount:0,
+    balance_anchor_at:anchor,
+    visibility:'private',
+  });
+  return {
+    ...created,
+    account_id:created?.id||created?.account_id,
+    current_balance:0,
+  };
+}
+
 function syncTransactionTransferEditor() {
   const form=document.querySelector('#transaction-edit');
   if(!form) return;
