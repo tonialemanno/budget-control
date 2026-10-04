@@ -26,6 +26,7 @@ import {
   createReceivableMovement, recordReceivableMovement, recordBillMovement, recordTaxMovement,
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
+import { withPrimaryAccountPreference } from './app/user-preferences.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -203,6 +204,18 @@ async function saveUserPreferences(patch) {
   applyPrivacyUI();
   updateProfileUI();
   return preferences;
+}
+
+async function savePrimaryAccountPreference(accountId) {
+  const householdId=runtime.household?.id;
+  if(!householdId) throw new Error('Kein Haushalt aktiv.');
+  const account=runtime.accounts.find((row)=>row.account_id===accountId&&!row.is_archived);
+  if(!account) throw new Error('Bitte ein gültiges Hauptkonto auswählen.');
+  const preferences=withPrimaryAccountPreference(profilePreferences(),householdId,account.account_id);
+  runtime.profile=await financeApi.updateProfile(runtime.user.id,{preferences});
+  applyPrivacyUI();
+  updateProfileUI();
+  return account;
 }
 
 function applyPrivacyUI() {
@@ -2816,6 +2829,12 @@ async function handleForm(form) {
     await refresh('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
     return;
   }
+  if (id === 'primary-account-preference') {
+    const account=await savePrimaryAccountPreference(formValue(data,'accountId'));
+    render();
+    showToast(`${account.name} ist jetzt dein Haupt- und Standardkonto.`);
+    return;
+  }
   if (id === 'password-change') {
     const p1 = formValue(data,'password'); const p2 = formValue(data,'passwordConfirm');
     if (p1.length<8) throw new Error('Das Passwort muss mindestens 8 Zeichen lang sein.');
@@ -3062,6 +3081,12 @@ async function handleAction(target) {
     return;
   }
   if (action === 'logout') { await logoutCurrentUser(); return; }
+  if (action === 'account-set-primary') {
+    const account=await savePrimaryAccountPreference(target.dataset.id);
+    render();
+    showToast(`${account.name} ist jetzt dein Haupt- und Standardkonto.`);
+    return;
+  }
   if (action === 'account-edit') {
     if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
     const account=runtime.accounts.find((row)=>row.account_id===target.dataset.id);
