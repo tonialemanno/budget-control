@@ -1456,28 +1456,76 @@ function syncTransactionTransferEditor() {
   if(!form) return;
   const tx=runtime.transactions.find((row)=>row.id===form.querySelector('[name="transactionId"]')?.value);
   if(!tx) return;
-  const transfer=document.querySelector('#transactionEditDirection')?.value==='transfer';
+
+  const mode=document.querySelector('#transactionEditDirection')?.value||'expense';
+  const transfer=mode==='transfer';
+  const cashWithdrawal=mode==='cash_withdrawal';
+  const special=transfer||cashWithdrawal;
   const account=document.querySelector('#transactionEditAccount');
   const fields=document.querySelector('#transactionEditTransferFields');
   const other=document.querySelector('#transactionEditOtherAccount');
   const otherAmount=document.querySelector('#transactionEditOtherAmount');
   const otherAmountField=document.querySelector('#transactionEditOtherAmountField');
   const counterpart=document.querySelector('#transactionEditOtherTransaction');
-  if(fields) fields.hidden=!transfer;
-  if(account){ account.disabled=transfer; if(transfer) account.value=tx.account_id; }
-  if(other) other.required=transfer;
-  for(const name of ['categoryId','merchantId','counterparty','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports']){
+  const hint=document.querySelector('#transactionEditTransferHint');
+
+  if(fields) fields.hidden=!special;
+  if(account){ account.disabled=special; if(special) account.value=tx.account_id; }
+  if(other) other.required=special;
+
+  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports','makeRecurring'];
+  for(const name of hiddenInTransfer){
     const input=form.querySelector(`[name="${name}"]`);
     if(!input) continue;
-    input.disabled=transfer;
+    input.disabled=special;
     const field=input.closest('.field');
-    if(field) field.hidden=transfer;
+    if(field) field.hidden=special;
   }
-  if(!transfer||!other||!counterpart) return;
-  for(const option of other.options){ if(option.value) option.disabled=option.value===tx.account_id; }
-  if(other.selectedOptions?.[0]?.disabled) other.value='';
+  const recurringFields=document.querySelector('#transactionRecurringFields');
+  if(special&&recurringFields) recurringFields.hidden=true;
+
+  if(!special||!other||!counterpart) return;
+
   const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+  for(const option of other.options){
+    if(!option.value) continue;
+    if(option.value==='__auto_cash__'){
+      option.hidden=!cashWithdrawal;
+      option.disabled=!cashWithdrawal;
+      continue;
+    }
+    const candidate=runtime.accounts.find((row)=>row.account_id===option.value);
+    if(cashWithdrawal){
+      option.hidden=!(candidate?.account_type==='cash'&&candidate.currency===currentAccount?.currency);
+      option.disabled=option.hidden;
+    } else {
+      option.hidden=false;
+      option.disabled=option.value===tx.account_id;
+    }
+  }
+
+  if(cashWithdrawal){
+    if(Number(tx.amount)>=0){
+      if(hint) hint.textContent='Ein Bargeldbezug muss ein Abgang vom Bankkonto sein.';
+    } else if(hint) {
+      hint.textContent='Bargeldbezug ist eine Umbuchung vom Bankkonto in dein Bargeld-Wallet – keine Ausgabe.';
+    }
+    if(!other.value||other.selectedOptions?.[0]?.disabled){
+      const cashAccount=runtime.accounts.find((row)=>row.account_type==='cash'&&row.currency===currentAccount?.currency&&!row.is_archived);
+      other.value=cashAccount?.account_id||'__auto_cash__';
+    }
+  } else if(other.selectedOptions?.[0]?.disabled) {
+    other.value='';
+  }
+
   const otherAccount=runtime.accounts.find((row)=>row.account_id===other.value);
+  if(other.value==='__auto_cash__'){
+    counterpart.replaceChildren(new Option('Bargeld-Wallet wird automatisch angelegt',''));
+    if(otherAmountField) otherAmountField.hidden=true;
+    if(otherAmount){ otherAmount.required=false; otherAmount.disabled=true; otherAmount.value=''; }
+    return;
+  }
+
   counterpart.replaceChildren(new Option(otherAccount?'Keine passende Bankbuchung – Gegenbuchung erstellen':'Zuerst Gegenkonto wählen',''));
   if(!currentAccount||!otherAccount) return;
   const sameCurrency=currentAccount.currency===otherAccount.currency;
