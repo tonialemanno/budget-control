@@ -17,7 +17,7 @@ export const DE = Object.freeze({
     ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
     ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
     ['Mietfahrzeug','Mobilität','expense'],['Wartung & Reparatur','Mobilität','expense'],['Fahrzeugkauf','Mobilität','expense'],
-    ['Unterhaltung','Freizeit','expense'],['Urlaub','Freizeit','expense'],
+    ['Unterhaltung','Freizeit','expense'],['Geschenke & Gedenken','Freizeit','expense'],['Urlaub','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
     ['Apotheke','Gesundheit','expense'],['Arzt & Zahnarzt','Gesundheit','expense'],
   ],
