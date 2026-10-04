@@ -84,7 +84,7 @@ export function renderOverview({
           <div>
             <span class="hero-label">Hauptkonto</span>
             <div class="hero-value">${money(primaryAccount?.current_balance||0,{currency:primaryAccount?.currency||currency,locale,decimals:2})}</div>
-            <span class="hero-caption">${escapeHtml(primaryAccount?.name||'Operatives Konto')} · aktueller Stand</span>
+            <span class="hero-caption"><strong>${escapeHtml(primaryAccount?.name||'Operatives Konto')}</strong> · <span>Aktueller Stand</span></span>
           </div>
           <span class="finance-hero-icon">${icon('wallet')}</span>
         </div>
