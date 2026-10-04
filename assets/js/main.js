@@ -12,6 +12,7 @@ import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
+import { createSessionGuard } from './app/session-guard.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 import {
   createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
@@ -135,6 +136,8 @@ const runtime = {
   taxObligations: [],
   taxPayments: [],
   fxRates: null,
+  releaseState: null,
+  releaseManifest: window.__FINANCE_RELEASE__ || null,
 };
 
 const importState = { file: null, parsed: null };
@@ -410,6 +413,10 @@ function closeProfileMenu() {
 
 let presenceTimer = null;
 let adminPresenceTimer = null;
+let releaseTimer = null;
+let sessionGuard = null;
+let lastHiddenAt = null;
+let lastContextLoadedAt = 0;
 
 function applyReleaseChannelUI() {
   const channel=APP_CONFIG.releaseChannel||'stable';
@@ -438,10 +445,10 @@ function currentDeviceLabel() {
 }
 
 async function pulsePresence() {
-  if (!runtime.user || document.visibilityState === 'hidden') return;
+  if (!runtime.user || document.visibilityState === 'hidden' || sessionGuard?.isIdle()) return;
   await financeApi.touchPresence({
     route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
-    appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}`,
+    appVersion:`${APP_CONFIG.version} · ${APP_CONFIG.buildId} · ${APP_CONFIG.releaseChannel}`,
     deviceLabel:currentDeviceLabel(),
   }).catch(()=>null);
 }
@@ -449,7 +456,8 @@ async function pulsePresence() {
 function stopLiveTimers() {
   if (presenceTimer) window.clearInterval(presenceTimer);
   if (adminPresenceTimer) window.clearInterval(adminPresenceTimer);
-  presenceTimer=null; adminPresenceTimer=null;
+  if (releaseTimer) window.clearInterval(releaseTimer);
+  presenceTimer=null; adminPresenceTimer=null; releaseTimer=null;
 }
 
 function startLiveTimers() {
@@ -468,11 +476,15 @@ function startLiveTimers() {
   },30000);
 }
 
-async function logoutCurrentUser() {
+async function logoutCurrentUser(reason='manual') {
   stopLiveTimers();
+  sessionGuard?.stop({clear:true});
+  sessionGuard=null;
+  closeSessionWarning();
   closeProfileMenu();
   closeMobileNav();
   closeQuickAdd();
+  await financeApi.clearPresence().catch(()=>null);
   await backend.signOut();
   runtime.session = null;
   runtime.user = null;
@@ -480,9 +492,15 @@ async function logoutCurrentUser() {
   runtime.household = null;
   runtime.householdRole = null;
   runtime.adminRole = null;
+  runtime.releaseState = null;
   location.hash = '';
   window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  showAuth();
+  const notice=reason==='idle'
+    ? 'Du wurdest nach 30 Minuten Inaktivität automatisch abgemeldet.'
+    : reason==='max_session'
+      ? 'Deine Sitzung wurde nach 12 Stunden aus Sicherheitsgründen beendet.'
+      : '';
+  showAuth(notice);
 }
 
 function toggleProfileMenu() {
@@ -544,13 +562,14 @@ function humanError(error) {
   return message;
 }
 
-function showAuth() {
+function showAuth(notice='') {
   appShell.hidden = true;
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
       <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
+      ${notice?`<div class="inline-alert auth-session-notice"><strong>Sitzung beendet</strong><span>${escapeHtml(notice)}</span></div>`:''}
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
         <label class="field"><span>Passwort</span><input class="text-control" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
