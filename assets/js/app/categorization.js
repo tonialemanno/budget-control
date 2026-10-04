@@ -14,22 +14,28 @@ export function buildCategorizationGroups({
   transactions = [],
   categories = [],
   merchants = [],
+  aliases = [],
   rules = [],
 } = {}) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
   const merchantByKey = new Map(merchants.map((merchant) => [merchant.normalized_key, merchant]));
+  const aliasByKey = new Map(aliases.map((alias)=>[alias.normalized_key,alias]));
   const groups = new Map();
 
   for (const tx of transactions) {
     if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
+    const detectedRaw=merchantFromTransaction(tx);
+    const alias=detectedRaw?.key ? aliasByKey.get(detectedRaw.key) : null;
     const linkedMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
+      || (alias?.merchant_id && merchantById.get(alias.merchant_id))
+      || (detectedRaw?.key && merchantByKey.get(detectedRaw.key))
       || null;
     const detected = linkedMerchant
       ? { name: linkedMerchant.name, key: linkedMerchant.normalized_key }
-      : merchantFromTransaction(tx);
+      : detectedRaw;
     const merchantKey = detected.key || 'unbekannt';
     const key = `${kind}:${merchantKey}`;
     const group = groups.get(key) || {
