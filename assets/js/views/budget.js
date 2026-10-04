@@ -17,6 +17,12 @@ function shortDate(value,locale){
   try{return new Intl.DateTimeFormat(locale,{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(value));}
   catch{return String(value||'').slice(0,10);}
 }
+function monthsText(value,locale='de-CH'){
+  const n=Number(value);
+  if(!Number.isFinite(n)) return '1';
+  try{return new Intl.NumberFormat(locale,{maximumFractionDigits:1}).format(n);}
+  catch{return n.toFixed(1).replace('.0','');}
+}
 
 export function renderBudget({
   budgets = [], categories = [], merchants = [], transactions = [], debtPayments = [], bills = [],
@@ -152,14 +158,14 @@ export function renderBudget({
           const expanded=budgetExpandedMerchantId===series.key;
           const suggested=Number(series.monthlyValue.toFixed(2));
           const details=expanded?`<div class="budget-pattern-details">
-            <div class="inline-alert"><strong>Berechnung</strong><span>${money(series.total,{currency,locale})} aus ${series.bookingCount} Buchungen ÷ ${series.monthsCovered} berücksichtigte Monate = ${money(series.historicalMonthly,{currency,locale})} pro Monat. Zeitraum: ${shortDate(series.firstDate,locale)} bis ${shortDate(series.historyEnd,locale)}.</span></div>
+            <div class="inline-alert"><strong>Berechnung</strong><span>${money(series.total,{currency,locale})} aus ${series.bookingCount} Buchungen ÷ ${monthsText(series.monthsCovered,locale)} berücksichtigte Monate = ${money(series.historicalMonthly,{currency,locale})} pro Monat. Zeitraum: ${shortDate(series.firstDate,locale)} bis ${shortDate(series.historyEnd,locale)}.</span></div>
             <div class="table-scroll budget-pattern-scroll"><table class="data-table"><thead><tr><th>Datum</th><th>Buchung</th><th>Kategorie</th><th>Konto</th><th>Betrag</th><th></th></tr></thead><tbody>
               ${series.rows.map((tx)=>{const linkedBill=bills.find((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id);return `<tr><td>${escapeHtml(shortDate(tx.occurred_at,locale))}</td><td><strong>${escapeHtml(tx.description||series.name)}</strong><div class="table-meta">${escapeHtml(tx.counterparty||'')}</div></td><td>${escapeHtml(tx.categories?.name||'Ohne Kategorie')}</td><td>${escapeHtml(tx.accounts?.name||'—')}</td><td>${money(Math.abs(Number(tx.amount)),{currency:tx.currency||currency,locale})}</td><td>${canWrite?(linkedBill?`<a class="table-action" href="#/bills">Rechnung anzeigen</a>`:`<button class="table-action" type="button" data-action="budget-transaction-edit" data-id="${tx.id}">Bearbeiten</button>`):''}</td></tr>`;}).join('')}
             </tbody></table></div>
           </div>`:''; 
           return `<div class="suggestion-card budget-pattern-card">
             <div class="budget-pattern-head">
-              <div><strong>${escapeHtml(series.name)} · ${escapeHtml(series.categoryName)}</strong><span>${series.bookingCount} Buchungen · ${series.monthsCovered} Monate · ${money(series.total,{currency,locale})} gesamt</span><small>Budgetvorschlag: ${money(suggested,{currency,locale})}/Monat</small></div>
+              <div><strong>${escapeHtml(series.name)} · ${escapeHtml(series.categoryName)}</strong><span>${series.bookingCount} Buchungen · ${monthsText(series.monthsCovered,locale)} Monate · ${money(series.total,{currency,locale})} gesamt</span><small>Budgetvorschlag: ${money(suggested,{currency,locale})}/Monat</small></div>
               <div class="row-actions">
                 <button class="table-action" type="button" data-action="budget-suggestion-toggle" data-merchant-id="${escapeHtml(series.key)}">${expanded?'Buchungen schliessen':'Buchungen anzeigen'}</button>
                 ${canWrite?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${escapeHtml(series.merchantId||'')}" data-category-id="${escapeHtml(series.categoryId||'')}" data-month="${currentMonth}" data-amount="${suggested}">Budget übernehmen</button>`:''}
