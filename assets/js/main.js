@@ -1430,6 +1430,34 @@ async function resolveContextFromForm(data) {
   return created?.id||selected;
 }
 
+async function resolveVehicleFromForm(data,{amount=0,occurredAt=null,currency='CHF'}={}) {
+  const selected=nullValue(data,'vehicleId');
+  if(selected){
+    if(!runtime.vehicles.some((row)=>row.id===selected)) throw new Error('Fahrzeug wurde nicht gefunden.');
+    return selected;
+  }
+  const name=String(formValue(data,'vehicleName')||'').trim();
+  if(!name) return null;
+  const type=formValue(data,'vehicleType')||'other';
+  const date=new Date(occurredAt||Date.now());
+  const purchaseDate=Number.isNaN(date.getTime())?null:date.toISOString().slice(0,10);
+  const semantic=formValue(data,'semanticType');
+  const purchaseValue=semantic==='asset_acquisition'?Math.abs(Number(amount||0)):0;
+  const created=await financeApi.createVehicle({
+    household_id:runtime.household.id,
+    name,
+    vehicle_type:type,
+    current_value:purchaseValue,
+    currency,
+    purchase_price:purchaseValue||null,
+    purchase_date:purchaseDate,
+    monthly_cost:0,
+    odometer_km:null,
+    license_plate:null,
+  });
+  return created?.id||null;
+}
+
 async function ensureCashAccount(currency, occurredAt) {
   const existing=runtime.accounts.find((row)=>row.account_type==='cash'&&row.currency===currency&&!row.is_archived);
   if(existing) return existing;
@@ -1474,7 +1502,7 @@ function syncTransactionTransferEditor() {
   if(account){ account.disabled=special; if(special) account.value=tx.account_id; }
   if(other) other.required=special;
 
-  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports'];
+  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','vehicleName','vehicleType','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports'];
   for(const name of hiddenInTransfer){
     const input=form.querySelector(`[name="${name}"]`);
     if(!input) continue;
@@ -1579,6 +1607,8 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const context=document.querySelector('#transactionEditContext'); if(context) context.value=tx.context_id||'';
   const contextName=document.querySelector('#transactionEditContextName'); if(contextName) contextName.value='';
   const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
+  const vehicleName=document.querySelector('#transactionEditVehicleName'); if(vehicleName) vehicleName.value='';
+  const vehicleType=document.querySelector('#transactionEditVehicleType'); if(vehicleType) vehicleType.value='motorcycle';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
