@@ -2,7 +2,7 @@ import { localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
 import { financeCycles, inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
-import { budgetIsFixed, budgetIsSavings } from './budget-intelligence.js';
+import { budgetIsFixed, budgetIsSavings, transactionMatchesRecurringExpense } from './budget-intelligence.js';
 import { countsAsCashIncome, countsAsEarnedIncome, inferredIncomeKind, incomeKindLabel, incomeSourceLabel, needsIncomeReview } from './finance-semantics.js';
 
 function base(value, currency, target, fxRates) {
@@ -204,7 +204,7 @@ export function budgetSummary({
     const occurred=new Date(tx.occurred_at);
     if(tx.status!=='booked'||tx.transfer_group_id||occurred>now||!inFinanceCycle(tx,cycle)) continue;
     const amount=consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
-    if(!(amount>0)) continue;
+    if(!(amount>0) || transactionMatchesRecurringExpense(tx,activeRecurring)) continue;
     const category=categories.find((row)=>row.id===tx.category_id);
     const covered=rows.some((budget)=>budget.merchant_id
       ? budget.merchant_id===tx.merchant_id
