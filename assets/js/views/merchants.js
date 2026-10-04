@@ -20,8 +20,14 @@ function norm(value){
 }
 
 function duplicateFamily(merchant){
-  const value=norm(merchant?.name||merchant?.normalized_key);
-  if(!value||/^sumup\b/.test(value)||/^bezug sumup\b/.test(value)) return null;
+  const raw=String(merchant?.name||merchant?.normalized_key||'').trim();
+  const value=norm(raw);
+  if(!value) return null;
+  if(/^(?:bezug\s+)?sumup\s*\*/i.test(raw)){
+    const underlying=raw.replace(/^(?:bezug\s+)?sumup\s*\*\s*/i,'').split(';')[0].trim();
+    const key=norm(underlying);
+    return key.length>=5?'processor:sumup:'+key:null;
+  }
   if(/\bedeka\b/.test(value)) return 'brand:edeka';
   if(/\belvetino\b/.test(value)) return 'brand:elvetino';
   if(/\bserafe\b/.test(value)) return 'brand:serafe';
