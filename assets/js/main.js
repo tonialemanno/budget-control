@@ -11,6 +11,7 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
+import { resolveFinanceCycle } from './app/finance-cycle.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/financial-effects.js';
 import {
   createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
@@ -137,7 +138,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -711,6 +712,8 @@ function render() {
     transactionQuery: uiState.transactionQuery,
     transactionCategory: uiState.transactionCategory,
     transactionAccount: uiState.transactionAccount,
+    transactionDirection: uiState.transactionDirection,
+    transactionSemantic: uiState.transactionSemantic,
     transactionFrom: uiState.transactionFrom,
     transactionTo: uiState.transactionTo,
     transactionPage: uiState.transactionPage,
@@ -1158,6 +1161,8 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const taxTreatment=document.querySelector('#transactionEditTaxTreatment'); if (taxTreatment) taxTreatment.value=tx.tax_treatment||transactionTaxDefaults(tx).treatment||'';
   const taxSection=document.querySelector('#transactionEditTaxSectionKey'); if (taxSection) taxSection.value=tx.tax_section_key||transactionTaxDefaults(tx).section||'';
   const taxCategory=document.querySelector('#transactionEditTaxCategory'); if (taxCategory) taxCategory.value=tx.tax_category||'';
+  const semantic=document.querySelector('#transactionEditSemantic'); if(semantic) semantic.value=tx.semantic_type||'';
+  const exclude=document.querySelector('#transactionEditExclude'); if(exclude) exclude.checked=tx.exclude_from_reports===true;
   const toggle=document.querySelector('#transactionMakeRecurring');
   const fields=document.querySelector('#transactionRecurringFields');
   if (toggle) toggle.checked=recurring;
@@ -1316,7 +1321,7 @@ async function handleForm(form) {
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
-    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note') };
+    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), semantic_type:nullValue(data,'semanticType'), exclude_from_reports:data.get('excludeFromReports')==='on' };
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -2285,7 +2290,13 @@ async function handleAction(target) {
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
-    const month=monthInputValue()+'-01'; await financeApi.upsertBudget({household_id:runtime.household.id,category_id:null,merchant_id:target.dataset.merchantId,month_start:month,amount:Number(target.dataset.amount)}); await refresh('Händler-Budget angelegt.'); return;
+    const cycle=resolveFinanceCycle({transactions:runtime.transactions,recurringRules:runtime.recurringRules,now:new Date(),fallbackDay:25});
+    const merchantId=target.dataset.merchantId||null;
+    const categoryId=merchantId?null:(target.dataset.categoryId||null);
+    if(!merchantId&&!categoryId) throw new Error('Budgetvorschlag hat keinen gültigen Händler oder keine Kategorie.');
+    const month=(target.dataset.month||cycle.budgetMonth)+'-01';
+    await financeApi.upsertBudget({household_id:runtime.household.id,category_id:categoryId,merchant_id:merchantId,month_start:month,amount:Number(target.dataset.amount)});
+    await refresh('Variables Budget aus dem erklärten Muster angelegt.'); return;
   }
   if (action === 'document-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
@@ -2418,11 +2429,45 @@ async function handleAction(target) {
     location.hash='#/transactions';
     return;
   }
+  if (action === 'overview-drilldown-expense') {
+    const key=target.dataset.key||'';
+    const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
+    uiState.transactionQuery='';
+    uiState.transactionDirection='expense';
+    uiState.transactionSemantic='variable';
+    uiState.transactionAccount='all';
+    uiState.transactionFrom='';
+    uiState.transactionTo='';
+    uiState.transactionPeriod='all';
+    uiState.transactionView='details';
+    uiState.transactionPage=1;
+    if(key==='uncategorized') uiState.transactionCategory='uncategorized';
+    else if(key==='other') uiState.transactionCategory='all';
+    else uiState.transactionCategory=ids[0]||key||'all';
+    location.hash='#/transactions';
+    return;
+  }
+  if (action === 'overview-drilldown-income') {
+    const kind=target.dataset.kind||'earned';
+    const source=target.dataset.source||'';
+    uiState.transactionDirection='income';
+    uiState.transactionSemantic=kind;
+    uiState.transactionQuery=source;
+    uiState.transactionCategory='all';
+    uiState.transactionAccount='all';
+    uiState.transactionFrom=`${new Date().getFullYear()}-01-01`;
+    uiState.transactionTo=`${new Date().getFullYear()}-12-31`;
+    uiState.transactionPeriod='custom';
+    uiState.transactionView='details';
+    uiState.transactionPage=1;
+    location.hash='#/transactions';
+    return;
+  }
   if (action === 'transaction-filter-category') {
     uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -2872,6 +2917,8 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
