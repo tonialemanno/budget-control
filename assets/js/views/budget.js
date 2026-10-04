@@ -49,11 +49,12 @@ export function renderBudget({
   const expenseCategories=categories.filter((row)=>row.kind==='expense');
 
   const fields=`
-    <label class="field"><span>Finanzmonat</span><input class="text-control" name="month" type="month" value="${currentMonth}" required></label>
+    <input name="month" type="hidden" value="${currentMonth}">
+    <div class="inline-alert form-grid-span"><strong>Aktueller Finanzmonat · ${escapeHtml(financePeriodLabel)}</strong><span>Das Budget gilt für diese laufende Periode und wird automatisch in den nächsten Finanzmonat übernommen, bis du es änderst.</span></div>
     <label class="field"><span>Budget für</span><select class="text-control" name="scopeType" id="budgetScopeType"><option value="category">Kategorie</option><option value="merchant">Händler</option></select></label>
     <label class="field" id="budgetCategoryField"><span>Kategorie</span><select class="text-control" name="categoryId">${expenseCategories.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select></label>
     <label class="field" id="budgetMerchantField" hidden><span>Händler</span><select class="text-control" name="merchantId"><option value="">Bitte wählen</option>${merchants.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select></label>
-    <label class="field"><span>Budgetbetrag</span><input class="text-control" name="amount" type="number" min="0" step="0.01" required></label>`;
+    <label class="field"><span>Budgetbetrag</span><input class="text-control" name="amount" type="number" min="0" step="0.01" required placeholder="z. B. 350"></label>`;
 
   const variableRows=summary.variableRows.map((row)=>budgetRow(row,{currency,locale,canWrite}));
 
@@ -62,6 +63,17 @@ export function renderBudget({
     ...summary.savingRows.map((row)=>legacyRow(row,{currency,locale,type:'Sparen / Rücklage – keine Ausgabe'})),
     ...summary.taxRows.map((row)=>legacyRow(row,{currency,locale,type:'Steuern – eigener Planungsbereich'})),
   ];
+
+  const effectiveIds=new Set([...summary.variableRows,...summary.fixedRows,...summary.savingRows,...summary.taxRows].map((row)=>row.id).filter(Boolean));
+  const otherStoredBudgets=budgets
+    .filter((row)=>!effectiveIds.has(row.id))
+    .slice()
+    .sort((a,b)=>String(b.month_start).localeCompare(String(a.month_start)));
+  const otherStoredRows=otherStoredBudgets.map((row)=>{
+    const label=row.merchants?.name||row.categories?.name||'Budget';
+    const period=monthLabel(row.month_start,locale);
+    return `<tr><td><strong>${escapeHtml(label)}</strong><div class="table-meta">Gespeichert für ${escapeHtml(period)}</div></td><td>${money(row.amount,{currency:row.currency||currency,locale})}</td><td colspan="2"><span class="status-pill status-pill--neutral">Nicht aktuelle Periode</span></td><td>${canWrite?deleteButton('budgets',row.id):''}</td></tr>`;
+  });
 
   const existingScopes=new Set(summary.variableRows.map((row)=>row.merchant_id?`merchant:${row.merchant_id}`:`category:${row.category_id}`));
   const patterns=buildBudgetPatterns({
@@ -114,10 +126,10 @@ export function renderBudget({
   return `
     ${pageHeader({
       title:'Budget',
-      subtitle:`Finanzmonat ${financePeriodLabel}. Variable Budgets, Fixkosten, Sparen und Steuern werden getrennt gerechnet.`,
+      subtitle:'Variable Budgets, Fixkosten, Rücklagen und Steuern werden getrennt geplant.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Variables Budget</button>`:''
     })}
-    ${formShell('budget-create','Variables Budget festlegen','Nur frei steuerbare Ausgaben gehören hier hinein.',fields,{hidden:true,submitLabel:'Budget speichern'})}
+    ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt Finance den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
 
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Variables Budget',money(summary.total,{currency,locale}),`${summary.count} echte Budgetposition${summary.count===1?'':'en'}`)}
@@ -136,6 +148,11 @@ export function renderBudget({
     ${excludedRows.length?`<article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading"><div><h3 class="card-title">Nicht im variablen Budget</h3><p class="card-subtitle">Alte Budgeteinträge, die fachlich Fixkosten, Sparen oder Steuern sind. Sie verzerren den Prozentwert nicht mehr.</p></div></div>
       ${dataTable({headers:['Position','Gespeicherter Altwert','Behandlung','',''],rows:excludedRows,emptyText:''})}
+    </article>`:''}
+
+    ${otherStoredRows.length?`<article class="card card-padding" style="margin-bottom:16px">
+      <div class="card-heading"><div><h3 class="card-title">Weitere gespeicherte Budgetperioden</h3><p class="card-subtitle">Nichts verschwindet mehr still: Budgets ausserhalb des aktuell angezeigten Finanzmonats bleiben hier sichtbar.</p></div></div>
+      ${dataTable({headers:['Budget','Betrag','Status','',''],rows:otherStoredRows,emptyText:''})}
     </article>`:''}
 
     ${patterns.length?`<article class="card card-padding">
