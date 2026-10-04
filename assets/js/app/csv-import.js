@@ -187,7 +187,7 @@ function stripPaymentProcessor(value, rawContext='') {
 function isPaymentNoisePart(value) {
   const text=String(value||'').trim();
   if(!text) return true;
-  return /^(?:zahlung|belastung|gutschrift|eingang|ausgang|uebertrag|übertrag|buchung|ubs(?:\s+twint)?|twint)(?:\b|\s)/i.test(text);
+  return /^(?:zahlung|belastung|gutschrift|eingang|ausgang|uebertrag|übertrag|buchung|kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|bezug|ubs(?:\s+twint)?|twint)(?:\b|\s)/i.test(text);
 }
 
 function stripVolatileMerchantSuffix(value) {
