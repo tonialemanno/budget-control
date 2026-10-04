@@ -1077,6 +1077,16 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
       default_category_id: category.id,
     });
     merchantId = merchant?.id || merchantId;
+    const detected=merchantFromTransaction(group.rows[0]);
+    if(merchant?.id && detected?.aliasKey && detected.aliasKey!==merchant.normalized_key){
+      await financeApi.upsertMerchantAlias({
+        household_id:runtime.household.id,
+        merchant_id:merchant.id,
+        alias_name:detected.rawName||detected.name,
+        normalized_key:detected.aliasKey,
+        payment_processor:detected.paymentProcessor||null,
+      });
+    }
   }
 
   const patch = { category_id: category.id };
