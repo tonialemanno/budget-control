@@ -268,6 +268,9 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
   { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:garage|officina|werkstatt|reparatur|riparazione|pneu|reifen)\b/i, name:null, key:null, category:'Wartung & Reparatur' },
+  { pattern:/\b(?:noleggio|mietroller|rollermiete|scooter\s*rental|rent\s*a\s*scooter|mietfahrzeug)\b/i, name:null, key:null, category:'Mietfahrzeug' },
+  { pattern:/\b(?:blumen|florist|fiori|grabpflege|gedenken)\b/i, name:null, key:null, category:'Geschenke & Gedenken' },
   { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant & Café' },
   { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant & Café' },
   { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant & Café' },
@@ -314,6 +317,8 @@ export function suggestKnownCategoryCandidates(tx) {
     'Supermarkt':['Supermarkt','Lebensmittel'],
     'Haushaltsabgaben':['Haushaltsabgaben','Wohnen'],
     'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
+    'Wartung & Reparatur':['Wartung & Reparatur','Mobilität'],
+    'Geschenke & Gedenken':['Geschenke & Gedenken','Freizeit'],
   };
   return fallback[category]||[category];
 }
