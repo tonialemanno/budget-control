@@ -2285,7 +2285,19 @@ async function handleAction(target) {
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
-    const month=monthInputValue()+'-01'; await financeApi.upsertBudget({household_id:runtime.household.id,category_id:null,merchant_id:target.dataset.merchantId,month_start:month,amount:Number(target.dataset.amount)}); await refresh('Händler-Budget angelegt.'); return;
+    const merchantId=target.dataset.merchantId||null;
+    const categoryId=target.dataset.categoryId||null;
+    if(!merchantId&&!categoryId) throw new Error('Für diesen Vorschlag fehlt eine Budget-Zuordnung.');
+    const month=`${target.dataset.month||monthInputValue()}-01`;
+    await financeApi.upsertBudget({
+      household_id:runtime.household.id,
+      category_id:merchantId?null:categoryId,
+      merchant_id:merchantId,
+      month_start:month,
+      amount:Number(target.dataset.amount),
+    });
+    await refresh(merchantId?'Händler-Budget angelegt.':'Kategorie-Budget angelegt.');
+    return;
   }
   if (action === 'document-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
