@@ -136,6 +136,35 @@ export function buildExpenseSeries({
   }).sort((a,b)=>b.monthlyValue-a.monthlyValue);
 }
 
+export function budgetIsSavings(budget) {
+  const name=normalized(budget?.categories?.name);
+  return name==='sparen' || name==='rücklagen' || name==='sparziel';
+}
+
+export function budgetIsFixed(budget,recurringRules=[],merchants=[]) {
+  if(!budget) return false;
+  const merchantName=normalized(
+    budget.merchants?.name
+    || merchants.find((row)=>row.id===budget.merchant_id)?.name
+    || ''
+  );
+  const categoryId=budget.category_id||null;
+  return recurringRules.some((rule)=>{
+    if(rule.active===false||rule.direction!=='expense') return false;
+    if(budget.merchant_id&&rule.merchant_id===budget.merchant_id) return true;
+
+    const ruleText=normalized(`${rule.description||''} ${rule.counterparty||''} ${rule.merchants?.name||''}`);
+    if(merchantName&&ruleText&&(ruleText.includes(merchantName)||merchantName.includes(ruleText))) return true;
+
+    if(categoryId&&rule.category_id===categoryId){
+      const amount=Math.abs(Number(rule.amount||0));
+      const budgetAmount=Math.abs(Number(budget.amount||0));
+      if(amount>0&&budgetAmount>0&&Math.abs(amount-budgetAmount)<=Math.max(5,amount*.25)) return true;
+    }
+    return false;
+  });
+}
+
 export function variableBudgetSuggestions(options={}){
   const series=buildExpenseSeries(options);
   return series.filter((row)=>!row.recurringRule && row.bookingCount>=2 && row.total>=50);
