@@ -10,7 +10,7 @@ const main=read('assets/js/main.js');
 const bills=read('assets/js/views/bills.js');
 const settings=read('assets/js/views/settings.js');
 
-assert.match(config,/version:\s*'2\.3\.11'/);
+assert.match(config,/version:\s*'2\.3\.12'/);
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
 assert.match(index,/<title>Finance<\/title>/);
 assert.match(index,/Stable 2\.3/);
@@ -38,7 +38,7 @@ assert.match(main,/allowed\.add\('merchants'\)/,'settings merchant route must be
 
 assert.match(read('assets/js/app/finance-model.js'), /remainingPlannedExpensesMonth/);
 assert.match(read('assets/js/app/finance-model.js'), /budgetedOpenBillsMonth/);
-assert.match(read('assets/js/views/overview.js'), /snapshot\.remainingPlannedExpensesMonth/);
+assert.match(read('assets/js/app/finance-coach.js'), /snapshot\.remainingPlannedExpensesMonth/);
 assert.match(read('assets/js/views/intelligence.js'), /Davon noch ausstehend/);
 assert.match(read('assets/js/views/recurring.js'), /recurring-edit/);
 assert.match(main,/if \(id === 'recurring-edit'\)/);
