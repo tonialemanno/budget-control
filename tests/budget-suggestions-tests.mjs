@@ -33,16 +33,16 @@ const recurringRules=[{
 const html=renderBudget({
   household,profile,merchants,transactions,recurringRules,
   budgets:[],categories:[],debtPayments:[],accounts:[],canWrite:true,
-  budgetExpandedMerchantId:'variable',
+  budgetExpandedMerchantId:'merchant:variable|category:Tabak',
 });
 
-assert.equal(html.includes('Ausgabenmuster & Budgetvorschläge'),true);
+assert.equal(html.includes('Ausgabenmuster'),true);
 assert.equal(html.includes('Group Mutuel'),true,'known fixed cost should remain inspectable');
-assert.equal(html.includes('Als Fixkosten erkannt: Krankenkasse'),true,'known fixed cost must be clearly marked');
+assert.equal(html.includes('Bekannte Verpflichtung'),true,'known fixed cost must be clearly marked');
 assert.equal(html.includes('Tabak Shop'),true,'variable merchant should receive a budget pattern');
-assert.equal(html.includes('data-amount="150"'),true,'450 CHF over three full months should suggest 150 CHF without hidden buffer');
-assert.equal(html.includes('in 3 vollständigen Monaten ÷ 3'),true,'expanded pattern must explain the monthly calculation');
+assert.equal(html.includes('data-amount="230"'),true,'450 CHF over the full observed two-month span should suggest 230 CHF after transparent rounding');
+assert.equal(html.includes('Gesamte Historie: 2 Monate'),true,'pattern must explain that the complete observed history is used');
 assert.equal(html.includes('data-action="budget-transaction-edit" data-id="v1"'),true,'expanded pattern must expose source transactions for correction');
-assert.equal(html.includes('Wiederkehrende Händlerausgaben der letzten 90 Tage'),false);
+assert.equal(html.includes('Letzte 3 vollständige Monate'),false);
 
 console.log('Explainable budget pattern assertions OK');
