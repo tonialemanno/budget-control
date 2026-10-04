@@ -1295,6 +1295,8 @@ async function handleForm(form) {
     const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
     const merchantId=nullValue(data,'merchantId');
     const categoryId=nullValue(data,'categoryId');
+    const incomeKind=direction==='income'?nullValue(data,'incomeKind'):null;
+    if(direction==='income'&&!incomeKind) throw new Error('Bitte wähle, was dieser Eingang ist: Lohn, Rückerstattung, Rückzahlung oder etwas anderes.');
     let tax=null;
     if (moduleEnabled('tax')) {
       const enabled=formValue(data,'taxRelevant')==='true';
@@ -1320,7 +1322,7 @@ async function handleForm(form) {
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
       note:nullValue(data,'note'), tax,
-      incomeKind:direction==='income'?nullValue(data,'incomeKind'):null,
+      incomeKind,
       analyticsExcluded:data.get('analyticsExcluded')==='on',
     });
     await refresh('Transaktion gespeichert und in allen Auswertungen aktualisiert.'); return;
