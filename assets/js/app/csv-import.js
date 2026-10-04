@@ -163,10 +163,21 @@ export function normalizeMerchantKey(value) {
 export function merchantFromTransaction(tx) {
   const raw = String(tx?.counterparty || tx?.description || '').trim();
   const known = knownMerchantSuggestion(tx);
-  if (known) return { name: known.name, key: known.key, sourceField: tx?.counterparty ? 'counterparty' : 'description', known: true };
+  if (known) return { name: known.name, key: known.key, sourceField: tx?.counterparty ? 'counterparty' : 'description', known: true, paymentProcessor:known.paymentProcessor||null };
 
   const parts = raw.split(';').map((part)=>part.trim()).filter(Boolean);
   let merchantRaw = parts[0] || raw;
+  let paymentProcessor = null;
+
+  const sumupMatch=merchantRaw.match(/^sum\s*up\s*\*+\s*(.+)$/i);
+  if(sumupMatch?.[1]){
+    paymentProcessor='SumUp';
+    merchantRaw=sumupMatch[1].trim();
+  }
+  merchantRaw=merchantRaw
+    .replace(/\s*;?\s*zahlung\s+ubs\s+twint\b.*$/i,'')
+    .replace(/\s*;?\s*zahlung\s+twint\b.*$/i,'')
+    .trim();
   if (
     parts.length > 1
     && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|bezug)\b/i.test(merchantRaw)
@@ -186,10 +197,18 @@ export function merchantFromTransaction(tx) {
     name,
     key: normalizeMerchantKey(name) || normalizeMerchantKey(merchantRaw) || normalizeMerchantKey(raw) || 'unbekannt',
     sourceField: tx?.counterparty ? 'counterparty' : 'description',
+    paymentProcessor,
   };
 }
 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
+  { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
+  { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
+  { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
+  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bblumencafe\b|\bblumencafé\b/i, name:'Blumencafe', key:'blumencafe', category:'Restaurant & Café' },
+  { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
+  { pattern:/sum\s*up\s*\*+\s*[^;]*(?:pizzeria|kebab|burger|cafe|café|restaurant|ristorante|imbiss|barliner)/i, name:null, key:null, category:'Restaurant & Café', processorOnly:true },
   { pattern:/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i, name:'Migros Restaurant', key:'migros restaurant', category:'Restaurant' },
   { pattern:/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i, name:'Coop Restaurant', key:'coop restaurant', category:'Restaurant' },
   { pattern:/\bmcdonald['’]?s?\b|\bmcdonalds\b/i, name:"McDonald's", key:'mcdonalds', category:'Restaurant' },
@@ -215,7 +234,14 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
 
 export function knownMerchantSuggestion(tx) {
   const raw=`${tx?.counterparty||''} ${tx?.description||''}`.trim();
-  return KNOWN_MERCHANT_LIBRARY.find((entry)=>entry.pattern.test(raw)) || null;
+  const entry=KNOWN_MERCHANT_LIBRARY.find((candidate)=>candidate.pattern.test(raw)) || null;
+  if(!entry) return null;
+  if(!entry.processorOnly) return entry;
+  const source=String(tx?.counterparty||tx?.description||'');
+  const first=source.split(';')[0]?.trim()||source;
+  const match=first.match(/^sum\s*up\s*\*+\s*(.+)$/i);
+  const name=(match?.[1]||first).trim().replace(/\s+/g,' ');
+  return {...entry,name,key:normalizeMerchantKey(name),paymentProcessor:'SumUp'};
 }
 
 export function suggestKnownCategoryName(tx) {
