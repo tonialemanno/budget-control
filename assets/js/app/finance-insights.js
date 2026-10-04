@@ -220,9 +220,21 @@ export function goalSummaries(goals = []) {
   }).sort((a,b)=>b.progressPercent-a.progressPercent);
 }
 
-export function primaryOperatingAccount(accounts = [], recurringRules = [], baseCurrency='CHF') {
+export function primaryOperatingAccount(accounts = [], recurringRules = [], baseCurrency='CHF', preferredAccountId='') {
   const eligible=accounts.filter((account)=>!account.is_archived);
   if(!eligible.length) return null;
+
+  const preferred=preferredAccountId
+    ? eligible.find((account)=>account.account_id===preferredAccountId)
+    : null;
+  if(preferred) return preferred;
+
+  const namedSalaryAccount=eligible.find((account)=>
+    account.account_type==='checking'
+    && account.currency===baseCurrency
+    && /(^|\b)(lohn|salary|gehalt)(\b|konto)/i.test(String(account.name||''))
+  );
+  if(namedSalaryAccount) return namedSalaryAccount;
 
   const incomeByAccount=new Map();
   recurringRules
