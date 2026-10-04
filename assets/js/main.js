@@ -2496,8 +2496,11 @@ async function handleForm(form) {
     const categoryId=scopeType==='category'?formValue(data,'categoryId'):null;
     const merchantId=scopeType==='merchant'?formValue(data,'merchantId'):null;
     if (!categoryId && !merchantId) throw new Error('Bitte Kategorie oder Händler auswählen.');
-    await financeApi.upsertBudget({ household_id:h, category_id:categoryId, merchant_id:merchantId, month_start:`${formValue(data,'month')}-01`, amount:numberValue(data,'amount') });
-    await refresh('Budget gespeichert.'); return;
+    const amount=numberValue(data,'amount');
+    if(!(amount>0)) throw new Error('Bitte einen Budgetbetrag grösser als 0 eingeben.');
+    const activeCycle=resolveFinanceCycle({transactions:runtime.transactions,recurringRules:runtime.recurringRules,now:new Date(),fallbackDay:25});
+    await financeApi.upsertBudget({ household_id:h, category_id:categoryId, merchant_id:merchantId, month_start:`${activeCycle.budgetMonth}-01`, amount });
+    await refresh('Budget für den aktuellen Finanzmonat gespeichert.'); return;
   }
   if (id === 'bill-create') {
     const accountId=nullValue(data,'accountId');
@@ -3288,9 +3291,9 @@ async function handleAction(target) {
     const merchantId=target.dataset.merchantId||null;
     const categoryId=merchantId?null:(target.dataset.categoryId||null);
     if(!merchantId&&!categoryId) throw new Error('Budgetvorschlag hat keinen gültigen Händler oder keine Kategorie.');
-    const month=(target.dataset.month||cycle.budgetMonth)+'-01';
+    const month=`${cycle.budgetMonth}-01`;
     await financeApi.upsertBudget({household_id:runtime.household.id,category_id:categoryId,merchant_id:merchantId,month_start:month,amount:Number(target.dataset.amount)});
-    await refresh('Variables Budget aus dem erklärten Muster angelegt.'); return;
+    await refresh('Variables Budget für den aktuellen Finanzmonat angelegt.'); return;
   }
   if (action === 'document-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
