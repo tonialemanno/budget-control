@@ -20,13 +20,13 @@ export function addMonthsClamped(date, months) {
   return next;
 }
 
-export function nextOccurrenceDate(date, cadence) {
+export function nextOccurrenceDate(date, cadence, intervalMonths=1) {
   const next=new Date(date);
   if(cadence==='weekly') { next.setDate(next.getDate()+7); return next; }
   if(cadence==='quarterly') return addMonthsClamped(next,3);
   if(cadence==='semiannual') return addMonthsClamped(next,6);
   if(cadence==='annual') return addMonthsClamped(next,12);
-  return addMonthsClamped(next,1);
+  return addMonthsClamped(next,Math.max(1,Number(intervalMonths||1)));
 }
 
 export function effectiveNextDate(rule, reference=new Date()) {
@@ -36,7 +36,7 @@ export function effectiveNextDate(rule, reference=new Date()) {
   const end=toLocalNoon(rule?.end_date);
   let guard=0;
   while(date < ref && guard < 2000) {
-    date=nextOccurrenceDate(date,rule?.cadence);
+    date=nextOccurrenceDate(date,rule?.cadence,rule?.interval_months);
     guard+=1;
   }
   if(end && date>end) return null;
@@ -65,7 +65,7 @@ export function occurrenceCount(rule, from, until) {
   let guard=0;
   while(date<=limit && guard<2000) {
     count+=1;
-    date=nextOccurrenceDate(date,rule?.cadence);
+    date=nextOccurrenceDate(date,rule?.cadence,rule?.interval_months);
     guard+=1;
   }
   return count;
