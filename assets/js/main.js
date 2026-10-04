@@ -1987,6 +1987,15 @@ async function handleForm(form) {
     if(!key) throw new Error('Bitte einen gültigen Händlernamen eingeben.');
     const duplicate=runtime.merchants.find((row)=>row.id!==merchantId && row.normalized_key===key);
     if(duplicate) throw new Error('Ein anderer Händler verwendet diesen Namen bereits.');
+    if(merchant.normalized_key!==key){
+      await financeApi.upsertMerchantAlias({
+        household_id:h,
+        merchant_id:merchant.id,
+        alias_name:merchant.name,
+        normalized_key:merchant.normalized_key,
+        payment_processor:null,
+      });
+    }
     const updated=await financeApi.updateMerchant(merchantId,{
       name,
       normalized_key:key,
@@ -2715,7 +2724,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -2726,6 +2735,18 @@ async function handleAction(target) {
       Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
     ].filter(Boolean);
     await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    return;
+  }
+  if (action === 'merchant-merge') {
+    const canonical=runtime.merchants.find((row)=>row.id===target.dataset.canonicalId);
+    const duplicate=runtime.merchants.find((row)=>row.id===target.dataset.duplicateId);
+    if(!canonical||!duplicate) throw new Error('Händler für die Zusammenführung wurden nicht gefunden.');
+    await financeApi.mergeMerchants({
+      householdId:runtime.household.id,
+      canonicalMerchantId:canonical.id,
+      duplicateMerchantId:duplicate.id,
+    });
+    await refresh(`${duplicate.name} wurde als Alias von ${canonical.name} zusammengeführt. Bestehende Banktexte bleiben erhalten.`);
     return;
   }
   if (action === 'merchant-promote-master') {
