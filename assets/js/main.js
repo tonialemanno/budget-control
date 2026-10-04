@@ -460,10 +460,110 @@ function stopLiveTimers() {
   presenceTimer=null; adminPresenceTimer=null; releaseTimer=null;
 }
 
+function closeSessionWarning() {
+  document.querySelector('#sessionWarning')?.remove();
+}
+
+function showSessionWarning(remainingMs) {
+  const minutes=Math.max(1,Math.ceil(remainingMs/60000));
+  let warning=document.querySelector('#sessionWarning');
+  if(!warning){
+    warning=document.createElement('aside');
+    warning.id='sessionWarning';
+    warning.className='session-warning';
+    warning.setAttribute('role','alert');
+    document.body.appendChild(warning);
+  }
+  warning.innerHTML=`<div><strong>Sitzung läuft bald ab</strong><span>Ohne Aktivität wirst du in etwa ${minutes} Minute${minutes===1?'':'n'} automatisch abgemeldet.</span></div><button class="action-button action-button--primary" type="button" id="sessionContinueButton">Angemeldet bleiben</button>`;
+  warning.querySelector('#sessionContinueButton')?.addEventListener('click',()=>{
+    sessionGuard?.activity();
+    closeSessionWarning();
+    void pulsePresence();
+  },{once:true});
+}
+
+function startSessionSecurity(userId) {
+  sessionGuard?.stop();
+  sessionGuard=createSessionGuard({
+    userId,
+    idleTimeoutMs:APP_CONFIG.idleTimeoutMinutes*60_000,
+    warningLeadMs:APP_CONFIG.idleWarningMinutes*60_000,
+    maxSessionMs:APP_CONFIG.maxSessionHours*60*60_000,
+    onWarning:showSessionWarning,
+    onWarningClear:closeSessionWarning,
+    onTimeout:({reason})=>{ void logoutCurrentUser(reason); },
+  });
+  sessionGuard.start();
+  return sessionGuard.check();
+}
+
+async function fetchReleaseManifest() {
+  const response=await fetch(`./release.json?t=${Date.now()}`,{cache:'no-store',credentials:'same-origin'});
+  if(!response.ok) throw new Error('Release-Information konnte nicht geladen werden.');
+  return response.json();
+}
+
+function showReleaseBlock(message) {
+  appShell.hidden=false;
+  authGate.hidden=true;
+  pageContent.innerHTML=`<div class="release-blocking-state"><span class="loading-spinner" aria-hidden="true"></span><strong>Finance wird aktualisiert</strong><span>${escapeHtml(message)}</span></div>`;
+}
+
+async function reloadLatestRelease(reason,manifest=null,dbState=null) {
+  const key=`finance-release-reload:${manifest?.buildId||'unknown'}:${dbState?.schema_version||'unknown'}`;
+  if(sessionStorage.getItem(key)==='1'){
+    showReleaseBlock('App und Datenbank haben noch nicht denselben freigegebenen Stand. Finance bleibt gesperrt, damit keine inkonsistenten Daten bearbeitet werden.');
+    return false;
+  }
+  sessionStorage.setItem(key,'1');
+  showReleaseBlock(reason||'Eine neue Version ist verfügbar. Die Anwendung wird neu geladen.');
+  if('caches' in window){
+    const keys=await caches.keys().catch(()=>[]);
+    await Promise.all(keys.filter((cacheKey)=>/^finance[-:]/i.test(cacheKey)||/budget-control/i.test(cacheKey)).map((cacheKey)=>caches.delete(cacheKey))).catch(()=>null);
+  }
+  window.setTimeout(()=>location.reload(),150);
+  return false;
+}
+
+async function checkReleaseCompatibility({reloadOnMismatch=true}={}) {
+  if(!runtime.user) return true;
+  let manifest;
+  try { manifest=await fetchReleaseManifest(); }
+  catch { manifest=runtime.releaseManifest||window.__FINANCE_RELEASE__||null; }
+  const dbState=await financeApi.getReleaseState();
+  runtime.releaseManifest=manifest;
+  runtime.releaseState=dbState;
+
+  const buildMatches=!manifest?.buildId||manifest.buildId===APP_CONFIG.buildId;
+  const manifestSchemaMatches=!manifest?.schemaVersion||Number(manifest.schemaVersion)===Number(APP_CONFIG.schemaVersion);
+  const dbMatches=Number(dbState?.schema_version)===Number(APP_CONFIG.schemaVersion);
+  if(buildMatches&&manifestSchemaMatches&&dbMatches){
+    for(let i=sessionStorage.length-1;i>=0;i-=1){
+      const key=sessionStorage.key(i);
+      if(key?.startsWith('finance-release-reload:')) sessionStorage.removeItem(key);
+    }
+    return true;
+  }
+  if(!reloadOnMismatch) return false;
+  return reloadLatestRelease('Eine neuere oder inkompatible Finance-Version wurde erkannt. Die Anwendung wird auf den freigegebenen Stand gebracht.',manifest,dbState);
+}
+
+async function checkReleaseAndRefreshAfterResume(hiddenForMs=0) {
+  if(!runtime.user) return;
+  const compatible=await checkReleaseCompatibility();
+  if(!compatible) return;
+  const safeRefreshRoutes=new Set(['overview','money','planning','admin']);
+  if(hiddenForMs>=5*60_000 && safeRefreshRoutes.has(resolveRoute()) && Date.now()-lastContextLoadedAt>=5*60_000){
+    await refresh();
+  }
+  await pulsePresence();
+}
+
 function startLiveTimers() {
   stopLiveTimers();
   void pulsePresence();
   presenceTimer=window.setInterval(()=>{ void pulsePresence(); },45000);
+  releaseTimer=window.setInterval(()=>{ void checkReleaseCompatibility(); },5*60_000);
   adminPresenceTimer=window.setInterval(async()=>{
     if (!runtime.user || !runtime.adminRole || resolveRoute()!=='admin' || document.visibilityState==='hidden') return;
     if (document.activeElement?.matches('input,select,textarea')) return;
@@ -567,7 +667,7 @@ function showAuth(notice='') {
   authGate.hidden = false;
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml((APP_CONFIG.releaseChannel||'stable').toUpperCase())}</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert auth-session-notice"><strong>Sitzung beendet</strong><span>${escapeHtml(notice)}</span></div>`:''}
       <form class="auth-form" id="authForm">
@@ -669,6 +769,7 @@ async function loadContext() {
   } else {
     runtime.householdRole = null;
   }
+  lastContextLoadedAt=Date.now();
   updateProfileUI();
 }
 
