@@ -1343,6 +1343,33 @@ function renderImportReview() {
   host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${groups.size} erkannte Händler · Kategorien können vor dem Import gesetzt werden.</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
 }
 
+function suggestedCategoryIdForTransaction({
+  explicitCategoryId=null,
+  merchantId=null,
+  description='',
+  counterparty='',
+  note='',
+  amount=0,
+  semanticType=null,
+  contextName='',
+}={}) {
+  if(explicitCategoryId) return explicitCategoryId;
+  const merchantDefault=merchantId
+    ? runtime.merchants.find((row)=>row.id===merchantId)?.default_category_id||null
+    : null;
+  if(merchantDefault) return merchantDefault;
+
+  const candidates=[];
+  if(semanticType==='asset_acquisition') candidates.push('Fahrzeugkauf','Mobilität');
+  candidates.push(...suggestKnownCategoryCandidates({description,counterparty,note,amount}));
+  if(/\b(?:ferien|urlaub|vacanza|vacanze|italien|italia|reise|trip)\b/i.test(contextName||'')) candidates.push('Ferien','Urlaub','Freizeit');
+  for(const name of [...new Set(candidates)]){
+    const category=runtime.categories.find((row)=>row.kind===(Number(amount)<0?'expense':'income')&&row.name.toLowerCase()===String(name).toLowerCase());
+    if(category) return category.id;
+  }
+  return null;
+}
+
 function transactionTaxDefaults(txLike={}) {
   const amount=Number(txLike.amount||0);
   const text=`${txLike.tax_category||txLike.taxCategory||''} ${txLike.description||''} ${txLike.counterparty||''} ${txLike.note||''}`.toLowerCase();
