@@ -2166,8 +2166,22 @@ async function handleForm(form) {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Bitte ein Konto auswählen.');
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
-    const merchantId=direction==='transfer'?null:nullValue(data,'merchantId');
-    const merchant=runtime.merchants.find((m)=>m.id===merchantId) || null;
+    const category=runtime.categories.find((row)=>row.id===categoryId) || null;
+    if(direction==='income' && category && category.kind!=='income') throw new Error('Für eine feste Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
+
+    const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    let merchant=null;
+    if(direction==='expense' && counterpartyName){
+      const key=normalizeMerchantKey(counterpartyName);
+      merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
+        household_id:h,
+        name:counterpartyName,
+        normalized_key:key,
+        default_category_id:categoryId,
+      });
+    }
+
     let destinationAccountId=null;
     if(direction==='transfer'){
       const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
@@ -2181,10 +2195,10 @@ async function handleForm(form) {
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
       category_id:categoryId,
-      merchant_id:merchantId,
+      merchant_id:direction==='expense'?(merchant?.id||null):null,
       direction,
       description:formValue(data,'description'),
-      counterparty:merchant?.name||null,
+      counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
       currency:account.currency||currency,
       cadence:formValue(data,'cadence'),
@@ -2195,7 +2209,14 @@ async function handleForm(form) {
     if(merchant && categoryId && merchant.default_category_id!==categoryId){
       await financeApi.updateMerchant(merchant.id,{default_category_id:categoryId});
     }
-    await refresh(direction==='transfer'?'Fixe Umbuchung gespeichert.':'Fixkosten gespeichert und Händler verknüpft.'); return;
+    const message=direction==='income'
+      ? 'Feste Einnahme gespeichert.'
+      : direction==='transfer'
+        ? 'Fixe Umbuchung gespeichert.'
+        : merchant
+          ? 'Fixkosten gespeichert und Händler verknüpft.'
+          : 'Fixkosten gespeichert.';
+    await refresh(message); return;
   }
   if (id === 'fixed-cost-edit') {
     const ruleId=formValue(data,'ruleId');
@@ -2220,8 +2241,21 @@ async function handleForm(form) {
     }
 
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
-    const merchantId=direction==='transfer'?null:nullValue(data,'merchantId');
-    const merchant=runtime.merchants.find((m)=>m.id===merchantId) || null;
+    const category=runtime.categories.find((row)=>row.id===categoryId) || null;
+    if(direction==='income' && category && category.kind!=='income') throw new Error('Für eine feste Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
+
+    const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    let merchant=null;
+    if(direction==='expense' && counterpartyName){
+      const key=normalizeMerchantKey(counterpartyName);
+      merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
+        household_id:h,
+        name:counterpartyName,
+        normalized_key:key,
+        default_category_id:categoryId,
+      });
+    }
 
     let destinationAccountId=null;
     if(direction==='transfer'){
@@ -2235,10 +2269,10 @@ async function handleForm(form) {
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
       category_id:categoryId,
-      merchant_id:merchantId,
+      merchant_id:direction==='expense'?(merchant?.id||null):null,
       direction,
       description:formValue(data,'description'),
-      counterparty:merchant?.name||null,
+      counterparty:counterpartyName||null,
       amount:Math.abs(numberValue(data,'amount')),
       currency:linkedDebt?linkedDebt.currency:(account.currency||currency),
       cadence,
@@ -2248,7 +2282,16 @@ async function handleForm(form) {
     });
     if(merchant && categoryId && merchant.default_category_id!==categoryId){ await financeApi.updateMerchant(merchant.id,{default_category_id:categoryId}); }
     if(linkedSource) await syncRecurringSourceFromRule(rule);
-    await refresh(direction==='transfer'?'Fixe Umbuchung aktualisiert.':linkedSource?'Fixkosten und verknüpfte Quelle aktualisiert.':'Fixkosten und Händler aktualisiert.'); return;
+    const message=direction==='income'
+      ? 'Feste Einnahme aktualisiert.'
+      : direction==='transfer'
+        ? 'Fixe Umbuchung aktualisiert.'
+        : linkedSource
+          ? 'Fixkosten und verknüpfte Quelle aktualisiert.'
+          : merchant
+            ? 'Fixkosten und Händler aktualisiert.'
+            : 'Fixkosten aktualisiert.';
+    await refresh(message); return;
   }
   if (id === 'budget-create') {
     const scopeType=formValue(data,'scopeType')||'category';
@@ -3461,7 +3504,7 @@ async function handleAction(target) {
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
     document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
-    document.querySelector('#fixedCostEditMerchant').value=rule.merchant_id||'';
+    document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#fixedCostEditNextDate').value=rule.next_date||'';
     document.querySelector('#fixedCostEditEndDate').value=rule.end_date||'';
