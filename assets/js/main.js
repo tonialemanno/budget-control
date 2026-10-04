@@ -3838,9 +3838,17 @@ pageContent.addEventListener('change', async (event) => {
       syncTransactionTransferEditor();
       return;
     }
-    if (target.id === 'transactionEditSemantic' && target.value==='asset_acquisition') {
-      const details=document.querySelector('#transactionEditOptionalDetails');
+    if (['transactionEditSemantic','transactionCreateSemantic'].includes(target.id) && target.value==='asset_acquisition') {
+      const details=document.querySelector(target.id==='transactionEditSemantic'?'#transactionEditOptionalDetails':'#transactionCreateOptionalDetails');
       if(details) details.open=true;
+      return;
+    }
+    if (['transactionEditCategory','transactionCreateCategory'].includes(target.id)) {
+      const category=runtime.categories.find((row)=>row.id===target.value);
+      if(category && /(fahrzeugkauf|wartung|reparatur|mietfahrzeug|roller|motorrad|auto)/i.test(category.name||'')){
+        const details=document.querySelector(target.id==='transactionEditCategory'?'#transactionEditOptionalDetails':'#transactionCreateOptionalDetails');
+        if(details) details.open=true;
+      }
       return;
     }
     if (target.id === 'transactionEditVehicle' && target.value) {
