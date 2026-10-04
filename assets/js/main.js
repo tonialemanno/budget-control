@@ -2761,8 +2761,15 @@ async function handleForm(form) {
           });
           if(alias) aliasCache.push(alias);
         }
+        const recurringRule=findMatchingRecurringRule({
+          ...tx,
+          account_id:accountId,
+          category_id:categoryId,
+          merchant_id:merchant?.id||null,
+          currency:account.currency||currency,
+        });
         const externalReference = await transactionFingerprint(accountId,tx);
-        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, recurring_rule_id:recurringRule?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
       }
       const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
       if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
