@@ -17,7 +17,7 @@ export const CH = Object.freeze({
     ['Supermarkt','Lebensmittel','expense'],
     ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
     ['Mietfahrzeug','Mobilität','expense'],['Wartung & Reparatur','Mobilität','expense'],['Fahrzeugkauf','Mobilität','expense'],
-    ['Unterhaltung','Freizeit','expense'],['Restaurant & Café','Freizeit','expense'],['Ferien','Freizeit','expense'],
+    ['Unterhaltung','Freizeit','expense'],['Restaurant & Café','Freizeit','expense'],['Geschenke & Gedenken','Freizeit','expense'],['Ferien','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
     ['Apotheke','Gesundheit','expense'],['Arzt & Zahnarzt','Gesundheit','expense'],
   ],
