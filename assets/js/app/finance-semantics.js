@@ -127,7 +127,7 @@ export function semanticExpenseBase(tx,{
 }={}) {
   if(!tx||tx.status!=='booked'||Number(tx.amount)>=0) return 0;
   const type=semanticType(tx,{categories,recurringRules});
-  if(['ignored','internal_transfer','saving','receivable_principal'].includes(type)) return 0;
+  if(['ignored','internal_transfer','saving','receivable_principal','asset_acquisition'].includes(type)) return 0;
   const paymentMap=debtPayments instanceof Map?debtPayments:buildDebtPaymentTransactionMap(debtPayments);
   return consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
 }
@@ -165,6 +165,7 @@ export function reportingBucket(tx,context={}) {
     internal_transfer:'transfer',
     debt_payment:'debt',
     receivable_principal:'receivable',
+    asset_acquisition:'asset',
     ignored:'ignored',
   })[type]||'other';
 }

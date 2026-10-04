@@ -5,7 +5,7 @@ import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, suggestKnownCategoryName } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -110,6 +110,9 @@ const runtime = {
   transactions: [],
   importBatches: [],
   merchants: [],
+  merchantAliases: [],
+  counterparties: [],
+  transactionContexts: [],
   countryMasterCategories: [],
   countryMasterMerchants: [],
   masterDataHouseholds: [],
@@ -147,7 +150,7 @@ const runtime = {
 };
 
 const importState = { file: null, parsed: null };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -820,7 +823,7 @@ async function loadFinanceData() {
   const h = runtime.household.id;
   const tasks = [
     () => financeApi.listAccounts(h), () => financeApi.listCategories(h), () => financeApi.listCategorizationRules(h), () => financeApi.listTransactions(h),
-    () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h),
+    () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listMerchantAliases(h), () => financeApi.listCounterparties(h), () => financeApi.listTransactionContexts(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h),
     () => financeApi.listGoals(h), () => financeApi.listGoalSources(h), () => financeApi.listDebts(h), () => financeApi.listDebtPayments(h), () => financeApi.listReceivables(h), () => financeApi.listReceivablePayments(h), () => financeApi.listLegalCases(h), () => financeApi.listLegalEvents(h), () => financeApi.listAssets(h),
     () => financeApi.listProperties(h), () => financeApi.listVehicles(h), () => financeApi.listInsurance(h), () => financeApi.listInvestments(h), () => financeApi.listInvestmentTransactions(h), () => financeApi.listPensions(h),
     () => financeApi.listDocuments(h), () => financeApi.listHouseholdMembers(h), () => financeApi.getFxRates().catch(()=>null),
@@ -840,7 +843,7 @@ async function loadFinanceData() {
   const results = await runLimited(tasks, 5);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
-    runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
+    runtime.importBatches, runtime.merchants, runtime.merchantAliases, runtime.counterparties, runtime.transactionContexts, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
     runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
@@ -928,6 +931,8 @@ function render() {
     transactionQuery: uiState.transactionQuery,
     transactionCategory: uiState.transactionCategory,
     transactionAccount: uiState.transactionAccount,
+    transactionContext: uiState.transactionContext,
+    transactionVehicle: uiState.transactionVehicle,
     transactionDirection: uiState.transactionDirection,
     transactionSemantic: uiState.transactionSemantic,
     transactionCategoryIds: uiState.transactionCategoryIds,
@@ -1053,6 +1058,7 @@ function currentCategorizationGroups() {
     transactions: runtime.transactions,
     categories: runtime.categories,
     merchants: runtime.merchants,
+    aliases: runtime.merchantAliases,
     rules: runtime.categorizationRules,
   });
 }
@@ -1073,6 +1079,16 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
       default_category_id: category.id,
     });
     merchantId = merchant?.id || merchantId;
+    const detected=merchantFromTransaction(group.rows[0]);
+    if(merchant?.id && detected?.aliasKey && detected.aliasKey!==merchant.normalized_key){
+      await financeApi.upsertMerchantAlias({
+        household_id:runtime.household.id,
+        merchant_id:merchant.id,
+        alias_name:detected.rawName||detected.name,
+        normalized_key:detected.aliasKey,
+        payment_processor:detected.paymentProcessor||null,
+      });
+    }
   }
 
   const patch = { category_id: category.id };
@@ -1311,12 +1327,15 @@ function renderImportReview() {
     const tx = rowToTransaction(row,mapping);
     if (!tx) continue;
     const merchant = merchantFromTransaction(tx);
-    const existing = runtime.merchants.find((m)=>m.normalized_key===merchant.key);
-    const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
-    const group = groups.get(merchant.key) || { merchant, rows:[], total:0, categoryId };
+    const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+    const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+    const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+    const groupKey=existing?.normalized_key||merchant.key;
+    const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
     group.rows.push(tx); group.total += Number(tx.amount);
     if (!group.categoryId && categoryId) group.categoryId = categoryId;
-    groups.set(merchant.key,group);
+    groups.set(groupKey,group);
   }
   const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
@@ -1324,6 +1343,33 @@ function renderImportReview() {
     return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}</span></div><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select></div>`;
   }).join('');
   host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${groups.size} erkannte Händler · Kategorien können vor dem Import gesetzt werden.</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
+}
+
+function suggestedCategoryIdForTransaction({
+  explicitCategoryId=null,
+  merchantId=null,
+  description='',
+  counterparty='',
+  note='',
+  amount=0,
+  semanticType=null,
+  contextName='',
+}={}) {
+  if(explicitCategoryId) return explicitCategoryId;
+  const merchantDefault=merchantId
+    ? runtime.merchants.find((row)=>row.id===merchantId)?.default_category_id||null
+    : null;
+  if(merchantDefault) return merchantDefault;
+
+  const candidates=[];
+  if(semanticType==='asset_acquisition') candidates.push('Fahrzeugkauf','Mobilität');
+  candidates.push(...suggestKnownCategoryCandidates({description,counterparty,note,amount}));
+  if(/\b(?:ferien|urlaub|vacanza|vacanze|italien|italia|reise|trip)\b/i.test(contextName||'')) candidates.push('Ferien','Urlaub','Freizeit');
+  for(const name of [...new Set(candidates)]){
+    const category=runtime.categories.find((row)=>row.kind===(Number(amount)<0?'expense':'income')&&row.name.toLowerCase()===String(name).toLowerCase());
+    if(category) return category.id;
+  }
+  return null;
 }
 
 function transactionTaxDefaults(txLike={}) {
@@ -1359,33 +1405,193 @@ async function ensureTransactionTaxCase(year) {
   return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
 }
 
+function findMatchingRecurringRule(txLike={}) {
+  const amount=Math.abs(Number(txLike.amount||0));
+  const direction=Number(txLike.amount||0)<0?'expense':'income';
+  const text=normalizeMerchantKey([txLike.merchants?.name,txLike.counterparty,txLike.description].filter(Boolean).join(' '));
+  const candidates=runtime.recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction===direction)
+    .map((rule)=>{
+      let score=0;
+      if(rule.account_id&&txLike.account_id===rule.account_id) score+=2;
+      if(rule.merchant_id&&txLike.merchant_id===rule.merchant_id) score+=8;
+      if(rule.category_id&&txLike.category_id===rule.category_id) score+=2;
+      if(amount>0&&Math.abs(Math.abs(Number(rule.amount||0))-amount)<=Math.max(.01,amount*.03)) score+=5;
+      const ruleText=normalizeMerchantKey([rule.merchants?.name,rule.counterparty,rule.description].filter(Boolean).join(' '));
+      if(text&&ruleText&&(text.includes(ruleText)||ruleText.includes(text))) score+=6;
+      return {rule,score};
+    })
+    .filter((row)=>row.score>=7)
+    .sort((a,b)=>b.score-a.score);
+  return candidates[0]?.rule||null;
+}
+
+async function resolveCounterpartyFromForm(data) {
+  const name=String(formValue(data,'counterparty')||'').trim();
+  if(!name) return null;
+  const kind=formValue(data,'counterpartyKind');
+  if(!kind) return null;
+  const normalizedKey=normalizeMerchantKey(name);
+  if(!normalizedKey) return null;
+  const existing=runtime.counterparties.find((row)=>row.kind===kind&&row.normalized_key===normalizedKey);
+  return existing||financeApi.upsertCounterparty({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:normalizedKey,
+    kind,
+  });
+}
+
+async function resolveContextFromForm(data) {
+  const selected=nullValue(data,'contextId');
+  const name=String(formValue(data,'contextName')||'').trim();
+  if(!name) return selected;
+  const normalizedKey=normalizeMerchantKey(name);
+  if(!normalizedKey) return selected;
+  const existing=runtime.transactionContexts.find((row)=>row.normalized_key===normalizedKey);
+  if(existing) return existing.id;
+  const created=await financeApi.upsertTransactionContext({
+    household_id:runtime.household.id,
+    name,
+    normalized_key:normalizedKey,
+    context_type:'project',
+  });
+  return created?.id||selected;
+}
+
+async function resolveVehicleFromForm(data,{amount=0,occurredAt=null,currency='CHF'}={}) {
+  const selected=nullValue(data,'vehicleId');
+  if(selected){
+    if(!runtime.vehicles.some((row)=>row.id===selected)) throw new Error('Fahrzeug wurde nicht gefunden.');
+    return selected;
+  }
+  const name=String(formValue(data,'vehicleName')||'').trim();
+  if(!name) return null;
+  const type=formValue(data,'vehicleType')||'other';
+  const date=new Date(occurredAt||Date.now());
+  const purchaseDate=Number.isNaN(date.getTime())?null:date.toISOString().slice(0,10);
+  const semantic=formValue(data,'semanticType');
+  const purchaseValue=semantic==='asset_acquisition'?Math.abs(Number(amount||0)):0;
+  const created=await financeApi.createVehicle({
+    household_id:runtime.household.id,
+    name,
+    vehicle_type:type,
+    current_value:purchaseValue,
+    currency,
+    purchase_price:purchaseValue||null,
+    purchase_date:purchaseDate,
+    monthly_cost:0,
+    odometer_km:null,
+    license_plate:null,
+  });
+  return created?.id||null;
+}
+
+async function ensureCashAccount(currency, occurredAt) {
+  const existing=runtime.accounts.find((row)=>row.account_type==='cash'&&row.currency===currency&&!row.is_archived);
+  if(existing) return existing;
+  const event=new Date(occurredAt||Date.now());
+  const anchor=new Date((Number.isNaN(event.getTime())?Date.now():event.getTime())-1000).toISOString();
+  const created=await financeApi.createAccount({
+    household_id:runtime.household.id,
+    name:`Bargeld ${currency}`,
+    account_type:'cash',
+    institution_name:null,
+    currency,
+    balance_anchor_amount:0,
+    balance_anchor_at:anchor,
+    visibility:'private',
+  });
+  return {
+    ...created,
+    account_id:created?.id||created?.account_id,
+    current_balance:0,
+  };
+}
+
 function syncTransactionTransferEditor() {
   const form=document.querySelector('#transaction-edit');
   if(!form) return;
   const tx=runtime.transactions.find((row)=>row.id===form.querySelector('[name="transactionId"]')?.value);
   if(!tx) return;
-  const transfer=document.querySelector('#transactionEditDirection')?.value==='transfer';
+
+  const mode=document.querySelector('#transactionEditDirection')?.value||'expense';
+  const transfer=mode==='transfer';
+  const cashWithdrawal=mode==='cash_withdrawal';
+  const special=transfer||cashWithdrawal;
   const account=document.querySelector('#transactionEditAccount');
   const fields=document.querySelector('#transactionEditTransferFields');
   const other=document.querySelector('#transactionEditOtherAccount');
   const otherAmount=document.querySelector('#transactionEditOtherAmount');
   const otherAmountField=document.querySelector('#transactionEditOtherAmountField');
   const counterpart=document.querySelector('#transactionEditOtherTransaction');
-  if(fields) fields.hidden=!transfer;
-  if(account){ account.disabled=transfer; if(transfer) account.value=tx.account_id; }
-  if(other) other.required=transfer;
-  for(const name of ['categoryId','merchantId','counterparty','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports']){
+  const hint=document.querySelector('#transactionEditTransferHint');
+
+  if(fields) fields.hidden=!special;
+  if(account){ account.disabled=special; if(special) account.value=tx.account_id; }
+  if(other) other.required=special;
+
+  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','vehicleName','vehicleType','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports'];
+  for(const name of hiddenInTransfer){
     const input=form.querySelector(`[name="${name}"]`);
     if(!input) continue;
-    input.disabled=transfer;
+    input.disabled=special;
     const field=input.closest('.field');
-    if(field) field.hidden=transfer;
+    if(field) field.hidden=special;
   }
-  if(!transfer||!other||!counterpart) return;
-  for(const option of other.options){ if(option.value) option.disabled=option.value===tx.account_id; }
-  if(other.selectedOptions?.[0]?.disabled) other.value='';
+  const recurringToggle=document.querySelector('#transactionMakeRecurring');
+  if(recurringToggle){
+    recurringToggle.disabled=cashWithdrawal;
+    const recurringField=recurringToggle.closest('.field');
+    if(recurringField) recurringField.hidden=cashWithdrawal;
+    if(cashWithdrawal) recurringToggle.checked=false;
+  }
+  const recurringFields=document.querySelector('#transactionRecurringFields');
+  if(cashWithdrawal&&recurringFields) recurringFields.hidden=true;
+  else if(transfer&&recurringFields) recurringFields.hidden=!(recurringToggle?.checked);
+
+  if(!special||!other||!counterpart) return;
+
   const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+  for(const option of other.options){
+    if(!option.value) continue;
+    if(option.value==='__auto_cash__'){
+      option.hidden=!cashWithdrawal;
+      option.disabled=!cashWithdrawal;
+      continue;
+    }
+    const candidate=runtime.accounts.find((row)=>row.account_id===option.value);
+    if(cashWithdrawal){
+      option.hidden=!(candidate?.account_type==='cash'&&candidate.currency===currentAccount?.currency);
+      option.disabled=option.hidden;
+    } else {
+      option.hidden=false;
+      option.disabled=option.value===tx.account_id;
+    }
+  }
+
+  if(cashWithdrawal){
+    if(Number(tx.amount)>=0){
+      if(hint) hint.textContent='Ein Bargeldbezug muss ein Abgang vom Bankkonto sein.';
+    } else if(hint) {
+      hint.textContent='Bargeldbezug ist eine Umbuchung vom Bankkonto in dein Bargeld-Wallet – keine Ausgabe.';
+    }
+    if(!other.value||other.selectedOptions?.[0]?.disabled){
+      const cashAccount=runtime.accounts.find((row)=>row.account_type==='cash'&&row.currency===currentAccount?.currency&&!row.is_archived);
+      other.value=cashAccount?.account_id||'__auto_cash__';
+    }
+  } else if(other.selectedOptions?.[0]?.disabled) {
+    other.value='';
+  }
+
   const otherAccount=runtime.accounts.find((row)=>row.account_id===other.value);
+  if(other.value==='__auto_cash__'){
+    counterpart.replaceChildren(new Option('Bargeld-Wallet wird automatisch angelegt',''));
+    if(otherAmountField) otherAmountField.hidden=true;
+    if(otherAmount){ otherAmount.required=false; otherAmount.disabled=true; otherAmount.value=''; }
+    return;
+  }
+
   counterpart.replaceChildren(new Option(otherAccount?'Keine passende Bankbuchung – Gegenbuchung erstellen':'Zuerst Gegenkonto wählen',''));
   if(!currentAccount||!otherAccount) return;
   const sameCurrency=currentAccount.currency===otherAccount.currency;
@@ -1425,7 +1631,13 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditDescription').value=tx.description||'';
   document.querySelector('#transactionEditCategory').value=tx.category_id||'';
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
-  document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
+  document.querySelector('#transactionEditCounterparty').value=tx.counterparties?.name||tx.counterparty||'';
+  const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'';
+  const context=document.querySelector('#transactionEditContext'); if(context) context.value=tx.context_id||'';
+  const contextName=document.querySelector('#transactionEditContextName'); if(contextName) contextName.value='';
+  const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
+  const vehicleName=document.querySelector('#transactionEditVehicleName'); if(vehicleName) vehicleName.value='';
+  const vehicleType=document.querySelector('#transactionEditVehicleType'); if(vehicleType) vehicleType.value='motorcycle';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
@@ -1436,10 +1648,19 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const exclude=document.querySelector('#transactionEditExclude'); if(exclude) exclude.checked=tx.exclude_from_reports===true;
   const toggle=document.querySelector('#transactionMakeRecurring');
   const fields=document.querySelector('#transactionRecurringFields');
-  if (toggle) toggle.checked=recurring;
-  if (fields) fields.hidden=!recurring;
+  const linkedRule=(tx.recurring_rule_id&&runtime.recurringRules.find((row)=>row.id===tx.recurring_rule_id))||findMatchingRecurringRule(tx);
+  const recurringWanted=recurring||Boolean(linkedRule);
+  if (toggle) {
+    toggle.checked=recurringWanted;
+    toggle.dataset.matchRuleId=linkedRule?.id||'';
+  }
+  if (fields) fields.hidden=!recurringWanted||Boolean(linkedRule);
+  const recurringHint=document.querySelector('#transactionRecurringMatchHint');
+  if(recurringHint) recurringHint.textContent=linkedRule
+    ? `Bereits erkannt: ${linkedRule.description} · ${Number(linkedRule.amount).toFixed(2)} ${linkedRule.currency} · ${linkedRule.cadence}. Finance verknüpft die Buchung und erstellt keine zweite Regel.`
+    : 'Keine bestehende Wiederholung erkannt. Nur wenn aktiviert, wird eine neue Regel angelegt.';
   const next=document.querySelector('#transactionRecurringNextDate');
-  if (next) next.value=addMonthsToDate(tx.occurred_at,1);
+  if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
   const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
   const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
   const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1554,7 +1775,21 @@ async function handleForm(form) {
     const rawAmount=Math.abs(numberValue(data,'amount'));
     const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
     const merchantId=nullValue(data,'merchantId');
-    const categoryId=nullValue(data,'categoryId');
+    const explicitCategoryId=nullValue(data,'categoryId');
+    const counterpartyEntity=await resolveCounterpartyFromForm(data);
+    const contextId=await resolveContextFromForm(data);
+    const contextName=formValue(data,'contextName')||runtime.transactionContexts.find((row)=>row.id===contextId)?.name||'';
+    const categoryId=suggestedCategoryIdForTransaction({
+      explicitCategoryId,
+      merchantId,
+      description:formValue(data,'description'),
+      counterparty:nullValue(data,'counterparty'),
+      note:nullValue(data,'note'),
+      amount:direction==='expense'?-rawAmount:rawAmount,
+      semanticType:nullValue(data,'semanticType'),
+      contextName,
+    });
+    const vehicleId=await resolveVehicleFromForm(data,{amount:rawAmount,occurredAt,currency:account.currency});
     let tax=null;
     if (moduleEnabled('tax')) {
       const enabled=formValue(data,'taxRelevant')==='true';
@@ -1579,6 +1814,9 @@ async function handleForm(form) {
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
       categoryId, merchantId, merchants:runtime.merchants, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
+      counterpartyId:counterpartyEntity?.id||null,
+      contextId,
+      vehicleId,
       note:nullValue(data,'note'), semanticType:nullValue(data,'semanticType'),
       excludeFromReports:data.get('excludeFromReports')==='on', tax,
     });
@@ -1591,22 +1829,39 @@ async function handleForm(form) {
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
     if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
     if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
+
     const editDirection=formValue(data,'direction')||'expense';
-    if(editDirection==='transfer'){
+    if(['transfer','cash_withdrawal'].includes(editDirection)){
+      const cashWithdrawal=editDirection==='cash_withdrawal';
       const currentAccount=runtime.accounts.find((a)=>a.account_id===tx.account_id);
-      const otherAccount=runtime.accounts.find((a)=>a.account_id===formValue(data,'otherAccountId'));
-      if(!currentAccount||!otherAccount) throw new Error('Bitte das Gegenkonto der Umbuchung auswählen.');
+      if(!currentAccount) throw new Error('Konto der Buchung wurde nicht gefunden.');
+      if(cashWithdrawal&&Number(tx.amount)>=0) throw new Error('Ein Bargeldbezug muss ein Abgang vom Bankkonto sein.');
+
+      const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+      let otherAccountId=formValue(data,'otherAccountId');
+      let otherAccount=null;
+      if(cashWithdrawal&&otherAccountId==='__auto_cash__'){
+        otherAccount=await ensureCashAccount(currentAccount.currency,occurredAt);
+        otherAccountId=otherAccount?.account_id;
+      } else {
+        otherAccount=runtime.accounts.find((a)=>a.account_id===otherAccountId);
+      }
+      if(!otherAccount) throw new Error(cashWithdrawal?'Bitte ein Bargeld-Wallet auswählen.':'Bitte das Gegenkonto der Umbuchung auswählen.');
       if(currentAccount.account_id===otherAccount.account_id) throw new Error('Die Umbuchung braucht zwei verschiedene Konten.');
+      if(cashWithdrawal&&otherAccount.account_type!=='cash') throw new Error('Ein Bargeldbezug muss auf ein Bargeld-Wallet gebucht werden.');
+      if(cashWithdrawal&&otherAccount.currency!==currentAccount.currency) throw new Error('Bargeldbezug und Bargeld-Wallet müssen dieselbe Währung haben.');
+
       const currentAmount=Math.abs(numberValue(data,'amount'));
       if(!(currentAmount>0)) throw new Error('Der Betrag muss grösser als 0 sein.');
       const sameCurrency=currentAccount.currency===otherAccount.currency;
       const otherAmount=sameCurrency?null:Math.abs(numberValue(data,'otherAmount'));
       if(!sameCurrency&&!(otherAmount>0)) throw new Error('Bitte den Betrag auf dem Gegenkonto angeben.');
-      const makeRecurring=data.get('makeRecurring')==='on';
+
+      const makeRecurring=!cashWithdrawal&&data.get('makeRecurring')==='on';
       if(makeRecurring&&!sameCurrency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
-      const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
-      const description=formValue(data,'description')||'Umbuchung';
-      await financeApi.convertTransactionToTransferV2({
+      const description=formValue(data,'description')||tx.description||(cashWithdrawal?'Bargeldbezug':'Umbuchung');
+
+      const transferGroupId=await financeApi.convertTransactionToTransferV2({
         householdId:h,
         transactionId:tx.id,
         otherAccountId:otherAccount.account_id,
@@ -1617,44 +1872,91 @@ async function handleForm(form) {
         description,
         note:formValue(data,'note'),
       });
-      let recurringSaved=false;
+
+      let recurringRule=null;
+      let recurringCreated=false;
       if(makeRecurring){
         const currentOutgoing=Number(tx.amount)<0;
         const sourceAccount=currentOutgoing?currentAccount:otherAccount;
         const destinationAccount=currentOutgoing?otherAccount:currentAccount;
-        const recurringPayload={
-          household_id:h,
-          account_id:sourceAccount.account_id,
-          destination_account_id:destinationAccount.account_id,
-          category_id:null,
-          merchant_id:null,
-          direction:'transfer',
-          description,
-          counterparty:null,
-          amount:currentAmount,
-          currency:sourceAccount.currency,
-          cadence:formValue(data,'recurringCadence')||'monthly',
-          next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
-          active:true,
-        };
-        const existing=runtime.recurringRules.find((rule)=>rule.direction==='transfer'&&rule.account_id===sourceAccount.account_id&&rule.destination_account_id===destinationAccount.account_id&&Math.abs(Number(rule.amount)-currentAmount)<0.01);
-        if(existing) await financeApi.updateRecurringRule(existing.id,recurringPayload);
-        else await financeApi.createRecurringRule(recurringPayload);
-        recurringSaved=true;
+        recurringRule=runtime.recurringRules.find((rule)=>
+          rule.active!==false
+          && rule.direction==='transfer'
+          && rule.account_id===sourceAccount.account_id
+          && rule.destination_account_id===destinationAccount.account_id
+          && Math.abs(Number(rule.amount)-currentAmount)<0.01
+        )||null;
+        if(!recurringRule){
+          recurringRule=await financeApi.createRecurringRule({
+            household_id:h,
+            account_id:sourceAccount.account_id,
+            destination_account_id:destinationAccount.account_id,
+            category_id:null,
+            merchant_id:null,
+            direction:'transfer',
+            description,
+            counterparty:null,
+            amount:currentAmount,
+            currency:sourceAccount.currency,
+            cadence:formValue(data,'recurringCadence')||'monthly',
+            next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
+            active:true,
+          });
+          recurringCreated=Boolean(recurringRule?.id);
+        }
+        if(recurringRule?.id) await financeApi.updateTransaction(tx.id,{recurring_rule_id:recurringRule.id});
       }
+
       const currentOutgoing=Number(tx.amount)<0;
       const from=currentOutgoing?currentAccount:otherAccount;
       const to=currentOutgoing?otherAccount:currentAccount;
-      await refresh(recurringSaved
-        ? `Umbuchung ${from.name} → ${to.name} korrigiert und als wiederkehrend gespeichert.`
-        : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`);
+      const message=cashWithdrawal
+        ? `Bargeldbezug korrekt als Umbuchung ${from.name} → ${to.name} gespeichert. Keine Ausgabe wurde erzeugt.`
+        : recurringRule
+          ? recurringCreated
+            ? `Umbuchung ${from.name} → ${to.name} gespeichert und neue Wiederholung angelegt.`
+            : `Umbuchung ${from.name} → ${to.name} gespeichert und mit bestehender Wiederholung verknüpft.`
+          : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`;
+      void transferGroupId;
+      await refresh(message);
       return;
     }
+
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
-    const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
+    const amount=Math.abs(numberValue(data,'amount'))*(editDirection==='expense'?-1:1);
     const merchantId=nullValue(data,'merchantId');
-    const patch={ account_id:account.account_id, category_id:merchantDefaultCategory(merchantId,nullValue(data,'categoryId'),runtime.merchants), merchant_id:merchantId, occurred_at:financeEventTimestamp(formValue(data,'occurredAt')), amount, currency:account.currency, description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'), note:nullValue(data,'note'), semantic_type:nullValue(data,'semanticType'), exclude_from_reports:data.get('excludeFromReports')==='on' };
+    const counterpartyEntity=await resolveCounterpartyFromForm(data);
+    const contextId=await resolveContextFromForm(data);
+    const editOccurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+    const vehicleId=await resolveVehicleFromForm(data,{amount:Math.abs(amount),occurredAt:editOccurredAt,currency:account.currency});
+
+    const patch={
+      account_id:account.account_id,
+      category_id:suggestedCategoryIdForTransaction({
+        explicitCategoryId:nullValue(data,'categoryId'),
+        merchantId,
+        description:formValue(data,'description'),
+        counterparty:nullValue(data,'counterparty'),
+        note:nullValue(data,'note'),
+        amount,
+        semanticType:nullValue(data,'semanticType'),
+        contextName:formValue(data,'contextName')||runtime.transactionContexts.find((row)=>row.id===contextId)?.name||'',
+      }),
+      merchant_id:merchantId,
+      counterparty_id:counterpartyEntity?.id||null,
+      context_id:contextId,
+      vehicle_id:vehicleId,
+      occurred_at:editOccurredAt,
+      amount,
+      currency:account.currency,
+      description:formValue(data,'description'),
+      counterparty:nullValue(data,'counterparty'),
+      note:nullValue(data,'note'),
+      semantic_type:nullValue(data,'semanticType'),
+      exclude_from_reports:data.get('excludeFromReports')==='on'
+    };
+
     if (moduleEnabled('tax')) {
       patch.tax_relevant=formValue(data,'taxRelevant')==='true';
       patch.tax_category=patch.tax_relevant?nullValue(data,'taxCategory'):null;
@@ -1668,19 +1970,55 @@ async function handleForm(form) {
         patch.tax_year=null; patch.tax_treatment=null; patch.tax_section_key=null;
       }
     }
-    await financeApi.updateTransaction(transactionId,patch);
-    let recurringSaved = false;
-    if (data.get('makeRecurring') === 'on') {
-      const direction = amount < 0 ? 'expense' : 'income';
-      const recurringPayload = { household_id:h, account_id:account.account_id, category_id:patch.category_id, merchant_id:patch.merchant_id, direction, description:patch.description, counterparty:patch.counterparty, amount:Math.abs(amount), currency:account.currency, cadence:formValue(data,'recurringCadence')||'monthly', next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1), active:true };
-      const existing = runtime.recurringRules.find((r)=>r.account_id===account.account_id && r.direction===direction && r.description.trim().toLowerCase()===patch.description.trim().toLowerCase() && Math.abs(Number(r.amount)-Math.abs(amount))<0.01);
-      if (existing) await financeApi.updateRecurringRule(existing.id, recurringPayload);
-      else await financeApi.createRecurringRule(recurringPayload);
-      recurringSaved = true;
-    }
-    await refresh(recurringSaved ? 'Transaktion korrigiert und unter Wiederkehrend übernommen.' : 'Transaktion korrigiert.'); return;
-  }
 
+    const makeRecurring=data.get('makeRecurring')==='on';
+    let recurringRule=null;
+    let recurringCreated=false;
+    if(makeRecurring){
+      const hintedId=document.querySelector('#transactionMakeRecurring')?.dataset.matchRuleId||'';
+      recurringRule=runtime.recurringRules.find((rule)=>rule.id===hintedId)
+        || findMatchingRecurringRule({...tx,...patch})
+        || null;
+      if(recurringRule){
+        patch.recurring_rule_id=recurringRule.id;
+      }
+    } else {
+      patch.recurring_rule_id=null;
+    }
+
+    await financeApi.updateTransaction(transactionId,patch);
+
+    if(makeRecurring&&!recurringRule){
+      const direction=amount<0?'expense':'income';
+      recurringRule=await financeApi.createRecurringRule({
+        household_id:h,
+        account_id:account.account_id,
+        category_id:patch.category_id,
+        merchant_id:patch.merchant_id,
+        direction,
+        description:patch.description,
+        counterparty:patch.counterparty,
+        amount:Math.abs(amount),
+        currency:account.currency,
+        cadence:formValue(data,'recurringCadence')||'monthly',
+        next_date:formValue(data,'recurringNextDate')||addMonthsToDate(patch.occurred_at,1),
+        active:true
+      });
+      if(recurringRule?.id){
+        recurringCreated=true;
+        await financeApi.updateTransaction(transactionId,{recurring_rule_id:recurringRule.id});
+      }
+    }
+
+    await refresh(
+      recurringRule
+        ? recurringCreated
+          ? 'Transaktion korrigiert und neue wiederkehrende Zahlung angelegt.'
+          : 'Transaktion korrigiert und mit der bereits vorhandenen wiederkehrenden Zahlung verknüpft.'
+        : 'Transaktion korrigiert.'
+    );
+    return;
+  }
   if (id === 'transfer-create') {
     const from = runtime.accounts.find((a)=>a.account_id===formValue(data,'fromAccountId'));
     const to = runtime.accounts.find((a)=>a.account_id===formValue(data,'toAccountId'));
@@ -1727,6 +2065,15 @@ async function handleForm(form) {
     if(!key) throw new Error('Bitte einen gültigen Händlernamen eingeben.');
     const duplicate=runtime.merchants.find((row)=>row.id!==merchantId && row.normalized_key===key);
     if(duplicate) throw new Error('Ein anderer Händler verwendet diesen Namen bereits.');
+    if(merchant.normalized_key!==key){
+      await financeApi.upsertMerchantAlias({
+        household_id:h,
+        merchant_id:merchant.id,
+        alias_name:merchant.name,
+        normalized_key:merchant.normalized_key,
+        payment_processor:null,
+      });
+    }
     const updated=await financeApi.updateMerchant(merchantId,{
       name,
       normalized_key:key,
@@ -2385,24 +2732,44 @@ async function handleForm(form) {
     try {
       const prepared = [];
       const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
+      const aliasCache = [...runtime.merchantAliases];
       for (const row of importState.parsed.rows) {
         const tx = rowToTransaction(row,mapping);
         if (!tx) continue;
         const merchantInfo = merchantFromTransaction(tx);
-        const existingMerchant = merchantCache.get(merchantInfo.key);
-        const selectedCategory = categorySelections.has(merchantInfo.key) ? categorySelections.get(merchantInfo.key) : null;
-        const knownCategoryName=suggestKnownCategoryName(tx); const knownCategory=knownCategoryName?runtime.categories.find((c)=>c.name===knownCategoryName&&c.kind===(Number(tx.amount)<0?'expense':'income')):null; const fallbackCategory = existingMerchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+        let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+        const groupKey=merchant?.normalized_key||merchantInfo.key;
+        const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
+        const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+        const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+        const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
         const categoryId = selectedCategory || fallbackCategory;
-        let merchant = existingMerchant;
         if (!merchant) {
           merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
-          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
         } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
-          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId, name:merchantInfo.name });
-          if (merchant) merchantCache.set(merchantInfo.key,merchant);
+          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
+          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
         }
+        if(merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+          const alias=await financeApi.upsertMerchantAlias({
+            household_id:h,
+            merchant_id:merchant.id,
+            alias_name:merchantInfo.rawName||merchantInfo.name,
+            normalized_key:merchantInfo.aliasKey,
+            payment_processor:merchantInfo.paymentProcessor||null,
+          });
+          if(alias) aliasCache.push(alias);
+        }
+        const recurringRule=findMatchingRecurringRule({
+          ...tx,
+          account_id:accountId,
+          category_id:categoryId,
+          merchant_id:merchant?.id||null,
+          currency:account.currency||currency,
+        });
         const externalReference = await transactionFingerprint(accountId,tx);
-        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, recurring_rule_id:recurringRule?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
       }
       const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
       if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
@@ -2442,7 +2809,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -2453,6 +2820,18 @@ async function handleAction(target) {
       Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
     ].filter(Boolean);
     await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    return;
+  }
+  if (action === 'merchant-merge') {
+    const canonical=runtime.merchants.find((row)=>row.id===target.dataset.canonicalId);
+    const duplicate=runtime.merchants.find((row)=>row.id===target.dataset.duplicateId);
+    if(!canonical||!duplicate) throw new Error('Händler für die Zusammenführung wurden nicht gefunden.');
+    await financeApi.mergeMerchants({
+      householdId:runtime.household.id,
+      canonicalMerchantId:canonical.id,
+      duplicateMerchantId:duplicate.id,
+    });
+    await refresh(`${duplicate.name} wurde als Alias von ${canonical.name} zusammengeführt. Bestehende Banktexte bleiben erhalten.`);
     return;
   }
   if (action === 'merchant-promote-master') {
@@ -2632,6 +3011,16 @@ async function handleAction(target) {
       await financeApi.updateTransaction(tx.id,{tax_relevant:false,tax_category:null,tax_year:null,tax_treatment:null,tax_section_key:null});
     }
     await refresh(value?'Als steuerrelevant markiert und mit dem Steuerjahr verknüpft.':'Steuermarkierung entfernt.'); return;
+  }
+  if (action === 'transaction-cash-withdrawal') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
+    openTransactionEditor(tx);
+    const direction=document.querySelector('#transactionEditDirection');
+    if(direction) direction.value='cash_withdrawal';
+    syncTransactionTransferEditor();
+    document.querySelector('#transaction-edit')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
   }
   if (action === 'transaction-to-transfer') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); const to=runtime.accounts.find((a)=>a.account_id===target.dataset.toAccount); if(!tx||!to) throw new Error('Buchung oder Zielkonto fehlt.');
@@ -2824,7 +3213,7 @@ async function handleAction(target) {
     uiState.transactionCategory=target.dataset.category||'all'; uiState.transactionPeriod='all'; uiState.transactionView='details'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-filter-reset') {
-    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
+    uiState.transactionQuery=''; uiState.transactionCategory='all'; uiState.transactionCategoryIds=[]; uiState.transactionSourceSet=[]; uiState.transactionAccount='all'; uiState.transactionContext='all'; uiState.transactionVehicle='all'; uiState.transactionDirection='all'; uiState.transactionSemantic='all'; uiState.transactionFrom=''; uiState.transactionTo=''; uiState.transactionPeriod='month'; uiState.transactionPage=1; render(); return;
   }
   if (action === 'transaction-page') { uiState.transactionPage=Math.max(1,Number(target.dataset.page)||1); render(); return; }
   if (action === 'goal-apply-suggestion') {
@@ -3284,6 +3673,8 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionViewSelect') { uiState.transactionView=target.value||'summary'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionCategoryFilter') { uiState.transactionCategory=target.value||'all'; uiState.transactionCategoryIds=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionAccountFilter') { uiState.transactionAccount=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionContextFilter') { uiState.transactionContext=target.value||'all'; uiState.transactionPage=1; render(); return; }
+    if (target.id === 'transactionVehicleFilter') { uiState.transactionVehicle=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionSourceSet=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
@@ -3405,7 +3796,16 @@ pageContent.addEventListener('change', async (event) => {
       await financeApi.createDocument({household_id:runtime.household.id,object_type:'transaction',object_id:tx.id,name:file.name,storage_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,document_date:dateInputValue(new Date(tx.occurred_at)),notes:'Quittung zur Transaktion',tax_relevant:true,tax_year:new Date(tx.occurred_at).getFullYear(),tax_category:tx.tax_category||null});
       uiState.taxReceiptTxId=null; await refresh('Quittung gespeichert und mit der Transaktion verknüpft.'); return;
     }
-    if (target.id === 'transactionMakeRecurring') { const fields=document.querySelector('#transactionRecurringFields'); if (fields) fields.hidden=!target.checked; return; }
+    if (target.id === 'transactionMakeRecurring') {
+      const fields=document.querySelector('#transactionRecurringFields');
+      const matched=Boolean(target.dataset.matchRuleId);
+      if (fields) fields.hidden=!target.checked||matched;
+      const hint=document.querySelector('#transactionRecurringMatchHint');
+      if(hint&&matched) hint.textContent=target.checked
+        ? 'Diese Buchung wird mit der bereits erkannten Wiederholung verknüpft. Es entsteht keine zweite Regel.'
+        : 'Die erkannte Wiederholung bleibt bestehen; diese einzelne Buchung wird nicht damit verknüpft.';
+      return;
+    }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
     if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
