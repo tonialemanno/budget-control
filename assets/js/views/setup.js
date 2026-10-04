@@ -31,6 +31,18 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
   if(!canWrite) return '';
   const accountOptions=accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const expenseCategories=categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const fixedCostPresets=[
+    ['Miete','Miete'],
+    ['Krankenkasse','Krankenkasse'],
+    ['Kinderunterhalt / Alimente','Kinderunterhalt / Alimente'],
+    ['Telefon & Internet','Telefon & Internet'],
+    ['Versicherungen','Versicherungen'],
+    ['Steuern','Steuern'],
+    ['Haushaltsabgaben','Haushaltsabgaben'],
+  ].map(([label,categoryName])=>{
+    const category=categories.find((c)=>c.kind==='expense'&&c.name===categoryName);
+    return category?`<option value="${category.id}" data-description="${escapeHtml(label)}">${escapeHtml(label)}</option>`:'';
+  }).join('');
   const incomeRules=recurringRules.filter((r)=>r.active!==false&&r.direction==='income');
   const expenseRules=recurringRules.filter((r)=>r.active!==false&&r.direction==='expense');
   const next=dateInputValue();
@@ -54,11 +66,12 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
       <details class="setup-inline-panel">
         <summary>Fixkosten hinzufügen</summary>
         <form class="form-grid form-grid--2 setup-inline-form" id="setup-expense-create" data-form="setup-expense-create">
-          <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" name="description" required placeholder="z. B. Miete"></label>
+          <label class="field"><span>Typische Position</span><select class="text-control" id="setupExpensePreset"><option value="">Frei erfassen</option>${fixedCostPresets}</select><small>Finance füllt Bezeichnung und Kategorie vor. Du kannst beides danach ändern.</small></label>
+          <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" id="setupExpenseDescription" name="description" required placeholder="z. B. Miete"></label>
           <label class="field"><span>Empfänger</span><input class="text-control" name="counterparty" placeholder="z. B. UZON"><small>Optional. Neue Empfänger werden bei Bedarf automatisch als Händler angelegt.</small></label>
           <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
           <label class="field"><span>Von Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
-          <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" required><option value="">Bitte wählen</option>${expenseCategories}</select></label>
+          <label class="field"><span>Kategorie</span><select class="text-control" id="setupExpenseCategory" name="categoryId" required><option value="">Bitte wählen</option>${expenseCategories}</select></label>
           <label class="field"><span>Nächster Zahlungstermin</span><input class="text-control" name="nextDate" type="date" value="${next}" required></label>
           <div class="field form-grid-span"><button class="action-button action-button--primary" type="submit">Fixkosten speichern</button></div>
         </form>
