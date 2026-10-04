@@ -17,7 +17,8 @@ function monthsBetweenInclusive(start,end) {
   const a=start instanceof Date?start:new Date(start);
   const b=end instanceof Date?end:new Date(end);
   if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())||b<a) return 1;
-  return Math.max(1,(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+1);
+  const inclusiveDays=Math.max(1,(b.getTime()-a.getTime()+86400000)/86400000);
+  return Math.max(1,inclusiveDays/(365.2425/12));
 }
 
 function moneyBase(value,currency,baseCurrency,fxRates){
@@ -26,6 +27,10 @@ function moneyBase(value,currency,baseCurrency,fxRates){
 
 function merchantText(merchant){
   return normalized(`${merchant?.name||''} ${merchant?.normalized_key||''}`);
+}
+function sharesDistinctiveToken(left,right) {
+  const a=new Set(normalized(left).split(' ').filter((token)=>token.length>=5));
+  return normalized(right).split(' ').some((token)=>token.length>=5&&a.has(token));
 }
 
 export function transactionMatchesRecurringExpense(tx,rules=[]) {
@@ -175,7 +180,7 @@ export function budgetIsFixed(budget,recurringRules=[],merchants=[]) {
     if(budget.merchant_id&&rule.merchant_id===budget.merchant_id) return true;
 
     const ruleText=normalized(`${rule.description||''} ${rule.counterparty||''} ${rule.merchants?.name||''}`);
-    if(merchantName&&ruleText&&(ruleText.includes(merchantName)||merchantName.includes(ruleText))) return true;
+    if(merchantName&&ruleText&&(ruleText.includes(merchantName)||merchantName.includes(ruleText)||sharesDistinctiveToken(merchantName,ruleText))) return true;
 
     if(categoryId&&rule.category_id===categoryId){
       const amount=Math.abs(Number(rule.amount||0));
