@@ -1,3 +1,30 @@
+# Finance 2.4.0 Stable
+
+## Stable 2.4.0 – Händler, Gegenparteien und Geldbewegungen mit echter Bedeutung
+
+Dieser Release erweitert den Finanzkern um eine saubere Trennung zwischen Händler, Person/Gegenpartei, Zahlungsweg, Kontext und wirtschaftlicher Bedeutung einer Buchung.
+
+### Zentrale Regeln
+
+- Händler werden kanonisch geführt. Abweichende Banktexte können als Aliase auf denselben Händler zeigen; die originale Bankbeschreibung bleibt unverändert erhalten.
+- Erkannte Händler-Dubletten können kontrolliert zusammengeführt werden. Buchungen, Fixkosten und Budgets werden dabei auf den Zielhändler umgehängt.
+- Zahlungsabwickler wie SumUp werden nicht automatisch als Händler behandelt. Wenn der tatsächliche Händler aus dem Banktext erkennbar ist, wird dieser verwendet.
+- Personen wie Familienmitglieder oder private TWINT-Empfänger werden als Gegenparteien statt als Händler geführt.
+- Transaktionen können einen Kontext wie Reise, Familie, Projekt, Arbeit oder Fahrzeug tragen. Damit bleiben Kategorie und Anlass voneinander getrennt.
+- Bargeldbezüge sind interne Umbuchungen vom Bankkonto auf die passende Kasse und keine Konsumausgabe.
+- Fahrzeugkauf, Mietfahrzeug sowie Wartung & Reparatur sind eigene Mobilitätskategorien; ein Fahrzeug kann direkt aus einer Buchung angelegt und verknüpft werden.
+- Wiederkehrende Zahlungen werden vor dem Anlegen gegen vorhandene Regeln geprüft. Passende Regeln werden verknüpft statt dupliziert.
+- Schweizer Stammdaten enthalten Restaurant & Café, Lotterie & Gewinnspiele, Haushaltsabgaben, Mietfahrzeug, Fahrzeugkauf, Wartung & Reparatur sowie Geschenke & Gedenken.
+- Swisslos wird als Lotterie & Gewinnspiele geführt, Elvetino als Restaurant & Café, Serafe als Haushaltsabgabe und EDEKA als Supermarkt.
+- Die Release-Kompatibilität wurde auf Schema 2026100403 / Release 2026.10.04-r4 angehoben.
+
+### Bestehende Daten
+
+- Bestehende Bankbeschreibungen werden nicht überschrieben.
+- Händler-Aliase und semantische Verknüpfungen ergänzen die Rohdaten statt sie zu ersetzen.
+- Bestehende Transfers, Kontostände und historische Imports bleiben erhalten.
+
+---
 # Finance 2.3.0 Stable
 
 ## Stable 2.3.0 – konsolidierter Finanzkern
