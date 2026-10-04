@@ -160,20 +160,34 @@ export function normalizeMerchantKey(value) {
     .replace(/\s+/g, ' ');
 }
 
-function stripPaymentProcessor(value) {
+function stripPaymentProcessor(value, rawContext='') {
   let text=String(value||'').trim();
-  let paymentProcessor=null;
+  let paymentProcessor=/\btwint\b/i.test(String(rawContext||value||''))?'TWINT':null;
+
   const sumup=text.match(/(?:^|\b)(?:bezug\s+)?sumup\s*\*\s*(.+)$/i);
   if(sumup?.[1]){
     paymentProcessor='SumUp';
     text=sumup[1].trim();
   }
-  const twint=text.match(/(?:^|\b)twint\s*[:*\-]\s*(.+)$/i);
-  if(twint?.[1]){
-    paymentProcessor=paymentProcessor||'TWINT';
-    text=twint[1].trim();
+
+  const twintPrefix=text.match(/^(?:ubs\s+)?twint\s*[:*\-]?\s*(.+)$/i);
+  if(twintPrefix?.[1]) {
+    paymentProcessor='TWINT';
+    text=twintPrefix[1].trim();
   }
+
+  text=text
+    .replace(/\s*(?:[-/]|\s)\s*(?:ubs\s+)?twint\b.*$/i,'')
+    .replace(/\s*\b(?:zahlung|belastung|gutschrift|eingang|ausgang|uebertrag|übertrag)\b\s+(?:ubs\s+)?twint\b.*$/i,'')
+    .trim();
+
   return {text,paymentProcessor};
+}
+
+function isPaymentNoisePart(value) {
+  const text=String(value||'').trim();
+  if(!text) return true;
+  return /^(?:zahlung|belastung|gutschrift|eingang|ausgang|uebertrag|übertrag|buchung|ubs(?:\s+twint)?|twint)(?:\b|\s)/i.test(text);
 }
 
 function stripVolatileMerchantSuffix(value) {
@@ -192,7 +206,16 @@ function stripVolatileMerchantSuffix(value) {
 
 function canonicalMerchantIdentity(name) {
   const text=String(name||'').trim();
+  if(/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i.test(text)) return {name:'Migros Restaurant',key:'migros restaurant'};
+  if(/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i.test(text)) return {name:'Coop Restaurant',key:'coop restaurant'};
+  if(/\bsbb\b|\bcff\b|\bffs\b/i.test(text)) return {name:'SBB',key:'sbb'};
   if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\bmigros\b/i.test(text)) return {name:'Migros',key:'migros'};
+  if(/\bcoop\b/i.test(text)) return {name:'Coop',key:'coop'};
+  if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner'};
+  if(/\baldi\b/i.test(text)) return {name:'Aldi Suisse',key:'aldi suisse'};
+  if(/\blidl\b/i.test(text)) return {name:'Lidl',key:'lidl'};
+  if(/\bparkingpay\b/i.test(text)) return {name:'ParkingPay',key:'parkingpay'};
   if(/\bswisslos\b|euro\s*millions?|eurodreams?/i.test(text)) return {name:'Swisslos',key:'swisslos'};
   if(/\belvetino\b/i.test(text)) return {name:'Elvetino',key:'elvetino'};
   if(/\bserafe\b/i.test(text)) return {name:'Serafe',key:'serafe'};
@@ -204,15 +227,17 @@ export function merchantFromTransaction(tx) {
   const raw = String(tx?.counterparty || tx?.description || '').trim();
   const parts = raw.split(';').map((part)=>part.trim()).filter(Boolean);
   let merchantRaw = parts[0] || raw;
-  if (
-    parts.length > 1
-    && !/^bezug\s+sumup\b/i.test(merchantRaw)
-    && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|bezug)\b/i.test(merchantRaw)
-  ) {
-    merchantRaw = parts[1] || merchantRaw;
+
+  if(parts.length>1){
+    const meaningful=parts.find((part)=>!isPaymentNoisePart(part));
+    if(isPaymentNoisePart(merchantRaw) && meaningful) merchantRaw=meaningful;
+    else if(
+      !/^bezug\s+sumup\b/i.test(merchantRaw)
+      && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|gutschrift|eingang|ausgang|bezug)\b/i.test(merchantRaw)
+    ) merchantRaw=meaningful||parts[1]||merchantRaw;
   }
 
-  const processor=stripPaymentProcessor(merchantRaw);
+  const processor=stripPaymentProcessor(merchantRaw,raw);
   merchantRaw=processor.text||merchantRaw;
 
   let name = merchantRaw
