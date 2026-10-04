@@ -323,37 +323,45 @@ function closeQuickAdd() {
   document.body.classList.remove('quick-add-open');
 }
 
-function applyRouteIntent(route) {
+function routeQueryParams() {
   const query=(location.hash.split('?')[1]||'').trim();
-  if(!query) return;
-  const params=new URLSearchParams(query);
-  const create=params.get('create');
+  return query ? new URLSearchParams(query) : null;
+}
+
+function applyRouteQueryState(route) {
+  if(route!=='transactions') return;
+  const params=routeQueryParams();
+  if(!params) return;
+
+  const period=params.get('period');
+  const view=params.get('view');
+  const search=params.get('query');
+  const category=params.get('category');
+  const categories=params.get('categories');
+  const incomeKind=params.get('incomeKind');
+  const from=params.get('from');
+  const to=params.get('to');
   const accountId=params.get('account');
 
-  if(route==='transactions'){
-    const period=params.get('period');
-    const view=params.get('view');
-    const search=params.get('query');
-    const category=params.get('category');
-    const categories=params.get('categories');
-    const incomeKind=params.get('incomeKind');
-    const from=params.get('from');
-    const to=params.get('to');
+  if(period&&['month','quarter','year','all','custom'].includes(period)) uiState.transactionPeriod=period;
+  if(view&&['summary','details'].includes(view)) uiState.transactionView=view;
+  if(search!==null) uiState.transactionQuery=search;
+  if(category!==null) uiState.transactionCategory=category||'all';
+  if(categories!==null) uiState.transactionCategories=categories.split(',').map((value)=>value.trim()).filter(Boolean);
+  if(incomeKind!==null) uiState.transactionIncomeKind=incomeKind||'all';
+  if(from!==null){ uiState.transactionFrom=from; if(!period) uiState.transactionPeriod='custom'; }
+  if(to!==null){ uiState.transactionTo=to; if(!period) uiState.transactionPeriod='custom'; }
+  if(accountId&&runtime.accounts.some((row)=>row.account_id===accountId)) uiState.transactionAccount=accountId;
+  uiState.transactionPage=1;
+}
 
-    if(period&&['month','quarter','year','all','custom'].includes(period)) uiState.transactionPeriod=period;
-    if(view&&['summary','details'].includes(view)) uiState.transactionView=view;
-    if(search!==null) uiState.transactionQuery=search;
-    if(category!==null) uiState.transactionCategory=category||'all';
-    if(categories!==null) uiState.transactionCategories=categories.split(',').map((value)=>value.trim()).filter(Boolean);
-    if(incomeKind!==null) uiState.transactionIncomeKind=incomeKind||'all';
-    if(from!==null){ uiState.transactionFrom=from; if(!period) uiState.transactionPeriod='custom'; }
-    if(to!==null){ uiState.transactionTo=to; if(!period) uiState.transactionPeriod='custom'; }
-    if(accountId&&runtime.accounts.some((row)=>row.account_id===accountId)) uiState.transactionAccount=accountId;
-    uiState.transactionPage=1;
-  }
+function applyRouteIntent(route) {
+  const params=routeQueryParams();
+  if(!params) return;
+  const create=params.get('create');
+  const accountId=params.get('account');
+  if(!create||!canWriteHousehold()) return;
 
-  if(!create) return;
-  if(!canWriteHousehold()) return;
   history.replaceState(null,'',`#/${route}`);
 
   if(route==='transactions'&&create==='receipt'){
@@ -706,6 +714,7 @@ function render() {
   pageTitle.textContent = t(meta.title);
   pageEyebrow.textContent = t(meta.eyebrow);
   document.title = `${t(meta.title)} · Finance`;
+  applyRouteQueryState(route);
   const renderer = views[route] || views.overview;
   pageContent.innerHTML = renderer({
     ...runtime,
@@ -726,6 +735,8 @@ function render() {
     transactionPeriod: uiState.transactionPeriod,
     transactionQuery: uiState.transactionQuery,
     transactionCategory: uiState.transactionCategory,
+    transactionCategories: uiState.transactionCategories,
+    transactionIncomeKind: uiState.transactionIncomeKind,
     transactionAccount: uiState.transactionAccount,
     transactionFrom: uiState.transactionFrom,
     transactionTo: uiState.transactionTo,
