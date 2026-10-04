@@ -298,3 +298,57 @@ export function buildFinanceCoach({
     insights:insights.slice(0,4),
   };
 }
+
+
+export function buildBudgetDecisionGuide({
+  categoryId=null,
+  merchantId=null,
+  budgets=[],
+  transactions=[],
+  debtPayments=[],
+  categories=[],
+  merchants=[],
+  recurringRules=[],
+  accounts=[],
+  household,
+  fxRates=null,
+  now=new Date(),
+}={}){
+  if(!categoryId&&!merchantId) return {found:false};
+
+  const baseCurrency=household?.base_currency||'CHF';
+  const budget=calculateBudgetSummary({
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
+    baseCurrency,fxRates,now,fallbackDay:25,
+  });
+  const lineageIds=new Set();
+  if(categoryId){
+    const byId=new Map(categories.map((row)=>[row.id,row]));
+    let current=byId.get(categoryId)||null;
+    const seen=new Set();
+    while(current&&!seen.has(current.id)){
+      lineageIds.add(current.id);
+      seen.add(current.id);
+      current=current.parent_id?byId.get(current.parent_id)||null:null;
+    }
+  }
+
+  const row=budget.variableRows.find((item)=>merchantId&&item.merchant_id===merchantId)
+    || budget.variableRows.find((item)=>item.category_id&&lineageIds.has(item.category_id))
+    || null;
+  if(!row) return {found:false,budget};
+
+  const amount=Math.max(0,Number(row.amount||0));
+  const spent=Math.max(0,Number(row.spent||0));
+  const remaining=Math.max(0,amount-spent);
+  return {
+    found:true,
+    label:row.merchants?.name||row.categories?.name||'Budget',
+    amount,
+    spent,
+    remaining,
+    percent:amount>0?Math.min(999,spent/amount*100):0,
+    inherited:Boolean(row._inherited),
+    budget,
+  };
+}
