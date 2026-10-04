@@ -3606,11 +3606,15 @@ async function handleAction(target) {
     document.querySelector('#recurringEditId').value=rule.id;
     document.querySelector('#recurringEditDirection').value=rule.direction||'expense';
     document.querySelector('#recurringEditAmount').value=rule.amount||0;
+    document.querySelector('#recurringEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#recurringEditAccount').value=rule.account_id||'';
     document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#recurringEditCategory').value=rule.category_id||'';
     document.querySelector('#recurringEditDescription').value=rule.description||'';
     document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#recurringEditInterval').value=rule.interval_months||1;
+    const recurringIntervalField=document.querySelector('#recurringEditIntervalField');
+    if(recurringIntervalField) recurringIntervalField.hidden=(rule.cadence||'monthly')!=='monthly';
     document.querySelector('#recurringEditNextDate').value=rule.next_date||'';
     document.querySelector('#recurringEditEndDate').value=rule.end_date||'';
     document.querySelector('#recurringEditActive').value=rule.active===false?'false':'true';
@@ -3632,11 +3636,21 @@ async function handleAction(target) {
     document.querySelector('#fixedCostEditDirection').value=rule.direction||'expense';
     document.querySelector('#fixedCostEditDescription').value=rule.description||'';
     document.querySelector('#fixedCostEditAmount').value=rule.amount||0;
+    document.querySelector('#fixedCostEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
     document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
     document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
+    document.querySelector('#fixedCostEditInterval').value=rule.interval_months||1;
+    const fixedIntervalField=document.querySelector('#fixedCostEditIntervalField');
+    if(fixedIntervalField) fixedIntervalField.hidden=(rule.cadence||'monthly')!=='monthly';
+    document.querySelector('#fixedCostEditReserveEnabled').checked=Boolean(rule.reserve_enabled);
+    document.querySelector('#fixedCostEditReserveAccount').value=rule.reserve_account_id||'';
+    const reserveAccountField=document.querySelector('#fixedCostEditReserveAccountField');
+    if(reserveAccountField) reserveAccountField.hidden=!rule.reserve_enabled;
+    const reserveToggleField=document.querySelector('#fixedCostEditReserveToggleField');
+    if(reserveToggleField) reserveToggleField.hidden=rule.direction!=='expense';
     document.querySelector('#fixedCostEditNextDate').value=rule.next_date||'';
     document.querySelector('#fixedCostEditEndDate').value=rule.end_date||'';
     document.querySelector('#fixedCostEditActive').value=rule.active?'true':'false';
@@ -3962,19 +3976,48 @@ pageContent.addEventListener('change', async (event) => {
       const transfer=target.value==='transfer';
       const targetField=document.querySelector(edit?'#recurringEditTargetField':'#recurringTargetField');
       const categoryField=document.querySelector(edit?'#recurringEditCategoryField':'#recurringCategoryField');
+      const amountMode=document.querySelector(edit?'#recurringEditAmountMode':'#recurringAmountMode');
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
+      if(amountMode&&transfer) amountMode.value='fixed';
+      return;
+    }
+    if (target.id === 'recurringCadence' || target.id === 'recurringEditCadence') {
+      const edit=target.id==='recurringEditCadence';
+      const field=document.querySelector(edit?'#recurringEditIntervalField':'#recurringIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
       return;
     }
     if (target.id === 'fixedCostDirection' || target.id === 'fixedCostEditDirection') {
       const edit=target.id==='fixedCostEditDirection';
       const transfer=target.value==='transfer';
+      const expense=target.value==='expense';
       const targetField=document.querySelector(edit?'#fixedCostEditTargetField':'#fixedCostTargetField');
       const categoryField=document.querySelector(edit?'#fixedCostEditCategoryField':'#fixedCostCategoryField');
       const merchantField=document.querySelector(edit?'#fixedCostEditMerchantField':'#fixedCostMerchantField');
+      const reserveToggleField=document.querySelector(edit?'#fixedCostEditReserveToggleField':'#fixedCostReserveToggleField');
+      const reserveAccountField=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
+      const reserveToggle=document.querySelector(edit?'#fixedCostEditReserveEnabled':'#fixedCostReserveEnabled');
+      const amountMode=document.querySelector(edit?'#fixedCostEditAmountMode':'#fixedCostAmountMode');
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       if(merchantField) merchantField.hidden=transfer;
+      if(reserveToggleField) reserveToggleField.hidden=!expense;
+      if(!expense&&reserveToggle) reserveToggle.checked=false;
+      if(reserveAccountField) reserveAccountField.hidden=!expense||!reserveToggle?.checked;
+      if(amountMode&&transfer) amountMode.value='fixed';
+      return;
+    }
+    if (target.id === 'fixedCostCadence' || target.id === 'fixedCostEditCadence') {
+      const edit=target.id==='fixedCostEditCadence';
+      const field=document.querySelector(edit?'#fixedCostEditIntervalField':'#fixedCostIntervalField');
+      if(field) field.hidden=target.value!=='monthly';
+      return;
+    }
+    if (target.id === 'fixedCostReserveEnabled' || target.id === 'fixedCostEditReserveEnabled') {
+      const edit=target.id==='fixedCostEditReserveEnabled';
+      const field=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
+      if(field) field.hidden=!target.checked;
       return;
     }
     if (target.id === 'setupExpensePreset') {
