@@ -83,16 +83,25 @@ export function renderPlanning({
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">
-        <div class="card-heading"><div><h3 class="card-title">Budget dieses Finanzmonats</h3><p class="card-subtitle">${budget.count?`${budget.count} Budgetposition${budget.count===1?'':'en'}`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">Bearbeiten</a></div>
+        <div class="card-heading">
+          <div>
+            <h3 class="card-title">Variables Budget dieses Finanzmonats</h3>
+            <p class="card-subtitle">${budget.count
+              ? `${budget.count} variable Position${budget.count===1?'':'en'} · ${budget.excludedFixedCount} Fixkosten separat · ${budget.excludedSavingsCount} Sparposition${budget.excludedSavingsCount===1?'':'en'} separat`
+              : 'Noch kein variables Budget eingerichtet'}</p>
+          </div>
+          <a class="card-link" href="#/budget">Berechnung ansehen</a>
+        </div>
         <div class="budget-ring-wrap">
-          <div class="budget-ring budget-ring--large" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>verbraucht</span></div></div>
+          <a class="budget-ring budget-ring--large" href="#/budget" style="--ring-progress:${budget.percent}" aria-label="Budgetberechnung öffnen"><div><strong>${Math.round(budget.rawPercent||0)}%</strong><span>${budget.overrun>0?'überschritten':'verbraucht'}</span></div></a>
           <div class="budget-ring-copy">
-            <span>Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
-            <span>Ausgegeben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
-            <span>Noch verfügbar <strong>${money(budget.remaining,{currency,locale,decimals:0})}</strong></span>
+            <span>Variables Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
+            <span>Variable Ausgaben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
+            <span>${budget.overrun>0?'Überschritten':'Noch verfügbar'} <strong>${money(budget.overrun>0?budget.overrun:budget.remaining,{currency,locale,decimals:0})}</strong></span>
           </div>
         </div>
-        ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budget einrichten</a>':''}
+        ${budget.count?`<div class="planning-budget-breakdown">${budget.rows.slice(0,5).map((row)=>`<a href="#/budget"><span>${escapeHtml(row.merchants?.name||row.categories?.name||'Budget')}</span><strong>${money(row.amount,{currency:row.currency||currency,locale,decimals:0})}</strong></a>`).join('')}</div>`:''}
+        ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Variables Budget einrichten</a>':''}
       </article>
 
       <article class="card card-padding planning-goals-card">
