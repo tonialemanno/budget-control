@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { categorySpending, monthSeries } from '../assets/js/app/finance-insights.js';
+import { categorySpending, monthSeries, primaryOperatingAccount } from '../assets/js/app/finance-insights.js';
 import { renderCashflowChart, renderExpenseDonut } from '../assets/js/app/charts.js';
 
 const now=new Date('2026-10-03T12:00:00Z');
@@ -10,6 +10,18 @@ const categories=[
   {id:'fun',name:'Freizeit',parent_id:null},
   {id:'salary',name:'Lohn',kind:'income',parent_id:null},
 ];
+const accounts=[
+  {account_id:'salary-account',name:'UBS LohnKonto',account_type:'checking',currency:'CHF',current_balance:-1048.97,is_archived:false},
+  {account_id:'savings',name:'Sparkonto',account_type:'savings',currency:'CHF',current_balance:4125,is_archived:false},
+  {account_id:'eur',name:'Eurokonto',account_type:'checking',currency:'EUR',current_balance:51.32,is_archived:false},
+];
+const recurringRules=[
+  {direction:'income',active:true,account_id:'salary-account',amount:6412.05},
+  {direction:'transfer',active:true,account_id:'salary-account',amount:525},
+];
+assert.equal(primaryOperatingAccount(accounts,recurringRules,'CHF')?.account_id,'salary-account');
+assert.equal(primaryOperatingAccount(accounts,[],'CHF')?.account_id,'salary-account');
+
 const tx=[
   {id:'t1',status:'booked',occurred_at:'2026-10-01T12:00:00Z',amount:-50,currency:'CHF',category_id:'supermarket',cashflow_type:'standard',transfer_group_id:null},
   {id:'t2',status:'booked',occurred_at:'2026-10-02T12:00:00Z',amount:-30,currency:'CHF',category_id:'rent',cashflow_type:'standard',transfer_group_id:null},
