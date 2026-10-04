@@ -222,7 +222,7 @@ export function merchantFromTransaction(tx) {
   }
 
   const known = knownMerchantSuggestion({...tx,counterparty:name,description:name});
-  if (known) {
+  if (known && !known.generic) {
     return {
       name:known.name,
       key:known.key,
@@ -305,6 +305,7 @@ export function knownMerchantSuggestion(tx) {
     ...match,
     name:detected.replace(/\s+/g,' ').trim().slice(0,80),
     key:normalizeMerchantKey(detected),
+    generic:true,
   };
 }
 
