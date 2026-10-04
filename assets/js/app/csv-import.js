@@ -309,7 +309,8 @@ export function knownMerchantSuggestion(tx) {
 
 export function suggestKnownCategoryCandidates(tx) {
   const detected=merchantFromTransaction(tx);
-  const probe={...tx,counterparty:detected?.name||tx?.counterparty,description:detected?.name||tx?.description};
+  const purpose=[detected?.name||tx?.counterparty||tx?.description||'',tx?.note||''].filter(Boolean).join(' ');
+  const probe={...tx,counterparty:detected?.name||tx?.counterparty,description:purpose};
   const category=knownMerchantSuggestion(probe)?.category||null;
   if(!category) return [];
   const fallback={
