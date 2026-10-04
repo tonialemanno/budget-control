@@ -757,6 +757,19 @@
 .coach-account-summary span { padding:7px 10px; border-radius:999px; color:var(--text-2); background:var(--surface-2); font-size:9px; }
 .coach-account-summary strong { color:var(--text); }
 
+.budget-decision-hint {
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:13px 14px; border:1px solid var(--border); border-radius:15px;
+  background:var(--surface-2);
+}
+.budget-decision-hint > div { min-width:0; display:grid; gap:3px; }
+.budget-decision-hint strong { font-size:12px; }
+.budget-decision-hint span { color:var(--text-2); font-size:10px; line-height:1.45; }
+.budget-decision-hint a { flex:0 0 auto; color:var(--accent); font-size:10px; font-weight:700; text-decoration:none; }
+.budget-decision-hint--positive { border-color:color-mix(in srgb,var(--positive) 32%,var(--border)); background:color-mix(in srgb,var(--surface) 92%,var(--positive-soft)); }
+.budget-decision-hint--warning { border-color:color-mix(in srgb,var(--warning) 36%,var(--border)); background:color-mix(in srgb,var(--surface) 92%,var(--warning-soft)); }
+.budget-decision-hint--negative { border-color:color-mix(in srgb,var(--negative) 38%,var(--border)); background:color-mix(in srgb,var(--surface) 92%,var(--negative-soft)); }
+
 .dashboard-chart-grid {
   display:grid;
   grid-template-columns:minmax(310px,.78fr) minmax(0,1.42fr);
