@@ -38,10 +38,11 @@ function ruleActive(rule,now){
   return rule?.active!==false && (!rule?.end_date || String(rule.end_date).slice(0,10)>=today);
 }
 
-function occurrenceSatisfied(rule,date,{transactions=[],categories=[],recurringRules=[]}={}){
+function occurrenceSatisfied(rule,date,{transactions=[],categories=[],recurringRules=[],now=new Date()}={}){
   const direction=rule.direction;
   return transactions.some((tx)=>{
-    if(tx.status!=='booked'||tx.transfer_group_id||dayDistance(tx.occurred_at,date)>3) return false;
+    const occurred=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||tx.transfer_group_id||Number.isNaN(occurred.getTime())||occurred>now||dayDistance(tx.occurred_at,date)>3) return false;
     if(direction==='expense'&&Number(tx.amount)>=0) return false;
     if(direction==='income'&&Number(tx.amount)<=0) return false;
     if(tx.recurring_rule_id===rule.id) return true;
@@ -59,7 +60,7 @@ function remainingRuleValue(rule,{
   let total=0;
   let guard=0;
   while(date<end&&guard<120){
-    if(!occurrenceSatisfied(rule,date,{transactions,categories,recurringRules})){
+    if(!occurrenceSatisfied(rule,date,{transactions,categories,recurringRules,now})){
       total+=base(Math.abs(Number(rule.amount||0)),rule.currency,baseCurrency,fxRates);
     }
     date=nextOccurrenceDate(date,rule.cadence,rule.interval_months);
@@ -105,7 +106,8 @@ function spendingAnomaly(options={}){
   for(const row of recent.values()){
     if(row.count<2) continue;
     const prior=baseline.get(row.key);
-    const weekly=(prior?.value||0)/4;
+    if(!prior || prior.count<2) continue;
+    const weekly=prior.value/4;
     const delta=row.value-weekly;
     if(row.value>=Math.max(weekly*1.6,weekly+30)&&delta>=30){
       candidates.push({...row,baselineWeekly:weekly,delta,ratio:weekly>0?row.value/weekly:0});
