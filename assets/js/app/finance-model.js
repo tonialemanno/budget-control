@@ -1,8 +1,7 @@
 import { cadenceMonthlyFactor, localMonthKey } from './format.js';
 import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
-import { occurrenceNear } from './recurrence.js';
-import { budgetIsFixed, budgetIsSavings } from './budget-intelligence.js';
+import { budgetIsFixed, budgetIsSavings, transactionMatchesRecurringExpense } from './budget-intelligence.js';
 import { countsAsCashIncome } from './finance-semantics.js';
 
 function isActiveRecurring(rule, today) {
@@ -21,21 +20,7 @@ function dateDistanceDays(left, right) {
 }
 
 export function matchesRecurringExpense(tx, rules) {
-  const txAmount=Math.abs(Number(tx.amount||0));
-  const txText=normalizedText(`${tx.description||''} ${tx.counterparty||''}`);
-  return rules.some((rule)=>{
-    if(rule.direction!=='expense') return false;
-    if(rule.account_id && rule.account_id!==tx.account_id) return false;
-    if(rule.merchant_id && tx.merchant_id && rule.merchant_id!==tx.merchant_id) return false;
-    if((rule.currency||tx.currency)!==tx.currency) return false;
-    if(Math.abs(Number(rule.amount||0)-txAmount)>0.01) return false;
-    if(rule.next_date && !occurrenceNear(rule,tx.occurred_at,3)) return false;
-    const ruleText=normalizedText(`${rule.description||''} ${rule.counterparty||''}`);
-    const merchantMatch=Boolean(rule.merchant_id && tx.merchant_id && rule.merchant_id===tx.merchant_id);
-    const categoryMatch=Boolean(rule.category_id && tx.category_id && (rule.category_id===tx.category_id || rule.category_id===tx.categories?.parent_id));
-    const textMatch=Boolean(ruleText && txText && (txText.includes(ruleText)||ruleText.includes(txText)));
-    return merchantMatch || categoryMatch || textMatch;
-  });
+  return transactionMatchesRecurringExpense(tx,rules);
 }
 
 export function budgetCoversTransaction(tx, budgets) {
