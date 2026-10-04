@@ -3874,6 +3874,14 @@ pageContent.addEventListener('change', async (event) => {
       if(merchantField) merchantField.hidden=transfer;
       return;
     }
+    if (target.id === 'setupExpensePreset') {
+      const option=target.selectedOptions?.[0];
+      const category=document.querySelector('#setupExpenseCategory');
+      const description=document.querySelector('#setupExpenseDescription');
+      if(category) category.value=target.value||'';
+      if(description && option?.dataset?.description) description.value=option.dataset.description;
+      return;
+    }
     if (target.id === 'budgetScopeType') { const merchant=document.querySelector('#budgetMerchantField'); const category=document.querySelector('#budgetCategoryField'); if(merchant) merchant.hidden=target.value!=='merchant'; if(category) category.hidden=target.value==='merchant'; return; }
     if (target.id === 'taxItemDocumentInput') {
       const file=target.files?.[0]; const itemId=uiState.taxItemDocumentId; if(!file||!itemId) return;
