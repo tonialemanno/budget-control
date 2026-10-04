@@ -28,6 +28,27 @@ function merchantText(merchant){
   return normalized(`${merchant?.name||''} ${merchant?.normalized_key||''}`);
 }
 
+export function transactionMatchesRecurringExpense(tx,rules=[]) {
+  if(!tx||Number(tx.amount)>=0||tx.transfer_group_id) return false;
+  const txText=normalized(`${tx.description||''} ${tx.counterparty||''} ${tx.merchants?.name||''}`);
+  const txAmount=Math.abs(Number(tx.amount||0));
+  return rules.some((rule)=>{
+    if(rule.active===false||rule.direction!=='expense') return false;
+    if((rule.currency||tx.currency)!==tx.currency) return false;
+    if(rule.account_id&&tx.account_id&&rule.account_id!==tx.account_id) return false;
+    if(rule.category_id&&tx.category_id&&rule.category_id!==tx.category_id&&rule.category_id!==tx.categories?.parent_id) return false;
+
+    const merchantMatch=Boolean(rule.merchant_id&&tx.merchant_id&&rule.merchant_id===tx.merchant_id);
+    const ruleText=normalized(`${rule.description||''} ${rule.counterparty||''} ${rule.merchants?.name||''}`);
+    const textMatch=Boolean(ruleText&&txText&&(txText.includes(ruleText)||ruleText.includes(txText)));
+    const expected=Math.abs(Number(rule.amount||0));
+    const amountClose=expected>0&&Math.abs(expected-txAmount)<=Math.max(2,expected*.20);
+    const categoryMatch=Boolean(rule.category_id&&tx.category_id&&(rule.category_id===tx.category_id||rule.category_id===tx.categories?.parent_id));
+
+    return merchantMatch || (textMatch&&amountClose) || (categoryMatch&&amountClose);
+  });
+}
+
 export function resolveHistoricalMerchant(tx,merchants=[]){
   if(tx?.merchant_id){
     return merchants.find((row)=>row.id===tx.merchant_id)||tx.merchants||null;
