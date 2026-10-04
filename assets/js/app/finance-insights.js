@@ -184,10 +184,15 @@ export function annualIncomeBreakdown({
     else if(type==='unclassified_inflow') unclassified+=value;
   }
 
-  const allSources=[...earned.entries()].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value);
+  const allSources=[...earned.entries()].map(([label,value])=>({label,value,sourceNames:[label]})).sort((a,b)=>b.value-a.value);
   const top=allSources.slice(0,Math.max(1,limit));
   const hidden=allSources.slice(top.length);
-  if(hidden.length) top.push({label:'Sonstige Verdienste',value:hidden.reduce((sum,row)=>sum+row.value,0),other:true});
+  if(hidden.length) top.push({
+    label:'Sonstige Verdienste',
+    value:hidden.reduce((sum,row)=>sum+row.value,0),
+    other:true,
+    sourceNames:hidden.map((row)=>row.label),
+  });
   const earnedTotal=allSources.reduce((sum,row)=>sum+row.value,0);
   return {
     year,
