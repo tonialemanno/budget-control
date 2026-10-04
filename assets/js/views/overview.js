@@ -27,7 +27,7 @@ export function renderOverview({
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
   const snapshot = buildFinanceSnapshot({
-    accounts, transactions, debtPayments, recurringRules, budgets, bills, debts,
+    accounts, transactions, debtPayments, recurringRules, budgets, categories, merchants, bills, debts,
     receivables, assets, properties, vehicles, investments, pensions,
     household, fxRates, now,
   });
