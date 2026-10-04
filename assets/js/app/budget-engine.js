@@ -102,7 +102,10 @@ function budgetKind(budget,{categories=[],merchants=[],recurringRules=[]}={}){
     if(budget.category_id&&rule.category_id===budget.category_id) return true;
     const merchantName=norm(merchant?.name);
     const ruleText=norm([rule.description,rule.counterparty,rule.merchants?.name].filter(Boolean).join(' '));
-    return merchantName.length>=4&&ruleText.length>=4&&(merchantName.includes(ruleText)||ruleText.includes(merchantName));
+    if(merchantName.length>=4&&ruleText.length>=4&&(merchantName.includes(ruleText)||ruleText.includes(merchantName))) return true;
+    const merchantTokens=new Set(merchantName.split(' ').filter((token)=>token.length>=4));
+    const ruleTokens=ruleText.split(' ').filter((token)=>token.length>=4);
+    return ruleTokens.some((token)=>merchantTokens.has(token));
   });
   if(fixed) return 'fixed';
   return 'variable';
