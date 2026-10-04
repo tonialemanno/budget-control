@@ -14,7 +14,7 @@ assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Ausgaben \/ Monat/);
 assert.match(read('assets/js/main.js'), /fixed-cost-create/);
 assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
-assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Umbuchungen \/ Monat/);
+assert.match(read('assets/js/views/fixed-costs.js'), /Rücklagen & Umbuchungen \/ Monat/);
 assert.match(read('assets/js/views/overview.js'), /Einnahmen · Finanzmonat/);
 assert.match(read('assets/js/views/overview.js'), /Ausgaben · Finanzmonat/);
 assert.match(read('assets/js/views/overview.js'), /budget-ring/);
