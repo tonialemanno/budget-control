@@ -14,7 +14,7 @@ function dateAtNoon(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function buildAccountProjection(account, recurringRules = []) {
+export function buildAccountProjection(account, recurringRules = [], accounts = []) {
   const today=new Date(); today.setHours(12,0,0,0);
   const rules=(recurringRules||[]).filter((rule)=>
     rule.active
@@ -49,7 +49,7 @@ export function buildAccountProjection(account, recurringRules = []) {
     monthlyNet += sign * plannedMonthlyAmount(rule);
   }
   for(const rule of reserveRules){
-    const amount=reserveMonthlyAmount(rule,[],today);
+    const amount=reserveMonthlyAmount(rule,accounts,today);
     if(!amount) continue;
     const incoming=rule.reserve_account_id===account.account_id;
     const sign=incoming?1:-1;
