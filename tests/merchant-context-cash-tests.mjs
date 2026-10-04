@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { merchantFromTransaction, suggestKnownCategoryName } from '../assets/js/app/csv-import.js';
-import { merchantDuplicateGroups, matchingRecurringRules } from '../assets/js/app/merchant-intelligence.js';
+import { merchantDuplicateGroups, matchingRecurringRules, personCandidateFromTransaction } from '../assets/js/app/merchant-intelligence.js';
 import { renderTransactions } from '../assets/js/views/transactions.js';
 
 const swisslos={description:'SWISSLOS E-COMMERCE; Zahlung UBS TWINT',counterparty:null,amount:-20,currency:'CHF'};
@@ -19,6 +19,11 @@ assert.equal(sumup.name,'PIZZERIA ALPENBL');
 assert.equal(sumup.key,'pizzeria alpenbl');
 assert.equal(sumup.paymentProcessor,'SumUp');
 assert.equal(suggestKnownCategoryName({description:'SUMUP  *PIZZERIA ALPENBL;0000 ARBON',amount:-29}),'Restaurant & Café');
+
+const mirco=personCandidateFromTransaction({description:'PISANELLO, MIRCO; Belastung UBS TWINT'});
+assert.equal(mirco?.name,'Mirco Pisanello');
+assert.equal(mirco?.kind,'person');
+assert.equal(personCandidateFromTransaction({description:'McDonalds AG; Belastung UBS TWINT'}),null);
 
 const duplicates=merchantDuplicateGroups([{id:'a',name:'EDEKA',normalized_key:'edeka'},{id:'b',name:'EDEKA BRAND',normalized_key:'edeka brand'},{id:'c',name:'Migros',normalized_key:'migros'}]);
 assert.equal(duplicates.length,1);
