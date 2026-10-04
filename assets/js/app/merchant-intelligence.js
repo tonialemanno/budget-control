@@ -1,5 +1,24 @@
 import { merchantFromTransaction, normalizeMerchantKey } from './csv-import.js';
 
+export function personCandidateFromTransaction(tx) {
+  const raw=String(tx?.counterparty||tx?.description||'').trim();
+  if(!raw) return null;
+  const parts=raw.split(';').map((part)=>part.trim()).filter(Boolean);
+  const first=parts[0]||raw;
+  const rest=parts.slice(1).join(' ');
+  const twintPerson=/\b(?:belastung|gutschrift)\s+(?:ubs\s+)?twint\b/i.test(rest);
+  if(!twintPerson) return null;
+  if(/\b(?:gmbh|ag|sarl|srl|srls|sa|ltd|inc|restaurant|cafe|shop|store|garage|service|services|kebab|pizzeria|bar)\b/i.test(first)) return null;
+  const comma=first.match(/^([^,]{2,50}),\s*([^,]{2,50})$/);
+  let name=first;
+  if(comma){
+    const title=(value)=>value.toLowerCase().replace(/(^|[\s-])([a-z])/g,(_,prefix,letter)=>prefix+letter.toUpperCase());
+    name=`${title(comma[2].trim())} ${title(comma[1].trim())}`.trim();
+  }
+  const key=normalizeCounterpartyKey(name);
+  if(!key||key.length<4) return null;
+  return {name,key,kind:'person',source:'twint'};
+}
 export function resolvedMerchantForTransaction(tx,{merchants=[],aliases=[]}={}) {
   if(tx?.merchant_id){
     const direct=merchants.find((row)=>row.id===tx.merchant_id);
