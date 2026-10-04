@@ -22,7 +22,7 @@ create table if not exists public.counterparties (
   created_by uuid not null default auth.uid(),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(household_id, normalized_key)
+  unique(household_id, kind, normalized_key)
 );
 
 create table if not exists public.transaction_contexts (
