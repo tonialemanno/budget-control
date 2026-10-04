@@ -3,7 +3,7 @@ import { escapeHtml, money, monthLabel, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { accountShare, annualIncomeBreakdown, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries } from '../app/finance-insights.js';
+import { accountShare, annualIncomeBreakdown, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries, primaryOperatingAccount } from '../app/finance-insights.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 
@@ -49,7 +49,11 @@ export function renderOverview({
     transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,now,limit:5,
     rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
   });
-  const accountRows=accountShare(accounts,currency,fxRates).slice(0,4);
+  const accountRows=accountShare(accounts,currency,fxRates);
+  const primaryAccount=primaryOperatingAccount(accounts,recurringRules,currency);
+  const primaryAccountRow=accountRows.find((row)=>row.account.account_id===primaryAccount?.account_id) || null;
+  const primaryBaseValue=primaryAccountRow?.value||0;
+  const otherLiquid=snapshot.cash-primaryBaseValue;
   const categoryTotal=categoriesSpent[0]?.total||0;
   const annualIncome=annualIncomeBreakdown({
     transactions,categories,recurringRules,baseCurrency:currency,fxRates,year:now.getFullYear(),limit:5,
@@ -77,7 +81,11 @@ export function renderOverview({
     <div class="overview-hero-grid">
       <article class="card card--accent finance-balance-card">
         <div class="finance-balance-top">
-          <div><span class="hero-label">Verfügbares Geld</span><div class="hero-value">${money(snapshot.cash,{currency,locale,decimals:0})}</div><span class="hero-caption">${accounts.length} ${accounts.length===1?'Konto':'Konten'} · aktueller Stand</span></div>
+          <div>
+            <span class="hero-label">Hauptkonto</span>
+            <div class="hero-value">${money(primaryAccount?.current_balance||0,{currency:primaryAccount?.currency||currency,locale,decimals:2})}</div>
+            <span class="hero-caption">${escapeHtml(primaryAccount?.name||'Operatives Konto')} · aktueller Stand</span>
+          </div>
           <span class="finance-hero-icon">${icon('wallet')}</span>
         </div>
         <div class="finance-balance-actions">
@@ -86,8 +94,9 @@ export function renderOverview({
           <a class="action-button action-button--secondary" href="#/transactions?create=transfer">Umbuchung</a>
         </div>
         <div class="finance-balance-foot">
+          <span>Andere Konten <strong>${money(otherLiquid,{currency,locale,decimals:0})}</strong></span>
+          <span>Gesamt liquide <strong>${money(snapshot.cash,{currency,locale,decimals:0})}</strong></span>
           <span>Nettovermögen <strong>${money(snapshot.netWorth,{currency,locale,decimals:0})}</strong></span>
-          <span>Monatlich frei <strong>${money(snapshot.plannedFreeMonthly,{currency,locale,decimals:0})}</strong></span>
         </div>
       </article>
 
@@ -150,7 +159,7 @@ export function renderOverview({
     </div>
 
     <article class="card card-padding overview-account-card">
-      <div class="card-heading"><div><h3 class="card-title">Wo dein Geld liegt</h3><p class="card-subtitle">Anteil deiner liquiden Konten</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
+      <div class="card-heading"><div><h3 class="card-title">Konten im Überblick</h3><p class="card-subtitle">Jedes Konto separat. Sparkonten und Töpfe verändern den Stand deines Hauptkontos nicht.</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
       <div class="insight-list insight-list--accounts">
         ${accountRows.length
           ? accountRows.map((row)=>progressRow(row.account.name,money(row.account.current_balance,{currency:row.account.currency,locale,decimals:0}),row.share,escapeHtml(row.account.currency))).join('')
