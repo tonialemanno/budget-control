@@ -9,8 +9,8 @@ function releaseChannel() {
 
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.3.0',
-  releaseId: '2026.10.04-r5',
+  version: '2.3.2',
+  releaseId: '2026.10.04-r7',
   schemaVersion: 2026100403,
   releaseChannel: releaseChannel(),
   defaultCountry: 'CH',
@@ -52,7 +52,7 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'legal', label: 'Mahnung / Betreibung', icon: 'shield', group: 'Geld', module: 'legal', section: 'money' },
 
   { route: 'budget', label: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', section: 'planning' },
-  { route: 'fixed-costs', label: 'Fixkosten', icon: 'receipt', group: 'Planung', module: 'money', section: 'planning' },
+  { route: 'fixed-costs', label: 'Fixkosten & Einnahmen', icon: 'receipt', group: 'Planung', module: 'money', section: 'planning' },
   { route: 'recurring', label: 'Regelmässige Zahlungen', icon: 'repeat', group: 'Planung', module: 'money', section: 'planning' },
   { route: 'bills', label: 'Rechnungen & Verträge', icon: 'receipt', group: 'Planung', module: 'bills', section: 'planning' },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals', section: 'planning' },
@@ -82,7 +82,7 @@ export const PAGE_META = Object.freeze({
   imports: { title: 'Datenimport', eyebrow: 'Geld' },
   'import-history': { title: 'Import-Historie', eyebrow: 'Geld' },
   recurring: { title: 'Regelmässige Zahlungen', eyebrow: 'Planung' },
-  'fixed-costs': { title: 'Fixkosten', eyebrow: 'Planung' },
+  'fixed-costs': { title: 'Fixkosten & Einnahmen', eyebrow: 'Planung' },
   documents: { title: 'Dokumente', eyebrow: 'Geld' },
   budget: { title: 'Budget', eyebrow: 'Planung' },
   bills: { title: 'Rechnungen & Verträge', eyebrow: 'Planung' },
