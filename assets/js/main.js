@@ -110,6 +110,9 @@ const runtime = {
   transactions: [],
   importBatches: [],
   merchants: [],
+  merchantAliases: [],
+  counterparties: [],
+  transactionContexts: [],
   countryMasterCategories: [],
   countryMasterMerchants: [],
   masterDataHouseholds: [],
@@ -820,7 +823,7 @@ async function loadFinanceData() {
   const h = runtime.household.id;
   const tasks = [
     () => financeApi.listAccounts(h), () => financeApi.listCategories(h), () => financeApi.listCategorizationRules(h), () => financeApi.listTransactions(h),
-    () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h),
+    () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listMerchantAliases(h), () => financeApi.listCounterparties(h), () => financeApi.listTransactionContexts(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h),
     () => financeApi.listGoals(h), () => financeApi.listGoalSources(h), () => financeApi.listDebts(h), () => financeApi.listDebtPayments(h), () => financeApi.listReceivables(h), () => financeApi.listReceivablePayments(h), () => financeApi.listLegalCases(h), () => financeApi.listLegalEvents(h), () => financeApi.listAssets(h),
     () => financeApi.listProperties(h), () => financeApi.listVehicles(h), () => financeApi.listInsurance(h), () => financeApi.listInvestments(h), () => financeApi.listInvestmentTransactions(h), () => financeApi.listPensions(h),
     () => financeApi.listDocuments(h), () => financeApi.listHouseholdMembers(h), () => financeApi.getFxRates().catch(()=>null),
@@ -840,7 +843,7 @@ async function loadFinanceData() {
   const results = await runLimited(tasks, 5);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
-    runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
+    runtime.importBatches, runtime.merchants, runtime.merchantAliases, runtime.counterparties, runtime.transactionContexts, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
     runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
@@ -1053,6 +1056,7 @@ function currentCategorizationGroups() {
     transactions: runtime.transactions,
     categories: runtime.categories,
     merchants: runtime.merchants,
+    aliases: runtime.merchantAliases,
     rules: runtime.categorizationRules,
   });
 }
