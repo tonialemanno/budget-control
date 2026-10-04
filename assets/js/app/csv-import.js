@@ -191,6 +191,7 @@ export function merchantFromTransaction(tx) {
   let merchantRaw = parts[0] || raw;
   if (
     parts.length > 1
+    && !/^bezug\s+sumup\b/i.test(merchantRaw)
     && /^(kartenzahlung|karten(?:zahlung)?|debit\s*card|credit\s*card|maestro|mastercard|visa|pos|e-?commerce|zahlung|belastung|bezug)\b/i.test(merchantRaw)
   ) {
     merchantRaw = parts[1] || merchantRaw;
