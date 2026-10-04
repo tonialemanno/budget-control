@@ -60,7 +60,7 @@ function periodLabel(period){
 function monthKey(value){ const d=new Date(value); return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function monthLabel(key,locale){ const [y,m]=key.split('-').map(Number); return new Intl.DateTimeFormat(locale,{month:'short',year:'numeric'}).format(new Date(y,m-1,1)); }
 function normalizedSearch(tx){ return `${tx.description||''} ${tx.counterparty||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''}`.toLowerCase(); }
-function filterTransactions(transactions,{period,from,to,query,category,account,direction='all',semantic='all',categories=[],recurringRules=[]}){
+function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,direction='all',semantic='all',categories=[],recurringRules=[]}){
   const start=period==='custom'||period==='all'?null:periodStart(period);
   const needle=String(query||'').trim().toLowerCase();
   return transactions.filter((tx)=>{
@@ -74,6 +74,7 @@ function filterTransactions(transactions,{period,from,to,query,category,account,
     if(direction==='expense'&&Number(tx.amount)>=0) return false;
     if(['debt_payment','receivable_principal'].includes(tx.cashflow_type) && category && category!=='all') return false;
     if(category==='uncategorized'&&tx.category_id) return false;
+    if(categoryIds.length && !categoryIds.includes(tx.category_id) && !categoryIds.includes(tx.categories?.parent_id)) return false;
     if(category&&category!=='all'&&category!=='uncategorized'&&tx.category_id!==category&&tx.categories?.parent_id!==category) return false;
     if(account&&account!=='all'&&tx.account_id!==account) return false;
     if(semantic&&semantic!=='all'){
@@ -88,6 +89,10 @@ function filterTransactions(transactions,{period,from,to,query,category,account,
         : semantic==='tax'?['tax_payment','tax_refund'].includes(type)
         : type===semantic;
       if(!matches) return false;
+    }
+    if(sourceSet.length){
+      const source=String(tx.merchants?.name||tx.counterparty||tx.description||'').trim();
+      if(!sourceSet.includes(source)) return false;
     }
     if(needle&&!normalizedSearch(tx).includes(needle)) return false;
     return true;
@@ -148,9 +153,9 @@ function renderCategorizationReview({
   return `<article class="card card-padding categorization-review"><div class="card-heading"><div><h3 class="card-title">Kategorien analysieren</h3><p class="card-subtitle">Bestehende Buchungen werden nach Händler gruppiert. Sichere Automatik füllt nur bisher unkategorisierte Buchungen; bestehende Kategorien werden nicht still überschrieben.</p></div><div class="card-footer-actions">${canWrite?`<button class="action-button action-button--primary" type="button" data-action="categorization-apply-safe" ${safeGroups.length?'':'disabled'}>Sichere Vorschläge übernehmen</button>`:''}<button class="action-button action-button--secondary" type="button" data-action="categorization-close">Schliessen</button></div></div><div class="categorization-stats"><div><span>Ohne Kategorie</span><strong>${uncategorizedCount}</strong></div><div><span>Sichere Gruppen</span><strong>${safeGroups.length}</strong></div><div><span>Noch offen</span><strong>${unresolvedGroups.length}</strong></div><div><span>Gemischte Gruppen</span><strong>${mixedGroups.length}</strong></div></div><div class="categorization-toolbar"><label class="field"><span>Anzeige</span><select class="text-control" id="categorizationFilter"><option value="action" ${categorizationFilter==='action'?'selected':''}>Vorschläge & offene Gruppen</option><option value="unresolved" ${categorizationFilter==='unresolved'?'selected':''}>Nur ohne Vorschlag</option><option value="all" ${categorizationFilter==='all'?'selected':''}>Alle Händlergruppen</option></select></label><div class="toolbar-note">„Gruppe setzen & merken“ ist die bewusste Korrektur für alle Buchungen dieser Händlergruppe. Danach wird die Zuordnung bei künftigen Imports vorgeschlagen.</div></div><div class="categorization-group-list">${rows || '<div class="table-empty">Für diese Ansicht gibt es nichts zu prüfen.</div>'}</div>${visible.length>pageSize?`<div class="admin-pager categorization-pager"><button class="table-action" type="button" data-action="categorization-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages} · ${visible.length} Gruppen</span><button class="table-action" type="button" data-action="categorization-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div>`:''}</article>`;
 }
 
-export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionAccount='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], categorizationRules = [], recurringRules = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1 } = {}) {
+export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionCategoryIds=[], transactionSourceSet=[], transactionAccount='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], categorizationRules = [], recurringRules = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1 } = {}) {
   const baseCurrency = household?.base_currency || 'CHF'; const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax'); const locale = profile?.locale || 'de-CH';
-  const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,account:transactionAccount,direction:transactionDirection,semantic:transactionSemantic,categories,recurringRules});
+  const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,categoryIds:transactionCategoryIds,sourceSet:transactionSourceSet,account:transactionAccount,direction:transactionDirection,semantic:transactionSemantic,categories,recurringRules});
   const now=new Date();
   const actualRows=rows.filter((tx)=>{ const date=new Date(tx.occurred_at); return !Number.isNaN(date.getTime())&&date<=now; });
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
@@ -184,7 +189,7 @@ export function renderTransactions({ accounts = [], categories = [], transaction
   const earliest=transactions.length?transactions.reduce((min,tx)=>String(tx.occurred_at)<String(min.occurred_at)?tx:min,transactions[0]):null; const latest=transactions[0]||null;
   const categoryFilterOptions=categories.map((c)=>`<option value="${c.id}" ${transactionCategory===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   const accountFilterOptions=accounts.map((a)=>`<option value="${a.account_id}" ${transactionAccount===a.account_id?'selected':''}>${escapeHtml(a.name)}</option>`).join('');
-  const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||(transactionDirection&&transactionDirection!=='all')||(transactionSemantic&&transactionSemantic!=='all')||transactionPeriod==='all'||transactionPeriod==='custom');
+  const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||transactionCategoryIds.length||transactionSourceSet.length||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||(transactionDirection&&transactionDirection!=='all')||(transactionSemantic&&transactionSemantic!=='all')||transactionPeriod==='all'||transactionPeriod==='custom');
   const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, categorizationRules, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage }) : '';
 
   return `
