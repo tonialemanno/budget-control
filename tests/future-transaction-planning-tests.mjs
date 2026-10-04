@@ -9,7 +9,7 @@ const futureTx = {
   account_id:'ubs',
   category_id:'cat-variable',
   merchant_id:null,
-  occurred_at:'2026-10-25T10:00:00.000Z',
+  occurred_at:'2026-10-24T10:00:00.000Z',
   amount:-243.25,
   currency:'CHF',
   description:'Admicrn',
