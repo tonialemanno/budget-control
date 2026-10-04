@@ -1591,6 +1591,65 @@ async function handleForm(form) {
     if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
     if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
     if (runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Diese Buchung ist mit einer bezahlten Rechnung verknüpft. Bitte die Rechnung unter Rechnungen verwalten.');
+    const editDirection=formValue(data,'direction')||'expense';
+    if(editDirection==='transfer'){
+      const currentAccount=runtime.accounts.find((a)=>a.account_id===tx.account_id);
+      const otherAccount=runtime.accounts.find((a)=>a.account_id===formValue(data,'otherAccountId'));
+      if(!currentAccount||!otherAccount) throw new Error('Bitte das Gegenkonto der Umbuchung auswählen.');
+      if(currentAccount.account_id===otherAccount.account_id) throw new Error('Die Umbuchung braucht zwei verschiedene Konten.');
+      const currentAmount=Math.abs(numberValue(data,'amount'));
+      if(!(currentAmount>0)) throw new Error('Der Betrag muss grösser als 0 sein.');
+      const sameCurrency=currentAccount.currency===otherAccount.currency;
+      const otherAmount=sameCurrency?null:Math.abs(numberValue(data,'otherAmount'));
+      if(!sameCurrency&&!(otherAmount>0)) throw new Error('Bitte den Betrag auf dem Gegenkonto angeben.');
+      const makeRecurring=data.get('makeRecurring')==='on';
+      if(makeRecurring&&!sameCurrency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
+      const occurredAt=financeEventTimestamp(formValue(data,'occurredAt'));
+      const description=formValue(data,'description')||'Umbuchung';
+      await financeApi.convertTransactionToTransferV2({
+        householdId:h,
+        transactionId:tx.id,
+        otherAccountId:otherAccount.account_id,
+        amount:currentAmount,
+        otherAmount,
+        otherTransactionId:nullValue(data,'otherTransactionId'),
+        occurredAt,
+        description,
+        note:formValue(data,'note'),
+      });
+      let recurringSaved=false;
+      if(makeRecurring){
+        const currentOutgoing=Number(tx.amount)<0;
+        const sourceAccount=currentOutgoing?currentAccount:otherAccount;
+        const destinationAccount=currentOutgoing?otherAccount:currentAccount;
+        const recurringPayload={
+          household_id:h,
+          account_id:sourceAccount.account_id,
+          destination_account_id:destinationAccount.account_id,
+          category_id:null,
+          merchant_id:null,
+          direction:'transfer',
+          description,
+          counterparty:null,
+          amount:currentAmount,
+          currency:sourceAccount.currency,
+          cadence:formValue(data,'recurringCadence')||'monthly',
+          next_date:formValue(data,'recurringNextDate')||addMonthsToDate(occurredAt,1),
+          active:true,
+        };
+        const existing=runtime.recurringRules.find((rule)=>rule.direction==='transfer'&&rule.account_id===sourceAccount.account_id&&rule.destination_account_id===destinationAccount.account_id&&Math.abs(Number(rule.amount)-currentAmount)<0.01);
+        if(existing) await financeApi.updateRecurringRule(existing.id,recurringPayload);
+        else await financeApi.createRecurringRule(recurringPayload);
+        recurringSaved=true;
+      }
+      const currentOutgoing=Number(tx.amount)<0;
+      const from=currentOutgoing?currentAccount:otherAccount;
+      const to=currentOutgoing?otherAccount:currentAccount;
+      await refresh(recurringSaved
+        ? `Umbuchung ${from.name} → ${to.name} korrigiert und als wiederkehrend gespeichert.`
+        : `Umbuchung ${from.name} → ${to.name} korrekt verknüpft.`);
+      return;
+    }
     const account=runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Konto wurde nicht gefunden.');
     const amount=Math.abs(numberValue(data,'amount'))*(formValue(data,'direction')==='expense'?-1:1);
