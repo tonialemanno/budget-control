@@ -3,7 +3,7 @@ import { escapeHtml, money, monthLabel, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { accountShare, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries } from '../app/finance-insights.js';
+import { accountShare, annualIncomeSummary, budgetSummary, categorySpending, currentFinanceCycleTotals, financeCycleSeries } from '../app/finance-insights.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 
@@ -18,11 +18,29 @@ function progressRow(label, value, percent, meta='') {
     ${meta?`<small>${meta}</small>`:''}
   </div>`;
 }
+function localDay(value) {
+  const date=value instanceof Date?value:new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function drilldownHref({from='',to='',category='',categories=[],query='',incomeKind='',period='custom'}={}) {
+  const params=new URLSearchParams();
+  if(period) params.set('period',period);
+  params.set('view','details');
+  if(from) params.set('from',from);
+  if(to) params.set('to',to);
+  if(category) params.set('category',category);
+  if(categories.length) params.set('categories',categories.join(','));
+  if(query) params.set('query',query);
+  if(incomeKind) params.set('incomeKind',incomeKind);
+  return `#/transactions?${params.toString()}`;
+}
+
 
 export function renderOverview({
   accounts = [], transactions = [], debtPayments = [], recurringRules = [], budgets = [], bills = [],
   debts = [], receivables = [], assets = [], properties = [], vehicles = [], investments = [], pensions = [],
-  categories = [], household, profile, fxRates, privacyEnabled=false,
+  categories = [], merchants = [], household, profile, fxRates, privacyEnabled=false,
 } = {}) {
   const locale = profile?.locale || 'de-CH';
   const now = new Date();
@@ -40,15 +58,32 @@ export function renderOverview({
   const financeCycle=cycleTotals.cycle;
   const cycleLabel=financeCycleLabel(financeCycle,locale);
   const budget=budgetSummary({
-    budgets,transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,now,fallbackDay:25,
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,now,fallbackDay:25,
   });
   const months=financeCycleSeries({
     transactions,debtPayments,recurringRules,baseCurrency:currency,fxRates,now,cycles:6,fallbackDay:25,
-  });
-  const categoriesSpent=categorySpending({
+  }).map((row)=>({
+    ...row,
+    href:drilldownHref({
+      from:localDay(row.start),
+      to:localDay(new Date(Math.min(now.getTime(),row.endExclusive.getTime()-1))),
+    }),
+  }));
+  const categoryRows=categorySpending({
     transactions,debtPayments,categories,baseCurrency:currency,fxRates,now,limit:5,
     rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
   });
+  const cycleFrom=localDay(financeCycle.start);
+  const cycleTo=localDay(new Date(Math.min(now.getTime(),financeCycle.endExclusive.getTime()-1)));
+  const categoriesSpent=categoryRows.map((row)=>({
+    ...row,
+    href:row.key==='uncategorized'
+      ? drilldownHref({from:cycleFrom,to:cycleTo,category:'uncategorized'})
+      : row.key==='other'
+        ? drilldownHref({from:cycleFrom,to:cycleTo,categories:row.categoryIds||[]})
+        : drilldownHref({from:cycleFrom,to:cycleTo,category:row.key}),
+  }));
+  const annualIncome=annualIncomeSummary({transactions,baseCurrency:currency,fxRates,year:now.getFullYear()});
   const accountRows=accountShare(accounts,currency,fxRates).slice(0,4);
   const categoryTotal=categoriesSpent[0]?.total||0;
 
@@ -89,16 +124,16 @@ export function renderOverview({
       </article>
 
       <article class="card card-padding budget-ring-card">
-        <div class="card-heading"><div><h3 class="card-title">Budget · Finanzmonat</h3><p class="card-subtitle">${budget.count ? (budget.inherited ? `Vorlage aus ${monthLabel(`${budget.sourceMonth}-01`,locale)} · ${cycleLabel}` : cycleLabel) : 'Noch kein Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Öffnen</a></div>
+        <div class="card-heading"><div><h3 class="card-title">Variables Budget · Finanzmonat</h3><p class="card-subtitle">${budget.count ? `${budget.count} variable Position${budget.count===1?'':'en'} · ${budget.excludedFixedCount} Fixkosten separat · ${cycleLabel}` : 'Noch kein variables Budget eingerichtet'}</p></div><a class="card-link" href="#/budget">Berechnung</a></div>
         <div class="budget-ring-wrap">
-          <div class="budget-ring" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.percent)}%</strong><span>genutzt</span></div></div>
+          <a class="budget-ring" href="#/budget" style="--ring-progress:${budget.percent}" aria-label="Budgetberechnung öffnen"><div><strong>${Math.round(budget.rawPercent||0)}%</strong><span>${budget.overrun>0?'überschritten':'genutzt'}</span></div></a>
           <div class="budget-ring-copy">
-            <span>Geplant <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
-            <span>Verbraucht <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
-            <span>Verfügbar <strong>${money(budget.remaining,{currency,locale,decimals:0})}</strong></span>
+            <span>Variables Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
+            <span>Variable Ausgaben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
+            <span>${budget.overrun>0?'Überschritten':'Verfügbar'} <strong>${money(budget.overrun>0?budget.overrun:budget.remaining,{currency,locale,decimals:0})}</strong></span>
           </div>
         </div>
-        ${!budget.count?'<a class="action-button action-button--secondary action-button--block" href="#/budget">Budget einrichten</a>':''}
+        ${!budget.count?'<a class="action-button action-button--secondary action-button--block" href="#/budget">Variables Budget einrichten</a>':''}
       </article>
     </div>
 
@@ -127,6 +162,22 @@ export function renderOverview({
       ${metricCard('Noch geplant · Monat',money(snapshot.remainingPlannedExpensesMonth,{currency,locale,decimals:0}),'offene geplante Ausgaben')}
       ${metricCard('Runway',snapshot.runwayMonths>0?`${snapshot.runwayMonths.toFixed(1)} Monate`:'—','bei aktuellem Ausgabenniveau')}
     </div>
+
+    <article class="card card-padding annual-income-card">
+      <div class="card-heading">
+        <div><h3 class="card-title">Einnahmen ${annualIncome.year}</h3><p class="card-subtitle">Verdienst wird getrennt von Rückerstattungen, Rückzahlungen und ungeklärten Eingängen gezeigt.</p></div>
+        <a class="card-link" href="#/transactions?period=year&view=details">Alle Eingänge</a>
+      </div>
+      <div class="income-summary-grid">
+        <a href="#/transactions?period=year&view=details&incomeKind=earned"><span>Verdient</span><strong>${money(annualIncome.earned,{currency,locale,decimals:0})}</strong></a>
+        <a href="#/transactions?period=year&view=details&incomeKind=refund"><span>Rückerstattungen</span><strong>${money(annualIncome.refunds,{currency,locale,decimals:0})}</strong></a>
+        <a href="#/transactions?period=year&view=details&incomeKind=repayment"><span>Rückzahlungen</span><strong>${money(annualIncome.repayments,{currency,locale,decimals:0})}</strong></a>
+        <a href="#/transactions?period=year&view=details&incomeKind=unknown" class="${annualIncome.reviewCount?'income-summary-review':''}"><span>Ungeklärt</span><strong>${money(annualIncome.unknown,{currency,locale,decimals:0})}</strong><small>${annualIncome.reviewCount} Buchung${annualIncome.reviewCount===1?'':'en'} prüfen</small></a>
+      </div>
+      <div class="income-source-list">
+        ${annualIncome.bySource.slice(0,6).map((row)=>`<a href="${escapeHtml(drilldownHref({period:'year',query:row.source,incomeKind:row.kind}))}"><div><strong>${escapeHtml(row.source)}</strong><small>${escapeHtml(row.label)} · ${row.count} Buchung${row.count===1?'':'en'}</small></div><span>${money(row.value,{currency,locale,decimals:0})}</span></a>`).join('')}
+      </div>
+    </article>
 
     <article class="card card-padding overview-account-card">
       <div class="card-heading"><div><h3 class="card-title">Wo dein Geld liegt</h3><p class="card-subtitle">Anteil deiner liquiden Konten</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
