@@ -606,14 +606,13 @@ async function ensureRuntimeCompatibility(){
   }
   runtime.runtimeState=state;
   const compatibility=schemaCompatibility(APP_CONFIG.schemaVersion,state);
-  const releaseOutOfSync=Boolean(state?.release_id&&state.release_id!==APP_CONFIG.releaseId);
-  if(!compatibility.ok||releaseOutOfSync){
+  if(!compatibility.ok){
     if(compatibility.reason==='server_too_old'){
       showReleaseUpdating('Finance-Datenbank wird aktualisiert. Bitte kurz warten …');
       return false;
     }
-    const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:state?.release_id||APP_CONFIG.releaseId}));
-    return reloadForRelease(manifest.releaseId||state?.release_id,'Finance-Version und Datenbank werden synchronisiert …');
+    const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
+    return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'Finance-Version und Datenbank werden synchronisiert …');
   }
   return true;
 }
