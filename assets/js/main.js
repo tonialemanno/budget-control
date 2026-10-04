@@ -1437,33 +1437,63 @@ function syncTransactionTransferEditor() {
   if(!form) return;
   const tx=runtime.transactions.find((row)=>row.id===form.querySelector('[name="transactionId"]')?.value);
   if(!tx) return;
-  const transfer=document.querySelector('#transactionEditDirection')?.value==='transfer';
+  const mode=document.querySelector('#transactionEditDirection')?.value||'expense';
+  const transfer=mode==='transfer';
+  const cashWithdrawal=mode==='cash_withdrawal';
+  const transferLike=transfer||cashWithdrawal;
   const account=document.querySelector('#transactionEditAccount');
   const fields=document.querySelector('#transactionEditTransferFields');
   const other=document.querySelector('#transactionEditOtherAccount');
   const otherAmount=document.querySelector('#transactionEditOtherAmount');
   const otherAmountField=document.querySelector('#transactionEditOtherAmountField');
   const counterpart=document.querySelector('#transactionEditOtherTransaction');
-  if(fields) fields.hidden=!transfer;
-  if(account){ account.disabled=transfer; if(transfer) account.value=tx.account_id; }
-  if(other) other.required=transfer;
-  for(const name of ['categoryId','merchantId','counterparty','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports']){
+  const hint=document.querySelector('#transactionEditTransferHint');
+  if(fields) fields.hidden=!transferLike;
+  if(account){ account.disabled=transferLike; if(transferLike) account.value=tx.account_id; }
+  if(other) other.required=transferLike;
+
+  for(const name of ['categoryId','merchantId','counterparty','counterpartyKind','contextName','contextType','vehicleId','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports']){
     const input=form.querySelector(`[name="${name}"]`);
     if(!input) continue;
-    input.disabled=transfer;
+    input.disabled=transferLike;
     const field=input.closest('.field');
-    if(field) field.hidden=transfer;
+    if(field) field.hidden=transferLike;
   }
-  if(!transfer||!other||!counterpart) return;
-  for(const option of other.options){ if(option.value) option.disabled=option.value===tx.account_id; }
-  if(other.selectedOptions?.[0]?.disabled) other.value='';
+  if(!transferLike||!other||!counterpart) return;
+
   const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+  for(const option of other.options){
+    if(!option.value) continue;
+    const candidate=runtime.accounts.find((row)=>row.account_id===option.value);
+    option.disabled=option.value===tx.account_id
+      || (cashWithdrawal && (!candidate || candidate.account_type!=='cash' || candidate.currency!==currentAccount?.currency));
+  }
+
+  if(cashWithdrawal){
+    const cashAccounts=runtime.accounts.filter((row)=>row.account_type==='cash'&&row.currency===currentAccount?.currency&&row.account_id!==tx.account_id);
+    if(!cashAccounts.length){
+      other.value='';
+      if(hint) hint.textContent=`Für ${currentAccount?.currency||tx.currency} fehlt ein Bargeldkonto. Lege unter Konten zuerst eine Kasse an.`;
+    } else if(!cashAccounts.some((row)=>row.account_id===other.value)){
+      other.value=cashAccounts.length===1?cashAccounts[0].account_id:'';
+    }
+  } else if(other.selectedOptions?.[0]?.disabled) {
+    other.value='';
+  }
+
   const otherAccount=runtime.accounts.find((row)=>row.account_id===other.value);
   counterpart.replaceChildren(new Option(otherAccount?'Keine passende Bankbuchung – Gegenbuchung erstellen':'Zuerst Gegenkonto wählen',''));
   if(!currentAccount||!otherAccount) return;
+
   const sameCurrency=currentAccount.currency===otherAccount.currency;
   if(otherAmountField) otherAmountField.hidden=sameCurrency;
   if(otherAmount){ otherAmount.disabled=sameCurrency; otherAmount.required=!sameCurrency; if(sameCurrency) otherAmount.value=''; }
+
+  if(hint){
+    if(cashWithdrawal) hint.textContent=`Bargeldbezug: ${currentAccount.name} → ${otherAccount.name}. Das ist keine Ausgabe, sondern eine Umbuchung in deine Kasse.`;
+    else hint.textContent=Number(tx.amount)<0?`Umbuchung: ${currentAccount.name} → ${otherAccount.name}`:`Umbuchung: ${otherAccount.name} → ${currentAccount.name}`;
+  }
+
   const amount=Math.abs(Number(document.querySelector('#transactionEditAmount')?.value||tx.amount));
   const targetAmount=sameCurrency?amount:Number(otherAmount?.value||0);
   if(!(targetAmount>0)) return;
@@ -1498,7 +1528,11 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditDescription').value=tx.description||'';
   document.querySelector('#transactionEditCategory').value=tx.category_id||'';
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
-  document.querySelector('#transactionEditCounterparty').value=tx.counterparty||'';
+  document.querySelector('#transactionEditCounterparty').value=tx.counterparties?.name||tx.counterparty||'';
+  const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'person';
+  const context=document.querySelector('#transactionEditContext'); if(context) context.value=tx.transaction_contexts?.name||'';
+  const contextType=document.querySelector('#transactionEditContextType'); if(contextType) contextType.value=tx.transaction_contexts?.context_type||'trip';
+  const vehicle=document.querySelector('#transactionEditVehicle'); if(vehicle) vehicle.value=tx.vehicle_id||'';
   document.querySelector('#transactionEditNote').value=tx.note||'';
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
@@ -1513,6 +1547,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (fields) fields.hidden=!recurring;
   const next=document.querySelector('#transactionRecurringNextDate');
   if (next) next.value=addMonthsToDate(tx.occurred_at,1);
+  if(recurring) syncTransactionRecurringMatch();
   const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
   const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
   const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
