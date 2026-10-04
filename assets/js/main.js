@@ -1474,7 +1474,7 @@ function syncTransactionTransferEditor() {
   if(account){ account.disabled=special; if(special) account.value=tx.account_id; }
   if(other) other.required=special;
 
-  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports','makeRecurring'];
+  const hiddenInTransfer=['categoryId','merchantId','counterparty','counterpartyKind','contextId','contextName','vehicleId','taxRelevant','taxYear','taxTreatment','taxSectionKey','taxCategory','semanticType','excludeFromReports'];
   for(const name of hiddenInTransfer){
     const input=form.querySelector(`[name="${name}"]`);
     if(!input) continue;
@@ -1482,8 +1482,16 @@ function syncTransactionTransferEditor() {
     const field=input.closest('.field');
     if(field) field.hidden=special;
   }
+  const recurringToggle=document.querySelector('#transactionMakeRecurring');
+  if(recurringToggle){
+    recurringToggle.disabled=cashWithdrawal;
+    const recurringField=recurringToggle.closest('.field');
+    if(recurringField) recurringField.hidden=cashWithdrawal;
+    if(cashWithdrawal) recurringToggle.checked=false;
+  }
   const recurringFields=document.querySelector('#transactionRecurringFields');
-  if(special&&recurringFields) recurringFields.hidden=true;
+  if(cashWithdrawal&&recurringFields) recurringFields.hidden=true;
+  else if(transfer&&recurringFields) recurringFields.hidden=!(recurringToggle?.checked);
 
   if(!special||!other||!counterpart) return;
 
