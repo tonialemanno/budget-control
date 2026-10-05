@@ -1478,6 +1478,7 @@ function renderImportReview() {
   const host = document.querySelector('#importReview');
   if (!form || !host || !importState.items.length) return;
   const preferredMapping = importMappingFromForm(form);
+  const account=runtime.accounts.find((row)=>row.account_id===String(new FormData(form).get('accountId')||''))||null;
   if (!validImportMapping(preferredMapping)) {
     host.innerHTML = '<div class="inline-alert"><strong>Zuordnung unvollständig.</strong><span>Wähle Datum, Beschreibung und eine Betragsspalte.</span></div>';
     return;
@@ -1493,10 +1494,13 @@ function renderImportReview() {
       if (!tx) continue;
       validRows+=1;
       const merchant = merchantFromTransaction(tx);
-      const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const existing = merchant.genericPaymentRail
+        ? null
+        : resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
       const knownCategoryNames=suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+      const accountCategory=suggestAccountCategory(tx,{account,categories:runtime.categories});
+      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || accountCategory?.id || '';
       const groupKey=existing?.normalized_key||merchant.key;
       const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
       group.rows.push(tx); group.total += Number(tx.amount);
