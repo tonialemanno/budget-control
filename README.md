@@ -1,5 +1,10 @@
 # Finance 2.3.0 Stable
 
+## Neu in 2.3.14: Machine Learning für Kategorien
+
+Finance ergänzt die bestehende Händler-, Regel- und Kategorienlogik um ein lokales, überwachtes ML-Modell. Das Modell lernt aus bereits kategorisierten Buchungen des aktiven Haushalts, zeigt ML-Vorschläge mit Confidence und darf nur bei strenger Evidenz automatisch als sicher gelten. Regeln und explizit gemerkte Händler bleiben vorrangig. Die Buchungstexte verlassen Finance dafür nicht.
+
+
 ## Aktueller Stand
 
 Finance 2.3.0 ist der konsolidierte Stable-Stand für den manuellen Familien-/Testbetrieb. Konten, Transaktionen, Imports, Händler, Fixkosten, Budgets, Rechnungen, Verträge, Sparziele, Schulden, Forderungen und Finance Intelligence verwenden einen gemeinsamen Finanzkern und klar getrennte Planungs-/Ist-Logik.

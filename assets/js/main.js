@@ -10,6 +10,7 @@ import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
+import { buildCategoryMlModel, predictCategoryMl } from './app/ml-categorization.js';
 import { buildSetupStatus } from './app/setup-model.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
 import { buildBudgetDecisionGuide } from './app/finance-coach.js';
@@ -1426,6 +1427,7 @@ function renderImportReview() {
     return;
   }
   const groups = new Map();
+  const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
   let validRows=0;
   let unmappedFiles=0;
   for (const item of importState.items) {
@@ -1439,7 +1441,8 @@ function renderImportReview() {
       const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
       const knownCategoryNames=suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+      const mlPrediction=predictCategoryMl(mlModel,tx);
+      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '';
       const groupKey=existing?.normalized_key||merchant.key;
       const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
       group.rows.push(tx); group.total += Number(tx.amount);
@@ -1480,7 +1483,9 @@ function suggestedCategoryIdForTransaction({
     const category=runtime.categories.find((row)=>row.kind===(Number(amount)<0?'expense':'income')&&row.name.toLowerCase()===String(name).toLowerCase());
     if(category) return category.id;
   }
-  return null;
+  const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
+  const mlPrediction=predictCategoryMl(mlModel,{description,counterparty,note,amount,merchant_id:merchantId,source:'manual'});
+  return mlPrediction?.safe ? mlPrediction.categoryId : null;
 }
 
 function transactionTaxDefaults(txLike={}) {
@@ -3055,6 +3060,7 @@ async function handleForm(form) {
     const remember = data.get('rememberMerchants') === 'on';
     const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
     const aliasCache = [...runtime.merchantAliases];
+    const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
     let importedTotal=0;
     let skippedTotal=0;
     let completedFiles=0;
@@ -3086,7 +3092,8 @@ async function handleForm(form) {
           const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
           const knownCategoryNames=suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+          const mlPrediction=predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
+          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null);
           const categoryId = selectedCategory || fallbackCategory;
           if (!merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });

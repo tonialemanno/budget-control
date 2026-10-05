@@ -1,4 +1,5 @@
 import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './csv-import.js';
+import { buildCategoryMlModel, predictCategoryMl } from './ml-categorization.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -20,6 +21,7 @@ export function buildCategorizationGroups({
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
   const merchantByKey = new Map(merchants.map((merchant) => [merchant.normalized_key, merchant]));
+  const mlModel = buildCategoryMlModel({ transactions, categories });
   const groups = new Map();
 
   for (const tx of transactions) {
@@ -81,6 +83,23 @@ export function buildCategorizationGroups({
       if (knownId) suggestion = { categoryId: knownId, source: 'known', safe: true };
     }
 
+    if (!suggestion && unassignedRows.length) {
+      const predictions = unassignedRows.map((row) => predictCategoryMl(mlModel, row)).filter(Boolean);
+      if (predictions.length === unassignedRows.length) {
+        const mlCategoryId = uniform(predictions.map((prediction) => validCategory(prediction.categoryId, group.kind, categoryById)?.id));
+        if (mlCategoryId) {
+          const confidence = predictions.reduce((sum, prediction) => sum + prediction.confidence, 0) / predictions.length;
+          suggestion = {
+            categoryId: mlCategoryId,
+            source: 'ml',
+            safe: predictions.every((prediction) => prediction.safe),
+            confidence,
+            modelVersion: predictions[0].modelVersion,
+          };
+        }
+      }
+    }
+
     // Bestehende, einheitliche Benutzerzuordnungen sind ein Vorschlag, aber nie Teil der sicheren Sammelautomatik.
     if (!suggestion && currentCategoryId && unassignedRows.length) {
       suggestion = { categoryId: currentCategoryId, source: 'history', safe: false };
@@ -115,7 +134,11 @@ export function buildCategorizationGroups({
   });
 }
 
-export function categorizationSourceLabel(source) {
+export function categorizationSourceLabel(source, confidence = null) {
+  if (source === 'ml') {
+    const value = Number(confidence);
+    return `Machine Learning${Number.isFinite(value) ? ` · ${Math.round(value * 100)} %` : ''}`;
+  }
   return ({
     remembered: 'Gemerkte Händlerkategorie',
     rule: 'Kategorisierungsregel',

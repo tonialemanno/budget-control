@@ -1,5 +1,16 @@
 # Finance 2.3.0 Stable
 
+## 2.3.14 – lokales Machine Learning für Kategorien
+
+- Finance trainiert einen überwachten Multinomial-Naive-Bayes-Klassifikator direkt aus bereits kategorisierten Haushaltsbuchungen.
+- Merkmale sind unter anderem kanonischer Händler, Beschreibung/Gegenpartei, Text-Bigramme, Zahlungsprozessor, Betragsspanne und Währung.
+- Die Priorität bleibt deterministisch: gemerkte Händlerkategorie → Regel → eindeutige Händlerbibliothek → Machine Learning → bisherige Gruppenhistorie.
+- ML-Vorschläge erscheinen mit Confidence. Nur bei ausreichender Datenbasis, Klassenstützung, Merkmalsabdeckung und deutlichem Abstand zur zweitbesten Kategorie gelten sie als sicher.
+- Importvorschauen dürfen auch prüfbare ML-Vorschläge vorselektieren; stille Fallback-Kategorisierung und manuelle Neuanlage verwenden ML nur bei hoher Sicherheit.
+- Benutzerkorrekturen wirken beim nächsten Modellaufbau als neue Trainingslabels. Es gibt keinen externen ML-Dienst und keine Übertragung von Buchungstexten.
+- Keine Datenbankmigration: das Modell wird aus den bereits vorhandenen, haushaltsisolierten Transaktionsdaten aufgebaut.
+
+
 ## Stable 2.3.0 – konsolidierter Finanzkern
 
 Dieser Release friert den geprüften Beta-Stand als erste stabile 2.3-Version ein.
