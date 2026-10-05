@@ -28,4 +28,13 @@ const unknownOnSalary=buildCategorizationGroups({
 });
 assert.equal(unknownOnSalary[0].suggestion,null);
 
+const separateUnknowns=buildCategorizationGroups({
+  transactions:[
+    {...generic,id:'t2',account_id:'salary-account',amount:-20,occurred_at:'2026-09-29'},
+    {...generic,id:'t3',account_id:'salary-account',amount:-35,occurred_at:'2026-09-30'},
+  ],
+  categories,accounts,merchants:[],aliases:[],rules:[],
+});
+assert.equal(separateUnknowns.length,2,'Unknown TWINT payments on a general account must not be bulk-learned as one merchant.');
+
 console.log('categorization-learning-tests: ok');
