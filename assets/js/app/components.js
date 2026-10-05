@@ -57,7 +57,7 @@ export function dataTable({ headers, rows, emptyText = 'Noch keine Daten vorhand
   return `<div class="table-scroll"><table class="data-table"><thead><tr>${headers.map((h) => `<th>${escapeHtml(t(h))}</th>`).join('')}</tr></thead><tbody>${labelledRows.join('')}</tbody></table></div>`;
 }
 
-export function filePicker({ id, name = 'file', accept = '', capture = '', required = false, disabled = false, label = 'Datei auswählen' } = {}) {
+export function filePicker({ id, name = 'file', accept = '', capture = '', required = false, disabled = false, multiple = false, label = 'Datei auswählen' } = {}) {
   const safeId = escapeHtml(id || 'file-picker');
   const attrs = [
     `id="${safeId}"`,
@@ -69,6 +69,7 @@ export function filePicker({ id, name = 'file', accept = '', capture = '', requi
     capture ? `capture="${escapeHtml(capture)}"` : '',
     required ? 'required' : '',
     disabled ? 'disabled' : '',
+    multiple ? 'multiple' : '',
   ].filter(Boolean).join(' ');
   return `<span class="file-picker">
     <input ${attrs}>
