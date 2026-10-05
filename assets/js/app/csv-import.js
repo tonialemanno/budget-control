@@ -256,7 +256,7 @@ export function merchantFromTransaction(tx) {
     && /^(?:zahlung|payment|belastung|gutschrift|eingang|ausgang|buchung|transaktion|transaction)?$/i.test(String(name||'').trim());
   if(genericPaymentRail){
     return {
-      name:`${processor.paymentProcessor} · Händler unbekannt`,
+      name:processor.paymentProcessor,
       key:'unbekannt',
       rawName,
       aliasKey:'',
