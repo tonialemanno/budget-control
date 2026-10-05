@@ -141,7 +141,31 @@ function txRow(tx,{locale,canWrite,accounts,canTax,paymentMap,billMap}){
   return `<div class="list-row transaction-row"><div class="list-row-main"><span class="list-row-leading ${positive?'list-row-leading--green':''}">${icon(transfer?'repeat':debtPayment?'credit-card':positive?'arrow-down-left':'arrow-up-right')}</span><div><div class="list-row-title">${escapeHtml(tx.description)}${future?' · Geplant':''}</div><div class="list-row-meta">${escapeHtml(categoryLabel)}${entityMeta?` · ${escapeHtml(entityMeta)}`:''} · ${escapeHtml(tx.accounts?.name||'')} · ${dateLabel(tx.occurred_at,locale)}${tx.note?` · ${escapeHtml(tx.note)}`:''}${split}</div>${suggestion&&canWrite&&suggestionAction?`<div class="transaction-suggestion"><span>${escapeHtml(suggestion.label)}</span>${suggestionAction}</div>`:''}${isTwint&&!tx.note&&canWrite?`<div class="transaction-suggestion"><span>TWINT-Zahlung: Wofür war sie?</span><button class="table-action" type="button" data-action="transaction-note" data-id="${tx.id}">Zweck ergänzen</button></div>`:''}</div></div><div class="list-row-trailing"><div class="amount ${positive?'amount--positive':'amount--negative'}">${money(tx.amount,{sign:positive,currency:tx.currency,locale})}</div>${actions}</div></div>`;
 }
 
-function renderCategorizationSelectionDetail(group,{categories=[],accounts=[],locale='de-CH',canWrite=false}={}) {
+function categorizationTransferHints(tx,{transactions=[],accounts=[],locale='de-CH'}={}) {
+  const amount=Math.abs(Number(tx?.amount)||0);
+  const direction=Math.sign(Number(tx?.amount)||0);
+  if(!tx||!amount||!direction||tx.transfer_group_id) return [];
+  const txTime=new Date(tx.occurred_at).getTime();
+  if(!Number.isFinite(txTime)) return [];
+  return transactions
+    .filter((row)=>{
+      if(!row||row.id===tx.id||row.status!=='booked'||row.transfer_group_id) return false;
+      if(row.account_id===tx.account_id||row.currency!==tx.currency) return false;
+      if(Math.sign(Number(row.amount)||0)!==-direction) return false;
+      if(Math.abs(Math.abs(Number(row.amount)||0)-amount)>=0.005) return false;
+      const rowTime=new Date(row.occurred_at).getTime();
+      return Number.isFinite(rowTime)&&Math.abs(rowTime-txTime)<=7*86400000;
+    })
+    .sort((a,b)=>Math.abs(new Date(a.occurred_at)-new Date(tx.occurred_at))-Math.abs(new Date(b.occurred_at)-new Date(tx.occurred_at)))
+    .slice(0,4)
+    .map((row)=>({
+      row,
+      account:accounts.find((account)=>account.account_id===row.account_id)||null,
+      label:`${accounts.find((account)=>account.account_id===row.account_id)?.name||row.accounts?.name||'anderes Konto'} · ${dateLabel(row.occurred_at,locale)} · ${money(row.amount,{sign:true,currency:row.currency,locale})}`,
+    }));
+}
+
+function renderCategorizationSelectionDetail(group,{categories=[],accounts=[],transactions=[],locale='de-CH',canWrite=false}={}) {
   if(!group) return '';
   const categoryOptions=categories
     .filter((category)=>category.kind===group.kind)
@@ -155,16 +179,33 @@ function renderCategorizationSelectionDetail(group,{categories=[],accounts=[],lo
     .filter((account)=>!account.is_archived)
     .map((account)=>`<option value="${account.account_id}">${escapeHtml(account.name)} · ${escapeHtml(account.currency)} · ${escapeHtml(accountType(account.account_type))}</option>`)
     .join('');
-  const rows=group.rows
+  const rows=(group.unassignedRows?.length ? group.unassignedRows : group.rows)
     .slice()
     .sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at)))
     .map((tx)=>{
       const category=categories.find((row)=>row.id===tx.category_id)?.name||'Ohne Kategorie';
-      return `<label class="categorization-select-row"><input type="checkbox" data-categorization-select value="${tx.id}" ${canWrite?'':'disabled'}><span class="categorization-select-copy"><strong>${escapeHtml(tx.description||group.name)}</strong><small>${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(tx.accounts?.name||'Konto')} · ${escapeHtml(category)}</small></span><span class="categorization-select-amount">${money(tx.amount,{sign:Number(tx.amount)>=0,currency:tx.currency,locale})}</span></label>`;
+      const counterparty=tx.counterparties?.name||tx.counterparty||'';
+      const merchant=tx.merchants?.name||'';
+      const note=tx.note||'';
+      const sourceAccount=accounts.find((account)=>account.account_id===tx.account_id)?.name||tx.accounts?.name||'Konto';
+      const hints=categorizationTransferHints(tx,{transactions,accounts,locale});
+      const transferHint=hints.length===1
+        ? `<span class="categorization-transfer-hint"><b>Mögliche Umbuchung:</b> ${escapeHtml(hints[0].label)}</span>`
+        : hints.length>1
+          ? `<span class="categorization-transfer-hint categorization-transfer-hint--ambiguous"><b>Mehrere mögliche Gegenbuchungen:</b> ${escapeHtml(hints.map((hint)=>hint.account?.name||hint.row.accounts?.name||'Konto').filter((name,index,list)=>list.indexOf(name)===index).join(' · '))}</span>`
+          : '';
+      const context=[
+        `<span><b>Von Konto:</b> ${escapeHtml(sourceAccount)}</span>`,
+        counterparty?`<span><b>Gegenpartei:</b> ${escapeHtml(counterparty)}</span>`:'',
+        merchant?`<span><b>Händler:</b> ${escapeHtml(merchant)}</span>`:'',
+        tx.description?`<span><b>Banktext:</b> ${escapeHtml(tx.description)}</span>`:'',
+        note?`<span><b>Notiz / Zweck:</b> ${escapeHtml(note)}</span>`:'',
+      ].filter(Boolean).join('');
+      return `<label class="categorization-select-row"><input type="checkbox" data-categorization-select value="${tx.id}" ${canWrite?'':'disabled'}><span class="categorization-select-copy"><strong>${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(category)}</strong><span class="categorization-select-context">${context}</span>${transferHint}</span><span class="categorization-select-amount">${money(tx.amount,{sign:Number(tx.amount)>=0,currency:tx.currency,locale})}</span></label>`;
     }).join('');
   return `<section class="categorization-selection" data-categorization-detail="${escapeHtml(group.key)}">
     <div class="categorization-selection-head">
-      <div><strong>Teilmenge bearbeiten</strong><span>Markiere mehrere Buchungen und bearbeite sie gemeinsam. Teilmengen ändern bewusst nicht die Standardkategorie des ganzen Händlers.</span></div>
+      <div><strong>Teilmenge bearbeiten</strong><span>Markiere nur die Buchungen, die zusammengehören. Bereits gespeicherte Buchungen verschwinden aus dieser Arbeitsliste.</span></div>
       <button class="table-action" type="button" data-action="categorization-close-group">Schliessen</button>
     </div>
     <div class="categorization-selection-tools">
@@ -174,11 +215,12 @@ function renderCategorizationSelectionDetail(group,{categories=[],accounts=[],lo
     </div>
     <div class="categorization-select-list">${rows}</div>
     ${canWrite?`<div class="categorization-bulk-actions">
-      <div class="categorization-bulk-box"><label class="field"><span>Auswahl kategorisieren</span><select class="text-control" data-categorization-selected-category><option value="">Kategorie wählen</option>${categoryOptions}</select></label><button class="action-button action-button--secondary" type="button" data-action="categorization-apply-selected-category">Kategorie auf Auswahl setzen</button><small>Diese Auswahl wird Trainingswissen für Machine Learning, ohne alle Buchungen von ${escapeHtml(group.name)} gleichzusetzen.</small></div>
+      <div class="categorization-bulk-box"><label class="field"><span>Auswahl kategorisieren</span><select class="text-control" data-categorization-selected-category><option value="">Kategorie wählen</option>${categoryOptions}</select></label><button class="action-button action-button--primary" type="button" data-action="categorization-apply-selected-category">Auswahl speichern</button><small>Speichert nur die markierten Buchungen. Es wird keine feste Regel für ${escapeHtml(group.name)} angelegt. Machine Learning verwendet die Entscheidung als Trainingsbeispiel.</small></div>
       <div class="categorization-bulk-box"><label class="field"><span>Auswahl als interne Umbuchung / Sparen</span><select class="text-control" data-categorization-transfer-account><option value="">Gegenkonto wählen</option>${accountOptions}</select></label><button class="action-button action-button--secondary" type="button" data-action="categorization-apply-selected-transfer">Auswahl als Umbuchung verbuchen</button><small>Für Sparen wählst du dein Sparkonto als Gegenkonto. Das zählt dann nicht als Konsumausgabe. Sammelumbuchungen werden nur bei gleicher Währung ausgeführt.</small></div>
     </div>`:''}
   </section>`;
 }
+
 
 function renderCategorizationReview({
   transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates,
@@ -205,11 +247,11 @@ function renderCategorizationReview({
     const suggestion = group.suggestion ? categorizationSourceLabel(group.suggestion.source,group.suggestion.confidence) : 'Kein sicherer Vorschlag';
     const options = categories.filter((category)=>category.kind===group.kind).map((category)=>`<option value="${category.id}" ${category.id===group.selectedCategoryId?'selected':''}>${escapeHtml(category.name)}</option>`).join('');
     const pill = group.suggestion?.safe ? statusPill('active','Sicherer Vorschlag') : group.suggestion ? statusPill('pending','Prüfen') : group.mixed ? statusPill('pending','Gemischt') : statusPill('open','Offen');
-    const detail=group.key===categorizationGroupKey?renderCategorizationSelectionDetail(group,{categories,accounts,locale,canWrite}):'';
+    const detail=group.key===categorizationGroupKey?renderCategorizationSelectionDetail(group,{categories,accounts,transactions,locale,canWrite}):'';
     return `<div class="categorization-group-block"><div class="categorization-group-row" data-categorization-group="${escapeHtml(group.key)}"><div class="categorization-group-copy"><div class="categorization-group-title"><strong>${escapeHtml(group.name)}</strong>${pill}</div><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'} · ${money(total,{currency,locale})} · aktuell: ${escapeHtml(current)}</span><small>${escapeHtml(suggestion)}${group.unassignedCount?` · ${group.unassignedCount} noch ohne Kategorie`:''}</small></div><select class="text-control" data-categorization-category><option value="">Kategorie wählen</option>${options}</select><div class="categorization-group-actions">${canWrite?`<button class="table-action" type="button" data-action="categorization-apply-group" data-group-key="${escapeHtml(group.key)}">Alle setzen & merken</button>`:''}<button class="table-action" type="button" data-action="categorization-view-group" data-group-key="${escapeHtml(group.key)}">${group.key===categorizationGroupKey?'Auswahl offen':'Auswahl bearbeiten'}</button></div></div>${detail}</div>`;
   }).join('');
-  const detachedDetail=activeGroup&&!activeOnPage?renderCategorizationSelectionDetail(activeGroup,{categories,accounts,locale,canWrite}):'';
-  return `<article class="card card-padding categorization-review"><div class="card-heading"><div><h3 class="card-title">Kategorien analysieren</h3><p class="card-subtitle">Bestehende Buchungen werden nach Händler gruppiert. Du kannst entweder eine ganze Gruppe gleich behandeln oder innerhalb der Gruppe Teilmengen markieren.</p></div><div class="card-footer-actions">${canWrite?`<button class="action-button action-button--primary" type="button" data-action="categorization-apply-safe" ${safeGroups.length?'':'disabled'}>Sichere Vorschläge übernehmen</button>`:''}<button class="action-button action-button--secondary" type="button" data-action="categorization-close">Schliessen</button></div></div><div class="categorization-stats"><div><span>Ohne Kategorie</span><strong>${uncategorizedCount}</strong></div><div><span>Sichere Gruppen</span><strong>${safeGroups.length}</strong></div><div><span>Noch offen</span><strong>${unresolvedGroups.length}</strong></div><div><span>Gemischte Gruppen</span><strong>${mixedGroups.length}</strong></div></div><div class="categorization-toolbar"><label class="field"><span>Anzeige</span><select class="text-control" id="categorizationFilter"><option value="action" ${categorizationFilter==='action'?'selected':''}>Vorschläge & offene Gruppen</option><option value="unresolved" ${categorizationFilter==='unresolved'?'selected':''}>Nur ohne Vorschlag</option><option value="all" ${categorizationFilter==='all'?'selected':''}>Alle Händlergruppen</option></select></label><div class="toolbar-note">„Alle setzen & merken“ gilt für die komplette Gruppe. „Auswahl bearbeiten“ ist für gemischte Fälle wie Umbuchungen, Sparen und unterschiedliche Kategorien.</div></div><div class="categorization-group-list">${rows || '<div class="table-empty">Für diese Ansicht gibt es nichts zu prüfen.</div>'}</div>${detachedDetail}${visible.length>pageSize?`<div class="admin-pager categorization-pager"><button class="table-action" type="button" data-action="categorization-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages} · ${visible.length} Gruppen</span><button class="table-action" type="button" data-action="categorization-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div>`:''}</article>`;
+  const detachedDetail=activeGroup&&!activeOnPage&&(activeGroup.needsAttention||categorizationFilter==='all')?renderCategorizationSelectionDetail(activeGroup,{categories,accounts,transactions,locale,canWrite}):'';
+  return `<article class="card card-padding categorization-review"><div class="card-heading"><div><h3 class="card-title">Kategorien analysieren</h3><p class="card-subtitle">Bestehende Buchungen werden nach Händler gruppiert. Du kannst entweder eine ganze Gruppe gleich behandeln oder innerhalb der Gruppe Teilmengen markieren.</p></div><div class="card-footer-actions">${canWrite?`<button class="action-button action-button--primary" type="button" data-action="categorization-apply-safe" ${safeGroups.length?'':'disabled'}>Sichere Vorschläge übernehmen</button>`:''}<button class="action-button action-button--secondary" type="button" data-action="categorization-close">Schliessen</button></div></div><div class="categorization-stats"><div><span>Ohne Kategorie</span><strong>${uncategorizedCount}</strong></div><div><span>Sichere Gruppen</span><strong>${safeGroups.length}</strong></div><div><span>Noch offen</span><strong>${unresolvedGroups.length}</strong></div><div><span>Mehrere Kategorien · erledigt</span><strong>${mixedGroups.filter((group)=>!group.unassignedCount).length}</strong></div></div><div class="categorization-toolbar"><label class="field"><span>Anzeige</span><select class="text-control" id="categorizationFilter"><option value="action" ${categorizationFilter==='action'?'selected':''}>Nur noch zu bearbeiten</option><option value="unresolved" ${categorizationFilter==='unresolved'?'selected':''}>Nur ohne Vorschlag</option><option value="all" ${categorizationFilter==='all'?'selected':''}>Alle Händlergruppen</option></select></label><div class="toolbar-note">„Alle setzen & merken“ gilt für die komplette Gruppe. „Auswahl bearbeiten“ ist für gemischte Fälle wie Umbuchungen, Sparen und unterschiedliche Kategorien.</div></div><div class="categorization-group-list">${rows || '<div class="table-empty">Für diese Ansicht gibt es nichts zu prüfen.</div>'}</div>${detachedDetail}${visible.length>pageSize?`<div class="admin-pager categorization-pager"><button class="table-action" type="button" data-action="categorization-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages} · ${visible.length} Gruppen</span><button class="table-action" type="button" data-action="categorization-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div>`:''}</article>`;
 }
 
 export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionCategoryIds=[], transactionSourceSet=[], transactionAccount='all', transactionContext='all', transactionVehicle='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], merchantAliases = [], counterparties = [], transactionContexts = [], vehicles = [], categorizationRules = [], recurringRules = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1, categorizationGroupKey = '' } = {}) {

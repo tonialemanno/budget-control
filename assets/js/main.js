@@ -3319,8 +3319,11 @@ async function handleAction(target) {
     return;
   }
   if (action === 'categorization-open') {
-    if (!runtime.categories.length) {
-      await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, []);
+    const cfg=countryConfig(runtime.household.country_code||'CH');
+    const existingCategoryKeys=new Set(runtime.categories.map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
+    const missingStarter=(cfg.starterCategories||[]).some(([name,kind])=>!existingCategoryKeys.has(`${kind}:${String(name).toLowerCase()}`));
+    if (!runtime.categories.length || missingStarter) {
+      await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
       await loadFinanceData();
     }
     uiState.categorizationOpen = true;
@@ -3371,7 +3374,7 @@ async function handleAction(target) {
     const category=runtime.categories.find((row)=>row.id===categoryId);
     if(!group||!category||category.kind!==group.kind) throw new Error('Bitte eine passende Kategorie auswählen.');
     await financeApi.bulkUpdateTransactions(ids,{category_id:category.id});
-    await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} als „${category.name}“ kategorisiert. Machine Learning lernt diese Auswahl künftig mit.`);
+    await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} gespeichert. Keine feste Regel angelegt. Machine Learning verwendet diese Entscheidung als Trainingsbeispiel.`);
     requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
     return;
   }

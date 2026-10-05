@@ -115,7 +115,7 @@ export function buildCategorizationGroups({
       unassignedCount: unassignedRows.length,
       suggestion: suggestion ? { ...suggestion, category: categoryById.get(suggestion.categoryId) } : null,
       selectedCategoryId,
-      needsAttention: unassignedRows.length > 0 || mixed,
+      needsAttention: unassignedRows.length > 0,
     });
   }
 

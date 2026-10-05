@@ -1,5 +1,17 @@
 # Finance 2.3.0 Stable
 
+## 2.3.17 – Kategorisierung als echte Arbeitsliste
+
+- „Kategorien analysieren“ zeigt im Standardfilter nur noch Buchungen, die tatsächlich noch eine Entscheidung benötigen.
+- Eine gespeicherte Buchung verschwindet sofort aus der offenen Arbeitsliste. Unterschiedliche, bereits korrekt gesetzte Kategorien innerhalb derselben Person-/Händlergruppe gelten nicht mehr als Fehler.
+- „Auswahl speichern“ speichert nur die markierten Buchungen und legt ausdrücklich keine dauerhafte Händler- oder Personenregel an.
+- Die Auswahl zeigt mehr Kontext: Quellkonto, Gegenpartei, Händler, Banktext und Notiz/Zweck.
+- Passende Gegenbuchungen auf anderen eigenen Konten werden als mögliche Umbuchung angezeigt. Mehrdeutige Treffer werden nur als Hinweis gezeigt und nie automatisch entschieden.
+- Für Einnahmen gehören „Lohn“, „Rückzahlung“ und „Sonstige Einnahmen“ zur empfohlenen Basisauswahl. Fehlende Basis-Kategorien werden auch in bestehenden Haushalten beim Öffnen der Analyse ergänzt.
+- Benutzerentscheidungen bleiben Trainingsbeispiele für Machine Learning; sie werden nicht automatisch zu festen Regeln.
+- Keine Datenbankmigration erforderlich.
+
+
 ## 2.3.16 – sichtbare zentrale Versionsanzeige
 
 - Login-Seite, Seitenleiste und Release-Hinweis verwenden dieselbe zentrale Version aus `APP_CONFIG`.
