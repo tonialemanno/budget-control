@@ -1183,6 +1183,62 @@ async function applyImportGroupLearning(ids, categoryId) {
   return {count:candidates.length,name:merchant.name};
 }
 
+async function learnFromTransactionCorrection(transaction, categoryId, preferredMerchantId = null) {
+  if(!transaction || !categoryId) return { learned:false, count:0 };
+  const kind=Number(transaction.amount)<0?'expense':'income';
+  const category=runtime.categories.find((row)=>row.id===categoryId&&row.kind===kind);
+  if(!category) return { learned:false, count:0 };
+
+  const detected=merchantFromTransaction(transaction);
+  if(!detected || detected.genericPaymentRail || !detected.key || detected.key==='unbekannt') {
+    return { learned:false, count:0 };
+  }
+
+  let merchant=preferredMerchantId
+    ? runtime.merchants.find((row)=>row.id===preferredMerchantId)||null
+    : resolveCanonicalMerchant(detected,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+
+  if(!merchant){
+    merchant=await financeApi.upsertMerchant({
+      household_id:runtime.household.id,
+      normalized_key:detected.key,
+      name:detected.name,
+      default_category_id:category.id,
+    });
+    if(merchant&&!runtime.merchants.some((row)=>row.id===merchant.id)) runtime.merchants.push(merchant);
+  } else if(merchant.default_category_id!==category.id) {
+    merchant=await financeApi.updateMerchant(merchant.id,{default_category_id:category.id});
+    const merchantIndex=runtime.merchants.findIndex((row)=>row.id===merchant.id);
+    if(merchantIndex>=0) runtime.merchants[merchantIndex]=merchant;
+  }
+  if(!merchant) return { learned:false, count:0 };
+
+  if(detected.aliasKey && detected.aliasKey!==merchant.normalized_key){
+    const alias=await financeApi.upsertMerchantAlias({
+      household_id:runtime.household.id,
+      merchant_id:merchant.id,
+      alias_name:detected.rawName||detected.name,
+      normalized_key:detected.aliasKey,
+      payment_processor:detected.paymentProcessor||null,
+    });
+    if(alias&&!runtime.merchantAliases.some((row)=>row.id===alias.id)) runtime.merchantAliases.push(alias);
+  }
+
+  const candidates=runtime.transactions.filter((row)=>{
+    if(row.transfer_group_id || !['booked','pending'].includes(row.status)) return false;
+    if((Number(row.amount)<0?'expense':'income')!==kind) return false;
+    if(row.category_id && row.category_id!==category.id) return false;
+    if(row.merchant_id===merchant.id) return true;
+    const identity=merchantFromTransaction(row);
+    return !identity?.genericPaymentRail && identity?.key===detected.key;
+  });
+  if(transaction.id&&!candidates.some((row)=>row.id===transaction.id)) candidates.push(transaction);
+
+  const ids=[...new Set(candidates.map((row)=>row.id).filter(Boolean))];
+  if(ids.length) await financeApi.bulkUpdateTransactions(ids,{category_id:category.id,merchant_id:merchant.id});
+  return { learned:true, count:ids.length, merchant };
+}
+
 function contractRecurringPayload(contract) {
   const account=runtime.accounts.find((row)=>row.account_id===contract.account_id);
   if(!account) throw new Error('Bitte beim Vertrag zuerst ein Zahlungskonto hinterlegen.');
