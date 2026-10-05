@@ -49,8 +49,9 @@ assert.equal(coach.freedCommitment.suggestedSavings,675);
 assert.equal(coach.freedCommitment.availableFrom.toISOString().slice(0,10),'2027-03-25');
 assert.ok(coach.insights.some((row)=>row.type==='freed_commitment'));
 
+const debtPlanning=fs.readFileSync(new URL('../assets/js/app/debt-planning.js',import.meta.url),'utf8');
+assert.match(debtPlanning,/\[12,24,36,48,60\]/);
 const debts=fs.readFileSync(new URL('../assets/js/views/debts.js',import.meta.url),'utf8');
-assert.match(debts,/12,24,36,48,60/);
 assert.match(debts,/In einer Anbieterrechnung enthalten/);
 assert.match(debts,/linked_transaction_component/);
 
