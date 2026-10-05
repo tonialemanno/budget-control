@@ -138,7 +138,7 @@ export function renderBudget({
     ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt Finance den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
 
     <article class="card card-padding budget-active-section" id="budget-active-section">
-      <div class="card-heading"><div><h3 class="card-title">Deine variablen Budgets</h3><p class="card-subtitle">Gespeicherte Budgets sind sofort hier sichtbar und gelten für den laufenden Finanzmonat ${escapeHtml(financePeriodLabel)}.</p></div></div>
+      <div class="card-heading"><div><h3 class="card-title">Deine variablen Budgets</h3><p class="card-subtitle"><span>Gespeicherte Budgets sind sofort hier sichtbar und gelten für den laufenden Finanzmonat</span> <strong>${escapeHtml(financePeriodLabel)}</strong>.</p></div></div>
       ${variableCards?`<div class="budget-active-grid">${variableCards}</div>`:'<div class="table-empty">Noch kein variables Budget eingerichtet.</div>'}
     </article>
 
