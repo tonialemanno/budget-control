@@ -22,7 +22,7 @@ function optionList(rows, selected = '') {
 function cadenceLabel(value) { return CADENCES.find(([key])=>key===value)?.[1] || value || '—'; }
 function statusLabel(value) { return STATUSES.find(([key])=>key===value)?.[1] || value || '—'; }
 function sourceLabel(value) {
-  return ({ created_transaction:'Kontobuchung erstellt', linked_transaction:'Bankbuchung verknüpft', history_only:'Nur Verlauf' })[value] || value || '—';
+  return ({ created_transaction:'Kontobuchung erstellt', linked_transaction:'Bankbuchung vollständig verknüpft', linked_transaction_component:'Schuldanteil in Rechnung verknüpft', history_only:'Nur Verlauf' })[value] || value || '—';
 }
 function paymentAccounts(accounts) {
   return accounts.filter((account)=>!['investment','pension'].includes(account.account_type));
@@ -118,7 +118,7 @@ export function renderDebts({
       <td>${statusPill(debt.status,statusLabel(debt.status))}${linked?`<div class="table-meta">Wiederkehrend verknüpft</div>`:''}</td>
       <td><div class="table-actions">
         <button class="table-action" type="button" data-action="debt-history" data-id="${debt.id}">${history.length ? `Verlauf (${history.length})` : 'Verlauf'}</button>
-        ${canWrite?`<button class="table-action" type="button" data-action="debt-edit" data-id="${debt.id}">Bearbeiten</button><button class="table-action" type="button" data-action="debt-payment-open" data-id="${debt.id}" ${Number(debt.outstanding_amount)<=0?'disabled':''}>Zahlung</button>${linked?`<button class="table-action" type="button" data-action="debt-recurring-remove" data-id="${debt.id}">Wiederkehrend lösen</button>`:`<button class="table-action" type="button" data-action="debt-recurring" data-id="${debt.id}">Wiederkehrend</button>`}${canDelete?deleteButton('debts',debt.id):''}`:''}
+        ${canWrite?`<button class="table-action" type="button" data-action="debt-edit" data-id="${debt.id}">Bearbeiten</button><button class="table-action" type="button" data-action="debt-payment-open" data-id="${debt.id}" ${Number(debt.outstanding_amount)<=0?'disabled':''}>Zahlung</button>${debt.payment_mode==='included_in_bill'?'':linked?`<button class="table-action" type="button" data-action="debt-recurring-remove" data-id="${debt.id}">Wiederkehrend lösen</button>`:`<button class="table-action" type="button" data-action="debt-recurring" data-id="${debt.id}">Wiederkehrend</button>`}${canDelete?deleteButton('debts',debt.id):''}`:''}
       </div></td>
     </tr>`;
   });
