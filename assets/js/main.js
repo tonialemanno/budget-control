@@ -1327,14 +1327,15 @@ function syncDebtTermForm(form) {
     const rate=Number(form.querySelector(`#${prefix}Installment`)?.value||0);
     const original=Number(form.querySelector(`#${prefix}Original`)?.value||0);
     if(!start||!term){
-      preview.innerHTML='<strong>Ende automatisch</strong><span>Beginn und Laufzeit wählen.</span>';
+      preview.innerHTML=`<strong>${escapeHtml(t('Ende automatisch'))}</strong><span>${escapeHtml(t('Beginn und Laufzeit wählen.'))}</span>`;
     } else {
       const scheduled=rate>0?rate*term:0;
       const difference=rate>0&&original>0?original-scheduled:0;
+      const selectedCurrency=form.querySelector(`#${prefix}Currency`)?.value||runtime.household?.base_currency||'CHF';
       const differenceText=Math.abs(difference)>0.01
-        ? ` · Raten total ${moneyText(scheduled,{currency:form.querySelector(`#${prefix}Currency`)?.value||runtime.household?.base_currency||'CHF'})} · Differenz zum Ursprungsbetrag ${moneyText(difference,{currency:form.querySelector(`#${prefix}Currency`)?.value||runtime.household?.base_currency||'CHF',sign:true})}`
+        ? ` · ${t('Raten total')} ${moneyText(scheduled,{currency:selectedCurrency})} · ${t('Differenz zum Ursprungsbetrag')} ${moneyText(difference,{currency:selectedCurrency,sign:true})}`
         : '';
-      preview.innerHTML=`<strong>Letzte Rate: ${escapeHtml(dateLabel(end,runtime.profile?.locale||'de-CH'))}</strong><span>${term} Monatsraten${escapeHtml(differenceText)}</span>`;
+      preview.innerHTML=`<strong>${escapeHtml(t('Letzte Rate'))}: ${escapeHtml(dateLabel(end,runtime.profile?.locale||'de-CH'))}</strong><span>${term} ${escapeHtml(t('Monatsraten'))}${escapeHtml(differenceText)}</span>`;
     }
   }
 }
