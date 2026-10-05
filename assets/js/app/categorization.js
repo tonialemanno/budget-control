@@ -1,4 +1,4 @@
-import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './csv-import.js';
+import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestAccountCategory, suggestKnownCategoryCandidates } from './csv-import.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -16,10 +16,12 @@ export function buildCategorizationGroups({
   merchants = [],
   aliases = [],
   rules = [],
+  accounts = [],
 } = {}) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
   const merchantByKey = new Map(merchants.map((merchant) => [merchant.normalized_key, merchant]));
+  const accountById = new Map(accounts.map((account) => [account.account_id || account.id, account]));
   const groups = new Map();
 
   for (const tx of transactions) {
@@ -31,16 +33,22 @@ export function buildCategorizationGroups({
     const detected = directMerchant
       ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
       : merchantFromTransaction(tx);
-    const linkedMerchant = directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases});
-    const merchantKey = detected.key || 'unbekannt';
+    const genericPaymentRail=Boolean(detected?.genericPaymentRail);
+    const linkedMerchant = genericPaymentRail ? null : (directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases}));
+    const merchantKey = genericPaymentRail
+      ? `unbekannt:${detected.paymentProcessor||'zahlung'}:${tx.account_id||'konto'}`
+      : (detected.key || 'unbekannt');
     const key = `${kind}:${merchantKey}`;
     const group = groups.get(key) || {
       key,
       merchantKey,
-      merchantId: linkedMerchant?.id || tx.merchant_id || null,
+      merchantId: genericPaymentRail ? null : (linkedMerchant?.id || tx.merchant_id || null),
       merchant: linkedMerchant || null,
-      name: linkedMerchant?.name || detected.name || 'Unbekannter Händler',
+      name: genericPaymentRail ? (detected.name || 'Zahlungsweg · Händler unbekannt') : (linkedMerchant?.name || detected.name || 'Unbekannter Händler'),
       kind,
+      genericPaymentRail,
+      paymentProcessor:detected?.paymentProcessor||null,
+      accountId:tx.account_id||null,
       rows: [],
     };
     group.rows.push(tx);
@@ -79,6 +87,12 @@ export function buildCategorizationGroups({
       }).filter(Boolean);
       const knownId = uniform(knownIds);
       if (knownId) suggestion = { categoryId: knownId, source: 'known', safe: true };
+    }
+
+    if (!suggestion && group.genericPaymentRail) {
+      const account=accountById.get(group.accountId);
+      const accountCategory=suggestAccountCategory(group.rows[0],{account,categories});
+      if(accountCategory) suggestion={categoryId:accountCategory.id,source:'account',safe:true};
     }
 
     // Bestehende, einheitliche Benutzerzuordnungen sind ein Vorschlag, aber nie Teil der sicheren Sammelautomatik.
@@ -121,5 +135,6 @@ export function categorizationSourceLabel(source) {
     rule: 'Kategorisierungsregel',
     known: 'Eindeutiger Händler',
     history: 'Bisherige Zuordnung',
+    account: 'Kontozweck',
   })[source] || 'Vorschlag';
 }
