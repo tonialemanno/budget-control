@@ -18,7 +18,7 @@ function fixedCostFields({ accounts = [], categories = [], merchants = [], edit 
   const suffix = edit ? 'Edit' : '';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${!edit&&a.account_id===defaultAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const destinationAccountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
-  const expenseCategoryOptions = categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const expenseCategoryOptions = categories.filter((c)=>c.kind==='expense'&&String(c.name||'').trim().toLowerCase()!=='sparen').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   const incomeCategoryOptions = categories.filter((c)=>c.kind==='income').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   const categoryOptions = `<optgroup label="Einnahmen">${incomeCategoryOptions}</optgroup><optgroup label="Ausgaben">${expenseCategoryOptions}</optgroup>`;
   const merchantDatalist = merchants.map((m)=>`<option value="${escapeHtml(m.name)}"></option>`).join('');
@@ -98,9 +98,9 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
 
   return `
     ${pageHeader({
-      title:'Fixkosten & feste Einnahmen',
-      subtitle:'Lohn, regelmässige Ausgaben und feste Umbuchungen auf deine Töpfe – alles an einem Ort.',
-      actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="fixed-cost-create">${icon('plus')} Position hinzufügen</button>`:''
+      title:'Feste Zahlungen',
+      subtitle:'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Rücklagen und feste Umbuchungen. Finance hält die technische Wiederholungslogik im Hintergrund zusammen.',
+      actions:`${canWrite?'<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="fixed-cost-create">'+icon('plus')+' Position hinzufügen</button>':''}<a class="action-button action-button--secondary" href="#/bills">Einzelne Rechnungen</a>`
     })}
     ${canWrite?formShell('fixed-cost-create','Neue feste Position','Lohn, Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories,merchants,defaultAccountId}),{hidden:true,submitLabel:'Speichern'}):''}
     ${canWrite?formShell('fixed-cost-edit','Feste Position bearbeiten','Betrag, Gegenpartei, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,merchants,edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}

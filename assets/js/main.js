@@ -61,9 +61,15 @@ import { renderIntelligence } from './views/intelligence.js';
 import { renderSettings } from './views/settings.js';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
+import { renderReview } from './views/review.js';
+import { renderSearch } from './views/search.js';
+import { renderProjects } from './views/projects.js';
 
 const views = {
   overview: renderOverview,
+  review: renderReview,
+  search: renderSearch,
+  projects: renderProjects,
   money: renderMoney,
   planning: renderPlanning,
   setup: renderSetupGuide,
@@ -150,10 +156,12 @@ const runtime = {
   taxPayments: [],
   fxRates: null,
   runtimeState: null,
+  previousVisitAt: null,
+  changeHistory: [],
 };
 
 const importState = { items: [] };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -164,6 +172,7 @@ const desktopNav = document.querySelector('#desktopNav');
 const mobileNav = document.querySelector('#mobileNav');
 const themeButton = document.querySelector('#themeButton');
 const privacyButton = document.querySelector('#privacyButton');
+const searchButton = document.querySelector('#searchButton');
 const mobileMenuButton = document.querySelector('#mobileMenuButton');
 const mobileScrim = document.querySelector('#mobileScrim');
 const quickAddSheet = document.querySelector('#quickAddSheet');
@@ -206,6 +215,45 @@ async function saveUserPreferences(patch) {
   applyPrivacyUI();
   updateProfileUI();
   return preferences;
+}
+
+async function recordChange({type,label,before=[],after=[],undoable=true}={}) {
+  const payload={
+    household_id:runtime.household.id,
+    action_type:type||'change',
+    label:label||'Änderung',
+    before_data:Array.isArray(before)?before:[],
+    after_data:Array.isArray(after)?after:[],
+  };
+  const saved=await financeApi.createTransactionChangeLog(payload);
+  const entry={
+    id:saved.id,
+    type:saved.action_type,
+    label:saved.label,
+    before:saved.before_data||[],
+    after:saved.after_data||[],
+    undoable:Boolean(undoable),
+    undone:Boolean(saved.undone_at),
+    at:saved.created_at,
+  };
+  runtime.changeHistory.unshift(entry);
+  runtime.changeHistory=runtime.changeHistory.slice(0,100);
+  return entry;
+}
+
+async function undoRecordedChange(entry) {
+  if(!entry||entry.undone||!entry.undoable) throw new Error('Diese Änderung kann nicht rückgängig gemacht werden.');
+  if(entry.type==='category_bulk'){
+    for(const row of entry.before||[]){
+      if(row.entity==='merchant') await financeApi.updateMerchant(row.id,{default_category_id:row.default_category_id||null});
+      else await financeApi.updateTransaction(row.id,{category_id:row.category_id||null,merchant_id:row.merchant_id||null});
+    }
+    const undoneAt=new Date().toISOString();
+    await financeApi.updateTransactionChangeLog(entry.id,{undone_at:undoneAt});
+    entry.undone=true;
+    return;
+  }
+  throw new Error('Für diese Änderung ist kein sicherer Rückgängig-Schritt verfügbar.');
 }
 
 async function savePrimaryAccountPreference(accountId) {
@@ -260,28 +308,30 @@ function renderNavigation() {
   desktopNav.innerHTML = `
     <div class="nav-group-label">${escapeHtml(t('Finance'))}</div>
     ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
-    <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Verwaltung'))}</div>
+    <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Mehr'))}</div>
     ${management}
   `;
 
   mobileNav.innerHTML = `
     <a href="#/overview" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
-    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
+    <a href="#/review" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
     <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
+    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
     <a href="#/planning" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
-    <a href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Mehr'))}</span></a>
   `;
 }
 
 function routeSection(route) {
   if (['settings','categories','merchants','setup','profile','admin'].includes(route)) return 'settings';
   if (route === 'import-history') return 'money';
+  if (route === 'search') return 'settings';
+  if (route === 'review') return 'review';
   return NAV_ITEMS.find((item) => item.route === route)?.section || route;
 }
 
 function resolveRoute() {
   const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
-  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup', 'profile']);
+  const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup', 'profile', 'search']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
   if (onboardingPending) {
@@ -358,12 +408,18 @@ function applyRouteIntent(route) {
   const params = new URLSearchParams(query);
   const create = params.get('create');
   const accountId = params.get('account');
+  const contextId = params.get('context');
+  if (route === 'transactions' && contextId && runtime.transactionContexts.some((row)=>row.id===contextId)) {
+    uiState.transactionContext=contextId;
+    uiState.transactionPeriod='all';
+    uiState.transactionPage=1;
+  }
   if (route === 'transactions' && accountId && runtime.accounts.some((row)=>row.account_id===accountId)) {
     uiState.transactionAccount = accountId;
     uiState.transactionPage = 1;
   }
   if (!create) {
-    if (accountId) history.replaceState(null, '', `#/${route}`);
+    if (accountId||contextId) history.replaceState(null, '', `#/${route}`);
     return;
   }
 
@@ -851,6 +907,7 @@ async function loadFinanceData() {
     () => financeApi.listCountryCategoryCatalog(runtime.household.country_code).catch(()=>[]),
     () => financeApi.listCountryMerchantCatalog(runtime.household.country_code).catch(()=>[]),
     () => financeApi.listMasterDataHouseholds().catch(()=>[]),
+    () => financeApi.listTransactionChangeLogs(h).catch(()=>[]),
     () => financeApi.listTaxRuleVersions().catch(()=>[]),
     () => financeApi.listTaxCases(h).catch(()=>[]),
     () => financeApi.listTaxPeople(h).catch(()=>[]),
@@ -869,8 +926,19 @@ async function loadFinanceData() {
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
     runtime.countryMasterCategories, runtime.countryMasterMerchants, runtime.masterDataHouseholds,
+    runtime.changeHistory,
     runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
   ] = results.map((value) => value || (value === null ? null : []));
+  runtime.changeHistory=(runtime.changeHistory||[]).map((row)=>({
+    id:row.id,
+    type:row.action_type||row.type,
+    label:row.label,
+    before:row.before_data||row.before||[],
+    after:row.after_data||row.after||[],
+    undoable:(row.action_type||row.type)==='category_bulk',
+    undone:Boolean(row.undone_at||row.undone),
+    at:row.created_at||row.at,
+  }));
 }
 async function loadContext() {
   const [profile, adminRole, moduleAccess, productModules, households] = await Promise.all([
@@ -947,6 +1015,9 @@ function render() {
     importQuery: uiState.importQuery,
     importCategory: uiState.importCategory,
     merchantQuery: uiState.merchantQuery,
+    searchQuery: uiState.searchQuery,
+    previousVisitAt: runtime.previousVisitAt,
+    changeHistory: runtime.changeHistory,
     transactionView: uiState.transactionView,
     transactionPeriod: uiState.transactionPeriod,
     transactionQuery: uiState.transactionQuery,
@@ -975,6 +1046,7 @@ function render() {
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   translateElement(pageContent);
+  applyInformationDepth();
   closeMobileNav();
   closeQuickAdd();
   closeProfileMenu();
@@ -988,6 +1060,21 @@ function render() {
       const tx=runtime.transactions.find((row)=>row.id===pendingId);
       if(tx) openTransactionEditor(tx);
     });
+  }
+}
+
+function applyInformationDepth() {
+  const depth=store.getState().depth||'standard';
+  if(depth==='expert') return;
+  const hide=(selector)=>pageContent.querySelectorAll(selector).forEach((el)=>{
+    const target=el.closest('.field, details, .category-advanced')||el;
+    target.classList.add('depth-hidden');
+  });
+  if(depth==='simple'){
+    hide('[name="merchantId"],[name="counterpartyKind"],[name="semanticType"],[name="excludeFromReports"],#transactionVehicleFilter,#transactionSemanticFilter,#transactionFrom,#transactionTo,#transactionViewSelect');
+    pageContent.querySelectorAll('.category-advanced').forEach((el)=>el.classList.add('depth-hidden'));
+  } else {
+    hide('[name="semanticType"],[name="excludeFromReports"]');
   }
 }
 
@@ -1157,8 +1244,11 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   if (!category || category.kind !== group.kind) throw new Error('Bitte eine passende Kategorie auswählen.');
   const targets = group.rows.filter((row)=>!onlyUncategorized || !row.category_id);
   if (!targets.length) return 0;
+  const before=targets.map((row)=>({entity:'transaction',id:row.id,category_id:row.category_id||null,merchant_id:row.merchant_id||null}));
 
   let merchantId = group.merchantId || null;
+  const existingMerchant=merchantId?runtime.merchants.find((row)=>row.id===merchantId):runtime.merchants.find((row)=>row.normalized_key===group.merchantKey);
+  if(existingMerchant) before.push({entity:'merchant',id:existingMerchant.id,default_category_id:existingMerchant.default_category_id||null});
   if (group.merchantKey && group.merchantKey !== 'unbekannt') {
     const merchant = await financeApi.upsertMerchant({
       household_id: runtime.household.id,
@@ -1182,6 +1272,13 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   const patch = { category_id: category.id };
   if (merchantId) patch.merchant_id = merchantId;
   await financeApi.bulkUpdateTransactions(targets.map((row)=>row.id), patch);
+  await recordChange({
+    type:'category_bulk',
+    label:`${targets.length} Buchung${targets.length===1?'':'en'} → ${category.name}`,
+    before,
+    after:targets.map((row)=>({entity:'transaction',id:row.id,category_id:category.id,merchant_id:merchantId||row.merchant_id||null})),
+    undoable:true,
+  });
   return targets.length;
 }
 
@@ -1468,8 +1565,14 @@ function addMonthsToDate(isoDate, months = 1) {
 function importMappingFromForm(form) {
   const data = new FormData(form);
   return {
-    date:formValue(data,'mapDate'), description:formValue(data,'mapDescription'), counterparty:formValue(data,'mapCounterparty'),
-    amount:formValue(data,'mapAmount'), debit:formValue(data,'mapDebit'), credit:formValue(data,'mapCredit'),
+    date:formValue(data,'mapDate'),
+    description:formValue(data,'mapDescription'),
+    counterparty:formValue(data,'mapCounterparty'),
+    counterpartyAccount:formValue(data,'mapCounterpartyAccount'),
+    bankReference:formValue(data,'mapBankReference'),
+    amount:formValue(data,'mapAmount'),
+    debit:formValue(data,'mapDebit'),
+    credit:formValue(data,'mapCredit'),
   };
 }
 
@@ -1481,6 +1584,10 @@ function importMappingForParsed(parsed, preferred = {}) {
     date:use('date'),
     description:use('description'),
     counterparty:use('counterparty'),
+    counterpartyAccount:use('counterpartyAccount'),
+    bankReference:use('bankReference'),
+    sourcePage:use('sourcePage'),
+    rawData:use('rawData'),
     amount:use('amount'),
     debit:use('debit'),
     credit:use('credit'),
@@ -1489,6 +1596,59 @@ function importMappingForParsed(parsed, preferred = {}) {
 
 function validImportMapping(mapping) {
   return Boolean(mapping?.date && mapping?.description && (mapping?.amount || mapping?.debit || mapping?.credit));
+}
+
+function normalizeAccountReference(value) {
+  return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+
+function ownAccountForReference(reference,currentAccountId=null) {
+  const key=normalizeAccountReference(reference);
+  if(!key) return null;
+  return runtime.accounts.find((account)=>{
+    if(account.account_id===currentAccountId) return false;
+    return normalizeAccountReference(account.external_account_ref)===key;
+  })||null;
+}
+
+function importedTransferCounterpart(tx,otherAccountId,allTransactions=[]) {
+  const sign=Math.sign(Number(tx.amount)||0);
+  const amount=Math.abs(Number(tx.amount)||0);
+  const time=new Date(tx.occurred_at).getTime();
+  const matches=allTransactions.filter((row)=>{
+    if(!row||row.id===tx.id||row.account_id!==otherAccountId||row.transfer_group_id||row.status!=='booked'||row.cashflow_type!=='standard') return false;
+    if(row.currency!==tx.currency||Math.sign(Number(row.amount)||0)!==-sign) return false;
+    if(Math.abs(Math.abs(Number(row.amount)||0)-amount)>=0.005) return false;
+    const otherTime=new Date(row.occurred_at).getTime();
+    return Number.isFinite(time)&&Number.isFinite(otherTime)&&Math.abs(otherTime-time)<=7*86400000;
+  });
+  return matches.length===1?matches[0]:null;
+}
+
+async function reconcileImportedOwnTransfers(insertedRows=[]) {
+  let linked=0;
+  const known=[...runtime.transactions,...insertedRows];
+  for(const tx of insertedRows){
+    if(!tx||tx.transfer_group_id||!tx.counterparty_account_ref) continue;
+    const otherAccount=ownAccountForReference(tx.counterparty_account_ref,tx.account_id);
+    if(!otherAccount) continue;
+    const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+    if(!currentAccount||currentAccount.currency!==otherAccount.currency) continue;
+    const counterpart=importedTransferCounterpart(tx,otherAccount.account_id,known);
+    await financeApi.convertTransactionToTransferV2({
+      householdId:runtime.household.id,
+      transactionId:tx.id,
+      otherAccountId:otherAccount.account_id,
+      amount:Math.abs(Number(tx.amount)),
+      otherAmount:null,
+      otherTransactionId:counterpart?.id||null,
+      occurredAt:tx.occurred_at,
+      description:tx.description||'Umbuchung',
+      note:tx.note||null,
+    });
+    linked+=1;
+  }
+  return linked;
 }
 
 function renderImportReview() {
@@ -1501,6 +1661,8 @@ function renderImportReview() {
     return;
   }
   const groups = new Map();
+  const importAccountId=form.querySelector('[name="accountId"]')?.value||'';
+  const importAccount=runtime.accounts.find((row)=>row.account_id===importAccountId)||null;
   const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
   let validRows=0;
   let unmappedFiles=0;
@@ -1511,14 +1673,20 @@ function renderImportReview() {
       const tx = rowToTransaction(row,mapping);
       if (!tx) continue;
       validRows+=1;
+      const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId);
       const merchant = merchantFromTransaction(tx);
-      const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-      const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+      const existing = ownCounterAccount?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const knownCategoryNames=ownCounterAccount?[]:suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-      const mlPrediction=predictCategoryMl(mlModel,tx);
-      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '';
-      const groupKey=existing?.normalized_key||merchant.key;
-      const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
+      const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,tx);
+      const categoryId = ownCounterAccount?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
+      const fromName=Number(tx.amount)<0?(importAccount?.name||'Importkonto'):(ownCounterAccount?.name||'eigenes Konto');
+      const toName=Number(tx.amount)<0?(ownCounterAccount?.name||'eigenes Konto'):(importAccount?.name||'Importkonto');
+      const groupKey=ownCounterAccount?`own-transfer:${ownCounterAccount.account_id}`:(existing?.normalized_key||merchant.key);
+      const group = groups.get(groupKey) || {
+        merchant:{...merchant,name:ownCounterAccount?`Eigene Umbuchung: ${fromName} → ${toName}`:(existing?.name||merchant.name),key:groupKey},
+        rows:[], total:0, categoryId, isTransfer:Boolean(ownCounterAccount)
+      };
       group.rows.push(tx); group.total += Number(tx.amount);
       if (!group.categoryId && categoryId) group.categoryId = categoryId;
       groups.set(groupKey,group);
@@ -1527,7 +1695,7 @@ function renderImportReview() {
   const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
     const options = runtime.categories.filter((c)=>c.kind===kind).map((c)=>`<option value="${c.id}" ${c.id===group.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
-    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}</span></div><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select></div>`;
+    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':''}</span></div>${group.isTransfer?'<span class="status-pill status-pill--active">Eigene Umbuchung</span>':`<select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select>`}</div>`;
   }).join('');
   const warning=unmappedFiles?` · ${unmappedFiles} Datei${unmappedFiles===1?'':'en'} mit abweichenden Spalten bitte prüfen`:'';
   host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
@@ -1883,6 +2051,22 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   const vehicleTypeField=document.querySelector('#transactionEditVehicleTypeField');
   if(vehicleTypeField) vehicleTypeField.hidden=true;
   document.querySelector('#transactionEditNote').value=tx.note||'';
+  const importContext=document.querySelector('#transactionEditImportContext');
+  const importContextBody=document.querySelector('#transactionEditImportContextBody');
+  const rawImport=tx.import_raw_data&&typeof tx.import_raw_data==='object'?tx.import_raw_data:null;
+  const rawText=String(rawImport?.raw_text||'').trim();
+  const rawRow=rawImport?.row&&typeof rawImport.row==='object'?rawImport.row:null;
+  const importParts=[
+    tx.bank_reference?`<span><b>Bankreferenz / Zweck:</b> ${escapeHtml(tx.bank_reference)}</span>`:'',
+    tx.counterparty_account_ref?`<span><b>Gegenkonto / IBAN:</b> ${escapeHtml(tx.counterparty_account_ref)}</span>`:'',
+    tx.import_source_page?`<span><b>PDF-Seite:</b> ${Number(tx.import_source_page)}</span>`:'',
+    rawText?`<pre>${escapeHtml(rawText)}</pre>`:rawRow?`<pre>${escapeHtml(JSON.stringify(rawRow,null,2))}</pre>`:'',
+  ].filter(Boolean).join('');
+  if(importContext&&importContextBody){
+    importContext.hidden=!importParts;
+    importContext.open=false;
+    importContextBody.innerHTML=importParts;
+  }
   const taxRelevant=document.querySelector('#transactionEditTaxRelevant'); if (taxRelevant) taxRelevant.value=tx.tax_relevant?'true':'false';
   const taxYear=document.querySelector('#transactionEditTaxYear'); if (taxYear) taxYear.value=String(transactionTaxYear(tx));
   const taxTreatment=document.querySelector('#transactionEditTaxTreatment'); if (taxTreatment) taxTreatment.value=tx.tax_treatment||transactionTaxDefaults(tx).treatment||'';
@@ -1919,6 +2103,36 @@ async function handleForm(form) {
   if (!['setup-create','password-change','admin-user-create','admin-demo-create'].includes(id)) {
     if (id === 'family-add') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder verwalten.'); }
     else if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+  }
+
+  if (id === 'project-create') {
+    const name=formValue(data,'name').trim();
+    if(!name) throw new Error('Bitte einen Projektnamen eingeben.');
+    const normalizedKey=normalizeMerchantKey(name);
+    const existing=runtime.transactionContexts.find((row)=>row.normalized_key===normalizedKey);
+    if(existing&&!existing.is_archived) throw new Error('Dieses Projekt existiert bereits.');
+    if(existing){
+      await financeApi.updateTransactionContext(existing.id,{
+        name,
+        context_type:formValue(data,'contextType')||'project',
+        starts_on:nullValue(data,'startsOn'),
+        ends_on:nullValue(data,'endsOn'),
+        is_archived:false,
+      });
+    } else {
+      await financeApi.upsertTransactionContext({
+        household_id:h,
+        name,
+        normalized_key:normalizedKey,
+        context_type:formValue(data,'contextType')||'project',
+        vehicle_id:null,
+        starts_on:nullValue(data,'startsOn'),
+        ends_on:nullValue(data,'endsOn'),
+        is_archived:false,
+      });
+    }
+    await refresh('Anlass / Projekt gespeichert.');
+    return;
   }
 
   if (id === 'setup-create') {
@@ -2047,7 +2261,7 @@ async function handleForm(form) {
   }
 
   if (id === 'account-create') {
-    await financeApi.createAccount({ household_id:h, name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), currency:formValue(data,'currency')||currency, balance_anchor_amount:numberValue(data,'balance'), balance_anchor_at:new Date().toISOString(), visibility:formValue(data,'visibility')||'private' });
+    await financeApi.createAccount({ household_id:h, name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), external_account_ref:nullValue(data,'externalAccountRef'), currency:formValue(data,'currency')||currency, balance_anchor_amount:numberValue(data,'balance'), balance_anchor_at:new Date().toISOString(), visibility:formValue(data,'visibility')||'private' });
     await refresh('Konto gespeichert.'); return;
   }
   if (id === 'account-edit') {
@@ -2071,7 +2285,7 @@ async function handleForm(form) {
       if(linked) throw new Error('Die Kontowährung kann nicht geändert werden, solange Buchungen oder Verknüpfungen auf diesem Konto bestehen.');
       if(correction==='') throw new Error('Bei einem Währungswechsel muss der aktuelle Kontostand neu angegeben werden.');
     }
-    const patch={ name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), currency:nextCurrency, visibility:formValue(data,'visibility')||'private' };
+    const patch={ name:formValue(data,'name'), account_type:formValue(data,'accountType'), institution_name:nullValue(data,'institutionName'), external_account_ref:nullValue(data,'externalAccountRef'), currency:nextCurrency, visibility:formValue(data,'visibility')||'private' };
     if (correction !== '') {
       const corrected=Number(correction);
       if (!Number.isFinite(corrected)) throw new Error('Ungültiger Kontostand.');
@@ -3138,6 +3352,7 @@ async function handleForm(form) {
     let importedTotal=0;
     let skippedTotal=0;
     let completedFiles=0;
+    let linkedTransfers=0;
     const failedFiles=[];
 
     for (const item of importState.items) {
@@ -3160,23 +3375,24 @@ async function handleForm(form) {
         for (const row of item.parsed.rows) {
           const tx = rowToTransaction(row,mapping);
           if (!tx) continue;
+          const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId);
           const merchantInfo = merchantFromTransaction(tx);
-          let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          let merchant = ownCounterAccount ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
           const groupKey=merchant?.normalized_key||merchantInfo.key;
-          const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
-          const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+          const selectedCategory = ownCounterAccount ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
+          const knownCategoryNames=ownCounterAccount?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-          const mlPrediction=predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
-          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null);
+          const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
+          const fallbackCategory = ownCounterAccount ? null : (merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
           const categoryId = selectedCategory || fallbackCategory;
-          if (!merchant) {
+          if (!ownCounterAccount && !merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-          } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
+          } else if (!ownCounterAccount && remember && categoryId && merchant?.default_category_id !== categoryId) {
             merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
           }
-          if(merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+          if(!ownCounterAccount && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
             const alias=await financeApi.upsertMerchantAlias({
               household_id:h,
               merchant_id:merchant.id,
@@ -3206,6 +3422,11 @@ async function handleForm(form) {
             currency:account.currency||currency,
             description:tx.description,
             counterparty:tx.counterparty,
+            bank_reference:tx.bank_reference||null,
+            counterparty_account_ref:tx.counterparty_account_ref||null,
+            import_raw_data:tx.import_raw_data||null,
+            import_source_page:tx.import_source_page||null,
+            semantic_type:ownCounterAccount?'internal_transfer':null,
             status:'booked',
             source:'import',
             external_reference:externalReference
@@ -3213,6 +3434,7 @@ async function handleForm(form) {
         }
         const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
         if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
+        linkedTransfers+=await reconcileImportedOwnTransfers(inserted);
         const skippedCount=Math.max(0,item.parsed.rows.length-inserted.length);
         await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
         importedTotal+=inserted.length;
@@ -3227,7 +3449,7 @@ async function handleForm(form) {
     importState.items=[];
     uiState.importQuery=''; uiState.importCategory='all';
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
-    await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.`);
+    await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}`);
     if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
     return;
   }
@@ -3257,8 +3479,50 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+  if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx) throw new Error('Buchung wurde nicht gefunden.');
+    uiState.pendingTransactionEditId=tx.id;
+    location.hash='#/transactions';
+    return;
+  }
+  if (action === 'review-link-transfer') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    const other=runtime.transactions.find((row)=>row.id===target.dataset.otherId);
+    if(!tx||!other) throw new Error('Eine der Buchungen wurde nicht gefunden.');
+    if(tx.transfer_group_id||other.transfer_group_id) throw new Error('Mindestens eine Buchung ist bereits als Umbuchung verbunden.');
+    const otherAccount=runtime.accounts.find((row)=>row.account_id===other.account_id);
+    if(!otherAccount) throw new Error('Gegenkonto wurde nicht gefunden.');
+    const groupId=await financeApi.convertTransactionToTransferV2({
+      householdId:runtime.household.id,
+      transactionId:tx.id,
+      otherAccountId:otherAccount.account_id,
+      amount:Math.abs(Number(tx.amount)),
+      otherAmount:null,
+      otherTransactionId:other.id,
+      occurredAt:tx.occurred_at,
+      description:tx.description||other.description||'Umbuchung',
+      note:tx.note||null,
+    });
+    await recordChange({type:'transfer_link',label:`Umbuchung ${runtime.accounts.find((row)=>row.account_id===tx.account_id)?.name||'Konto'} ↔ ${otherAccount.name} verbunden`,before:[],after:[{transfer_group_id:groupId}],undoable:false});
+    await refresh('Eindeutige Gegenbuchungen wurden als interne Umbuchung verbunden. Sie zählen nicht mehr als Konsumausgabe oder Einkommen.');
+    return;
+  }
+  if (action === 'review-undo-change') {
+    const entry=runtime.changeHistory.find((row)=>row.id===target.dataset.changeId);
+    await undoRecordedChange(entry);
+    await refresh('Letzte Kategorisierung rückgängig gemacht.');
+    return;
+  }
+  if (action === 'project-toggle-archive') {
+    const context=runtime.transactionContexts.find((row)=>row.id===target.dataset.id);
+    if(!context) throw new Error('Projekt wurde nicht gefunden.');
+    await financeApi.updateTransactionContext(context.id,{is_archived:!context.is_archived});
+    await refresh(context.is_archived?'Projekt reaktiviert.':'Projekt archiviert.');
+    return;
+  }
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
     const result=await financeApi.installCountryMasterData(runtime.household.id);
@@ -3320,11 +3584,12 @@ async function handleAction(target) {
   }
   if (action === 'categorization-open') {
     const cfg=countryConfig(runtime.household.country_code||'CH');
-    const existingIncomeNames=new Set(runtime.categories.filter((category)=>category.kind==='income').map((category)=>String(category.name||'').toLowerCase()));
-    const requiredIncomeCategories=(cfg.starterCategories||[]).filter(([name,kind])=>kind==='income'&&['lohn','gehalt','rückzahlung','sonstige einnahmen'].includes(String(name).toLowerCase()));
-    const missingIncomeCategories=requiredIncomeCategories.filter(([name])=>!existingIncomeNames.has(String(name).toLowerCase()));
-    if (missingIncomeCategories.length) {
-      await financeApi.createCategories(missingIncomeCategories.map(([name,kind],index)=>({
+    const existingKeys=new Set(runtime.categories.map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
+    const requiredNames=new Set(['lohn','gehalt','rückerstattung','rückzahlung','sonstige einnahmen','rechts- & gerichtskosten']);
+    const requiredCategories=(cfg.starterCategories||[]).filter(([name])=>requiredNames.has(String(name).toLowerCase()));
+    const missingCategories=requiredCategories.filter(([name,kind])=>!existingKeys.has(`${kind}:${String(name).toLowerCase()}`));
+    if (missingCategories.length) {
+      await financeApi.createCategories(missingCategories.map(([name,kind],index)=>({
         household_id:runtime.household.id,
         name,
         kind,
@@ -3379,7 +3644,9 @@ async function handleAction(target) {
     const group=currentCategorizationGroups().find((row)=>row.key===uiState.categorizationGroupKey);
     const category=runtime.categories.find((row)=>row.id===categoryId);
     if(!group||!category||category.kind!==group.kind) throw new Error('Bitte eine passende Kategorie auswählen.');
+    const before=ids.map((id)=>runtime.transactions.find((row)=>row.id===id)).filter(Boolean).map((row)=>({id:row.id,category_id:row.category_id||null}));
     await financeApi.bulkUpdateTransactions(ids,{category_id:category.id});
+    await recordChange({type:'category_bulk',label:`${ids.length} Buchung${ids.length===1?'':'en'} → ${category.name}`,before,after:ids.map((id)=>({id,category_id:category.id})),undoable:true});
     await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} gespeichert. Keine feste Regel angelegt. Machine Learning verwendet diese Entscheidung als Trainingsbeispiel.`);
     requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
     return;
@@ -3447,6 +3714,7 @@ async function handleAction(target) {
     document.querySelector('#accountEditName').value=account.name||'';
     document.querySelector('#accountEditType').value=account.account_type||'checking';
     document.querySelector('#accountEditInstitution').value=account.institution_name||'';
+    const externalRef=document.querySelector('#accountEditExternalRef'); if(externalRef) externalRef.value=account.external_account_ref||'';
     document.querySelector('#accountEditCurrency').value=account.currency||runtime.household.base_currency;
     document.querySelector('#accountEditVisibility').value=account.visibility||'private';
     document.querySelector('#accountEditBalance').value='';
@@ -4420,7 +4688,7 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
-    if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
+    if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapCounterpartyAccount','mapBankReference','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
       const parent = target.closest('form')?.querySelector('[name="parentId"]');
       if (parent) {
@@ -4444,6 +4712,8 @@ pageContent.addEventListener('change', async (event) => {
       fillSelect(document.querySelector('#mapDate'),primary.headers,guess.date,false);
       fillSelect(document.querySelector('#mapDescription'),primary.headers,guess.description,false);
       fillSelect(document.querySelector('#mapCounterparty'),primary.headers,guess.counterparty,true);
+      fillSelect(document.querySelector('#mapCounterpartyAccount'),primary.headers,guess.counterpartyAccount,true);
+      fillSelect(document.querySelector('#mapBankReference'),primary.headers,guess.bankReference,true);
       fillSelect(document.querySelector('#mapAmount'),primary.headers,guess.amount,true);
       fillSelect(document.querySelector('#mapDebit'),primary.headers,guess.debit,true);
       fillSelect(document.querySelector('#mapCredit'),primary.headers,guess.credit,true);
@@ -4526,6 +4796,11 @@ pageContent.addEventListener('input', (event) => {
     const next = document.querySelector('#merchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
     return;
   }
+  if (target.id === 'globalSearchInput') {
+    uiState.searchQuery=target.value; render();
+    const next=document.querySelector('#globalSearchInput'); if(next){ next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
   if (target.id === 'transactionSearch') {
     uiState.transactionQuery=target.value; uiState.transactionPage=1; render();
     const next=document.querySelector('#transactionSearch'); if(next){ next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
@@ -4545,6 +4820,16 @@ async function enterApp(session,{freshLogin=false}={}) {
   if(!compatible) return;
   try {
     await loadContext();
+    const visitPreferences=profilePreferences();
+    const previousVisit=visitPreferences.last_visit_at||null;
+    const previousTs=previousVisit?new Date(previousVisit).getTime():0;
+    runtime.previousVisitAt=previousVisit;
+    // A quick refresh should not erase the useful "since last visit" window.
+    if(!previousTs || Date.now()-previousTs>30*60*1000){
+      const nextVisitAt=new Date().toISOString();
+      const nextPreferences={...visitPreferences,last_visit_at:nextVisitAt};
+      void financeApi.updateProfile(runtime.user.id,{preferences:nextPreferences}).then((profile)=>{ runtime.profile=profile; }).catch(()=>{});
+    }
     // Profile preference is authoritative after login, but keep it locally for pre-profile session checks.
     persistNumber(SESSION_KEYS.timeout,configuredSessionTimeout());
     render();
@@ -4583,6 +4868,7 @@ window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
+searchButton?.addEventListener('click',()=>{ location.hash='#/search'; });
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);

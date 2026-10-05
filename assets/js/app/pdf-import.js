@@ -186,6 +186,93 @@ function descriptionFor(line, dateIndex, amountIndex, columns) {
     .join(' '));
 }
 
+function pdfLineText(line) {
+  return normalize((line?.items||[]).map((item)=>item.str).join(' '));
+}
+
+function looksLikePdfHeader(text) {
+  return /^(?:buchungsdatum|datum|beschreibung|belastung|gutschrift|valuta|saldo|kontostand|betrag|debit|credit|soll|haben)(?:\s|$)/i.test(normalize(text));
+}
+
+function extractIban(text) {
+  const compact=String(text||'').toUpperCase().replace(/\s+/g,' ');
+  const matches=compact.match(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/g)||[];
+  return matches.map((value)=>value.replace(/\s+/g,'')).find((value)=>value.length>=15&&value.length<=34)||'';
+}
+
+function extractBankReference(text) {
+  const raw=String(text||'');
+  const patterns=[
+    /(?:referenz|reference|ref\.?|zahlungszweck|mitteilung|meldung|purpose)\s*[:#-]?\s*([^\n]{3,160})/i,
+    /\b(?:QR[- ]?Referenz|SCOR)\s*[:#-]?\s*([^\n]{3,160})/i,
+  ];
+  for(const pattern of patterns){
+    const match=raw.match(pattern);
+    if(match?.[1]) return normalize(match[1]);
+  }
+  return '';
+}
+
+function continuationLines(allLines,startIndex,endIndex,page) {
+  const rows=[];
+  for(let index=startIndex+1; index<endIndex && rows.length<10; index+=1){
+    const line=allLines[index];
+    if(line.page!==page) break;
+    const text=pdfLineText(line);
+    if(!text||looksLikePdfHeader(text)) continue;
+    const dateCount=(line.items||[]).filter((item)=>parsePdfDate(item.str)).length;
+    const amountCount=(line.items||[]).filter((item)=>parsePdfAmount(item.str)).length;
+    if(dateCount>=1 && amountCount>=1) break;
+    if(amountCount>=2 && text.length<80) continue;
+    rows.push(text);
+  }
+  return rows;
+}
+
+export function buildBankRowsFromLines(allLines,columns=detectColumns(allLines)) {
+  const candidates=[];
+  let ambiguous=0;
+  for(let index=0; index<allLines.length; index+=1){
+    const line=allLines[index];
+    const dateEntry=(line.items||[]).map((item,itemIndex)=>({index:itemIndex,item,date:parsePdfDate(item.str)})).find((entry)=>entry.date);
+    if(!dateEntry) continue;
+    const amountEntry=chooseAmount(line,columns);
+    if(!amountEntry || !Number.isFinite(amountEntry.amount) || amountEntry.amount===0){
+      ambiguous+=1;
+      continue;
+    }
+    candidates.push({lineIndex:index,line,dateEntry,amountEntry});
+  }
+
+  const rows=[];
+  for(let position=0; position<candidates.length; position+=1){
+    const current=candidates[position];
+    const next=candidates[position+1];
+    const endIndex=next?.lineIndex ?? allLines.length;
+    const mainDescription=descriptionFor(current.line,current.dateEntry.index,current.amountEntry.index,columns)||'PDF-Import';
+    const continuations=continuationLines(allLines,current.lineIndex,endIndex,current.line.page);
+    const rawParts=[pdfLineText(current.line),...continuations].filter(Boolean);
+    const rawText=rawParts.join('\n');
+    const iban=extractIban(rawText);
+    const reference=extractBankReference(rawText);
+    const counterpartyCandidate=continuations.find((value)=>
+      !/\b(?:iban|referenz|reference|valuta|saldo|kontostand|buchungsnummer|transaktionsnummer)\b/i.test(value)
+      && !/^\d[\d\s.+-]*$/.test(value)
+    )||'';
+    rows.push({
+      Datum:current.dateEntry.date,
+      Beschreibung:mainDescription,
+      Gegenpartei:counterpartyCandidate,
+      Gegenkonto:iban,
+      Referenz:reference,
+      Original:rawText,
+      'PDF-Seite':String(current.line.page||''),
+      Betrag:current.amountEntry.amount.toFixed(2),
+    });
+  }
+  return {rows,ambiguous};
+}
+
 export async function parseBankPdf(file) {
   if (!file) throw new Error('Keine PDF-Datei ausgewählt.');
   const pdfjs = await loadPdfJs();
@@ -198,38 +285,23 @@ export async function parseBankPdf(file) {
     allLines.push(...lineGroups(content.items).map((line)=>({ ...line, page:pageNumber })));
   }
   const columns = detectColumns(allLines);
-  const rows = [];
-  let ambiguous = 0;
-  for (const line of allLines) {
-    const dateEntry = line.items.map((item,index)=>({index,item,date:parsePdfDate(item.str)})).find((entry)=>entry.date);
-    if (!dateEntry) continue;
-    const amountEntry = chooseAmount(line,columns);
-    if (!amountEntry || !Number.isFinite(amountEntry.amount) || amountEntry.amount === 0) {
-      ambiguous += 1;
-      continue;
-    }
-    const description = descriptionFor(line,dateEntry.index,amountEntry.index,columns) || 'PDF-Import';
-    rows.push({
-      Datum: dateEntry.date,
-      Beschreibung: description,
-      Gegenpartei: '',
-      Betrag: amountEntry.amount.toFixed(2),
-    });
-  }
+  const parsed=buildBankRowsFromLines(allLines,columns);
+  const rows=parsed.rows;
   if (!rows.length) {
     throw new Error('Im PDF konnten keine eindeutig signierten Buchungszeilen erkannt werden. Unterstützt werden textbasierte Kontoauszüge; gescannte PDFs benötigen OCR.');
   }
   return {
-    headers:['Datum','Beschreibung','Gegenpartei','Betrag'],
+    headers:['Datum','Beschreibung','Gegenpartei','Gegenkonto','Referenz','Original','PDF-Seite','Betrag'],
     rows,
     delimiter:'PDF',
     format:'pdf',
     meta:{
       pages:pdf.numPages,
       recognized:rows.length,
-      ambiguous,
+      ambiguous:parsed.ambiguous,
       credits:rows.filter((row)=>Number(row.Betrag)>0).length,
       debits:rows.filter((row)=>Number(row.Betrag)<0).length,
+      enriched:rows.filter((row)=>row.Gegenkonto||row.Referenz||String(row.Original||'').includes('\n')).length,
     },
   };
 }

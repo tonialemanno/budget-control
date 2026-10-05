@@ -1,7 +1,7 @@
 {
   "app": "Finance",
-  "version": "2.3.18",
-  "releaseId": "2026.10.05-r23",
-  "schemaVersion": 2026100403,
-  "releasedAt": "2026-10-05T22:55:00+02:00"
+  "version": "2.4.0",
+  "releaseId": "2026.10.05-r24",
+  "schemaVersion": 2026100504,
+  "releasedAt": "2026-10-05T23:58:00+02:00"
 }

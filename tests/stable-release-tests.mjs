@@ -10,10 +10,10 @@ const main=read('assets/js/main.js');
 const bills=read('assets/js/views/bills.js');
 const settings=read('assets/js/views/settings.js');
 
-assert.match(config,/version:\s*'2\.3\.18'/);
+assert.match(config,/version:\s*'2\.4\.0'/);
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
 assert.match(index,/<title>Finance<\/title>/);
-assert.match(index,/Stable 2\.3/);
+assert.match(index,/Stable 2\.4/);
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);
 assert.match(ci,/finance-v2\.3\.0-stable\.zip/);

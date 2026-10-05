@@ -40,6 +40,7 @@ export function renderAccounts({ accounts = [], recurringRules = [], household, 
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. UBS Lohnkonto oder Revolut EUR"></label>
     <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" required>${typeOptions()}</select></label>
     <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" placeholder="z. B. UBS, Revolut"></label>
+    <label class="field"><span>IBAN / Kontokennung</span><input class="text-control" name="externalAccountRef" placeholder="optional · z. B. CH93 0076 …"><small>Hilft Finance, eigene Konten bei Bankimporten automatisch als Umbuchung zu erkennen. Wird nicht für Zahlungen verwendet.</small></label>
     <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" required>${currencyOptions(baseCurrency)}</select><small>Die Kontowährung ist unabhängig vom Wohnland und von der Basiswährung des Haushalts.</small></label>
     <label class="field"><span>Kontostand jetzt</span><input class="text-control" name="balance" type="number" step="0.01" required value="0"><small>Negative Salden mit Minus eingeben, z. B. -1250.40.</small></label>
     <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>
@@ -50,6 +51,7 @@ export function renderAccounts({ accounts = [], recurringRules = [], household, 
     <label class="field"><span>Name</span><input class="text-control" name="name" id="accountEditName" required></label>
     <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" id="accountEditType" required>${typeOptions()}</select></label>
     <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" id="accountEditInstitution"></label>
+    <label class="field"><span>IBAN / Kontokennung</span><input class="text-control" name="externalAccountRef" id="accountEditExternalRef" placeholder="optional"><small>Nur zur Erkennung eigener Gegenkonten in Importen.</small></label>
     <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" id="accountEditCurrency" required>${currencyOptions(baseCurrency)}</select><small>Nach der ersten Buchung bleibt die Kontowährung aus Integritätsgründen fix.</small></label>
     <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility" id="accountEditVisibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>
     <label class="field"><span>Kontostand jetzt korrigieren</span><input class="text-control" name="balanceCorrection" id="accountEditBalance" type="number" step="0.01" placeholder="leer = nicht verändern"><small>Wenn du hier einen Betrag einträgst, wird er als neuer Stand jetzt verankert. Auch negative Werte sind erlaubt.</small></label>

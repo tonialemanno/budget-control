@@ -75,6 +75,10 @@ export function guessMapping(headers) {
     date: find(/buchungsdatum/i, /abschlussdatum/i, /^datum$/i, /date/i, /valuta/i),
     description: find(/beschreibung1/i, /beschreibung/i, /description/i, /text/i, /details/i),
     counterparty: find(/auftraggeber/i, /beguenst/i, /begünst/i, /counterparty/i, /empfaenger/i, /empfänger/i),
+    counterpartyAccount: find(/gegenkonto/i, /gegen.*iban/i, /empfaenger.*iban/i, /empfänger.*iban/i, /auftraggeber.*iban/i, /^iban$/i, /account.*iban/i, /counterparty.*account/i),
+    bankReference: find(/referenz/i, /reference/i, /zahlungszweck/i, /mitteilung/i, /meldung/i, /purpose/i),
+    sourcePage: find(/pdf.*seite/i, /^seite$/i, /source.*page/i),
+    rawData: find(/original/i, /raw/i),
     debit: find(/belastung/i, /debit/i, /soll/i),
     credit: find(/gutschrift/i, /credit/i, /haben/i),
     amount: find(/^betrag$/i, /amount/i),
@@ -114,6 +118,11 @@ export function rowToTransaction(row, mapping) {
   const date = parseDate(row[mapping.date]);
   const description = String(row[mapping.description] || '').trim() || 'Importierte Transaktion';
   const counterparty = mapping.counterparty ? String(row[mapping.counterparty] || '').trim() : '';
+  const counterpartyAccountRef = mapping.counterpartyAccount ? String(row[mapping.counterpartyAccount] || '').trim() : '';
+  const bankReference = mapping.bankReference ? String(row[mapping.bankReference] || '').trim() : '';
+  const sourcePageRaw = mapping.sourcePage ? String(row[mapping.sourcePage] || '').trim() : '';
+  const sourcePage = Number(sourcePageRaw);
+  const importedRaw = mapping.rawData ? String(row[mapping.rawData] || '').trim() : '';
 
   let amount = null;
   if (mapping.amount) amount = parseAmount(row[mapping.amount]);
@@ -125,7 +134,19 @@ export function rowToTransaction(row, mapping) {
   }
 
   if (!date || amount === null || amount === 0) return null;
-  return { occurred_at: date, amount, description, counterparty: counterparty || null };
+  return {
+    occurred_at: date,
+    amount,
+    description,
+    counterparty: counterparty || null,
+    counterparty_account_ref: counterpartyAccountRef || null,
+    bank_reference: bankReference || null,
+    import_source_page: Number.isInteger(sourcePage)&&sourcePage>0 ? sourcePage : null,
+    import_raw_data: {
+      row: row && typeof row==='object' ? {...row} : row,
+      raw_text: importedRaw || null,
+    },
+  };
 }
 
 export function applyCategoryRules(tx, rules) {

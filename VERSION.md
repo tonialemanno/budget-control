@@ -1,4 +1,23 @@
-# Finance 2.3.0 Stable
+# Finance 2.4.0
+
+## 2.4.0 – Alltag zuerst: Prüfen, Suchen, Projekte und vollständiger Importkontext
+
+- Neuer Kernbereich **„Prüfen“** als zentrale Arbeitsliste: unkategorisierte Ausgaben, ungeklärte Eingänge, mögliche eigene Umbuchungen und bald fällige Rechnungen werden an einem Ort abgearbeitet.
+- **Gespeichert = erledigt:** bereits kategorisierte Buchungen erscheinen nicht erneut als offene Aufgabe. Eindeutige Gegenbuchungen werden nur nach Bestätigung als Umbuchung verbunden.
+- **Seit dem letzten Besuch:** Finance merkt sich den vorherigen sinnvollen Besuchszeitpunkt und zeigt neue Buchungen seitdem, ohne dass ein normaler Seiten-Refresh die Vergleichsbasis sofort löscht.
+- **Globale Suche** über Betrag, Datum, Beschreibung, Person/Gegenpartei, Händler, Konto, Kategorie, Projekt, Bankreferenz, Gegenkonto, Rechnungen, Verträge, Forderungen, Schulden und Dokumente.
+- **Anlässe & Projekte** verwenden die bestehende Transaktionskontext-Struktur. Kategorien sagen dauerhaft wofür Geld war; Projekte erklären den zeitlich begrenzten Anlass, z. B. „Scheidung“ oder „Italien 2026“.
+- **Importkontext bleibt erhalten:** CSV/PDF können Gegenkonto/IBAN, Bankreferenz/Zweck, Originalzeile bzw. PDF-Folgezeilen und Quellseite speichern. Originalinformationen werden nicht mehr auf Beschreibung + Betrag reduziert.
+- **Eigene Konten erkennen:** Konten können optional eine IBAN/Kontokennung erhalten. Stimmen Import-Gegenkonto und eigenes Konto überein, erkennt Finance die Bewegung als interne Umbuchung; vorhandene eindeutige Gegenbuchungen werden verknüpft.
+- PDF-Import wertet Folgezeilen bis zur nächsten Buchung aus und bewahrt den Rohkontext für spätere Nachvollziehbarkeit.
+- **Informationstiefe funktioniert jetzt:** Einfach blendet technische Händler-/Semantik-/Expertenfelder aus, Standard zeigt normale Zuordnungen, Experte den vollständigen technischen Umfang.
+- Planung ist menschlicher gebündelt: **„Feste Zahlungen“** ist der normale Einstieg für Lohn, Miete, Krankenkasse, Abos, Rücklagen und feste Umbuchungen. „Automatik im Detail“ bleibt als technische Gesamtansicht.
+- **Sparen ist keine neue Ausgabenkategorie mehr.** Historische Daten bleiben erhalten; neue Sparbewegungen laufen als Umbuchung/Rücklage.
+- Einnahmen werden klarer getrennt: „Rückerstattung“ und „Rückzahlung“ werden nicht als normaler Verdienst behandelt; Forderungsrückzahlungen bleiben an das Forderungsmodul gekoppelt.
+- Neue dauerhafte Kategorie **„Rechts- & Gerichtskosten“**; im Startermodell zusätzlich „Gerichtskosten“ und „Anwaltskosten“. Ein Anlass wie „Scheidung“ gehört in ein Projekt, nicht in die dauerhafte Kategorie.
+- **Änderungsverlauf + Rückgängig** für Sammel-Kategorisierungen wird persistent pro Haushalt gespeichert.
+- Schema 2026100504, Release 2026.10.05-r24.
+
 
 ## 2.3.18 – gezielte Einnahme-Basiskategorien
 

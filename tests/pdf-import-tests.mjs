@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { detectColumns, chooseAmount } from '../assets/js/app/pdf-import.js';
+import { detectColumns, chooseAmount, buildBankRowsFromLines } from '../assets/js/app/pdf-import.js';
 
 const header={
   y:700,
@@ -58,5 +58,28 @@ const rentLine={items:[
 const rent=chooseAmount(rentLine,columns);
 assert.ok(rent);
 assert.equal(rent.amount,-1514);
+
+const transferLine={page:1,items:[
+  {str:'20.05.2026',x:56},
+  {str:'Antonio Giuseppe Alemanno',x:127},
+  {str:'180.00',x:356},
+  {str:'20.05.2026',x:417},
+  {str:"2'004.99",x:497},
+]};
+const ibanDetail={page:1,items:[{str:'IBAN CH93 0076 2011 6238 5295 7',x:127}]};
+const refDetail={page:1,items:[{str:'Referenz: Sparrate Mai',x:127}]};
+const nextLine={page:1,items:[
+  {str:'21.05.2026',x:56},
+  {str:'PostAuto AG',x:127},
+  {str:'-5.00',x:293},
+  {str:'21.05.2026',x:417},
+  {str:"1'999.99",x:497},
+]};
+const enriched=buildBankRowsFromLines([header,transferLine,ibanDetail,refDetail,nextLine],columns);
+assert.equal(enriched.rows[0].Gegenkonto,'CH9300762011623852957');
+assert.equal(enriched.rows[0].Referenz,'Sparrate Mai');
+assert.equal(enriched.rows[0]['PDF-Seite'],'1');
+assert.match(enriched.rows[0].Original,/IBAN CH93/);
+assert.match(enriched.rows[0].Original,/Referenz: Sparrate Mai/);
 
 console.log('pdf-import-tests: ok');
