@@ -3930,7 +3930,17 @@ async function handleAction(target) {
     document.querySelector('#debtPaymentInterest').value='0';
     document.querySelector('#debtPaymentFee').value='0';
     const defaultSource=debt.payment_mode==='included_in_bill'?'linked_transaction_component':'created_transaction';
-    document.querySelector('#debtPaymentSource').value=defaultSource;
+    const sourceSelect=document.querySelector('#debtPaymentSource');
+    if(sourceSelect){
+      [...sourceSelect.options].forEach((option)=>{
+        if(debt.payment_mode==='included_in_bill'){
+          option.disabled=['created_transaction','linked_transaction'].includes(option.value);
+        } else {
+          option.disabled=false;
+        }
+      });
+      sourceSelect.value=defaultSource;
+    }
     document.querySelector('#debtPaymentAccount').value=debt.payment_account_id||'';
     syncDebtPaymentCandidates(debt,defaultSource);
     document.querySelector('#debtPaymentAdvance').checked=debt.payment_cadence!=='manual';
