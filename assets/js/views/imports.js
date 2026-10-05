@@ -70,11 +70,11 @@ export function renderImports({
     ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen. Finance fasst gleiche Händler und Zahler trotz Filiale, Datum, SBB-/TWINT-Zusätzen oder Schreibvarianten zusammen.'})}
     <div class="grid-main-aside">
       <form class="card card-padding" id="bank-import" data-form="bank-import">
-        <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">CSV oder textbasierter PDF-Kontoauszug</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
+        <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">Eine oder mehrere CSV-/PDF-Dateien desselben Kontos gemeinsam einlesen</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
           <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select></label>
-          <label class="field"><span>Importdatei</span>${filePicker({id:'importFile',name:'file',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length})}</label>
+          <label class="field"><span>Importdateien</span>${filePicker({id:'importFile',name:'files',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length,multiple:true,label:'Dateien auswählen'})}<small>Du kannst z. B. alle 5 ZAK-Auszüge gleichzeitig markieren. Finance prüft sie gemeinsam und legt pro Datei einen nachvollziehbaren Importlauf an.</small></label>
         </div>
         <div id="importMapping" hidden style="margin-top:18px">
           <div class="card-heading"><div><h3 class="card-title">Spalten zuordnen</h3><p class="card-subtitle" id="importPreviewMeta"></p></div></div>
@@ -88,10 +88,10 @@ export function renderImports({
           </div>
           <div id="importReview" class="csv-review"></div>
           <label class="module-toggle import-remember-toggle"><input type="checkbox" name="rememberMerchants" checked><span><strong>Händler-Zuordnung merken</strong><small>Die gewählte Kategorie wird für denselben erkannten Händler beim nächsten Import vorgeschlagen.</small></span></label>
-          <div class="form-actions"><button class="action-button action-button--primary" type="submit">Import starten</button></div>
+          <div class="form-actions"><button class="action-button action-button--primary" type="submit">Alle ausgewählten Dateien importieren</button></div>
         </div>
       </form>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• CSV und textbasierte PDF-Kontoauszüge werden vor dem Import analysiert.</p><p>• Händler und Zahler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert; Zahlungsweg, Datum, Filiale und bekannte Markenvarianten verändern die Identität nicht.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• Mehrere CSV- und textbasierte PDF-Kontoauszüge können in einem Durchgang ausgewählt werden.</p><p>• Jede Datei erhält einen eigenen Importlauf; Dubletten werden trotzdem kontoübergreifend innerhalb der Auswahl erkannt.</p><p>• Händler und Zahler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert; Zahlungsweg, Datum, Filiale und bekannte Markenvarianten verändern die Identität nicht.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
     </div>
 
     ${latest ? `<article class="card card-padding import-latest" style="margin-top:16px">
