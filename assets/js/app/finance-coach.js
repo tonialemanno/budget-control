@@ -158,7 +158,7 @@ function normalizedRuleText(rule){
     .normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
 
-function upcomingFreedCommitment({
+export function buildFreedCommitmentSuggestion({
   recurringRules=[],accounts=[],baseCurrency='CHF',fxRates=null,now=new Date(),
 }={}){
   const horizon=new Date(now);
@@ -294,7 +294,7 @@ export function buildFinanceCoach({
     });
   const reserveGap=reserves.find((row)=>row.target>0&&row.balance<row.target&&row.monthly>0)||null;
   const subscriptions=subscriptionSummary({recurringRules,categories,baseCurrency,fxRates,now});
-  const freedCommitment=upcomingFreedCommitment({recurringRules,accounts,baseCurrency,fxRates,now});
+  const freedCommitment=buildFreedCommitmentSuggestion({recurringRules,accounts,baseCurrency,fxRates,now});
 
   const insights=[];
   if(freeUntilIncome<0){
