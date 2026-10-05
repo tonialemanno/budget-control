@@ -38,7 +38,7 @@ function debtFields(accounts, currency, { edit = false, recurringRules = [] } = 
   const prefix = edit ? 'debtEdit' : 'debtCreate';
   const providerRules=recurringRules
     .filter((rule)=>rule.active!==false&&rule.direction==='expense')
-    .map((rule)=>`<option value="${rule.id}">${escapeHtml(rule.description)} · ${money(rule.amount,{currency:rule.currency||currency,decimals:2})}</option>`)
+    .map((rule)=>`<option value="${rule.id}">${escapeHtml(rule.description)} · ${escapeHtml(moneyText(rule.amount,{currency:rule.currency||currency,decimals:2}))}</option>`)
     .join('');
   const termOptions=DEBT_TERM_OPTIONS.map((months)=>`<option value="${months}" ${months===24?'selected':''}>${months} Monate</option>`).join('');
   return `${edit?`<input type="hidden" name="debtId" id="${prefix}Id">`:''}
