@@ -1212,6 +1212,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Von": "From",
   "Bis": "To",
   "Konto": "Account",
+  "Kontozweck": "Account purpose",
   "Beschreibung": "Description",
   "Typ": "Type",
   "Betrag": "Amount",
