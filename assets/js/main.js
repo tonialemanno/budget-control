@@ -5,7 +5,7 @@ import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
+import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestAccountCategory, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -1073,6 +1073,7 @@ function currentCategorizationGroups() {
     merchants: runtime.merchants,
     aliases: runtime.merchantAliases,
     rules: runtime.categorizationRules,
+    accounts: runtime.accounts,
   });
 }
 
@@ -1084,7 +1085,7 @@ async function applyCategorizationGroup(group, categoryId, { onlyUncategorized =
   if (!targets.length) return 0;
 
   let merchantId = group.merchantId || null;
-  if (group.merchantKey && group.merchantKey !== 'unbekannt') {
+  if (!group.genericPaymentRail && group.merchantKey && group.merchantKey !== 'unbekannt') {
     const merchant = await financeApi.upsertMerchant({
       household_id: runtime.household.id,
       normalized_key: group.merchantKey,
