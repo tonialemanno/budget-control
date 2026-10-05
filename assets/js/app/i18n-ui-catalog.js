@@ -5,6 +5,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Von": "Da",
   "Bis": "A",
   "Konto": "Conto",
+  "Kontozweck": "Scopo del conto",
   "Beschreibung": "Descrizione",
   "Typ": "Tipo",
   "Betrag": "Importo",
