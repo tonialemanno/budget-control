@@ -2282,6 +2282,12 @@ async function handleForm(form) {
 
     await financeApi.updateTransaction(transactionId,patch);
 
+    const chosenCategoryId=nullValue(data,'categoryId');
+    if(chosenCategoryId){
+      const correctedTransaction=Object.assign({},tx,patch,{id:transactionId});
+      await learnFromTransactionCorrection(correctedTransaction,chosenCategoryId,patch.merchant_id);
+    }
+
     if(makeRecurring&&!recurringRule){
       const direction=amount<0?'expense':'income';
       recurringRule=await financeApi.createRecurringRule({
