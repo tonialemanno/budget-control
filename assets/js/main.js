@@ -2,7 +2,7 @@ import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js';
-import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
+import { dateInputValue, dateLabel, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
@@ -28,6 +28,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { withPrimaryAccountPreference } from './app/user-preferences.js';
+import { debtEndDateValue, debtTermMonths } from './app/debt-planning.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -1310,7 +1311,63 @@ async function syncRecurringSourceFromRule(rule) {
   }
 }
 
+function syncDebtTermForm(form) {
+  if(!form) return;
+  const edit=form.id==='debt-edit';
+  const prefix=edit?'debtEdit':'debtCreate';
+  const start=form.querySelector(`#${prefix}Start`)?.value||'';
+  const term=Number(form.querySelector(`#${prefix}Term`)?.value||0);
+  const end=debtEndDateValue(start,term);
+  const endInput=form.querySelector(`#${prefix}End`);
+  const nextInput=form.querySelector(`#${prefix}Next`);
+  const preview=form.querySelector(`#${prefix}TermPreview`);
+  if(endInput) endInput.value=end||'';
+  if(!edit&&nextInput) nextInput.value=start||'';
+  if(preview){
+    const rate=Number(form.querySelector(`#${prefix}Installment`)?.value||0);
+    const original=Number(form.querySelector(`#${prefix}Original`)?.value||0);
+    if(!start||!term){
+      preview.innerHTML='<strong>Ende automatisch</strong><span>Beginn und Laufzeit wählen.</span>';
+    } else {
+      const scheduled=rate>0?rate*term:0;
+      const difference=rate>0&&original>0?original-scheduled:0;
+      const differenceText=Math.abs(difference)>0.01
+        ? ` · Raten total ${moneyText(scheduled,{currency:form.querySelector(`#${prefix}Currency`)?.value||runtime.household?.base_currency||'CHF'})} · Differenz zum Ursprungsbetrag ${moneyText(difference,{currency:form.querySelector(`#${prefix}Currency`)?.value||runtime.household?.base_currency||'CHF',sign:true})}`
+        : '';
+      preview.innerHTML=`<strong>Letzte Rate: ${escapeHtml(dateLabel(end,runtime.profile?.locale||'de-CH'))}</strong><span>${term} Monatsraten${escapeHtml(differenceText)}</span>`;
+    }
+  }
+}
+
+function syncDebtPaymentModeForm(form) {
+  if(!form) return;
+  const edit=form.id==='debt-edit';
+  const prefix=edit?'debtEdit':'debtCreate';
+  const mode=form.querySelector(`#${prefix}PaymentMode`)?.value||'standalone';
+  const field=form.querySelector(`#${prefix}BillingRuleField`);
+  if(field) field.hidden=mode!=='included_in_bill';
+}
+
+function syncDebtPaymentCandidates(debt,source) {
+  const select=document.querySelector('#debtPaymentTransaction');
+  if(!select||!debt) return;
+  const portion=Math.min(Number(debt.installment_amount||0)||Number(debt.outstanding_amount||0),Number(debt.outstanding_amount||0));
+  select.value='';
+  [...select.options].forEach((option)=>{
+    if(!option.value) return;
+    const txAmount=Math.abs(Number(option.dataset.amount||0));
+    const sameCurrency=option.dataset.currency===debt.currency;
+    const amountMatches=source==='linked_transaction_component'
+      ? txAmount+0.005>=portion
+      : Math.abs(txAmount-portion)<=0.005;
+    const allowed=sameCurrency&&amountMatches;
+    option.hidden=!allowed;
+    option.disabled=!allowed;
+  });
+}
+
 function debtRecurringPayload(debt) {
+  if(debt.payment_mode==='included_in_bill') throw new Error('Diese Rate ist bereits Bestandteil einer Anbieterrechnung und darf nicht nochmals separat geplant werden.');
   const account = runtime.accounts.find((row)=>row.account_id===debt.payment_account_id);
   if (!account) throw new Error('Bitte zuerst ein Standard-Zahlungskonto bei der Schuld hinterlegen.');
   if (account.currency !== debt.currency) throw new Error('Zahlungskonto und Schuld müssen für Wiederkehrend dieselbe Währung haben.');
@@ -1340,7 +1397,7 @@ async function syncLinkedDebtRecurring(debt) {
     await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
     return;
   }
-  const valid = debt.payment_account_id && debt.payment_cadence !== 'manual' && Number(debt.installment_amount)>0 && debt.next_payment_date;
+  const valid = debt.payment_mode!=='included_in_bill' && debt.payment_account_id && debt.payment_cadence !== 'manual' && Number(debt.installment_amount)>0 && debt.next_payment_date;
   if (!valid) {
     await financeApi.updateRecurringRule(rule.id,{active:false});
     await financeApi.updateDebt(debt.id,{recurring_rule_id:null});
@@ -1352,9 +1409,11 @@ async function syncLinkedDebtRecurring(debt) {
 function showDebtPaymentSource(source) {
   const accountField=document.querySelector('#debtPaymentAccountField');
   const transactionField=document.querySelector('#debtPaymentTransactionField');
+  const componentInfo=document.querySelector('#debtPaymentComponentInfo');
   const historyInfo=document.querySelector('#debtPaymentHistoryInfo');
   if(accountField) accountField.hidden=source!=='created_transaction';
-  if(transactionField) transactionField.hidden=source!=='linked_transaction';
+  if(transactionField) transactionField.hidden=!['linked_transaction','linked_transaction_component'].includes(source);
+  if(componentInfo) componentInfo.hidden=source!=='linked_transaction_component';
   if(historyInfo) historyInfo.hidden=source!=='history_only';
 }
 
@@ -2748,15 +2807,40 @@ async function handleForm(form) {
     const outstandingAmount=numberValue(data,'outstandingAmount');
     const requestedStatus=formValue(data,'status')||'active';
     if (requestedStatus==='paid' && outstandingAmount>0) throw new Error('Status „Bezahlt“ ist nur bei Restschuld 0 möglich.');
+
+    const before=id==='debt-edit'
+      ? runtime.debts.find((row)=>row.id===formValue(data,'debtId'))
+      : null;
+    if(id==='debt-edit'&&!before) throw new Error('Schuld wurde nicht gefunden.');
+
+    const startDate=nullValue(data,'startDate');
+    const termMonthsRaw=Number(formValue(data,'termMonths')||0);
+    const termMonths=termMonthsRaw>0?termMonthsRaw:null;
+    const endDate=termMonths?debtEndDateValue(startDate,termMonths):null;
+    const hasPayments=Boolean(before&&runtime.debtPayments.some((row)=>row.debt_id===before.id&&!row.reversed_at));
+    const startChanged=Boolean(before&&startDate!==before.start_date);
+    const nextPaymentDate=id==='debt-create'
+      ? startDate
+      : startChanged&&!hasPayments
+        ? startDate
+        : before.next_payment_date||startDate;
+
+    const paymentMode=formValue(data,'paymentMode')||'standalone';
+    const billingRecurringRuleId=paymentMode==='included_in_bill'?nullValue(data,'billingRecurringRuleId'):null;
+
     const payload={
       debt_type:formValue(data,'debtType'), creditor:formValue(data,'creditor'), name:formValue(data,'name'),
       original_amount:originalAmount, outstanding_amount:outstandingAmount, currency:formValue(data,'currency')||currency,
       interest_rate:numberValue(data,'interestRate'), installment_amount:numberValue(data,'installmentAmount'),
       payment_cadence:formValue(data,'paymentCadence')||'manual', payment_account_id:nullValue(data,'paymentAccountId'),
-      next_payment_date:nullValue(data,'nextPaymentDate'), start_date:nullValue(data,'startDate'), end_date:nullValue(data,'endDate'),
+      next_payment_date:nextPaymentDate, start_date:startDate, end_date:endDate, term_months:termMonths,
+      payment_mode:paymentMode, billing_recurring_rule_id:billingRecurringRuleId,
       status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
+      ...(paymentMode==='included_in_bill'?{recurring_rule_id:null}:{}),
     };
+
     const shouldPlanRate=payload.status==='active'
+      && payload.payment_mode==='standalone'
       && payload.payment_cadence!=='manual'
       && Number(payload.installment_amount)>0
       && Boolean(payload.payment_account_id)
@@ -2768,23 +2852,33 @@ async function handleForm(form) {
         const rule=await financeApi.createRecurringRule(debtRecurringPayload(created));
         await financeApi.updateDebt(created.id,{recurring_rule_id:rule.id});
       }
-      await refresh(shouldPlanRate
-        ? 'Schuld / Kredit gespeichert. Die Rate wurde automatisch unter Wiederkehrend geplant.'
-        : 'Schuld / Kredit gespeichert.');
+      await refresh(paymentMode==='included_in_bill'
+        ? 'Schuld / Leasing gespeichert. Die Rate wird innerhalb der Anbieterrechnung geführt und nicht doppelt geplant.'
+        : shouldPlanRate
+          ? 'Schuld / Kredit gespeichert. Die Rate wurde automatisch unter Wiederkehrend geplant.'
+          : 'Schuld / Kredit gespeichert.');
     } else {
-      const debtId=formValue(data,'debtId');
-      const before=runtime.debts.find((row)=>row.id===debtId);
-      if (!before) throw new Error('Schuld wurde nicht gefunden.');
+      const debtId=before.id;
+      const oldRuleId=before.recurring_rule_id||null;
       const updated=await financeApi.updateDebt(debtId,payload);
-      if (before.recurring_rule_id) {
-        await syncLinkedDebtRecurring({...updated,recurring_rule_id:before.recurring_rule_id});
+
+      if(paymentMode==='included_in_bill'&&oldRuleId){
+        const shared=runtime.contracts.some((row)=>row.recurring_rule_id===oldRuleId)
+          || runtime.insurance.some((row)=>row.recurring_rule_id===oldRuleId)
+          || runtime.goalSources.some((row)=>row.recurring_rule_id===oldRuleId);
+        if(!shared) await financeApi.deleteRecurringRule(oldRuleId);
+      } else if(oldRuleId) {
+        await syncLinkedDebtRecurring({...updated,recurring_rule_id:oldRuleId});
       } else if(shouldPlanRate) {
         const rule=await financeApi.createRecurringRule(debtRecurringPayload(updated));
         await financeApi.updateDebt(updated.id,{recurring_rule_id:rule.id});
       }
-      await refresh(shouldPlanRate
-        ? 'Schuld / Kredit aktualisiert. Die Rate ist automatisch in der Planung verknüpft.'
-        : 'Schuld / Kredit aktualisiert.');
+
+      await refresh(paymentMode==='included_in_bill'
+        ? 'Schuld / Leasing aktualisiert. Die Rate bleibt Bestandteil der Anbieterrechnung.'
+        : shouldPlanRate
+          ? 'Schuld / Kredit aktualisiert. Die Rate ist automatisch in der Planung verknüpft.'
+          : 'Schuld / Kredit aktualisiert.');
     }
     return;
   }
@@ -3884,9 +3978,15 @@ async function handleAction(target) {
     document.querySelector('#debtEditNext').value=debt.next_payment_date||'';
     document.querySelector('#debtEditStart').value=debt.start_date||'';
     document.querySelector('#debtEditEnd').value=debt.end_date||'';
+    document.querySelector('#debtEditTerm').value=String(debtTermMonths(debt)||'');
+    document.querySelector('#debtEditPaymentMode').value=debt.payment_mode||'standalone';
+    document.querySelector('#debtEditBillingRule').value=debt.billing_recurring_rule_id||'';
     document.querySelector('#debtEditStatus').value=debt.status||'active';
     document.querySelector('#debtEditNotes').value=debt.notes||'';
-    const form=document.querySelector('#debt-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
+    const form=document.querySelector('#debt-edit');
+    syncDebtPaymentModeForm(form);
+    syncDebtTermForm(form);
+    form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'debt-payment-open') {
     const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
@@ -3897,20 +3997,23 @@ async function handleAction(target) {
     document.querySelector('#debtPaymentPrincipal').value=suggested>0?suggested.toFixed(2):'';
     document.querySelector('#debtPaymentInterest').value='0';
     document.querySelector('#debtPaymentFee').value='0';
-    document.querySelector('#debtPaymentSource').value='created_transaction';
-    document.querySelector('#debtPaymentAccount').value=debt.payment_account_id||'';
-    const txSelect=document.querySelector('#debtPaymentTransaction');
-    if(txSelect){
-      txSelect.value='';
-      [...txSelect.options].forEach((option)=>{
-        if(!option.value) return;
-        const allowed=option.dataset.currency===debt.currency;
-        option.hidden=!allowed; option.disabled=!allowed;
+    const defaultSource=debt.payment_mode==='included_in_bill'?'linked_transaction_component':'created_transaction';
+    const sourceSelect=document.querySelector('#debtPaymentSource');
+    if(sourceSelect){
+      [...sourceSelect.options].forEach((option)=>{
+        if(debt.payment_mode==='included_in_bill'){
+          option.disabled=['created_transaction','linked_transaction'].includes(option.value);
+        } else {
+          option.disabled=false;
+        }
       });
+      sourceSelect.value=defaultSource;
     }
+    document.querySelector('#debtPaymentAccount').value=debt.payment_account_id||'';
+    syncDebtPaymentCandidates(debt,defaultSource);
     document.querySelector('#debtPaymentAdvance').checked=debt.payment_cadence!=='manual';
     document.querySelector('#debtPaymentNote').value='';
-    showDebtPaymentSource('created_transaction');
+    showDebtPaymentSource(defaultSource);
     const form=document.querySelector('#debt-payment-create'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'debt-history') { uiState.debtExpandedId=target.dataset.id; render(); return; }
@@ -3925,6 +4028,7 @@ async function handleAction(target) {
   }
   if (action === 'debt-recurring') {
     const debt=runtime.debts.find((row)=>row.id===target.dataset.id); if(!debt) throw new Error('Schuld wurde nicht gefunden.');
+    if(debt.payment_mode==='included_in_bill') throw new Error('Diese Rate steckt bereits in einer Anbieterrechnung und wird deshalb nicht separat als Fixkosten geplant.');
     const payload=debtRecurringPayload(debt);
     let rule=null;
     if(debt.recurring_rule_id) rule=await financeApi.updateRecurringRule(debt.recurring_rule_id,payload);
@@ -4102,7 +4206,20 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
+    if (['debtCreateStart','debtCreateTerm','debtCreateInstallment','debtCreateOriginal','debtCreateCurrency','debtEditStart','debtEditTerm','debtEditInstallment','debtEditOriginal','debtEditCurrency'].includes(target.id)) {
+      syncDebtTermForm(target.closest('form'));
+      return;
+    }
+    if (['debtCreatePaymentMode','debtEditPaymentMode'].includes(target.id)) {
+      syncDebtPaymentModeForm(target.closest('form'));
+      return;
+    }
+    if (target.id === 'debtPaymentSource') {
+      showDebtPaymentSource(target.value);
+      const debt=runtime.debts.find((row)=>row.id===document.querySelector('#debtPaymentDebtId')?.value);
+      syncDebtPaymentCandidates(debt,target.value);
+      return;
+    }
     if (target.id === 'billPaymentSource') { showBillPaymentSource(target.value); return; }
     if (target.id === 'taxPaymentSource') { showTaxPaymentSource(target.value); return; }
     if (target.id === 'receivablePaymentSource') { showReceivablePaymentSource(target.value); return; }
@@ -4163,11 +4280,16 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'debtPaymentTransaction') {
       const option=target.selectedOptions?.[0];
       if(option?.value){
-        const amount=Math.abs(Number(option.dataset.amount||0));
-        const total=document.querySelector('#debtPaymentAmount'); const principal=document.querySelector('#debtPaymentPrincipal');
-        if(total) total.value=amount.toFixed(2); if(principal) principal.value=amount.toFixed(2);
-        const interest=document.querySelector('#debtPaymentInterest'); if(interest) interest.value='0';
-        const fee=document.querySelector('#debtPaymentFee'); if(fee) fee.value='0';
+        const source=document.querySelector('#debtPaymentSource')?.value;
+        if(source==='linked_transaction'){
+          const amount=Math.abs(Number(option.dataset.amount||0));
+          const total=document.querySelector('#debtPaymentAmount'); const principal=document.querySelector('#debtPaymentPrincipal');
+          if(total) total.value=amount.toFixed(2); if(principal) principal.value=amount.toFixed(2);
+          const interest=document.querySelector('#debtPaymentInterest'); if(interest) interest.value='0';
+          const fee=document.querySelector('#debtPaymentFee'); if(fee) fee.value='0';
+        }
+        const date=document.querySelector('#debtPaymentDate');
+        if(date&&option.dataset.date) date.value=option.dataset.date;
       }
       return;
     }
