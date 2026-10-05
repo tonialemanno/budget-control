@@ -2,6 +2,7 @@ import { dataTable, formShell, metricCard, pageHeader, deleteButton, statusPill 
 import { cadenceMonthlyFactor, dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
 import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
+import { DEBT_TERM_OPTIONS, debtScheduleSummary } from '../app/debt-planning.js';
 
 const DEBT_TYPES = Object.freeze([
   ['personal_loan','Privatkredit'], ['mortgage','Hypothek'], ['leasing','Leasing'], ['credit_card','Kreditkarte'],
@@ -21,7 +22,7 @@ function optionList(rows, selected = '') {
 function cadenceLabel(value) { return CADENCES.find(([key])=>key===value)?.[1] || value || '—'; }
 function statusLabel(value) { return STATUSES.find(([key])=>key===value)?.[1] || value || '—'; }
 function sourceLabel(value) {
-  return ({ created_transaction:'Kontobuchung erstellt', linked_transaction:'Bankbuchung verknüpft', history_only:'Nur Verlauf' })[value] || value || '—';
+  return ({ created_transaction:'Kontobuchung erstellt', linked_transaction:'Bankbuchung vollständig verknüpft', linked_transaction_component:'Schuldanteil in Rechnung verknüpft', history_only:'Nur Verlauf' })[value] || value || '—';
 }
 function paymentAccounts(accounts) {
   return accounts.filter((account)=>!['investment','pension'].includes(account.account_type));
@@ -33,11 +34,16 @@ function currencyOptions(selected) {
   return ['CHF','EUR','USD','GBP'].map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-function debtFields(accounts, currency, { edit = false } = {}) {
+function debtFields(accounts, currency, { edit = false, recurringRules = [] } = {}) {
   const prefix = edit ? 'debtEdit' : 'debtCreate';
+  const providerRules=recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction==='expense')
+    .map((rule)=>`<option value="${rule.id}">${escapeHtml(rule.description)} · ${escapeHtml(moneyText(rule.amount,{currency:rule.currency||currency,decimals:2}))}</option>`)
+    .join('');
+  const termOptions=DEBT_TERM_OPTIONS.map((months)=>`<option value="${months}" ${months===24?'selected':''}>${months} Monate</option>`).join('');
   return `${edit?`<input type="hidden" name="debtId" id="${prefix}Id">`:''}
-    <label class="field"><span>Name</span><input class="text-control" name="name" id="${prefix}Name" required placeholder="z. B. Privatdarlehen"></label>
-    <label class="field"><span>Gläubiger</span><input class="text-control" name="creditor" id="${prefix}Creditor" required placeholder="z. B. Andy"></label>
+    <label class="field"><span>Name</span><input class="text-control" name="name" id="${prefix}Name" required placeholder="z. B. iPhone oder Privatdarlehen"></label>
+    <label class="field"><span>Gläubiger</span><input class="text-control" name="creditor" id="${prefix}Creditor" required placeholder="z. B. Yallo oder Andy"></label>
     <label class="field"><span>Typ</span><select class="text-control" name="debtType" id="${prefix}Type">${optionList(DEBT_TYPES,'private')}</select></label>
     <label class="field"><span>Währung</span><select class="text-control" name="currency" id="${prefix}Currency">${currencyOptions(currency)}</select>${edit?'<small>Nach der ersten erfassten Zahlung bleibt die Währung aus Gründen der Verlaufskonsistenz fix.</small>':''}</label>
     <label class="field"><span>Ursprünglicher Betrag</span><input class="text-control" name="originalAmount" id="${prefix}Original" type="number" min="0" step="0.01" required></label>
@@ -46,9 +52,16 @@ function debtFields(accounts, currency, { edit = false } = {}) {
     <label class="field"><span>Geplante Rate</span><input class="text-control" name="installmentAmount" id="${prefix}Installment" type="number" min="0" step="0.01" value="0"></label>
     <label class="field"><span>Zahlungsrhythmus</span><select class="text-control" name="paymentCadence" id="${prefix}Cadence">${optionList(CADENCES,'monthly')}</select></label>
     <label class="field"><span>Standard-Zahlungskonto</span><select class="text-control" name="paymentAccountId" id="${prefix}Account">${accountOptions(accounts)}</select></label>
-    <label class="field"><span>Nächste Zahlung</span><input class="text-control" name="nextPaymentDate" id="${prefix}Next" type="date"></label>
-    <label class="field"><span>Beginn</span><input class="text-control" name="startDate" id="${prefix}Start" type="date"></label>
-    <label class="field"><span>Ende / vereinbart bis</span><input class="text-control" name="endDate" id="${prefix}End" type="date"></label>
+
+    <label class="field"><span>Beginn / erste Rate</span><input class="text-control" name="startDate" id="${prefix}Start" type="date"><small>Bei einer festen Laufzeit ist dies gleichzeitig der erste geplante Zahlungstermin.</small></label>
+    <label class="field"><span>Laufzeit</span><select class="text-control" name="termMonths" id="${prefix}Term"><option value="">Ohne feste Laufzeit</option>${termOptions}</select><small>Finance berechnet die letzte Rate automatisch.</small></label>
+    <input type="hidden" name="nextPaymentDate" id="${prefix}Next">
+    <input type="hidden" name="endDate" id="${prefix}End">
+    <div class="debt-term-preview form-grid-span" id="${prefix}TermPreview"><strong>Ende automatisch</strong><span>Beginn und Laufzeit wählen.</span></div>
+
+    <label class="field form-grid-span"><span>Wie wird die Rate bezahlt?</span><select class="text-control" name="paymentMode" id="${prefix}PaymentMode"><option value="standalone">Separate Rate / eigene Belastung</option><option value="included_in_bill">In einer Anbieterrechnung enthalten</option></select><small>Bei „enthalten“ plant Finance die Rate nicht nochmals als eigene Ausgabe.</small></label>
+    <label class="field form-grid-span" id="${prefix}BillingRuleField" hidden><span>Enthalten in Fixkostenposition</span><select class="text-control" name="billingRecurringRuleId" id="${prefix}BillingRule"><option value="">Noch keine passende Fixkostenposition</option>${providerRules}</select><small>Beispiel: Die iPhone-Rate steckt in der gesamten Yallo-Rechnung. Die Bankbelastung wird nur einmal gezählt.</small></label>
+
     <label class="field"><span>Status</span><select class="text-control" name="status" id="${prefix}Status">${optionList(STATUSES,'active')}</select></label>
     <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="notes" id="${prefix}Notes" rows="3" placeholder="optional"></textarea></label>`;
 }
@@ -57,18 +70,19 @@ function paymentFields(accounts, transactions, debtPayments, bills, currency, lo
   const linkedIds = new Set(debtPayments.filter((p)=>!p.reversed_at&&p.transaction_id).map((p)=>p.transaction_id));
   const paidBillIds = new Set(bills.filter((bill)=>bill.status==='paid'&&bill.paid_transaction_id).map((bill)=>bill.paid_transaction_id));
   const candidates = transactions
-    .filter((tx)=>tx.status==='booked' && Number(tx.amount)<0 && !tx.transfer_group_id && tx.cashflow_type==='standard' && !linkedIds.has(tx.id) && !paidBillIds.has(tx.id))
-    .slice(0,250);
+    .filter((tx)=>tx.status==='booked' && Number(tx.amount)<0 && !tx.transfer_group_id && tx.cashflow_type==='standard' && !linkedIds.has(tx.id))
+    .slice(0,300);
   return `<input type="hidden" name="debtId" id="debtPaymentDebtId">
     <label class="field"><span>Datum</span><input class="text-control" name="paidAt" id="debtPaymentDate" type="date" value="${dateInputValue()}" required></label>
-    <label class="field"><span>Zahlung gesamt</span><input class="text-control" name="amount" id="debtPaymentAmount" type="number" min="0.01" step="0.01" required></label>
+    <label class="field"><span>Rate / Schuldanteil</span><input class="text-control" name="amount" id="debtPaymentAmount" type="number" min="0.01" step="0.01" required></label>
     <label class="field"><span>Davon Tilgung</span><input class="text-control" name="principalAmount" id="debtPaymentPrincipal" type="number" min="0" step="0.01" required></label>
     <label class="field"><span>Davon Zins</span><input class="text-control" name="interestAmount" id="debtPaymentInterest" type="number" min="0" step="0.01" value="0" required></label>
     <label class="field"><span>Davon Gebühren</span><input class="text-control" name="feeAmount" id="debtPaymentFee" type="number" min="0" step="0.01" value="0" required></label>
-    <label class="field"><span>Abbildung in Finance</span><select class="text-control" name="source" id="debtPaymentSource"><option value="created_transaction">Neue Kontobuchung erstellen</option><option value="linked_transaction">Bestehende Buchung verknüpfen</option><option value="history_only">Nur Schuldenverlauf</option></select></label>
+    <label class="field"><span>Abbildung in Finance</span><select class="text-control" name="source" id="debtPaymentSource"><option value="created_transaction">Separate Kontobuchung erstellen</option><option value="linked_transaction">Bestehende Buchung ist vollständig die Rate</option><option value="linked_transaction_component">Rate steckt in bestehender Rechnung / Buchung</option><option value="history_only">Nur Verlauf</option></select></label>
     <label class="field" id="debtPaymentAccountField"><span>Zahlungskonto</span><select class="text-control" name="paymentAccountId" id="debtPaymentAccount">${accountOptions(accounts)}</select></label>
-    <label class="field" id="debtPaymentTransactionField" hidden><span>Bestehende Buchung</span><select class="text-control" name="transactionId" id="debtPaymentTransaction"><option value="">Bitte wählen</option>${candidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(Number(tx.amount))}" data-currency="${escapeHtml(tx.currency)}">${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(tx.description)} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency||currency)}</option>`).join('')}</select></label>
+    <label class="field" id="debtPaymentTransactionField" hidden><span>Bestehende Buchung / Rechnung</span><select class="text-control" name="transactionId" id="debtPaymentTransaction"><option value="">Bitte wählen</option>${candidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(Number(tx.amount))}" data-currency="${escapeHtml(tx.currency)}" data-date="${escapeHtml(dateInputValue(new Date(tx.occurred_at)))}" data-bill-linked="${paidBillIds.has(tx.id)?'true':'false'}">${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(tx.description)} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency||currency)}${paidBillIds.has(tx.id)?' · Rechnung':''}</option>`).join('')}</select></label>
     <label class="field form-grid-span checkbox-field"><input type="checkbox" name="advanceNextDate" id="debtPaymentAdvance" checked><span>Nächsten Zahlungstermin automatisch weiterstellen</span></label>
+    <div class="inline-alert form-grid-span" id="debtPaymentComponentInfo" hidden><strong>Teil einer Rechnung</strong><span>Nur der Schuldanteil reduziert die Restschuld. Der übrige Rechnungsbetrag bleibt normale Ausgabe. Es entsteht keine zweite Bankbuchung.</span></div>
     <div class="inline-alert form-grid-span" id="debtPaymentHistoryInfo" hidden><strong>Nur Verlauf</strong><span>Diese Variante verändert kein Konto. Verwende sie nur, wenn die Zahlung bereits im aktuellen Kontostand enthalten ist oder ausserhalb der erfassten Konten stattgefunden hat.</span></div>
     <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="note" id="debtPaymentNote" rows="3" placeholder="optional"></textarea></label>`;
 }
@@ -89,9 +103,14 @@ export function renderDebts({
   const rows = debts.map((debt)=>{
     const history = debtPayments.filter((payment)=>payment.debt_id===debt.id);
     const linked = Boolean(debt.recurring_rule_id && recurringRules.some((rule)=>rule.id===debt.recurring_rule_id));
+    const billingRule=debt.billing_recurring_rule_id ? recurringRules.find((rule)=>rule.id===debt.billing_recurring_rule_id) : null;
+    const schedule=debtScheduleSummary(debt);
+    const modeLabel=debt.payment_mode==='included_in_bill'
+      ? `In Rechnung enthalten${billingRule?` · ${billingRule.description}`:''}`
+      : linked?'Eigene Rate geplant':'Separate Rate';
     const canDelete = history.length===0;
     return `<tr>
-      <td><strong>${escapeHtml(debt.name)}</strong><div class="table-meta">${escapeHtml(debt.creditor)} · ${escapeHtml(debt.currency||currency)}</div></td>
+      <td><strong>${escapeHtml(debt.name)}</strong><div class="table-meta">${escapeHtml(debt.creditor)} · ${escapeHtml(debt.currency||currency)}${schedule.termMonths?` · ${schedule.termMonths} Monate`:''} · ${escapeHtml(modeLabel)}</div></td>
       <td>${money(debt.outstanding_amount,{currency:debt.currency||currency,locale})}</td>
       <td>${money(debt.installment_amount,{currency:debt.currency||currency,locale})}<div class="table-meta">${escapeHtml(cadenceLabel(debt.payment_cadence))}</div></td>
       <td>${Number(debt.interest_rate||0).toFixed(2)} %</td>
@@ -99,7 +118,7 @@ export function renderDebts({
       <td>${statusPill(debt.status,statusLabel(debt.status))}${linked?`<div class="table-meta">Wiederkehrend verknüpft</div>`:''}</td>
       <td><div class="table-actions">
         <button class="table-action" type="button" data-action="debt-history" data-id="${debt.id}">${history.length ? `Verlauf (${history.length})` : 'Verlauf'}</button>
-        ${canWrite?`<button class="table-action" type="button" data-action="debt-edit" data-id="${debt.id}">Bearbeiten</button><button class="table-action" type="button" data-action="debt-payment-open" data-id="${debt.id}" ${Number(debt.outstanding_amount)<=0?'disabled':''}>Zahlung</button>${linked?`<button class="table-action" type="button" data-action="debt-recurring-remove" data-id="${debt.id}">Wiederkehrend lösen</button>`:`<button class="table-action" type="button" data-action="debt-recurring" data-id="${debt.id}">Wiederkehrend</button>`}${canDelete?deleteButton('debts',debt.id):''}`:''}
+        ${canWrite?`<button class="table-action" type="button" data-action="debt-edit" data-id="${debt.id}">Bearbeiten</button><button class="table-action" type="button" data-action="debt-payment-open" data-id="${debt.id}" ${Number(debt.outstanding_amount)<=0?'disabled':''}>Zahlung</button>${debt.payment_mode==='included_in_bill'?'':linked?`<button class="table-action" type="button" data-action="debt-recurring-remove" data-id="${debt.id}">Wiederkehrend lösen</button>`:`<button class="table-action" type="button" data-action="debt-recurring" data-id="${debt.id}">Wiederkehrend</button>`}${canDelete?deleteButton('debts',debt.id):''}`:''}
       </div></td>
     </tr>`;
   });
@@ -129,8 +148,8 @@ export function renderDebts({
 
   return `
     ${pageHeader({title:'Schulden & Kredite',subtitle:'Restschuld, Rate und tatsächliche Zahlungen getrennt führen. Tilgung verändert die Schuld, Zins und Gebühren sind Kosten.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="debt-create">${icon('plus')} Kredit / Schuld</button>`:''})}
-    ${canWrite?formShell('debt-create','Neue Schuld / Kredit','Vertragliche Eckdaten und geplante Rate erfassen',debtFields(accounts,currency),{hidden:true,submitLabel:'Schuld speichern'}):''}
-    ${canWrite?formShell('debt-edit','Schuld / Kredit bearbeiten','Rate, Restschuld, Rhythmus und Termine sauber korrigieren',debtFields(accounts,currency,{edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('debt-create','Neue Schuld / Kredit','Vertragliche Eckdaten und geplante Rate erfassen',debtFields(accounts,currency,{recurringRules}),{hidden:true,submitLabel:'Schuld speichern'}):''}
+    ${canWrite?formShell('debt-edit','Schuld / Kredit bearbeiten','Rate, Restschuld, Rhythmus und Termine sauber korrigieren',debtFields(accounts,currency,{edit:true,recurringRules}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('debt-payment-create','Zahlung erfassen','Zahlung in Tilgung, Zins und Gebühren aufteilen',paymentFields(accounts,transactions,debtPayments,bills,currency,locale),{hidden:true,submitLabel:'Zahlung verbuchen'}):''}
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Restschuld gesamt',money(outstanding,{currency,locale}),`${fxLabel(fxRates,currency)} · nicht bezahlte Schulden`)}

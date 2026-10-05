@@ -1,5 +1,5 @@
 import { convertAmount } from './fx.js';
-import { effectiveNextDate, nextOccurrenceDate } from './recurrence.js';
+import { addMonthsClamped, effectiveNextDate, nextOccurrenceDate } from './recurrence.js';
 import { calculateBudgetSummary } from './budget-engine.js';
 import { categoryLineage, matchingRecurringRule, semanticExpenseBase, semanticType } from './finance-semantics.js';
 import { plannedMonthlyAmount, reserveMonthlyAmount } from './recurring-planning.js';
@@ -135,7 +135,7 @@ function reserveStatus(rule,accounts=[],now=new Date()){
 }
 
 function priority(type){
-  return ({cash_shortfall:100,budget_risk:85,spending_spike:80,uncategorized:70,reserve_gap:60,unbudgeted:55,no_budget:45,subscriptions:40,on_track:10})[type]||0;
+  return ({cash_shortfall:100,budget_risk:85,spending_spike:80,uncategorized:70,freed_commitment:65,reserve_gap:60,unbudgeted:55,no_budget:45,subscriptions:40,on_track:10})[type]||0;
 }
 
 function subscriptionSummary({recurringRules=[],categories=[],baseCurrency='CHF',fxRates=null,now=new Date()}={}){
@@ -151,6 +151,64 @@ function subscriptionSummary({recurringRules=[],categories=[],baseCurrency='CHF'
   const monthly=rows.reduce((sum,rule)=>sum+base(plannedMonthlyAmount(rule),rule.currency,baseCurrency,fxRates),0);
   if(!(monthly>0)) return null;
   return {count:rows.length,monthly,annual:monthly*12};
+}
+
+function normalizedRuleText(rule){
+  return `${rule?.description||''} ${rule?.counterparty||''}`
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+export function buildFreedCommitmentSuggestion({
+  recurringRules=[],accounts=[],baseCurrency='CHF',fxRates=null,now=new Date(),
+}={}){
+  const horizon=new Date(now);
+  horizon.setMonth(horizon.getMonth()+18);
+
+  const ending=recurringRules
+    .filter((rule)=>{
+      if(!ruleActive(rule,now)||rule.direction!=='expense'||rule.reserve_enabled||!rule.end_date) return false;
+      const end=atNoon(rule.end_date);
+      return end&&end>now&&end<=horizon;
+    })
+    .map((rule)=>({
+      rule,
+      endDate:atNoon(rule.end_date),
+      monthly:base(plannedMonthlyAmount(rule),rule.currency,baseCurrency,fxRates),
+    }))
+    .filter((row)=>row.monthly>=10)
+    .sort((a,b)=>a.endDate-b.endDate || b.monthly-a.monthly)[0]||null;
+
+  if(!ending) return null;
+
+  const savingRules=recurringRules
+    .filter((rule)=>ruleActive(rule,now)&&rule.direction==='transfer')
+    .map((rule)=>{
+      const destination=accounts.find((account)=>account.account_id===rule.destination_account_id);
+      const text=normalizedRuleText(rule);
+      const savingSignal=destination?.account_type==='savings'||/(^|\b)(spar|save|saving|ruecklage|reserve)(\b|$)/.test(text);
+      return {
+        rule,
+        destination,
+        savingSignal,
+        monthly:base(plannedMonthlyAmount(rule),rule.currency,baseCurrency,fxRates),
+      };
+    })
+    .filter((row)=>row.savingSignal&&row.monthly>0)
+    .sort((a,b)=>b.monthly-a.monthly);
+
+  const target=savingRules[0]||null;
+  const availableFrom=addMonthsClamped(ending.endDate,1);
+  return {
+    sourceRuleId:ending.rule.id,
+    sourceLabel:ending.rule.description||ending.rule.counterparty||'Fixkosten',
+    endDate:ending.endDate,
+    availableFrom,
+    freedMonthly:ending.monthly,
+    savingRuleId:target?.rule?.id||null,
+    savingLabel:target?.rule?.description||target?.destination?.name||'Sparen',
+    currentSavings:target?.monthly||0,
+    suggestedSavings:(target?.monthly||0)+ending.monthly,
+  };
 }
 
 export function buildFinanceCoach({
@@ -236,6 +294,7 @@ export function buildFinanceCoach({
     });
   const reserveGap=reserves.find((row)=>row.target>0&&row.balance<row.target&&row.monthly>0)||null;
   const subscriptions=subscriptionSummary({recurringRules,categories,baseCurrency,fxRates,now});
+  const freedCommitment=buildFreedCommitmentSuggestion({recurringRules,accounts,baseCurrency,fxRates,now});
 
   const insights=[];
   if(freeUntilIncome<0){
@@ -259,6 +318,9 @@ export function buildFinanceCoach({
   }
   if(uncategorized.length){
     insights.push({type:'uncategorized',tone:'neutral',count:uncategorized.length,href:'#/imports'});
+  }
+  if(freedCommitment){
+    insights.push({type:'freed_commitment',tone:'positive',...freedCommitment,href:'#/planning'});
   }
   if(reserveGap){
     insights.push({
@@ -317,6 +379,7 @@ export function buildFinanceCoach({
     reserves,
     anomaly,
     subscriptions,
+    freedCommitment,
     insights:insights.slice(0,4),
   };
 }

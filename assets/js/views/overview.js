@@ -42,7 +42,19 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
       <div><strong>Finance kann noch besser lernen</strong><p><b>${insight.count}</b> Ausgaben sind noch ohne Kategorie.</p><small>Einmal sauber zuordnen; bekannte Händler und Zahler werden danach wiederverwendet.</small></div>
     </a>`;
   }
-  if(insight.type==='reserve_gap'){
+  if(insight.type==='freed_commitment'){
+    const available=insight.availableFrom
+      ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(insight.availableFrom)
+      : '';
+    const savingText=insight.currentSavings>0
+      ? `${amount(insight.currentSavings)} → ${amount(insight.suggestedSavings)}`
+      : amount(insight.freedMonthly);
+    return `<a class="coach-insight coach-insight--positive" href="${insight.href}">
+      <span class="coach-insight-icon">${icon('piggy-bank')}</span>
+      <div><strong>Demnächst wird Geld frei</strong><p><b>${escapeHtml(insight.sourceLabel)}</b> endet. Ab ${escapeHtml(available)} werden ${amount(insight.freedMonthly)} pro Monat frei.</p><small>Sparvorschlag: ${escapeHtml(insight.savingLabel)} ${savingText} pro Monat.</small></div>
+    </a>`;
+  }
+    if(insight.type==='reserve_gap'){
     return `<a class="coach-insight" href="${insight.href}">
       <span class="coach-insight-icon">${icon('piggy-bank')}</span>
       <div><strong>Rücklage weiter auffüllen</strong><p><b>${escapeHtml(insight.label)}</b>: aktuell ${Math.round(insight.fundedPercent)} % finanziert. Geplanter Monatsbetrag ${amount(insight.monthly)}.</p><small>Jahreskosten werden als Rücklage geplant und erst bei Zahlung zur echten Ausgabe.</small></div>

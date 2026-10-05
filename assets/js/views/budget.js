@@ -10,18 +10,24 @@ function sourceLabel(pattern){
   return `Gesamte Historie: ${pattern.observedMonths} Monate`;
 }
 
-function budgetRow(row,{currency,locale,canWrite}){
+function budgetCard(row,{currency,locale,canWrite}){
   const pct=progress(row.spent,row.amount);
   const label=row.merchants?.name||row.categories?.name||'Budget';
+  const remaining=Math.max(0,Number(row.amount||0)-Number(row.spent||0));
   const scope=row.merchant_id?'Händler':'Kategorie';
-  const meta=`${scope}${row._inherited?' · aus vorherigem Finanzmonat übernommen':''}`;
-  return `<tr>
-    <td><strong>${escapeHtml(label)}</strong><div class="table-meta">${escapeHtml(meta)}</div></td>
-    <td>${money(row.amount,{currency:row.currency||currency,locale})}</td>
-    <td>${money(row.spent,{currency,locale})}</td>
-    <td><div class="progress-track table-progress"><div class="progress-fill ${pct>=100?'progress-fill--red':pct>=80?'progress-fill--orange':''}" style="--progress:${Math.min(100,pct)}%"></div></div><div class="table-meta">${pct.toFixed(0)} %</div></td>
-    <td>${canWrite&&!row._inherited?deleteButton('budgets',row.id):''}</td>
-  </tr>`;
+  return `<article class="budget-active-card">
+    <div class="budget-active-head">
+      <div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(scope)}${row._inherited?' · aus vorherigem Finanzmonat übernommen':''}</span></div>
+      ${canWrite&&!row._inherited?deleteButton('budgets',row.id):''}
+    </div>
+    <div class="budget-active-values">
+      <div><span>Budget</span><strong>${money(row.amount,{currency:row.currency||currency,locale})}</strong></div>
+      <div><span>Ausgegeben</span><strong>${money(row.spent,{currency,locale})}</strong></div>
+      <div><span>Noch verfügbar</span><strong>${money(remaining,{currency,locale})}</strong></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill ${pct>=100?'progress-fill--red':pct>=80?'progress-fill--orange':''}" style="--progress:${Math.min(100,pct)}%"></div></div>
+    <small>${pct.toFixed(0)} % verbraucht</small>
+  </article>`;
 }
 
 function legacyRow(row,{currency,locale,type}){
@@ -56,7 +62,7 @@ export function renderBudget({
     <label class="field" id="budgetMerchantField" hidden><span>Händler</span><select class="text-control" name="merchantId"><option value="">Bitte wählen</option>${merchants.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select></label>
     <label class="field"><span>Budgetbetrag</span><input class="text-control" name="amount" type="number" min="0" step="0.01" required placeholder="z. B. 350"></label>`;
 
-  const variableRows=summary.variableRows.map((row)=>budgetRow(row,{currency,locale,canWrite}));
+  const variableCards=summary.variableRows.map((row)=>budgetCard(row,{currency,locale,canWrite})).join('');
 
   const excludedRows=[
     ...summary.fixedRows.map((row)=>legacyRow(row,{currency,locale,type:'Fixkosten – werden aus Wiederkehrend berechnet'})),
@@ -131,7 +137,12 @@ export function renderBudget({
     })}
     ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt Finance den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
 
-    <div class="metric-grid" style="margin-bottom:16px">
+    <article class="card card-padding budget-active-section" id="budget-active-section">
+      <div class="card-heading"><div><h3 class="card-title">Deine variablen Budgets</h3><p class="card-subtitle"><span>Gespeicherte Budgets sind sofort hier sichtbar und gelten für den laufenden Finanzmonat</span> <strong>${escapeHtml(financePeriodLabel)}</strong>.</p></div></div>
+      ${variableCards?`<div class="budget-active-grid">${variableCards}</div>`:'<div class="table-empty">Noch kein variables Budget eingerichtet.</div>'}
+    </article>
+
+    <div class="metric-grid budget-metric-grid">
       ${metricCard('Variables Budget',money(summary.total,{currency,locale}),`${summary.count} echte Budgetposition${summary.count===1?'':'en'}`)}
       ${metricCard('Variabel ausgegeben',money(summary.spent,{currency,locale}),summary.rawPercent>100?`${Math.round(summary.rawPercent)} % · ${money(summary.overBy,{currency,locale})} darüber`:`${Math.round(summary.rawPercent)} % verbraucht`,summary.rawPercent>100?'warning':'')}
       ${metricCard('Noch verfügbar',money(summary.remaining,{currency,locale}),'nur variables Budget',summary.remaining>0?'positive':'')}
@@ -139,11 +150,6 @@ export function renderBudget({
       ${metricCard('Sparen / Umbuchen',money(summary.savingMoved,{currency,locale}),'keine Konsumausgabe')}
       ${metricCard('Steuern bezahlt',money(summary.taxSpent,{currency,locale}),'eigener Planungsbereich')}
     </div>
-
-    <article class="card card-padding" style="margin-bottom:16px">
-      <div class="card-heading"><div><h3 class="card-title">Variable Budgets</h3><p class="card-subtitle">Nur diese Positionen bestimmen den Budget-Prozentwert.</p></div></div>
-      ${dataTable({headers:['Budget','Soll','Ist','Nutzung',''],rows:variableRows,emptyText:'Noch kein variables Budget eingerichtet.'})}
-    </article>
 
     ${excludedRows.length?`<article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading"><div><h3 class="card-title">Nicht im variablen Budget</h3><p class="card-subtitle">Alte Budgeteinträge, die fachlich Fixkosten, Sparen oder Steuern sind. Sie verzerren den Prozentwert nicht mehr.</p></div></div>

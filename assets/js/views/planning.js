@@ -2,6 +2,7 @@ import { pageHeader, sectionHeading } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { budgetSummary, goalSummaries } from '../app/finance-insights.js';
+import { buildFreedCommitmentSuggestion } from '../app/finance-coach.js';
 
 function enabled(key, moduleAccess, hiddenModules) {
   return moduleAccess?.[key] === true && !hiddenModules.includes(key);
@@ -18,7 +19,7 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 }
 
 export function renderPlanning({
-  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
+  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[], accounts=[],
   transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[],
 }={}) {
   const currency=household?.base_currency||'CHF';
@@ -30,6 +31,7 @@ export function renderPlanning({
   const fixedExpenses=activeRecurring.filter((r)=>r.direction==='expense');
   const fixedIncome=activeRecurring.filter((r)=>r.direction==='income');
   const installmentDebts=debts.filter((d)=>d.status!=='paid' && Number(d.installment_amount||0)>0);
+  const freedCommitment=buildFreedCommitmentSuggestion({recurringRules,accounts,baseCurrency:currency,fxRates,now:new Date()});
   const cards=[];
 
   cards.push(planCard({
@@ -75,11 +77,31 @@ export function renderPlanning({
   if(enabled('family',moduleAccess,hiddenModules)) more.push(planCard({href:'#/family',iconName:'heart-pulse',title:'Familie & Haushalt',text:'Gemeinsame Finanzen und Zugriffe'}));
   if(enabled('intelligence',moduleAccess,hiddenModules)) more.push(planCard({href:'#/intelligence',iconName:'sparkles',title:'Finance Intelligence',text:'Hinweise und Analysen'}));
 
+  const freedMonthLabel=freedCommitment
+    ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(freedCommitment.availableFrom)
+    : '';
+  const freedSuggestion=freedCommitment
+    ? freedCommitment.currentSavings>0
+      ? `<span>Vorschlag:</span> <strong>${escapeHtml(freedCommitment.savingLabel)}</strong> <span>von</span> ${money(freedCommitment.currentSavings,{currency,locale,decimals:0})} <span>auf</span> ${money(freedCommitment.suggestedSavings,{currency,locale,decimals:0})} <span>erhöhen.</span>`
+      : `<span>Vorschlag:</span> ${money(freedCommitment.freedMonthly,{currency,locale,decimals:0})} <span>monatlich direkt sparen.</span>`
+    : '';
+
   return `
     ${pageHeader({
       title:'Planung',
       subtitle:'Was mit deinem Geld als Nächstes passiert: Budget, Rücklagen, Fixkosten, Rechnungen, Raten und langfristige Ziele.'
     })}
+
+    ${freedCommitment?`<article class="card card-padding planning-freed-card">
+      <span class="planning-freed-icon">${icon('piggy-bank')}</span>
+      <div>
+        <span class="eyebrow">Demnächst frei</span>
+        <h3><strong>${escapeHtml(freedCommitment.sourceLabel)}</strong> <span>endet</span></h3>
+        <p><span>Ab</span> <strong>${escapeHtml(freedMonthLabel)}</strong> <span>werden</span> ${money(freedCommitment.freedMonthly,{currency,locale,decimals:0})} <span>pro Monat frei.</span></p>
+        <small>${freedSuggestion}</small>
+      </div>
+      <a class="action-button action-button--secondary" href="#/fixed-costs">Planung prüfen</a>
+    </article>`:''}
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">

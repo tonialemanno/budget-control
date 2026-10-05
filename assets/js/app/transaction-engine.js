@@ -127,8 +127,8 @@ export async function recordDebtMovement({
   if (Math.abs(total - (principal + interest + fee)) > 0.005) throw new Error('Zahlung gesamt muss Tilgung + Zins + Gebühren entsprechen.');
   if (principal > Number(debt.outstanding_amount || 0) + 0.005) throw new Error('Die Tilgung ist höher als die Restschuld.');
   if (source === 'created_transaction') required(paymentAccountId, 'Bitte ein Zahlungskonto auswählen.');
-  if (source === 'linked_transaction') required(transactionId, 'Bitte eine bestehende Buchung auswählen.');
-  if (!['created_transaction','linked_transaction','history_only'].includes(source)) throw new Error('Unbekannte Zahlungsart.');
+  if (['linked_transaction','linked_transaction_component'].includes(source)) required(transactionId, 'Bitte eine bestehende Buchung auswählen.');
+  if (!['created_transaction','linked_transaction','linked_transaction_component','history_only'].includes(source)) throw new Error('Unbekannte Zahlungsart.');
   return api.createDebtPayment({
     household_id: householdId,
     debt_id: debt.id,
@@ -140,7 +140,7 @@ export async function recordDebtMovement({
     currency: debt.currency,
     source,
     payment_account_id: source === 'created_transaction' ? paymentAccountId : null,
-    transaction_id: source === 'linked_transaction' ? transactionId : null,
+    transaction_id: ['linked_transaction','linked_transaction_component'].includes(source) ? transactionId : null,
     note,
     advance_next_date: Boolean(advanceNextDate),
   });
