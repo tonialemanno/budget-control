@@ -142,10 +142,10 @@ function txRow(tx,{locale,canWrite,accounts,canTax,paymentMap,billMap}){
 }
 
 function renderCategorizationReview({
-  transactions, categories, merchants, merchantAliases, categorizationRules, household, profile, fxRates,
+  transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates,
   canWrite, categorizationFilter='action', categorizationPage=1,
 }) {
-  const groups = buildCategorizationGroups({ transactions, categories, merchants, aliases:merchantAliases, rules:categorizationRules });
+  const groups = buildCategorizationGroups({ transactions, categories, merchants, aliases:merchantAliases, rules:categorizationRules, accounts });
   const uncategorizedCount = transactions.filter((tx)=>tx.status==='booked'&&!tx.transfer_group_id&&!['debt_payment','receivable_principal'].includes(tx.cashflow_type)&&!tx.category_id).length;
   const safeGroups = groups.filter((group)=>group.unassignedCount>0&&group.suggestion?.safe);
   const unresolvedGroups = groups.filter((group)=>group.unassignedCount>0&&!group.suggestion);
@@ -215,7 +215,7 @@ export function renderTransactions({ accounts = [], categories = [], transaction
   const contextFilterOptions=transactionContexts.filter((row)=>!row.is_archived).map((row)=>`<option value="${row.id}" ${transactionContext===row.id?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
   const vehicleFilterOptions=vehicles.map((row)=>`<option value="${row.id}" ${transactionVehicle===row.id?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
   const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||transactionCategoryIds.length||transactionSourceSet.length||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||(transactionContext&&transactionContext!=='all')||(transactionVehicle&&transactionVehicle!=='all')||(transactionDirection&&transactionDirection!=='all')||(transactionSemantic&&transactionSemantic!=='all')||transactionPeriod==='all'||transactionPeriod==='custom');
-  const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, merchantAliases, categorizationRules, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage }) : '';
+  const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage }) : '';
 
   const entityDatalists=`<datalist id="counterpartyDatalist">${counterparties.map((row)=>`<option value="${escapeHtml(row.name)}"></option>`).join('')}</datalist>`;
 

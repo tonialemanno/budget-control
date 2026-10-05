@@ -197,7 +197,7 @@ function stripVolatileMerchantSuffix(value) {
   while(text && text!==previous){
     previous=text;
     text=text
-      .replace(/(?:\s+|[,;\-–]\s*)\b(?:0?[1-9]|[12]\d|3[01])[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:19|20)\d{2}\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
+      .replace(/(?:\s+|[,;\-–]\s*)\b(?:0?[1-9]|[12]\d|3[01])[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:(?:19|20)\d{2}|\d{2})\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
       .replace(/(?:\s+|[,;\-–]\s*)\b(?:19|20)\d{2}[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:0?[1-9]|[12]\d|3[01])\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
       .replace(/\s+/g,' ')
       .trim();
@@ -251,6 +251,20 @@ export function merchantFromTransaction(tx) {
   const rawName=name.length>120 ? name.slice(0,120).trim() : name;
   name=stripVolatileMerchantSuffix(name) || rawName;
   if (name.length > 80) name = name.slice(0, 80).trim();
+
+  const genericPaymentRail=Boolean(processor.paymentProcessor)
+    && /^(?:zahlung|payment|belastung|gutschrift|eingang|ausgang|buchung|transaktion|transaction)?$/i.test(String(name||'').trim());
+  if(genericPaymentRail){
+    return {
+      name:processor.paymentProcessor,
+      key:'unbekannt',
+      rawName,
+      aliasKey:'',
+      sourceField:tx?.counterparty ? 'counterparty' : 'description',
+      paymentProcessor:processor.paymentProcessor,
+      genericPaymentRail:true,
+    };
+  }
 
   const canonical=canonicalMerchantIdentity(name);
   if(canonical){
@@ -312,7 +326,7 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
-  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner|catering)\b/i, name:null, key:null, category:'Restaurant & Café' },
   { pattern:/\b(?:garage|officina|werkstatt|reparatur|riparazione|pneu|reifen)\b/i, name:null, key:null, category:'Wartung & Reparatur' },
   { pattern:/\b(?:noleggio|mietroller|rollermiete|scooter\s*rental|rent\s*a\s*scooter|mietfahrzeug)\b/i, name:null, key:null, category:'Mietfahrzeug' },
   { pattern:/\b(?:blumen|florist|fiori|grabpflege|gedenken)\b/i, name:null, key:null, category:'Geschenke & Gedenken' },
@@ -369,6 +383,19 @@ export function suggestKnownCategoryCandidates(tx) {
     'Lotterie & Gewinnspiele':['Lotterie & Gewinnspiele','Freizeit'],
   };
   return fallback[category]||[category];
+}
+
+export function suggestAccountCategory(tx,{account=null,categories=[]}={}) {
+  if(Number(tx?.amount)>=0 || !account) return null;
+  const detected=merchantFromTransaction(tx);
+  if(!detected?.genericPaymentRail) return null;
+
+  const accountKey=normalizeMerchantKey(account.name);
+  if(!accountKey) return null;
+  const matches=(categories||[]).filter((category)=>
+    category?.kind==='expense' && normalizeMerchantKey(category.name)===accountKey
+  );
+  return matches.length===1?matches[0]:null;
 }
 
 export function suggestKnownCategoryName(tx) {
