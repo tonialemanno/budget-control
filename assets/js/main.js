@@ -1509,7 +1509,7 @@ function renderImportReview() {
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
       const accountCategory=suggestAccountCategory(tx,{account,categories:runtime.categories});
       const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || accountCategory?.id || '';
-      const groupKey=existing?.normalized_key||merchant.key;
+      const groupKey=importMerchantSelectionKey(tx,merchant,existing,account);
       const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
       group.rows.push(tx); group.total += Number(tx.amount);
       if (!group.categoryId && categoryId) group.categoryId = categoryId;
@@ -3159,7 +3159,7 @@ async function handleForm(form) {
           let merchant = merchantInfo.genericPaymentRail
             ? null
             : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
-          const groupKey=merchant?.normalized_key||merchantInfo.key;
+          const groupKey=importMerchantSelectionKey(tx,merchantInfo,merchant,account);
           const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
           const knownCategoryNames=suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
