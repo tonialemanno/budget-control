@@ -151,7 +151,7 @@ const runtime = {
   runtimeState: null,
 };
 
-const importState = { file: null, parsed: null };
+const importState = { items: [] };
 const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
@@ -1398,36 +1398,62 @@ function importMappingFromForm(form) {
   };
 }
 
+function importMappingForParsed(parsed, preferred = {}) {
+  const headers=parsed?.headers||[];
+  const guessed=guessMapping(headers);
+  const use=(key)=>preferred[key]&&headers.includes(preferred[key])?preferred[key]:(guessed[key]||'');
+  return {
+    date:use('date'),
+    description:use('description'),
+    counterparty:use('counterparty'),
+    amount:use('amount'),
+    debit:use('debit'),
+    credit:use('credit'),
+  };
+}
+
+function validImportMapping(mapping) {
+  return Boolean(mapping?.date && mapping?.description && (mapping?.amount || mapping?.debit || mapping?.credit));
+}
+
 function renderImportReview() {
   const form = document.querySelector('#bank-import');
   const host = document.querySelector('#importReview');
-  if (!form || !host || !importState.parsed) return;
-  const mapping = importMappingFromForm(form);
-  if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) {
+  if (!form || !host || !importState.items.length) return;
+  const preferredMapping = importMappingFromForm(form);
+  if (!validImportMapping(preferredMapping)) {
     host.innerHTML = '<div class="inline-alert"><strong>Zuordnung unvollständig.</strong><span>Wähle Datum, Beschreibung und eine Betragsspalte.</span></div>';
     return;
   }
   const groups = new Map();
-  for (const row of importState.parsed.rows) {
-    const tx = rowToTransaction(row,mapping);
-    if (!tx) continue;
-    const merchant = merchantFromTransaction(tx);
-    const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-    const knownCategoryNames=suggestKnownCategoryCandidates(tx);
-    const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-    const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
-    const groupKey=existing?.normalized_key||merchant.key;
-    const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
-    group.rows.push(tx); group.total += Number(tx.amount);
-    if (!group.categoryId && categoryId) group.categoryId = categoryId;
-    groups.set(groupKey,group);
+  let validRows=0;
+  let unmappedFiles=0;
+  for (const item of importState.items) {
+    const mapping=importMappingForParsed(item.parsed,preferredMapping);
+    if(!validImportMapping(mapping)){ unmappedFiles+=1; continue; }
+    for (const row of item.parsed.rows) {
+      const tx = rowToTransaction(row,mapping);
+      if (!tx) continue;
+      validRows+=1;
+      const merchant = merchantFromTransaction(tx);
+      const existing = resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+      const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+      const categoryId = existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || '';
+      const groupKey=existing?.normalized_key||merchant.key;
+      const group = groups.get(groupKey) || { merchant:{...merchant,name:existing?.name||merchant.name,key:groupKey}, rows:[], total:0, categoryId };
+      group.rows.push(tx); group.total += Number(tx.amount);
+      if (!group.categoryId && categoryId) group.categoryId = categoryId;
+      groups.set(groupKey,group);
+    }
   }
   const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
     const options = runtime.categories.filter((c)=>c.kind===kind).map((c)=>`<option value="${c.id}" ${c.id===group.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
     return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}</span></div><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select></div>`;
   }).join('');
-  host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${groups.size} erkannte Händler · Kategorien können vor dem Import gesetzt werden.</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
+  const warning=unmappedFiles?` · ${unmappedFiles} Datei${unmappedFiles===1?'':'en'} mit abweichenden Spalten bitte prüfen`:'';
+  host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
 }
 
 function suggestedCategoryIdForTransaction({
@@ -3019,68 +3045,110 @@ async function handleForm(form) {
     await refresh('Benutzer erstellt.'); return;
   }
   if (id === 'bank-import') {
-    if (!importState.parsed || !importState.file) throw new Error('Bitte zuerst eine CSV- oder PDF-Datei auswählen.');
+    if (!importState.items.length) throw new Error('Bitte zuerst mindestens eine CSV- oder PDF-Datei auswählen.');
     const accountId = formValue(data,'accountId');
     const account = runtime.accounts.find((a)=>a.account_id===accountId);
     if (!account) throw new Error('Zielkonto wurde nicht gefunden.');
-    const mapping = importMappingFromForm(form);
-    if (!mapping.date || !mapping.description || (!mapping.amount && !mapping.debit && !mapping.credit)) throw new Error('Datum, Beschreibung und Betragsspalten müssen zugeordnet sein.');
+    const preferredMapping = importMappingFromForm(form);
+    if (!validImportMapping(preferredMapping)) throw new Error('Datum, Beschreibung und Betragsspalten müssen zugeordnet sein.');
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
     const remember = data.get('rememberMerchants') === 'on';
-    const batch = await financeApi.createImportBatch({ household_id:h, account_id:accountId, file_name:importState.file.name, row_count:importState.parsed.rows.length, imported_count:0, skipped_count:0, status:'processing' });
-    try {
-      const prepared = [];
-      const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
-      const aliasCache = [...runtime.merchantAliases];
-      for (const row of importState.parsed.rows) {
-        const tx = rowToTransaction(row,mapping);
-        if (!tx) continue;
-        const merchantInfo = merchantFromTransaction(tx);
-        let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
-        const groupKey=merchant?.normalized_key||merchantInfo.key;
-        const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
-        const knownCategoryNames=suggestKnownCategoryCandidates(tx);
-        const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-        const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
-        const categoryId = selectedCategory || fallbackCategory;
-        if (!merchant) {
-          merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
-          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-        } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
-          merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
-          if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-        }
-        if(merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
-          const alias=await financeApi.upsertMerchantAlias({
-            household_id:h,
-            merchant_id:merchant.id,
-            alias_name:merchantInfo.rawName||merchantInfo.name,
-            normalized_key:merchantInfo.aliasKey,
-            payment_processor:merchantInfo.paymentProcessor||null,
-          });
-          if(alias) aliasCache.push(alias);
-        }
-        const recurringRule=findMatchingRecurringRule({
-          ...tx,
-          account_id:accountId,
-          category_id:categoryId,
-          merchant_id:merchant?.id||null,
-          currency:account.currency||currency,
-        });
-        const externalReference = await transactionFingerprint(accountId,tx);
-        prepared.push({ household_id:h, account_id:accountId, category_id:categoryId, merchant_id:merchant?.id||null, recurring_rule_id:recurringRule?.id||null, import_batch_id:batch.id, occurred_at:tx.occurred_at, amount:tx.amount, currency:account.currency||currency, description:tx.description, counterparty:tx.counterparty, status:'booked', source:'import', external_reference:externalReference });
+    const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
+    const aliasCache = [...runtime.merchantAliases];
+    let importedTotal=0;
+    let skippedTotal=0;
+    let completedFiles=0;
+    const failedFiles=[];
+
+    for (const item of importState.items) {
+      const mapping=importMappingForParsed(item.parsed,preferredMapping);
+      if(!validImportMapping(mapping)){
+        failedFiles.push(item.file.name);
+        continue;
       }
-      const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
-      if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
-      const skippedCount=Math.max(0,importState.parsed.rows.length-inserted.length);
-      await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
-      importState.file=null; importState.parsed=null;
-      uiState.importQuery=''; uiState.importCategory='all';
-      await refresh(`${inserted.length} Transaktionen importiert. ${skippedCount} Dubletten oder ungültige Zeilen wurden übersprungen.`); return;
-    } catch (error) {
-      await financeApi.updateImportBatch(batch.id,{ status:'failed' }).catch(()=>{});
-      throw error;
+      const batch = await financeApi.createImportBatch({
+        household_id:h,
+        account_id:accountId,
+        file_name:item.file.name,
+        row_count:item.parsed.rows.length,
+        imported_count:0,
+        skipped_count:0,
+        status:'processing'
+      });
+      try {
+        const prepared = [];
+        for (const row of item.parsed.rows) {
+          const tx = rowToTransaction(row,mapping);
+          if (!tx) continue;
+          const merchantInfo = merchantFromTransaction(tx);
+          let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          const groupKey=merchant?.normalized_key||merchantInfo.key;
+          const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
+          const knownCategoryNames=suggestKnownCategoryCandidates(tx);
+          const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+          const categoryId = selectedCategory || fallbackCategory;
+          if (!merchant) {
+            merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
+            if (merchant) merchantCache.set(merchant.normalized_key,merchant);
+          } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
+            merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
+            if (merchant) merchantCache.set(merchant.normalized_key,merchant);
+          }
+          if(merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+            const alias=await financeApi.upsertMerchantAlias({
+              household_id:h,
+              merchant_id:merchant.id,
+              alias_name:merchantInfo.rawName||merchantInfo.name,
+              normalized_key:merchantInfo.aliasKey,
+              payment_processor:merchantInfo.paymentProcessor||null,
+            });
+            if(alias && !aliasCache.some((row)=>row.id===alias.id)) aliasCache.push(alias);
+          }
+          const recurringRule=findMatchingRecurringRule({
+            ...tx,
+            account_id:accountId,
+            category_id:categoryId,
+            merchant_id:merchant?.id||null,
+            currency:account.currency||currency,
+          });
+          const externalReference = await transactionFingerprint(accountId,tx);
+          prepared.push({
+            household_id:h,
+            account_id:accountId,
+            category_id:categoryId,
+            merchant_id:merchant?.id||null,
+            recurring_rule_id:recurringRule?.id||null,
+            import_batch_id:batch.id,
+            occurred_at:tx.occurred_at,
+            amount:tx.amount,
+            currency:account.currency||currency,
+            description:tx.description,
+            counterparty:tx.counterparty,
+            status:'booked',
+            source:'import',
+            external_reference:externalReference
+          });
+        }
+        const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
+        if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
+        const skippedCount=Math.max(0,item.parsed.rows.length-inserted.length);
+        await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
+        importedTotal+=inserted.length;
+        skippedTotal+=skippedCount;
+        completedFiles+=1;
+      } catch (error) {
+        await financeApi.updateImportBatch(batch.id,{ status:'failed' }).catch(()=>{});
+        failedFiles.push(item.file.name);
+      }
     }
+
+    importState.items=[];
+    uiState.importQuery=''; uiState.importCategory='all';
+    const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
+    await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.`);
+    if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
+    return;
   }
 }
 
@@ -3982,7 +4050,10 @@ pageContent.addEventListener('change', async (event) => {
   const filePicker = target.closest?.('.file-picker');
   if (filePicker && target.matches?.('input[type="file"]')) {
     const fileName = filePicker.querySelector('[data-file-name]');
-    if (fileName) fileName.textContent = target.files?.[0]?.name || t('Keine Datei ausgewählt');
+    if (fileName) {
+      const files=[...(target.files||[])];
+      fileName.textContent = files.length>1 ? `${files.length} Dateien ausgewählt` : (files[0]?.name || t('Keine Datei ausgewählt'));
+    }
   }
   try {
     if (target.id === 'localeSelect') {
@@ -4235,24 +4306,38 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'importFile') {
-      const file=target.files?.[0]; if (!file) return;
-      const parsed=await parseImportFile(file); if (!parsed.headers.length) throw new Error('Keine verwertbaren Importspalten erkannt.');
-      importState.file=file; importState.parsed=parsed;
-      const guess=guessMapping(parsed.headers);
-      fillSelect(document.querySelector('#mapDate'),parsed.headers,guess.date,false);
-      fillSelect(document.querySelector('#mapDescription'),parsed.headers,guess.description,false);
-      fillSelect(document.querySelector('#mapCounterparty'),parsed.headers,guess.counterparty,true);
-      fillSelect(document.querySelector('#mapAmount'),parsed.headers,guess.amount,true);
-      fillSelect(document.querySelector('#mapDebit'),parsed.headers,guess.debit,true);
-      fillSelect(document.querySelector('#mapCredit'),parsed.headers,guess.credit,true);
-      const pdfCredits=Number(parsed.meta?.credits||0);
-      const pdfDebits=Number(parsed.meta?.debits||0);
-      const pdfWarning=parsed.format==='pdf'&&parsed.rows.length>=20&&pdfCredits===0
+      const files=[...(target.files||[])];
+      if (!files.length) return;
+      const items=[];
+      for(const file of files){
+        const parsed=await parseImportFile(file);
+        if (!parsed.headers.length) throw new Error(`${file.name}: Keine verwertbaren Importspalten erkannt.`);
+        items.push({file,parsed});
+      }
+      importState.items=items;
+      const primary=items[0].parsed;
+      const guess=guessMapping(primary.headers);
+      fillSelect(document.querySelector('#mapDate'),primary.headers,guess.date,false);
+      fillSelect(document.querySelector('#mapDescription'),primary.headers,guess.description,false);
+      fillSelect(document.querySelector('#mapCounterparty'),primary.headers,guess.counterparty,true);
+      fillSelect(document.querySelector('#mapAmount'),primary.headers,guess.amount,true);
+      fillSelect(document.querySelector('#mapDebit'),primary.headers,guess.debit,true);
+      fillSelect(document.querySelector('#mapCredit'),primary.headers,guess.credit,true);
+
+      const totals=items.reduce((acc,item)=>{
+        acc.rows+=item.parsed.rows.length;
+        acc.pages+=Number(item.parsed.meta?.pages||0);
+        acc.credits+=Number(item.parsed.meta?.credits||0);
+        acc.debits+=Number(item.parsed.meta?.debits||0);
+        acc.ambiguous+=Number(item.parsed.meta?.ambiguous||0);
+        if(item.parsed.format==='pdf') acc.pdf+=1; else acc.csv+=1;
+        return acc;
+      },{rows:0,pages:0,credits:0,debits:0,ambiguous:0,pdf:0,csv:0});
+      const formats=[totals.pdf?`${totals.pdf} PDF`:'',totals.csv?`${totals.csv} CSV`:''].filter(Boolean).join(' · ');
+      const pdfWarning=totals.pdf>0&&totals.rows>=20&&totals.credits===0
         ? ' · ⚠ Keine Einnahme/Gutschrift erkannt – bitte vor dem Import prüfen.'
         : '';
-      const meta=parsed.format==='pdf'
-        ? `${parsed.rows.length} erkannte Buchungen · ${pdfCredits} Einnahmen · ${pdfDebits} Ausgaben · ${parsed.meta?.pages||0} PDF-Seite${parsed.meta?.pages===1?'':'n'}${parsed.meta?.ambiguous?` · ${parsed.meta.ambiguous} unklare Zeile${parsed.meta.ambiguous===1?'':'n'} übersprungen`:''}${pdfWarning}`
-        : `${parsed.rows.length} Datenzeilen · Trennzeichen ${parsed.delimiter==='\t'?'Tab':parsed.delimiter}`;
+      const meta=`${items.length} Datei${items.length===1?'':'en'} · ${formats} · ${totals.rows} erkannte Buchungen${totals.pdf?` · ${totals.credits} Einnahmen · ${totals.debits} Ausgaben · ${totals.pages} PDF-Seiten`:''}${totals.ambiguous?` · ${totals.ambiguous} unklare Zeilen übersprungen`:''}${pdfWarning}`;
       document.querySelector('#importPreviewMeta').textContent=meta;
       document.querySelector('#importMapping').hidden=false;
       renderImportReview();
