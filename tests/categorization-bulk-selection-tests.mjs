@@ -75,8 +75,10 @@ assert.equal(mixedGroup?.unassignedCount,0);
 assert.equal(mixedGroup?.needsAttention,false,'already categorized mixed groups must not remain in the open work list');
 
 assert.ok(CH.starterCategories.some(([name,kind])=>name==='Lohn'&&kind==='income'));
+assert.ok(CH.starterCategories.some(([name,kind])=>name==='Rückerstattung'&&kind==='income'));
 assert.ok(CH.starterCategories.some(([name,kind])=>name==='Rückzahlung'&&kind==='income'));
 assert.ok(CH.starterCategories.some(([name,kind])=>name==='Sonstige Einnahmen'&&kind==='income'));
+assert.ok(CH.starterCategories.some(([name,kind])=>name==='Rechts- & Gerichtskosten'&&kind==='expense'));
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/categorizationSelectedIds/);
@@ -86,7 +88,7 @@ assert.match(main,/convertCategorizationSelectionToTransfers/);
 assert.match(main,/uniqueBulkTransferCandidate/);
 assert.match(main,/convertTransactionToTransferV2/);
 assert.match(main,/Keine feste Regel angelegt/);
-assert.match(main,/missingIncomeCategories/);
+assert.match(main,/missingCategories/);
 assert.match(main,/Sammelumbuchungen funktionieren nur bei gleicher Währung/);
 
 console.log('categorization bulk selection assertions OK');
