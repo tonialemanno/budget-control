@@ -30,9 +30,12 @@ export function buildCategorizationGroups({
     const directMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
       || null;
-    const detected = directMerchant
-      ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
-      : merchantFromTransaction(tx);
+    const parsed=merchantFromTransaction(tx);
+    const detected = parsed?.genericPaymentRail
+      ? parsed
+      : directMerchant
+        ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
+        : parsed;
     const genericPaymentRail=Boolean(detected?.genericPaymentRail);
     const linkedMerchant = genericPaymentRail ? null : (directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases}));
     const merchantKey = genericPaymentRail
