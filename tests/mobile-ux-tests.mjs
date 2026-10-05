@@ -12,8 +12,8 @@ assert.match(table, /<td data-label="Betrag">CHF 100\.00<\/td>/);
 assert.match(table, /<td data-label=""><button>Öffnen<\/button><\/td>/);
 
 const primaryItems = NAV_ITEMS.filter((item) => item.primary);
-assert.deepEqual(primaryItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Geld', 'Planung']);
-assert.deepEqual(primaryItems.map((item) => item.section), ['overview', 'money', 'planning']);
+assert.deepEqual(primaryItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Prüfen', 'Geld', 'Planung']);
+assert.deepEqual(primaryItems.map((item) => item.section), ['overview', 'review', 'money', 'planning']);
 
 const css = fs.readFileSync(new URL('../assets/css/responsive.css', import.meta.url), 'utf8');
 const main = fs.readFileSync(new URL('../assets/js/main.js', import.meta.url), 'utf8');
