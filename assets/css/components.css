@@ -1119,3 +1119,40 @@ body.quick-add-open { overflow:hidden; }
   .session-expiry-warning .action-button { width:100%; }
   .release-update-card { padding:20px; }
 }
+
+
+/* Debt terms and visible budget state */
+.debt-term-preview {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface-2);
+}
+.debt-term-preview strong { font-size:12px; }
+.debt-term-preview span { color:var(--text-2); font-size:10px; line-height:1.4; text-align:right; }
+
+.budget-active-section { margin-bottom:14px; }
+.budget-active-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; }
+.budget-active-card {
+  display:grid;
+  gap:13px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:17px;
+  background:var(--surface-2);
+}
+.budget-active-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.budget-active-head > div { min-width:0; }
+.budget-active-head strong,.budget-active-head span { display:block; }
+.budget-active-head strong { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.budget-active-head span { margin-top:3px; color:var(--text-3); font-size:10px; }
+.budget-active-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.budget-active-values div { display:grid; gap:3px; padding:9px; border-radius:11px; background:var(--surface); }
+.budget-active-values span { color:var(--text-3); font-size:9px; }
+.budget-active-values strong { min-width:0; font-size:11px; overflow-wrap:anywhere; }
+.budget-active-card > small { color:var(--text-3); font-size:9px; }
+.budget-metric-grid { margin:0 0 16px; }
