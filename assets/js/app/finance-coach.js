@@ -1,5 +1,5 @@
 import { convertAmount } from './fx.js';
-import { effectiveNextDate, nextOccurrenceDate } from './recurrence.js';
+import { addMonthsClamped, effectiveNextDate, nextOccurrenceDate } from './recurrence.js';
 import { calculateBudgetSummary } from './budget-engine.js';
 import { categoryLineage, matchingRecurringRule, semanticExpenseBase, semanticType } from './finance-semantics.js';
 import { plannedMonthlyAmount, reserveMonthlyAmount } from './recurring-planning.js';
