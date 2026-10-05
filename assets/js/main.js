@@ -3320,10 +3320,16 @@ async function handleAction(target) {
   }
   if (action === 'categorization-open') {
     const cfg=countryConfig(runtime.household.country_code||'CH');
-    const existingCategoryKeys=new Set(runtime.categories.map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
-    const missingStarter=(cfg.starterCategories||[]).some(([name,kind])=>!existingCategoryKeys.has(`${kind}:${String(name).toLowerCase()}`));
-    if (!runtime.categories.length || missingStarter) {
-      await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
+    const existingIncomeNames=new Set(runtime.categories.filter((category)=>category.kind==='income').map((category)=>String(category.name||'').toLowerCase()));
+    const requiredIncomeCategories=(cfg.starterCategories||[]).filter(([name,kind])=>kind==='income'&&['lohn','gehalt','rückzahlung','sonstige einnahmen'].includes(String(name).toLowerCase()));
+    const missingIncomeCategories=requiredIncomeCategories.filter(([name])=>!existingIncomeNames.has(String(name).toLowerCase()));
+    if (missingIncomeCategories.length) {
+      await financeApi.createCategories(missingIncomeCategories.map(([name,kind],index)=>({
+        household_id:runtime.household.id,
+        name,
+        kind,
+        sort_order:(index+1)*10,
+      })));
       await loadFinanceData();
     }
     uiState.categorizationOpen = true;

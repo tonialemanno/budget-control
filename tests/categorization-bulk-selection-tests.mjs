@@ -86,7 +86,9 @@ assert.match(main,/convertCategorizationSelectionToTransfers/);
 assert.match(main,/uniqueBulkTransferCandidate/);
 assert.match(main,/convertTransactionToTransferV2/);
 assert.match(main,/Keine feste Regel angelegt/);
-assert.match(main,/missingStarter/);
+assert.match(main,/missingIncomeCategories/);
 assert.match(main,/Sammelumbuchungen funktionieren nur bei gleicher Währung/);
 
 console.log('categorization bulk selection assertions OK');
+
+assert.doesNotMatch(main,/missingStarter=\(cfg\.starterCategories/,'categorization must not reinstall every missing starter category');

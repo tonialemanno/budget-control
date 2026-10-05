@@ -1,5 +1,12 @@
 # Finance 2.3.0 Stable
 
+## 2.3.18 – gezielte Einnahme-Basiskategorien
+
+- Bestehende Haushalte erhalten bei der Kategorienanalyse nur die fehlenden gewünschten Einnahmekategorien „Lohn/Gehalt“, „Rückzahlung“ und „Sonstige Einnahmen“.
+- Finance installiert dabei nicht pauschal andere entfernte Standardkategorien erneut.
+- Enthält alle Korrekturen aus 2.3.17 zur erledigten Arbeitsliste, Einzelspeicherung ohne feste Regel und erweiterten Transaktionskontext.
+
+
 ## 2.3.17 – Kategorisierung als echte Arbeitsliste
 
 - „Kategorien analysieren“ zeigt im Standardfilter nur noch Buchungen, die tatsächlich noch eine Entscheidung benötigen.
