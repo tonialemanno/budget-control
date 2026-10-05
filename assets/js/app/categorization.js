@@ -38,8 +38,13 @@ export function buildCategorizationGroups({
         : parsed;
     const genericPaymentRail=Boolean(detected?.genericPaymentRail);
     const linkedMerchant = genericPaymentRail ? null : (directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases}));
+    const account=accountById.get(tx.account_id)||null;
+    const accountCategory=genericPaymentRail?suggestAccountCategory(tx,{account,categories}):null;
+    const unknownScope=accountCategory
+      ? `${tx.account_id||'konto'}:purpose`
+      : (tx.id||`${tx.account_id||'konto'}:${tx.occurred_at||''}:${Number(tx.amount||0).toFixed(2)}`);
     const merchantKey = genericPaymentRail
-      ? `unbekannt:${detected.paymentProcessor||'zahlung'}:${tx.account_id||'konto'}`
+      ? `unbekannt:${detected.paymentProcessor||'zahlung'}:${unknownScope}`
       : (detected.key || 'unbekannt');
     const key = `${kind}:${merchantKey}`;
     const group = groups.get(key) || {
@@ -47,11 +52,12 @@ export function buildCategorizationGroups({
       merchantKey,
       merchantId: genericPaymentRail ? null : (linkedMerchant?.id || tx.merchant_id || null),
       merchant: linkedMerchant || null,
-      name: genericPaymentRail ? (detected.name || 'Zahlungsweg · Händler unbekannt') : (linkedMerchant?.name || detected.name || 'Unbekannter Händler'),
+      name: genericPaymentRail ? (detected.name || 'Zahlungsweg') : (linkedMerchant?.name || detected.name || 'Unbekannter Händler'),
       kind,
       genericPaymentRail,
       paymentProcessor:detected?.paymentProcessor||null,
       accountId:tx.account_id||null,
+      accountCategoryId:accountCategory?.id||null,
       rows: [],
     };
     group.rows.push(tx);
@@ -93,8 +99,9 @@ export function buildCategorizationGroups({
     }
 
     if (!suggestion && group.genericPaymentRail) {
-      const account=accountById.get(group.accountId);
-      const accountCategory=suggestAccountCategory(group.rows[0],{account,categories});
+      const accountCategory=group.accountCategoryId
+        ? categoryById.get(group.accountCategoryId)
+        : suggestAccountCategory(group.rows[0],{account:accountById.get(group.accountId),categories});
       if(accountCategory) suggestion={categoryId:accountCategory.id,source:'account',safe:true};
     }
 
