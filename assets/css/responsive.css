@@ -704,6 +704,8 @@
   .budget-active-grid { grid-template-columns:1fr; }
   .budget-active-values { gap:5px; }
   .budget-active-values div { padding:8px; }
+  .planning-freed-card { grid-template-columns:auto minmax(0,1fr); align-items:start; padding:16px; }
+  .planning-freed-card .action-button { grid-column:1 / -1; width:100%; }
     .dashboard-chart-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
   .dashboard-donut-card,
   .finance-chart-card { min-height:0; padding:16px; }
