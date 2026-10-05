@@ -1473,6 +1473,14 @@ function validImportMapping(mapping) {
   return Boolean(mapping?.date && mapping?.description && (mapping?.amount || mapping?.debit || mapping?.credit));
 }
 
+function importMerchantSelectionKey(tx, merchantInfo, merchant, account) {
+  if(merchant?.normalized_key) return merchant.normalized_key;
+  if(!merchantInfo?.genericPaymentRail) return merchantInfo?.key||'unbekannt';
+  const accountCategory=suggestAccountCategory(tx,{account,categories:runtime.categories});
+  if(accountCategory) return `unbekannt:${merchantInfo.paymentProcessor||'zahlung'}:${account?.account_id||'konto'}:purpose`;
+  return `unbekannt:${merchantInfo.paymentProcessor||'zahlung'}:${account?.account_id||'konto'}:${tx?.occurred_at||''}:${Number(tx?.amount||0).toFixed(2)}:${normalizeMerchantKey(tx?.description||'')}`;
+}
+
 function renderImportReview() {
   const form = document.querySelector('#bank-import');
   const host = document.querySelector('#importReview');
