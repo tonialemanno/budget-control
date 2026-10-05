@@ -10,42 +10,44 @@ const categories=[
   {id:'refund',name:'Rückerstattung',kind:'income',is_archived:false},
 ];
 
-function tx(id,categoryId,description,amount,currency='CHF'){
-  return {id,category_id:categoryId,description,amount,currency,status:'booked',source:'import',cashflow_type:'standard',transfer_group_id:null};
+function tx(id,categoryId,counterparty,description,amount,currency='CHF'){
+  return {id,category_id:categoryId,counterparty,description,amount,currency,status:'booked',source:'import',cashflow_type:'standard',transfer_group_id:null};
 }
 
 const history=[];
-for(let i=0;i<12;i+=1) history.push(tx(`f${i}`,'food',`Quartier Markt Einkauf ${i}`,-45-(i%4)));
-for(let i=0;i<12;i+=1) history.push(tx(`r${i}`,'restaurant',`Cafe Luna Mittagessen ${i}`,-28-(i%3)));
-for(let i=0;i<6;i+=1) history.push(tx(`s${i}`,'salary',`Arbeitgeber Monatslohn ${i}`,6200+i));
-for(let i=0;i<6;i+=1) history.push(tx(`i${i}`,'refund',`Versicherung Rückerstattung ${i}`,120+i));
+for(let i=0;i<12;i+=1) history.push(tx(`f${i}`,'food','Vendor Orion',`Serie Orion ${i}`,-45-(i%4)));
+for(let i=0;i<12;i+=1) history.push(tx(`r${i}`,'restaurant','Vendor Luna',`Serie Luna ${i}`,-28-(i%3)));
+for(let i=0;i<6;i+=1) history.push(tx(`s${i}`,'salary','Company Nova',`Payroll Nova ${i}`,6200+i));
+for(let i=0;i<6;i+=1) history.push(tx(`i${i}`,'refund','Insurer Vega',`Refund Vega ${i}`,120+i));
 
 const model=buildCategoryMlModel({transactions:history,categories});
 assert.equal(model.version,CATEGORY_ML_MODEL_VERSION);
 assert.equal(model.trainingExamples,36);
 
-const cafe=predictCategoryMl(model,tx('new',null,'Cafe Luna Abendessen',-31));
+const cafe=predictCategoryMl(model,tx('new',null,'Vendor Luna','Serie Luna neu',-31));
 assert.equal(cafe?.categoryId,'restaurant');
 assert.ok(cafe.confidence>=0.62);
 assert.ok(cafe.support>=5);
 
-const market=predictCategoryMl(model,tx('new2',null,'Quartier Markt Wochenendeinkauf',-52));
+const market=predictCategoryMl(model,tx('new2',null,'Vendor Orion','Serie Orion neu',-52));
 assert.equal(market?.categoryId,'food');
 
-const income=predictCategoryMl(model,tx('new3',null,'Arbeitgeber Lohn Oktober',6400));
+const income=predictCategoryMl(model,tx('new3',null,'Company Nova','Payroll Nova neu',6400));
 assert.equal(income?.categoryId,'salary');
 assert.equal(income?.kind,'income');
 
 const tiny=buildCategoryMlModel({transactions:history.slice(0,4),categories});
-assert.equal(predictCategoryMl(tiny,tx('x',null,'Quartier Markt',-40)),null,'Too little history must not produce ML guesses.');
+assert.equal(predictCategoryMl(tiny,tx('x',null,'Vendor Orion','Serie Orion',-40)),null,'Too little history must not produce ML guesses.');
 
-const corrected=history.map((row)=>row.description.startsWith('Cafe Luna')?{...row,category_id:'food'}:row);
+const corrected=history
+  .map((row)=>row.counterparty==='Vendor Luna'?{...row,category_id:'food'}:row)
+  .concat(Array.from({length:8},(_,i)=>tx(`rr${i}`,'restaurant','Vendor Sol',`Serie Sol ${i}`,-35-(i%3))));
 const correctedModel=buildCategoryMlModel({transactions:corrected,categories});
-const correctedPrediction=predictCategoryMl(correctedModel,tx('new4',null,'Cafe Luna Abendessen',-31));
+const correctedPrediction=predictCategoryMl(correctedModel,tx('new4',null,'Vendor Luna','Serie Luna neu',-31));
 assert.equal(correctedPrediction?.categoryId,'food','User-corrected category history must alter the next model.');
 
 const groups=buildCategorizationGroups({
-  transactions:[...history,tx('open',null,'Cafe Luna Dessert',-19)],
+  transactions:[...history,tx('open',null,'Vendor Luna','Serie Luna offen',-19)],
   categories,
   merchants:[],
   aliases:[],
