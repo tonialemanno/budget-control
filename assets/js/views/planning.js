@@ -2,6 +2,7 @@ import { pageHeader, sectionHeading } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { budgetSummary, goalSummaries } from '../app/finance-insights.js';
+import { buildFreedCommitmentSuggestion } from '../app/finance-coach.js';
 
 function enabled(key, moduleAccess, hiddenModules) {
   return moduleAccess?.[key] === true && !hiddenModules.includes(key);
@@ -18,7 +19,7 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 }
 
 export function renderPlanning({
-  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
+  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[], accounts=[],
   transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[],
 }={}) {
   const currency=household?.base_currency||'CHF';
@@ -30,6 +31,7 @@ export function renderPlanning({
   const fixedExpenses=activeRecurring.filter((r)=>r.direction==='expense');
   const fixedIncome=activeRecurring.filter((r)=>r.direction==='income');
   const installmentDebts=debts.filter((d)=>d.status!=='paid' && Number(d.installment_amount||0)>0);
+  const freedCommitment=buildFreedCommitmentSuggestion({recurringRules,accounts,baseCurrency:currency,fxRates,now:new Date()});
   const cards=[];
 
   cards.push(planCard({
@@ -81,7 +83,20 @@ export function renderPlanning({
       subtitle:'Was mit deinem Geld als Nächstes passiert: Budget, Rücklagen, Fixkosten, Rechnungen, Raten und langfristige Ziele.'
     })}
 
-    <div class="planning-focus-grid">
+    ${freedCommitment?`<article class="card card-padding planning-freed-card">
+      <span class="planning-freed-icon">${icon('piggy-bank')}</span>
+      <div>
+        <span class="eyebrow">Demnächst frei</span>
+        <h3>${escapeHtml(freedCommitment.sourceLabel)} endet</h3>
+        <p>Ab <strong>${escapeHtml(new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(freedCommitment.availableFrom))}</strong> werden ${money(freedCommitment.freedMonthly,{currency,locale,decimals:0})} pro Monat frei.</p>
+        <small>${freedCommitment.currentSavings>0
+          ? `Vorschlag: ${escapeHtml(freedCommitment.savingLabel)} von ${money(freedCommitment.currentSavings,{currency,locale,decimals:0})} auf ${money(freedCommitment.suggestedSavings,{currency,locale,decimals:0})} erhöhen.`
+          : `Vorschlag: ${money(freedCommitment.freedMonthly,{currency,locale,decimals:0})} monatlich direkt sparen.`}</small>
+      </div>
+      <a class="action-button action-button--secondary" href="#/fixed-costs">Planung prüfen</a>
+    </article>`:''}
+
+        <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">
         <div class="card-heading"><div><h3 class="card-title">Variables Budget dieses Finanzmonats</h3><p class="card-subtitle">${budget.count?`${budget.count} variable Budgetposition${budget.count===1?'':'en'} · ${budget.allStoredCount-budget.count} getrennt behandelt`:'Noch nicht eingerichtet'}</p></div><a class="card-link" href="#/budget">So wird gerechnet</a></div>
         <div class="budget-ring-wrap">
