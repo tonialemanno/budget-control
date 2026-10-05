@@ -3144,17 +3144,20 @@ async function handleForm(form) {
           const tx = rowToTransaction(row,mapping);
           if (!tx) continue;
           const merchantInfo = merchantFromTransaction(tx);
-          let merchant = resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          let merchant = merchantInfo.genericPaymentRail
+            ? null
+            : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
           const groupKey=merchant?.normalized_key||merchantInfo.key;
           const selectedCategory = categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null);
           const knownCategoryNames=suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || null;
+          const accountCategory=suggestAccountCategory(tx,{account,categories:runtime.categories});
+          const fallbackCategory = merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || accountCategory?.id || null;
           const categoryId = selectedCategory || fallbackCategory;
-          if (!merchant) {
+          if (!merchant && !merchantInfo.genericPaymentRail) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-          } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
+          } else if (merchant && remember && categoryId && merchant.default_category_id !== categoryId) {
             merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
           }
