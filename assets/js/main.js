@@ -153,7 +153,7 @@ const runtime = {
 };
 
 const importState = { items: [] };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -957,6 +957,7 @@ function render() {
     categorizationOpen: uiState.categorizationOpen,
     categorizationFilter: uiState.categorizationFilter,
     categorizationPage: uiState.categorizationPage,
+    categorizationGroupKey: uiState.categorizationGroupKey,
     debtExpandedId: uiState.debtExpandedId,
     receivableExpandedId: uiState.receivableExpandedId,
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
@@ -1075,6 +1076,72 @@ function currentCategorizationGroups() {
     aliases: runtime.merchantAliases,
     rules: runtime.categorizationRules,
   });
+}
+
+function categorizationSelectedIds(container) {
+  return [...(container?.querySelectorAll('[data-categorization-select]:checked')||[])].map((input)=>input.value).filter(Boolean);
+}
+
+function updateCategorizationSelectedCount(container) {
+  const count=categorizationSelectedIds(container).length;
+  const label=container?.querySelector('[data-categorization-selected-count]');
+  if(label) label.textContent=`${count} ausgewählt`;
+  return count;
+}
+
+function uniqueBulkTransferCandidate(tx,otherAccountId,selectedIds) {
+  const selected=new Set(selectedIds||[]);
+  const txTime=new Date(tx.occurred_at).getTime();
+  const sign=Math.sign(Number(tx.amount));
+  const amount=Math.abs(Number(tx.amount));
+  const candidates=runtime.transactions.filter((row)=>{
+    if(row.id===tx.id||selected.has(row.id)) return false;
+    if(row.account_id!==otherAccountId||row.transfer_group_id||row.status!=='booked'||row.cashflow_type!=='standard') return false;
+    if(runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===row.id)) return false;
+    if(Math.sign(Number(row.amount))!==-sign||Math.abs(Math.abs(Number(row.amount))-amount)>=0.005) return false;
+    const rowTime=new Date(row.occurred_at).getTime();
+    return Number.isFinite(txTime)&&Number.isFinite(rowTime)&&Math.abs(rowTime-txTime)<=7*24*60*60*1000;
+  });
+  if(candidates.length>1) throw new Error(`Für „${tx.description}“ gibt es mehrere mögliche Gegenbuchungen. Bitte diese Buchung einzeln prüfen.`);
+  return candidates[0]||null;
+}
+
+async function convertCategorizationSelectionToTransfers(ids,otherAccountId) {
+  const selectedIds=[...new Set((ids||[]).filter(Boolean))];
+  if(!selectedIds.length) throw new Error('Bitte mindestens eine Buchung markieren.');
+  const otherAccount=runtime.accounts.find((row)=>row.account_id===otherAccountId&&!row.is_archived);
+  if(!otherAccount) throw new Error('Bitte ein gültiges Gegenkonto auswählen.');
+
+  const selected=selectedIds.map((id)=>runtime.transactions.find((row)=>row.id===id));
+  if(selected.some((tx)=>!tx)) throw new Error('Mindestens eine markierte Buchung wurde nicht gefunden.');
+
+  for(const tx of selected){
+    if(tx.transfer_group_id) throw new Error('Mindestens eine markierte Buchung ist bereits eine Umbuchung.');
+    if(tx.status!=='booked'||tx.cashflow_type!=='standard') throw new Error('Fachmodul- oder vorgemerkte Buchungen können nicht gesammelt umgebucht werden.');
+    if(runtime.bills.some((bill)=>bill.status==='paid'&&bill.paid_transaction_id===tx.id)) throw new Error('Eine markierte Buchung gehört zu einer bezahlten Rechnung und muss dort verwaltet werden.');
+    const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+    if(!currentAccount) throw new Error('Konto einer markierten Buchung wurde nicht gefunden.');
+    if(currentAccount.account_id===otherAccount.account_id) throw new Error('Das Gegenkonto muss sich vom Konto der markierten Buchungen unterscheiden.');
+    if(currentAccount.currency!==otherAccount.currency) throw new Error('Sammelumbuchungen funktionieren nur bei gleicher Währung. Fremdwährungsbuchungen bitte einzeln prüfen.');
+  }
+
+  let converted=0;
+  for(const tx of selected){
+    const counterpart=uniqueBulkTransferCandidate(tx,otherAccount.account_id,selectedIds);
+    await financeApi.convertTransactionToTransferV2({
+      householdId:runtime.household.id,
+      transactionId:tx.id,
+      otherAccountId:otherAccount.account_id,
+      amount:Math.abs(Number(tx.amount)),
+      otherAmount:null,
+      otherTransactionId:counterpart?.id||null,
+      occurredAt:tx.occurred_at,
+      description:tx.description,
+      note:tx.note||null,
+    });
+    converted+=1;
+  }
+  return {converted,otherAccount};
 }
 
 async function applyCategorizationGroup(group, categoryId, { onlyUncategorized = false } = {}) {
@@ -3183,7 +3250,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
@@ -3252,32 +3319,62 @@ async function handleAction(target) {
     uiState.categorizationOpen = true;
     uiState.categorizationFilter = 'action';
     uiState.categorizationPage = 1;
+    uiState.categorizationGroupKey = '';
     render();
     return;
   }
   if (action === 'categorization-close') {
     uiState.categorizationOpen = false;
+    uiState.categorizationGroupKey = '';
     render();
     return;
   }
   if (action === 'categorization-page') {
     uiState.categorizationPage = Math.max(1, Number(target.dataset.page) || 1);
+    uiState.categorizationGroupKey = '';
     render();
     return;
   }
   if (action === 'categorization-view-group') {
     const group = currentCategorizationGroups().find((row)=>row.key===target.dataset.groupKey);
     if (!group) throw new Error('Händlergruppe wurde nicht gefunden.');
-    uiState.categorizationOpen = false;
-    uiState.transactionQuery = group.name;
-    uiState.transactionCategory = 'all';
-    uiState.transactionAccount = 'all';
-    uiState.transactionFrom = '';
-    uiState.transactionTo = '';
-    uiState.transactionPeriod = 'all';
-    uiState.transactionView = 'details';
-    uiState.transactionPage = 1;
+    uiState.categorizationGroupKey = group.key;
     render();
+    requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
+    return;
+  }
+  if (action === 'categorization-close-group') {
+    uiState.categorizationGroupKey = '';
+    render();
+    return;
+  }
+  if (action === 'categorization-select-all' || action === 'categorization-select-none') {
+    const detail=target.closest('[data-categorization-detail]');
+    const checked=action==='categorization-select-all';
+    detail?.querySelectorAll('[data-categorization-select]').forEach((input)=>{ if(!input.disabled) input.checked=checked; });
+    updateCategorizationSelectedCount(detail);
+    return;
+  }
+  if (action === 'categorization-apply-selected-category') {
+    const detail=target.closest('[data-categorization-detail]');
+    const ids=categorizationSelectedIds(detail);
+    if(!ids.length) throw new Error('Bitte mindestens eine Buchung markieren.');
+    const categoryId=detail?.querySelector('[data-categorization-selected-category]')?.value||'';
+    const group=currentCategorizationGroups().find((row)=>row.key===uiState.categorizationGroupKey);
+    const category=runtime.categories.find((row)=>row.id===categoryId);
+    if(!group||!category||category.kind!==group.kind) throw new Error('Bitte eine passende Kategorie auswählen.');
+    await financeApi.bulkUpdateTransactions(ids,{category_id:category.id});
+    await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} als „${category.name}“ kategorisiert. Machine Learning lernt diese Auswahl künftig mit.`);
+    requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
+    return;
+  }
+  if (action === 'categorization-apply-selected-transfer') {
+    const detail=target.closest('[data-categorization-detail]');
+    const ids=categorizationSelectedIds(detail);
+    const otherAccountId=detail?.querySelector('[data-categorization-transfer-account]')?.value||'';
+    const result=await convertCategorizationSelectionToTransfers(ids,otherAccountId);
+    await refresh(`${result.converted} markierte Buchung${result.converted===1?'':'en'} als interne Umbuchung mit ${result.otherAccount.name} verknüpft. Diese Beträge zählen nicht mehr als Konsumausgaben.`);
+    requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
     return;
   }
   if (action === 'categorization-apply-group') {
@@ -4063,6 +4160,10 @@ pageContent.addEventListener('change', async (event) => {
     }
   }
   try {
+    if (target.matches?.('[data-categorization-select]')) {
+      updateCategorizationSelectedCount(target.closest('[data-categorization-detail]'));
+      return;
+    }
     if (target.id === 'localeSelect') {
       runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
       setLocale(target.value);
@@ -4106,7 +4207,7 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionVehicleFilter') { uiState.transactionVehicle=target.value||'all'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionDirectionFilter') { uiState.transactionDirection=target.value||'all'; uiState.transactionSourceSet=[]; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionSemanticFilter') { uiState.transactionSemantic=target.value||'all'; uiState.transactionPage=1; render(); return; }
-    if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; render(); return; }
+    if (target.id === 'categorizationFilter') { uiState.categorizationFilter=target.value||'action'; uiState.categorizationPage=1; uiState.categorizationGroupKey=''; render(); return; }
     if (target.id === 'transactionFrom') { uiState.transactionFrom=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }

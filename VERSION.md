@@ -1,5 +1,15 @@
 # Finance 2.3.0 Stable
 
+## 2.3.15 – Teilmengen in Händlergruppen
+
+- „Kategorien analysieren“ kann Händler-/Gegenparteigruppen jetzt aufklappen und einzelne Teilmengen per Checkbox bearbeiten.
+- Mehrere markierte Buchungen lassen sich gemeinsam kategorisieren, ohne die komplette Gruppe oder den Händlerstandard zu überschreiben.
+- Mehrere markierte Buchungen lassen sich gesammelt als echte interne Umbuchungen verbuchen; ein Sparkonto kann dabei direkt als Gegenkonto gewählt werden.
+- Bei gleicher Währung wird eine eindeutig vorhandene Gegenbuchung verknüpft. Fehlt sie, erzeugt Finance die Gegenbuchung kontrolliert. Mehrdeutige Gegenbuchungen werden nicht geraten.
+- Teilmengen-Kategorisierungen fliessen anschließend als Trainingsdaten in das lokale Machine Learning ein.
+- Keine Datenbankmigration erforderlich.
+
+
 ## 2.3.14 – lokales Machine Learning für Kategorien
 
 - Finance trainiert einen überwachten Multinomial-Naive-Bayes-Klassifikator direkt aus bereits kategorisierten Haushaltsbuchungen.
