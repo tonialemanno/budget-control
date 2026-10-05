@@ -10,7 +10,7 @@ const headers = read('_headers');
 const index = read('index.html');
 const css = read('assets/css/receipt.css');
 
-assert.match(config, /version:\s*'2\.3\.15'/);
+assert.match(config, /version:\s*'2\.3\.16'/);
 assert.match(tx, /data-action="receipt-camera"/);
 assert.match(tx, /id="receiptCameraInput"[^>]+capture="environment"/);
 assert.match(tx, /id="receipt-create"/);

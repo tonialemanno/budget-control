@@ -1,5 +1,14 @@
 # Finance 2.3.0 Stable
 
+## 2.3.16 – sichtbare zentrale Versionsanzeige
+
+- Login-Seite, Seitenleiste und Release-Hinweis verwenden dieselbe zentrale Version aus `APP_CONFIG`.
+- Auf der Login-Seite ist der tatsächlich geladene Stand sofort sichtbar, inklusive Kanal und kurzer Release-ID, z. B. `V2.3.16 · STABLE · R21`.
+- Die veraltete hart codierte Anzeige `V2.3 · Beta 5.4` wurde entfernt.
+- Auch innerhalb der App zeigt die Versions-Pille zusätzlich die Release-ID, damit Cache-/Deployment-Probleme sofort erkennbar sind.
+- Keine Datenbankmigration erforderlich.
+
+
 ## 2.3.15 – Teilmengen in Händlergruppen
 
 - „Kategorien analysieren“ kann Händler-/Gegenparteigruppen jetzt aufklappen und einzelne Teilmengen per Checkbox bearbeiten.

@@ -9,8 +9,8 @@ function releaseChannel() {
 
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.3.15',
-  releaseId: '2026.10.05-r20',
+  version: '2.3.16',
+  releaseId: '2026.10.05-r21',
   schemaVersion: 2026100403,
   releaseChannel: releaseChannel(),
   defaultCountry: 'CH',

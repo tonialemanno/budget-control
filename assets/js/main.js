@@ -453,19 +453,25 @@ let releaseCheckInFlight=null;
 let releaseReloading=false;
 let lastInteractionPersistAt=0;
 
-function applyReleaseChannelUI() {
+function releaseUiMeta() {
   const channel=APP_CONFIG.releaseChannel||'stable';
   const label=channel==='beta'?'Beta':channel==='local'?'Local':'Stable';
+  const shortRelease=String(APP_CONFIG.releaseId||'').split('-').pop()||APP_CONFIG.releaseId||'';
+  return {channel,label,shortRelease};
+}
+
+function applyReleaseChannelUI() {
+  const {channel,label,shortRelease}=releaseUiMeta();
   const pill=document.querySelector('#releaseVersionPill');
   const heading=document.querySelector('#releaseChannelLabel');
   const caption=document.querySelector('#releaseChannelCaption');
-  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()}`;
+  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()} · ${shortRelease.toUpperCase()}`;
   if(heading) heading.textContent=`${label} ${APP_CONFIG.version}`;
-  if(caption) caption.textContent=channel==='beta'
+  if(caption) caption.textContent=`${shortRelease.toUpperCase()} · ${channel==='beta'
     ? t('Teststand · kann sich ändern')
     : channel==='local'
       ? t('Lokale Entwicklungsumgebung')
-      : t('Freigegebener Stand · Supabase');
+      : t('Freigegebener Stand · Supabase')}`;
   document.documentElement.dataset.releaseChannel=channel;
   document.documentElement.dataset.releaseId=APP_CONFIG.releaseId;
 }
@@ -779,9 +785,10 @@ function humanError(error) {
 function showAuth(notice='') {
   appShell.hidden = true;
   authGate.hidden = false;
+  const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V2.3 · Beta 5.4</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
