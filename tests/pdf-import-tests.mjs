@@ -48,6 +48,17 @@ const refund=chooseAmount(refundLine,columns);
 assert.ok(refund);
 assert.equal(refund.amount,390);
 
+const signedBalanceCreditLine={items:[
+  {str:'16.08.2026',x:56},
+  {str:'Antonio Giuseppe Alemanno',x:127},
+  {str:"1'000.00",x:356},
+  {str:'16.08.2026',x:417},
+  {str:'-175.12',x:497},
+]};
+const signedBalanceCredit=chooseAmount(signedBalanceCreditLine,columns);
+assert.ok(signedBalanceCredit);
+assert.equal(signedBalanceCredit.amount,1000,'signed balance must never replace the unsigned credit amount');
+
 const rentLine={items:[
   {str:'24.04.2026',x:56},
   {str:'Uzon Immobilien AG',x:127},

@@ -1,4 +1,11 @@
-# Finance 2.4.1
+# Finance 2.4.2
+
+## 2.4.2 – PDF-Saldo und Buchungsbetrag sicher getrennt
+
+- PDF-Import behandelt die Saldo/Kontostand-Spalte nicht mehr als Buchungsbetrag, auch wenn der Saldo als einziger Wert ein Vorzeichen trägt.
+- Regressionstest für den realen Fehlerfall: Gutschrift CHF 1'000.00 + Saldo CHF -175.12 muss als +CHF 1'000.00 importiert werden.
+- Release 2026.10.06-r26.
+
 
 ## 2.4.1 – iPhone-Kategorisierung lesbar
 

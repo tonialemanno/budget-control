@@ -148,11 +148,29 @@ export function chooseAmount(line, columns) {
     .filter((entry)=>entry.parsed);
   if (!candidates.length) return null;
 
-  const signed = candidates.filter((entry)=>entry.parsed.explicitSign);
+  const flowDistance=(candidate)=>Math.min(
+    distance(candidate.item.x,columns.debit),
+    distance(candidate.item.x,columns.credit),
+    distance(candidate.item.x,columns.amount),
+  );
+  const balanceOnly=(candidate)=>{
+    const balanceDistance=distance(candidate.item.x,columns.balance);
+    const nearestFlow=flowDistance(candidate);
+    return Number.isFinite(balanceDistance)
+      && balanceDistance<=45
+      && balanceDistance+6<nearestFlow;
+  };
+  const transactionCandidates=candidates.filter((candidate)=>!balanceOnly(candidate));
+  if(!transactionCandidates.length) return null;
+
+  // A signed account balance must never win merely because the actual booking
+  // amount is unsigned. This was the cause of +1'000.00 credits being imported
+  // as e.g. -175.12 when -175.12 was the resulting account balance.
+  const signed = transactionCandidates.filter((entry)=>entry.parsed.explicitSign);
   if (signed.length === 1) return { ...signed[0], amount:signed[0].parsed.amount };
 
   const columnChoices = [];
-  for (const candidate of candidates) {
+  for (const candidate of transactionCandidates) {
     if (columns.debit !== null) columnChoices.push({ candidate, distance:distance(candidate.item.x,columns.debit), sign:-1 });
     if (columns.credit !== null) columnChoices.push({ candidate, distance:distance(candidate.item.x,columns.credit), sign:1 });
     if (columns.amount !== null) columnChoices.push({ candidate, distance:distance(candidate.item.x,columns.amount), sign:null });
@@ -166,8 +184,8 @@ export function chooseAmount(line, columns) {
   }
 
   const text = line.items.map((item)=>item.str).join(' ');
-  if (candidates.length === 1) {
-    const only = candidates[0];
+  if (transactionCandidates.length === 1) {
+    const only = transactionCandidates[0];
     if (/\b(belastung|debit|soll)\b/i.test(text)) return { ...only, amount:-Math.abs(only.parsed.amount) };
     if (/\b(gutschrift|credit|haben)\b/i.test(text)) return { ...only, amount:Math.abs(only.parsed.amount) };
   }
