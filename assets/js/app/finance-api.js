@@ -144,6 +144,8 @@ export const financeApi = Object.freeze({
   unpayBill: ({ householdId, billId }) => backend.rpc('unpay_bill_v2', { p_household_id:householdId, p_bill_id:billId }), deleteBill: (id) => remove('bills', id),
   listContracts(householdId) { return listByHousehold('contracts', householdId, { select: '*,categories(name,kind),accounts(name,currency)', order: 'next_payment_date.asc.nullslast,created_at.desc' }); },
   createContract: (payload) => insert('contracts', payload), updateContract: (id, patch) => update('contracts', id, patch), deleteContract: (id) => remove('contracts', id),
+  listSalesDocuments(householdId) { return listByHousehold('sales_documents', householdId, { order: 'issue_date.desc,created_at.desc', limit: 500 }); },
+  createSalesDocument: (payload) => insert('sales_documents', payload), updateSalesDocument: (id, patch) => update('sales_documents', id, patch), deleteSalesDocument: (id) => remove('sales_documents', id),
   listGoals(householdId) { return listByHousehold('savings_goals', householdId, { order: 'status.asc,target_date.asc.nullslast,created_at.desc' }); },
   createGoal: (payload) => insert('savings_goals', payload), updateGoal: (id, patch) => update('savings_goals', id, patch), deleteGoal: (id) => remove('savings_goals', id),
   listGoalSources(householdId) { return listByHousehold('savings_goal_sources', householdId, { order: 'created_at.asc', limit: 1000 }); }, createGoalSource: (payload) => insert('savings_goal_sources', payload), deleteGoalSource: (id) => remove('savings_goal_sources', id),

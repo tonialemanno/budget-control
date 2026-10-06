@@ -21,6 +21,7 @@ import { renderRecurring } from './views/recurring.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel } from './views/sales-documents.js';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -48,6 +49,7 @@ const views = {
   documents: renderDocuments,
   budget: renderBudget,
   bills: renderBills,
+  'sales-documents': renderSalesDocuments,
   goals: renderGoals,
   'tax-advisor': renderTaxAdvisor,
   debts: renderDebts,
@@ -86,6 +88,7 @@ const runtime = {
   budgets: [],
   bills: [],
   contracts: [],
+  salesDocuments: [],
   goals: [],
   goalSources: [],
   debts: [],
@@ -420,14 +423,14 @@ async function loadFinanceData() {
   const h = runtime.household.id;
   const results = await Promise.all([
     financeApi.listAccounts(h), financeApi.listCategories(h), financeApi.listCategorizationRules(h), financeApi.listTransactions(h),
-    financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h),
+    financeApi.listImportBatches(h), financeApi.listMerchants(h), financeApi.listRecurringRules(h), financeApi.listBudgets(h), financeApi.listBills(h), financeApi.listContracts(h), financeApi.listSalesDocuments(h),
     financeApi.listGoals(h), financeApi.listGoalSources(h), financeApi.listDebts(h), financeApi.listDebtPayments(h), financeApi.listReceivables(h), financeApi.listReceivablePayments(h), financeApi.listLegalCases(h), financeApi.listLegalEvents(h), financeApi.listAssets(h),
     financeApi.listProperties(h), financeApi.listVehicles(h), financeApi.listInsurance(h), financeApi.listInvestments(h), financeApi.listInvestmentTransactions(h), financeApi.listPensions(h),
     financeApi.listDocuments(h), financeApi.listHouseholdMembers(h), financeApi.getFxRates().catch(()=>null),
   ]);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
-    runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts,
+    runtime.importBatches, runtime.merchants, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts, runtime.salesDocuments,
     runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
@@ -833,6 +836,38 @@ async function handleForm(form) {
     await financeApi.createBill({ household_id:h, account_id:nullValue(data,'accountId'), category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
   }
+  if (id === 'sales-document-create') {
+    const type=formValue(data,'documentType');
+    if (!['invoice','quote','receipt'].includes(type)) throw new Error('Ungültiger Dokumenttyp.');
+    const items=[...form.querySelectorAll('[data-sales-item]')].map((row)=>({
+      description:String(row.querySelector('[name="itemDescription"]')?.value||'').trim(),
+      quantity:Number(row.querySelector('[name="itemQuantity"]')?.value||0),
+      unit_price:Number(row.querySelector('[name="itemUnitPrice"]')?.value||0),
+      tax_rate:Number(row.querySelector('[name="itemTaxRate"]')?.value||0),
+    }));
+    if (!items.length || items.some((item)=>!item.description || !(item.quantity>0) || !(item.unit_price>=0) || !(item.tax_rate>=0&&item.tax_rate<=100))) throw new Error('Bitte alle Positionen vollständig und gültig ausfüllen.');
+    await financeApi.createSalesDocument({
+      household_id:h,
+      document_type:type,
+      document_number:formValue(data,'documentNumber'),
+      status:type==='receipt'?'paid':'draft',
+      issue_date:formValue(data,'issueDate')||dateInputValue(),
+      due_date:type==='invoice'?nullValue(data,'dueDate'):null,
+      valid_until:type==='quote'?nullValue(data,'validUntil'):null,
+      currency:formValue(data,'currency')||currency,
+      sender_name:nullValue(data,'senderName'),
+      sender_address:nullValue(data,'senderAddress'),
+      sender_tax_id:nullValue(data,'senderTaxId'),
+      recipient_name:formValue(data,'recipientName'),
+      recipient_address:nullValue(data,'recipientAddress'),
+      intro_text:nullValue(data,'introText'),
+      closing_text:nullValue(data,'closingText'),
+      payment_text:nullValue(data,'paymentText'),
+      notes:nullValue(data,'notes'),
+      items,
+    });
+    await refresh(`${salesDocumentTypeLabel(type)} gespeichert.`); return;
+  }
   if (id === 'bill-payment') {
     const billId=formValue(data,'billId');
     const source=formValue(data,'source');
@@ -1075,12 +1110,127 @@ const deleteMap = {
   categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
+
+function addDaysInput(days) {
+  return dateInputValue(new Date(Date.now() + Number(days || 0) * 86400000));
+}
+
+function syncSalesDocumentType(type, { updateNumber = true } = {}) {
+  const normalized=['invoice','quote','receipt'].includes(type)?type:'invoice';
+  const select=document.querySelector('#salesDocumentType');
+  if(select) select.value=normalized;
+  const title=document.querySelector('#salesDocumentFormTitle');
+  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?'Offerte schreiben':'Quittung ausstellen';
+  const due=document.querySelector('#salesInvoiceDueField');
+  const valid=document.querySelector('#salesQuoteValidField');
+  if(due) due.hidden=normalized!=='invoice';
+  if(valid) valid.hidden=normalized!=='quote';
+  if(updateNumber){
+    const number=document.querySelector('#salesDocumentNumber');
+    if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
+  }
+}
+
+function openSalesDocumentForm(type) {
+  const form=document.querySelector('#sales-document-create');
+  if(!form) return;
+  form.reset();
+  const items=document.querySelector('#salesDocumentItems');
+  const template=document.querySelector('#salesDocumentItemTemplate');
+  if(items&&template) items.replaceChildren(template.content.cloneNode(true));
+  const issue=document.querySelector('#salesDocumentIssueDate'); if(issue) issue.value=dateInputValue();
+  const due=document.querySelector('#salesDocumentDueDate'); if(due) due.value=addDaysInput(30);
+  const valid=document.querySelector('#salesDocumentValidUntil'); if(valid) valid.value=addDaysInput(30);
+  syncSalesDocumentType(type,{updateNumber:true});
+  form.removeAttribute('hidden');
+  form.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function salesDocumentStatusLabel(status) {
+  return ({draft:'Entwurf',sent:'Versendet',accepted:'Angenommen',paid:'Bezahlt',cancelled:'Storniert',expired:'Abgelaufen'})[status]||status;
+}
+
+function plainMoney(value,currency,locale='de-CH') {
+  return new Intl.NumberFormat(locale,{style:'currency',currency:currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
+}
+
+function printSalesDocument(row) {
+  const popup=window.open('','_blank');
+  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Finance und versuche es erneut.');
+  const locale=runtime.profile?.locale||'de-CH';
+  const type=salesDocumentTypeLabel(row.document_type);
+  const items=Array.isArray(row.items)?row.items:[];
+  const itemRows=items.map((item)=>{
+    const qty=Number(item.quantity||0), unit=Number(item.unit_price||0), tax=Number(item.tax_rate||0), net=qty*unit, gross=net*(1+tax/100);
+    return `<tr><td>${escapeHtml(item.description||'')}</td><td class="num">${qty.toLocaleString(locale)}</td><td class="num">${escapeHtml(plainMoney(unit,row.currency,locale))}</td><td class="num">${tax.toLocaleString(locale)} %</td><td class="num">${escapeHtml(plainMoney(gross,row.currency,locale))}</td></tr>`;
+  }).join('');
+  const meta=row.document_type==='invoice'&&row.due_date?`<div><strong>Fällig:</strong> ${escapeHtml(dateInputValue(new Date(row.due_date+'T12:00:00')))}</div>`:row.document_type==='quote'&&row.valid_until?`<div><strong>Gültig bis:</strong> ${escapeHtml(dateInputValue(new Date(row.valid_until+'T12:00:00')))}</div>`:'';
+  const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
+  popup.document.open();
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(type)} ${escapeHtml(row.document_number)}</title><style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:40px;color:#111;line-height:1.45} .top{display:flex;justify-content:space-between;gap:30px;margin-bottom:40px}.muted{color:#666}.recipient{margin:30px 0}.intro,.closing,.payment{margin:24px 0}table{width:100%;border-collapse:collapse;margin:24px 0}th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}.num{text-align:right;white-space:nowrap}.totals{margin-left:auto;max-width:340px}.totals div{display:flex;justify-content:space-between;padding:5px 0}.totals .grand{font-size:1.2em;font-weight:700;border-top:2px solid #111;margin-top:5px;padding-top:10px}.print{margin-bottom:24px;padding:9px 14px}@media print{.print{display:none}body{margin:18mm}}</style></head><body>
+  <button class="print" onclick="window.print()">Drucken / als PDF sichern</button>
+  <div class="top"><div><strong>${nl(row.sender_name||'')}</strong><div class="muted">${nl(row.sender_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div><div><h1>${escapeHtml(type)}</h1><div><strong>Nr.:</strong> ${escapeHtml(row.document_number)}</div><div><strong>Datum:</strong> ${escapeHtml(row.issue_date||'')}</div>${meta}<div><strong>Status:</strong> ${escapeHtml(salesDocumentStatusLabel(row.status))}</div></div></div>
+  <div class="recipient"><strong>Empfänger</strong><div>${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></div>
+  ${row.intro_text?`<div class="intro">${nl(row.intro_text)}</div>`:''}
+  <table><thead><tr><th>Position</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
+  <div class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(plainMoney(row.subtotal,row.currency,locale))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(plainMoney(row.tax_total,row.currency,locale))}</strong></div><div class="grand"><span>Total</span><span>${escapeHtml(plainMoney(row.total,row.currency,locale))}</span></div></div>
+  ${row.payment_text?`<div class="payment"><strong>Zahlung</strong><br>${nl(row.payment_text)}</div>`:''}
+  ${row.closing_text?`<div class="closing">${nl(row.closing_text)}</div>`:''}
+  </body></html>`);
+  popup.document.close();
+  popup.focus();
+}
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt']);
+  const writeActions = new Set(['starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-note','transaction-tax-toggle','delete','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
+  if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
+  if (action === 'sales-document-add-item') {
+    const items=document.querySelector('#salesDocumentItems'), template=document.querySelector('#salesDocumentItemTemplate');
+    if(items&&template) items.appendChild(template.content.cloneNode(true));
+    return;
+  }
+  if (action === 'sales-document-remove-item') {
+    const row=target.closest('[data-sales-item]'), items=document.querySelector('#salesDocumentItems');
+    if(!row||!items) return;
+    if(items.querySelectorAll('[data-sales-item]').length<=1) throw new Error('Mindestens eine Position ist erforderlich.');
+    row.remove(); return;
+  }
+  if (action === 'sales-document-print') {
+    const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
+    if(!row) throw new Error('Dokument wurde nicht gefunden.');
+    printSalesDocument(row); return;
+  }
+  if (action === 'sales-document-status') {
+    const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
+    if(!row) throw new Error('Dokument wurde nicht gefunden.');
+    await financeApi.updateSalesDocument(row.id,{status:target.dataset.status});
+    await refresh(`${salesDocumentTypeLabel(row.document_type)} auf „${salesDocumentStatusLabel(target.dataset.status)}“ gesetzt.`); return;
+  }
+  if (action === 'sales-document-convert') {
+    const quote=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='quote');
+    if(!quote) throw new Error('Offerte wurde nicht gefunden.');
+    if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error('Für diese Offerte wurde bereits eine Rechnung erstellt.');
+    await financeApi.createSalesDocument({
+      household_id:runtime.household.id, document_type:'invoice', document_number:nextSalesDocumentNumber(runtime.salesDocuments,'invoice'),
+      status:'draft', issue_date:dateInputValue(), due_date:addDaysInput(30), valid_until:null, currency:quote.currency,
+      sender_name:quote.sender_name, sender_address:quote.sender_address, sender_tax_id:quote.sender_tax_id,
+      recipient_name:quote.recipient_name, recipient_address:quote.recipient_address, intro_text:quote.intro_text,
+      closing_text:quote.closing_text, payment_text:quote.payment_text, notes:quote.notes, items:quote.items, source_document_id:quote.id,
+    });
+    if(quote.status!=='accepted') await financeApi.updateSalesDocument(quote.id,{status:'accepted'});
+    await refresh('Offerte in eine neue Rechnung übernommen.'); return;
+  }
+  if (action === 'sales-document-delete') {
+    const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
+    if(!row) throw new Error('Dokument wurde nicht gefunden.');
+    if(!confirm(`${salesDocumentTypeLabel(row.document_type)} ${row.document_number} wirklich löschen?`)) return;
+    await financeApi.deleteSalesDocument(row.id); await refresh('Ausgangsdokument gelöscht.'); return;
+  }
   if (action === 'starter-categories') {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
     if (!created) { showToast('Starter-Kategorien sind bereits vorhanden.'); return; }
@@ -1487,6 +1637,7 @@ pageContent.addEventListener('change', async (event) => {
     if (target.id === 'transactionTo') { uiState.transactionTo=target.value||''; uiState.transactionPeriod='custom'; uiState.transactionPage=1; render(); return; }
     if (target.id === 'debtPaymentSource') { showDebtPaymentSource(target.value); return; }
     if (target.id === 'billPaymentSource') { showBillPaymentSource(target.value); return; }
+    if (target.id === 'salesDocumentType') { syncSalesDocumentType(target.value,{updateNumber:true}); return; }
     if (target.id === 'debtPaymentTransaction') {
       const option=target.selectedOptions?.[0];
       if(option?.value){

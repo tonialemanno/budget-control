@@ -35,7 +35,8 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'documents', label: 'Dokumente', icon: 'receipt', group: 'Finance Core', module: 'core' },
 
   { route: 'budget', label: 'Budget', mobileLabel: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', mobile: true },
-  { route: 'bills', label: 'Rechnungen & Verträge', mobileLabel: 'Rechnungen', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
+  { route: 'bills', label: 'Zu zahlende Rechnungen & Verträge', mobileLabel: 'Rechnungen', icon: 'receipt', group: 'Planung', module: 'bills', mobile: true },
+  { route: 'sales-documents', label: 'Rechnungen / Offerten', icon: 'receipt', group: 'Planung', module: 'bills' },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals' },
   { route: 'tax-advisor', label: 'Steuerberater', icon: 'receipt', group: 'Planung', module: 'tax' },
 
@@ -66,7 +67,8 @@ export const PAGE_META = Object.freeze({
   recurring: { title: 'Wiederkehrende Zahlungen', eyebrow: 'Mein Geld' },
   documents: { title: 'Dokumente', eyebrow: 'Finance Core' },
   budget: { title: 'Budget', eyebrow: 'Budget & Planung' },
-  bills: { title: 'Rechnungen & Verträge', eyebrow: 'Rechnungen & Verträge' },
+  bills: { title: 'Zu zahlende Rechnungen & Verträge', eyebrow: 'Rechnungen & Verträge' },
+  'sales-documents': { title: 'Rechnungen / Offerten', eyebrow: 'Ausgangsdokumente' },
   goals: { title: 'Sparziele', eyebrow: 'Sparen & Ziele' },
   'tax-advisor': { title: 'Steuerberater', eyebrow: 'Steuern & Export' },
   debts: { title: 'Schulden & Kredite', eyebrow: 'Schulden & Kredite' },
