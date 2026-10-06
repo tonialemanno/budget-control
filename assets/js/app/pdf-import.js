@@ -196,7 +196,7 @@ function looksLikePdfHeader(text) {
 
 function extractIban(text) {
   const compact=String(text||'').toUpperCase().replace(/\s+/g,' ');
-  const matches=compact.match(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/g)||[];
+  const matches=compact.match(/\b[A-Z]{2}\d{2}(?:[ \t]?[A-Z0-9]){11,30}\b/g)||[];
   return matches.map((value)=>value.replace(/\s+/g,'')).find((value)=>value.length>=15&&value.length<=34)||'';
 }
 
