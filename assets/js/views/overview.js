@@ -8,7 +8,7 @@ import {
   accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
   financeCycleSeries, primaryOperatingAccount,
 } from '../app/finance-insights.js';
-import { primaryAccountPreferenceId } from '../app/user-preferences.js';
+import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut, renderMoneyFlow } from '../app/charts.js';
 
@@ -88,9 +88,10 @@ export function renderOverview({
 } = {}) {
   const locale=profile?.locale||'de-CH';
   const now=new Date();
+  const selectedFinanceMonthMode=financeMonthMode(profile);
   const snapshot=buildFinanceSnapshot({
     accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,bills,debts,
-    receivables,assets,properties,vehicles,investments,pensions,household,fxRates,now,
+    receivables,assets,properties,vehicles,investments,pensions,household,fxRates,now,financeMonthMode:selectedFinanceMonthMode,
   });
   const currency=snapshot.currency;
   const preferredPrimaryAccountId=primaryAccountPreferenceId(profile,household?.id,accounts);
@@ -100,12 +101,12 @@ export function renderOverview({
     household,fxRates,now,
   });
   const cycleTotals=currentFinanceCycleTotals({
-    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,fallbackDay:25,
+    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
   });
   const financeCycle=cycleTotals.cycle;
   const cycleLabel=financeCycleLabel(financeCycle,locale);
   const months=financeCycleSeries({
-    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,cycles:6,fallbackDay:25,
+    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,cycles:6,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
   });
   const categoriesSpent=categorySpending({
     transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,now,limit:5,
