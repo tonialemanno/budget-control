@@ -253,6 +253,15 @@ async function undoRecordedChange(entry) {
     entry.undone=true;
     return;
   }
+  if(entry.type==='semantic_bulk'){
+    for(const row of entry.before||[]){
+      await financeApi.updateTransaction(row.id,{semantic_type:row.semantic_type||null});
+    }
+    const undoneAt=new Date().toISOString();
+    await financeApi.updateTransactionChangeLog(entry.id,{undone_at:undoneAt});
+    entry.undone=true;
+    return;
+  }
   throw new Error('Für diese Änderung ist kein sicherer Rückgängig-Schritt verfügbar.');
 }
 
@@ -935,7 +944,7 @@ async function loadFinanceData() {
     label:row.label,
     before:row.before_data||row.before||[],
     after:row.after_data||row.after||[],
-    undoable:(row.action_type||row.type)==='category_bulk',
+    undoable:['category_bulk','semantic_bulk'].includes(row.action_type||row.type),
     undone:Boolean(row.undone_at||row.undone),
     at:row.created_at||row.at,
   }));
@@ -3538,7 +3547,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
@@ -3709,6 +3718,27 @@ async function handleAction(target) {
     await recordChange({type:'category_bulk',label:`${ids.length} Buchung${ids.length===1?'':'en'} → ${category.name}`,before,after:ids.map((id)=>({id,category_id:category.id})),undoable:true});
     await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} gespeichert. Keine feste Regel angelegt. Machine Learning verwendet diese Entscheidung als Trainingsbeispiel.`);
     requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
+    return;
+  }
+  if (action === 'categorization-apply-selected-debt-repayment') {
+    const detail=target.closest('[data-categorization-detail]');
+    const ids=categorizationSelectedIds(detail);
+    if(!ids.length) throw new Error('Bitte mindestens eine Buchung markieren.');
+    const selected=ids.map((id)=>runtime.transactions.find((row)=>row.id===id)).filter(Boolean);
+    if(selected.length!==ids.length) throw new Error('Mindestens eine markierte Buchung wurde nicht gefunden.');
+    if(selected.some((tx)=>tx.status!=='booked'||Number(tx.amount)>=0||tx.transfer_group_id||['debt_payment','receivable_principal'].includes(tx.cashflow_type))){
+      throw new Error('Als Darlehensrückzahlung können nur gebuchte Geldabgänge ohne bestehende Spezialverknüpfung markiert werden.');
+    }
+    const before=selected.map((row)=>({id:row.id,semantic_type:row.semantic_type||null}));
+    await financeApi.bulkUpdateTransactions(ids,{semantic_type:'debt_repayment'});
+    await recordChange({
+      type:'semantic_bulk',
+      label:`${ids.length} Buchung${ids.length===1?'':'en'} → Darlehensrückzahlung / Schuldentilgung`,
+      before,
+      after:ids.map((id)=>({id,semantic_type:'debt_repayment'})),
+      undoable:true,
+    });
+    await refresh(`${ids.length} markierte Buchung${ids.length===1?'':'en'} als Darlehensrückzahlung / Schuldentilgung verbucht. Kontobewegung und Cashflow bleiben vollständig erhalten; der Betrag zählt nicht mehr als Konsumausgabe.`);
     return;
   }
   if (action === 'categorization-apply-selected-transfer') {
