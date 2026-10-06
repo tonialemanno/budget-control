@@ -45,7 +45,7 @@ const html=renderTransactions({
   categorizationGroupKey:'expense:antonio giuseppe alemanno',
 });
 
-assert.match(html,/Auswahl bearbeiten|Auswahl offen/);
+assert.match(html,/Umbuchung \/ Tilgung \/ Teilmenge|Buchungsarten offen/);
 assert.match(html,/data-categorization-select/);
 assert.match(html,/Alle markieren/);
 assert.match(html,/Auswahl speichern/);
