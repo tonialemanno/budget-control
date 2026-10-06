@@ -4247,8 +4247,8 @@ async function handleAction(target) {
   if (action === 'transaction-merge-open') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
-    const candidates=transactionMergeCandidates(tx,runtime.transactions);
-    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Gegenbuchung gefunden.');
+    const candidates=transactionMergeCandidates(tx,runtime.transactions,{documents:runtime.documents});
+    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Dublette gefunden. Finance prüft Betrag, Datum, Währung sowie bei unterschiedlichen Konten eindeutig Beleg gegen Bankbuchung.');
     const form=document.querySelector('#transaction-merge');
     const input=document.querySelector('#transactionMergeId');
     const source=document.querySelector('#transactionMergeSource');
@@ -4256,7 +4256,7 @@ async function handleAction(target) {
     if(!form||!input||!select) throw new Error('Zusammenführen-Dialog ist nicht verfügbar.');
     input.value=tx.id;
     if(source) source.innerHTML=`<strong>${escapeHtml(tx.merchants?.name||tx.counterparty||tx.description)}</strong><span>${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency)}</span>`;
-    select.innerHTML='<option value="">Bitte wählen</option>'+candidates.map((row)=>`<option value="${row.id}">${escapeHtml(dateInputValue(new Date(row.occurred_at)))} · ${escapeHtml(row.merchants?.name||row.counterparty||row.description)} · ${Math.abs(Number(row.amount)).toFixed(2)} ${escapeHtml(row.currency)}${row.source==='import'?' · Bankimport':''}</option>`).join('');
+    select.innerHTML='<option value="">Bitte wählen</option>'+candidates.map((row)=>`<option value="${row.id}">${escapeHtml(dateInputValue(new Date(row.occurred_at)))} · ${escapeHtml(row.merchants?.name||row.counterparty||row.description)} · ${escapeHtml(row.accounts?.name||'Konto')} · ${Math.abs(Number(row.amount)).toFixed(2)} ${escapeHtml(row.currency)}${row.source==='import'?' · Bankimport':''}</option>`).join('');
     form.removeAttribute('hidden');
     form.scrollIntoView({behavior:'smooth',block:'start'});
     return;
