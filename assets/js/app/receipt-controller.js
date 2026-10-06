@@ -1,5 +1,5 @@
 import { financeApi } from './finance-api.js';
-import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
+import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js?v=20261006-ocr5';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue } from './format.js';
 
