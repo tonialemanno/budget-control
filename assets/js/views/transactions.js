@@ -64,6 +64,40 @@ function periodLabel(period){
 function monthKey(value){ const d=new Date(value); return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function monthLabel(key,locale){ const [y,m]=key.split('-').map(Number); return new Intl.DateTimeFormat(locale,{month:'short',year:'numeric'}).format(new Date(y,m-1,1)); }
 function normalizedSearch(tx){ return `${tx.description||''} ${tx.counterparty||''} ${tx.counterparties?.name||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''} ${tx.transaction_contexts?.name||''} ${tx.vehicles?.name||''}`.toLowerCase(); }
+function duplicatePairKey(leftId,rightId){
+  return [String(leftId||''),String(rightId||'')].sort().join(':');
+}
+function receiptTransactionIdSet(documents=[]){
+  return new Set((documents||[])
+    .filter((doc)=>doc?.object_type==='transaction'&&doc?.object_id&&(/fotoerfassung|kassenbeleg|receipt/i.test(String(doc.notes||''))||String(doc.mime_type||'').startsWith('image/')))
+    .map((doc)=>doc.object_id));
+}
+function duplicateSourceLabel(tx,receiptIds){
+  const labels=[];
+  const bank=tx?.source==='import'||tx?.external_reference||tx?.bank_reference||tx?.import_batch_id;
+  if(bank) labels.push('Bankimport');
+  if(receiptIds.has(tx?.id)) labels.push('Belegfoto');
+  if(!labels.length) labels.push(tx?.source==='manual'?'Manuell erfasst':'Buchung');
+  return labels.join(' + ');
+}
+function duplicateComparePanel(tx,{locale,receiptIds}){
+  const title=tx?.merchants?.name||tx?.counterparty||tx?.description||'Buchung';
+  const category=tx?.categories?.name||'Ohne Kategorie';
+  const account=tx?.accounts?.name||'Konto';
+  const note=String(tx?.note||'').trim();
+  return `<div class="card" style="padding:14px;min-width:0">
+    <div class="metric-label">${escapeHtml(duplicateSourceLabel(tx,receiptIds))}</div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:start;margin-top:6px"><strong>${escapeHtml(title)}</strong><strong>${money(tx.amount,{currency:tx.currency,locale})}</strong></div>
+    <div class="table-meta" style="margin-top:8px"><strong>Datum:</strong> ${escapeHtml(dateLabel(tx.occurred_at,locale))}</div>
+    <div class="table-meta"><strong>Konto:</strong> ${escapeHtml(account)}</div>
+    <div class="table-meta"><strong>Kategorie:</strong> ${escapeHtml(category)}</div>
+    <div class="table-meta"><strong>Beschreibung:</strong> ${escapeHtml(tx?.description||'—')}</div>
+    ${tx?.counterparty?`<div class="table-meta"><strong>Gegenpartei:</strong> ${escapeHtml(tx.counterparty)}</div>`:''}
+    ${note?`<div class="table-meta"><strong>Notiz:</strong> ${escapeHtml(note)}</div>`:''}
+    <div class="table-meta"><strong>Beleg:</strong> ${receiptIds.has(tx?.id)?'vorhanden':'kein Beleg verknüpft'}</div>
+    <div class="row-actions" style="margin-top:10px"><button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Buchung bearbeiten</button></div>
+  </div>`;
+}
 function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,context='all',vehicle='all',direction='all',semantic='all',categories=[],recurringRules=[]}){
   const start=period==='custom'||period==='all'?null:periodStart(period);
   const needle=String(query||'').trim().toLowerCase();
@@ -270,14 +304,18 @@ function renderCategorizationReview({
   return `<article class="card card-padding categorization-review"><div class="card-heading"><div><h3 class="card-title">Kategorien analysieren</h3><p class="card-subtitle">Bestehende Buchungen werden nach Händler gruppiert. Du kannst entweder eine ganze Gruppe gleich behandeln oder innerhalb der Gruppe Teilmengen markieren.</p></div><div class="card-footer-actions">${canWrite?`<button class="action-button action-button--primary" type="button" data-action="categorization-apply-safe" ${safeGroups.length?'':'disabled'}>Sichere Vorschläge übernehmen</button>`:''}<button class="action-button action-button--secondary" type="button" data-action="categorization-close">Schliessen</button></div></div><div class="categorization-stats"><div><span>Ohne Kategorie</span><strong>${uncategorizedCount}</strong></div><div><span>Sichere Gruppen</span><strong>${safeGroups.length}</strong></div><div><span>Noch offen</span><strong>${unresolvedGroups.length}</strong></div><div><span>Mehrere Kategorien · erledigt</span><strong>${mixedGroups.filter((group)=>!group.unassignedCount).length}</strong></div></div><div class="categorization-toolbar"><label class="field"><span>Anzeige</span><select class="text-control" id="categorizationFilter"><option value="action" ${categorizationFilter==='action'?'selected':''}>Nur noch zu bearbeiten</option><option value="unresolved" ${categorizationFilter==='unresolved'?'selected':''}>Nur ohne Vorschlag</option><option value="all" ${categorizationFilter==='all'?'selected':''}>Alle Händlergruppen</option></select></label><div class="toolbar-note">Eine Kategorie wählst du nur für echte Einnahmen oder Ausgaben. Für Umbuchung, Sparen, Darlehensrückzahlung / Schuldentilgung oder gemischte Teilmengen öffnest du „Umbuchung / Tilgung / Teilmenge“.</div></div><div class="categorization-group-list">${rows || '<div class="table-empty">Für diese Ansicht gibt es nichts zu prüfen.</div>'}</div>${detachedDetail}${visible.length>pageSize?`<div class="admin-pager categorization-pager"><button class="table-action" type="button" data-action="categorization-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages} · ${visible.length} Gruppen</span><button class="table-action" type="button" data-action="categorization-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div>`:''}</article>`;
 }
 
-export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionCategoryIds=[], transactionSourceSet=[], transactionAccount='all', transactionContext='all', transactionVehicle='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], merchantAliases = [], counterparties = [], transactionContexts = [], vehicles = [], categorizationRules = [], recurringRules = [], documents = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1, categorizationGroupKey = '' } = {}) {
+export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionCategoryIds=[], transactionSourceSet=[], transactionAccount='all', transactionContext='all', transactionVehicle='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], merchantAliases = [], counterparties = [], transactionContexts = [], vehicles = [], categorizationRules = [], recurringRules = [], documents = [], transactionDuplicateIgnores = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1, categorizationGroupKey = '' } = {}) {
   const baseCurrency = household?.base_currency || 'CHF'; const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax'); const locale = profile?.locale || 'de-CH';
   const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,categoryIds:transactionCategoryIds,sourceSet:transactionSourceSet,account:transactionAccount,context:transactionContext,vehicle:transactionVehicle,direction:transactionDirection,semantic:transactionSemantic,categories,recurringRules});
   const now=new Date();
   const actualRows=rows.filter((tx)=>{ const date=new Date(tx.occurred_at); return !Number.isNaN(date.getTime())&&date<=now; });
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const billMap=new Map(bills.filter((bill)=>bill.status==='paid'&&bill.paid_transaction_id).map((bill)=>[bill.paid_transaction_id,bill]));
-  const duplicatePairs=likelyTransactionDuplicates(transactions,{documents,limit:6});
+  const ignoredDuplicateKeys=new Set((transactionDuplicateIgnores||[]).map((row)=>duplicatePairKey(row.transaction_a_id,row.transaction_b_id)));
+  const duplicatePairs=likelyTransactionDuplicates(transactions,{documents,limit:12})
+    .filter(({left,right})=>!ignoredDuplicateKeys.has(duplicatePairKey(left.id,right.id)))
+    .slice(0,6);
+  const receiptIds=receiptTransactionIdSet(documents);
   const spendRows=actualRows.filter((tx)=>semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency,fxRates})>0);
   const income=actualRows.reduce((s,tx)=>s+semanticIncomeBase(tx,{categories,recurringRules,baseCurrency,fxRates}),0);
   const receivableInflow=actualRows.filter((tx)=>Number(tx.amount)>0&&!tx.transfer_group_id&&tx.cashflow_type==='receivable_principal').reduce((s,tx)=>s+(convertAmount(tx.amount,tx.currency,baseCurrency,fxRates)??0),0);
@@ -321,7 +359,40 @@ export function renderTransactions({ accounts = [], categories = [], transaction
   const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage, categorizationGroupKey }) : '';
 
   const entityDatalists=`<datalist id="counterpartyDatalist">${counterparties.map((row)=>`<option value="${escapeHtml(row.name)}"></option>`).join('')}</datalist>`;
-  const duplicateHtml=duplicatePairs.length?`<article class="card card-padding" style="margin-bottom:16px"><div class="card-heading"><div><h3 class="card-title">Mögliche Doppelbuchungen</h3><p class="card-subtitle">Finance erkennt gleiche Beträge, Datum, Händler und sichere Beleg-/Bank-Kombinationen. Ein fotografierter Beleg darf dabei auch versehentlich auf einem anderen Konto erfasst worden sein. Es wird nichts automatisch gelöscht.</p></div><span class="status-pill status-pill--warning">${duplicatePairs.length} prüfen</span></div><div class="suggestion-grid">${duplicatePairs.map(({left,right,score})=>`<div class="suggestion-card"><div><strong>${escapeHtml(left.merchants?.name||left.counterparty||left.description)} · ${money(Math.abs(Number(left.amount)),{currency:left.currency,locale})}</strong><span>${escapeHtml(dateLabel(left.occurred_at,locale))} ↔ ${escapeHtml(dateLabel(right.occurred_at,locale))} · Treffer ${Math.round(score)}%</span></div>${canWrite?`<button class="table-action" type="button" data-action="transaction-merge-suggested" data-left-id="${left.id}" data-right-id="${right.id}">Zusammenführen</button>`:''}</div>`).join('')}</div></article>`:'';
+  const duplicateHtml=duplicatePairs.length?`<article class="card card-padding" style="margin-bottom:16px">
+    <div class="card-heading">
+      <div><h3 class="card-title">Mögliche Doppelbuchungen</h3><p class="card-subtitle">Finance macht nur einen Vorschlag. Öffne zuerst „Vergleichen“ und entscheide danach. Ohne deine Bestätigung wird nichts gelöscht oder zusammengeführt.</p></div>
+      <span class="status-pill status-pill--warning">${duplicatePairs.length} prüfen</span>
+    </div>
+    <div class="suggestion-grid">
+      ${duplicatePairs.map(({left,right,score,days,merchantSimilarity})=>{
+        const reasons=[
+          'gleicher Betrag',
+          left.currency===right.currency?'gleiche Währung':'',
+          days<=1?'gleiches / nahes Datum':'',
+          merchantSimilarity>=0.85?'ähnlicher Händler':'',
+          (receiptIds.has(left.id)!==receiptIds.has(right.id))?'Beleg + Bankbuchung':'',
+        ].filter(Boolean);
+        return `<div class="suggestion-card">
+          <div>
+            <strong>${money(Math.abs(Number(left.amount)),{currency:left.currency,locale})} · mögliche Dublette</strong>
+            <span>${escapeHtml(reasons.join(' · '))} · Treffer ${Math.round(score)}%</span>
+          </div>
+          <details style="margin-top:10px">
+            <summary class="table-action" style="display:inline-flex;cursor:pointer">Vergleichen</summary>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px">
+              ${duplicateComparePanel(left,{locale,receiptIds})}
+              ${duplicateComparePanel(right,{locale,receiptIds})}
+            </div>
+            ${canWrite?`<div class="form-actions" style="margin-top:12px">
+              <button class="action-button action-button--secondary" type="button" data-action="transaction-duplicate-ignore" data-left-id="${left.id}" data-right-id="${right.id}">Sind verschieden</button>
+              <button class="action-button action-button--primary" type="button" data-action="transaction-merge-suggested" data-left-id="${left.id}" data-right-id="${right.id}">Zusammenführen</button>
+            </div>`:''}
+          </details>
+        </div>`;
+      }).join('')}
+    </div>
+  </article>`:'';
 
   return `
     ${entityDatalists}
