@@ -34,6 +34,8 @@ assert.match(transactions,/Originale Bankdaten anzeigen/);
 assert.match(transactions,/usableBookingCategory/);
 assert.match(planning,/Feste Zahlungen/);
 assert.match(planning,/Automatik im Detail/);
+assert.match(planning,/#\/sales-documents/);
+assert.match(planning,/Rechnungen \/ Offerten erstellen/);
 assert.match(settings,/Einfach zeigt nur Alltagsfelder/);
 assert.match(ch,/Rückerstattung/);
 assert.match(ch,/Rechts- & Gerichtskosten/);
