@@ -1,5 +1,5 @@
 import { formShell, goalProgress, pageHeader, deleteButton } from '../app/components.js';
-import { dateLabel, escapeHtml, money } from '../app/format.js';
+import { dateLabel, escapeHtml, money, moneyText } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 
@@ -96,7 +96,7 @@ function goalPlan(goal,{goalSources,recurringRules,transactions,accounts,baseCur
   return {sources,components,total:components.reduce((s,c)=>s+c.amount,0),account,targetCurrency};
 }
 
-function feasibility(goal,plannedMonthly,currentAmount) {
+function feasibility(goal,plannedMonthly,currentAmount,currency='CHF',locale='de-CH') {
   const remaining=Math.max(0,Number(goal.target_amount||0)-Number(currentAmount||0));
   const months=monthsUntil(goal.target_date);
   if (!months) return { tone:'neutral', label:'Kein Termin', required:0, forecast:null, note:'Ohne Zieltermin keine Machbarkeitsrechnung.' };
@@ -106,7 +106,7 @@ function feasibility(goal,plannedMonthly,currentAmount) {
   const tone=ratio>=1?'green':ratio>=0.8?'yellow':'red';
   const label=tone==='green'?'Auf Kurs':tone==='yellow'?'Knapp':'Nicht auf Kurs';
   const forecast=monthly>0?Math.ceil(remaining/monthly):null;
-  return { tone,label,required,forecast,note:monthly>=required?'Der geplante Monatsbetrag reicht voraussichtlich.':`Es fehlen rund ${Math.max(0,required-monthly).toFixed(2)} pro Monat.` };
+  return { tone,label,required,forecast,note:monthly>=required?'Der geplante Monatsbetrag reicht voraussichtlich.':`Es fehlen rund ${moneyText(Math.max(0,required-monthly),{currency,locale})} pro Monat.` };
 }
 
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], accounts = [], household, profile, fxRates, canWrite=false } = {}) {
@@ -154,7 +154,7 @@ export function renderGoals({ goals = [], goalSources = [], recurringRules = [],
       const effectiveCurrent=linkedAccount?Number(linkedAccount.current_balance||0):Number(g.current_amount||0);
       const goalCurrency=plan.targetCurrency;
       const displayGoal={...g,current_amount:effectiveCurrent,currency:goalCurrency};
-      const f=feasibility(g,plan.total,effectiveCurrent);
+      const f=feasibility(g,plan.total,effectiveCurrent,goalCurrency,locale);
       const externalNet=plan.total-Number(g.monthly_amount||0);
       const suggestedBase=Math.max(0,f.required-externalNet);
       const accountMeta=linkedAccount
