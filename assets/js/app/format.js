@@ -6,11 +6,13 @@ export function moneyText(value, {
   currency = APP_CONFIG.defaultCurrency,
   locale = APP_CONFIG.defaultLocale,
 } = {}) {
+  const requestedDecimals=Number.isFinite(Number(decimals))?Number(decimals):2;
+  const moneyDecimals=Math.max(2,requestedDecimals);
   const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: moneyDecimals,
+    maximumFractionDigits: moneyDecimals,
     signDisplay: sign ? 'exceptZero' : 'auto',
   });
   return formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
