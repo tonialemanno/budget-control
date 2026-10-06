@@ -5,8 +5,11 @@ const TESSERACT_BASE=`https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VERS
 const TESSERACT_SCRIPT=`${TESSERACT_BASE}/tesseract.min.js`;
 const TESSERACT_WORKER=`${TESSERACT_BASE}/worker.min.js`;
 const TESSERACT_CORE=`https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESSERACT_VERSION}`;
+const TESSERACT_CORE_IOS_COMPAT=`${TESSERACT_CORE}/tesseract-core-lstm.wasm.js`;
+const TESSERACT_LANG_PATH='https://tessdata.projectnaptha.com/4.0.0';
 const OCR_SCRIPT_TIMEOUT_MS=15000;
-const OCR_WORKER_TIMEOUT_MS=35000;
+const OCR_WORKER_TIMEOUT_MS=30000;
+const OCR_WORKER_TIMEOUT_IOS_MS=18000;
 const OCR_RECOGNIZE_TIMEOUT_MS=60000;
 let tesseractPromise=null;
 
@@ -298,12 +301,13 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
   onProgress({status:'Bild wird vorbereitet',progress:0.12});
   const normal=await withTimeout(prepareImage(file,{binary:false}),15000,'Das Belegfoto konnte nicht rechtzeitig vorbereitet werden.');
 
-  let worker=null,lastError=null,recognitionPass=1;
+  let worker=null,recognitionPass=1,workerError=null;
+  const isAppleMobile=appleMobile();
   const logger=(m)=>{
     const p=Math.max(0,Math.min(1,Number(m?.progress||0)));
     const status=String(m?.status||'');
     if(status==='loading tesseract core') onProgress({status:'OCR-Engine wird geladen',progress:0.16+p*0.06});
-    else if(status==='initializing tesseract') onProgress({status:'OCR-Engine wird gestartet',progress:0.22+p*0.06});
+    else if(status==='initializing tesseract') onProgress({status:isAppleMobile?'OCR-Engine wird gestartet · iPhone-Modus':'OCR-Engine wird gestartet',progress:0.22+p*0.06});
     else if(status==='loading language traineddata') onProgress({status:'Sprachmodell wird geladen',progress:0.28+p*0.10});
     else if(status==='initializing api') onProgress({status:'Texterkennung wird vorbereitet',progress:0.38+p*0.07});
     else if(status==='recognizing text'){
@@ -313,19 +317,33 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
     }
   };
 
-  const languageAttempts=appleMobile()?['deu','eng','deu+eng']:['deu+eng','deu','eng'];
-  for(const languages of languageAttempts){
-    try{
-      onProgress({status:'OCR-Engine wird gestartet',progress:0.15});
-      worker=await withTimeout(
-        tesseract.createWorker(languages,1,{workerPath:TESSERACT_WORKER,corePath:TESSERACT_CORE,logger}),
-        OCR_WORKER_TIMEOUT_MS,
-        'OCR-Engine reagiert auf diesem Gerät nicht.'
-      );
-      break;
-    }catch(error){lastError=error;worker=null;}
+  // iOS/WebKit can stall while instantiating the automatically selected WASM core.
+  // Use the LSTM-only, non-SIMD core on Apple mobile as a conservative compatibility
+  // path. It is slower, but avoids a class of WebAssembly/SIMD initialization stalls.
+  // Do not start multiple workers after a timeout: createWorker can remain pending on
+  // initialization failures, which would otherwise leak another worker on each retry.
+  const languages=isAppleMobile?'deu':'deu+eng';
+  const workerOptions={
+    workerPath:TESSERACT_WORKER,
+    corePath:isAppleMobile?TESSERACT_CORE_IOS_COMPAT:TESSERACT_CORE,
+    langPath:TESSERACT_LANG_PATH,
+    logger,
+    errorHandler:(error)=>{ workerError=error; },
+  };
+  onProgress({status:isAppleMobile?'OCR-Engine wird gestartet · iPhone-Modus':'OCR-Engine wird gestartet',progress:0.15});
+  try{
+    worker=await withTimeout(
+      tesseract.createWorker(languages,1,workerOptions),
+      isAppleMobile?OCR_WORKER_TIMEOUT_IOS_MS:OCR_WORKER_TIMEOUT_MS,
+      isAppleMobile
+        ? 'OCR-Engine konnte auf dem iPhone nicht gestartet werden.'
+        : 'OCR-Engine reagiert auf diesem Gerät nicht.'
+    );
+  }catch(error){
+    const detail=String(workerError?.message||workerError||'').trim();
+    throw new Error(detail ? `${error.message} (${detail})` : error.message);
   }
-  if(!worker) throw lastError||new Error('OCR konnte nicht gestartet werden.');
+  if(!worker) throw new Error('OCR konnte nicht gestartet werden.');
 
   try{
     await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
