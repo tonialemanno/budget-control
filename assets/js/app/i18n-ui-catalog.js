@@ -2553,6 +2553,8 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^(.+) · Rechnung$/, '$1 · Fattura'],
+    [/^(.+) · Fällig (.+)$/, '$1 · Scadenza $2'],
     [/^Fällig (.+)$/, 'Scadenza $1'],
     [/^Gültig bis (.+)$/, 'Valida fino al $1'],
     [/^Ausgestellt (.+)$/, 'Emessa il $1'],
@@ -2650,6 +2652,8 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^(.+) · Rechnung$/, '$1 · Invoice'],
+    [/^(.+) · Fällig (.+)$/, '$1 · Due $2'],
     [/^Fällig (.+)$/, 'Due $1'],
     [/^Gültig bis (.+)$/, 'Valid until $1'],
     [/^Ausgestellt (.+)$/, 'Issued $1'],
