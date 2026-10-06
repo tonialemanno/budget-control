@@ -85,7 +85,7 @@ const transactions=[
 ];
 
 const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay:25});
-assert.equal(cycle.source,'income');
+assert.equal(cycle.source,'fixed_day');
 assert.equal(cycle.budgetMonth,'2026-09');
 assert.equal(cycle.start.getFullYear(),2026);
 assert.equal(cycle.start.getMonth(),8);
@@ -95,7 +95,7 @@ assert.equal(cycle.endExclusive.getDate(),25);
 assert.match(financeCycleLabel(cycle,'de-CH'),/25\.09.*24\.10/);
 
 const fallback=resolveFinanceCycle({transactions:transactions.filter((tx)=>tx.id!=='salary-sep'),recurringRules,now,fallbackDay:25});
-assert.equal(fallback.source,'fallback');
+assert.equal(fallback.source,'fixed_day');
 assert.equal(fallback.start.getMonth(),8);
 assert.equal(fallback.start.getDate(),25);
 
@@ -105,8 +105,8 @@ const earlySalary=resolveFinanceCycle({
   now,
   fallbackDay:25,
 });
-assert.equal(earlySalary.source,'income');
-assert.equal(earlySalary.start.getDate(),24);
+assert.equal(earlySalary.source,'fixed_day');
+assert.equal(earlySalary.start.getDate(),25);
 
 const totals=currentFinanceCycleTotals({
   transactions,debtPayments:[],recurringRules,baseCurrency:'CHF',fxRates:null,now,fallbackDay:25,
@@ -146,4 +146,11 @@ assert.equal(series.at(-1).key,'2026-09');
 assert.equal(series.at(-1).income,6400);
 assert.equal(series.at(-1).expenses,127.5);
 
-console.log('payday finance-cycle assertions OK');
+const calendar=resolveFinanceCycle({now,mode:'calendar'});
+assert.equal(calendar.source,'calendar');
+assert.equal(calendar.start.getDate(),1);
+assert.equal(calendar.start.getMonth(),9);
+assert.equal(calendar.endExclusive.getDate(),1);
+assert.equal(calendar.endExclusive.getMonth(),10);
+
+console.log('fixed finance-cycle assertions OK');
