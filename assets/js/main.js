@@ -3656,6 +3656,83 @@ const deleteMap = {
   categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
+function addDaysInput(days) {
+  return dateInputValue(new Date(Date.now()+Number(days||0)*86400000));
+}
+
+function syncSalesDocumentType(type,{updateNumber=true}={}) {
+  const normalized=['invoice','quote','receipt'].includes(type)?type:'invoice';
+  const select=document.querySelector('#salesDocumentType');
+  if(select) select.value=normalized;
+  const title=document.querySelector('#salesDocumentFormTitle');
+  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?'Offerte schreiben':'Quittung ausstellen';
+  const due=document.querySelector('#salesInvoiceDueField');
+  const valid=document.querySelector('#salesQuoteValidField');
+  if(due) due.hidden=normalized!=='invoice';
+  if(valid) valid.hidden=normalized!=='quote';
+  if(updateNumber){
+    const number=document.querySelector('#salesDocumentNumber');
+    if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
+  }
+}
+
+function openSalesDocumentForm(type) {
+  const form=document.querySelector('#sales-document-create');
+  if(!form) return;
+  form.reset();
+  const items=document.querySelector('#salesDocumentItems');
+  const template=document.querySelector('#salesDocumentItemTemplate');
+  if(items&&template) items.replaceChildren(template.content.cloneNode(true));
+  const issue=document.querySelector('#salesDocumentIssueDate');
+  const due=document.querySelector('#salesDocumentDueDate');
+  const valid=document.querySelector('#salesDocumentValidUntil');
+  if(issue) issue.value=dateInputValue();
+  if(due) due.value=addDaysInput(30);
+  if(valid) valid.value=addDaysInput(30);
+  syncSalesDocumentType(type,{updateNumber:true});
+  form.removeAttribute('hidden');
+  form.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function salesDocumentStatusLabel(status) {
+  return ({draft:'Entwurf',sent:'Versendet',accepted:'Angenommen',paid:'Bezahlt',cancelled:'Storniert',expired:'Abgelaufen'})[status]||status;
+}
+
+function printSalesDocument(row) {
+  const popup=window.open('','_blank');
+  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Finance und versuche es erneut.');
+  const locale=runtime.profile?.locale||'de-CH';
+  const type=salesDocumentTypeLabel(row.document_type);
+  const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
+  const fmt=(value)=>new Intl.NumberFormat(locale,{style:'currency',currency:row.currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
+  const items=Array.isArray(row.items)?row.items:[];
+  const itemRows=items.map((item)=>{
+    const qty=Number(item.quantity||0),unit=Number(item.unit_price||0),tax=Number(item.tax_rate||0);
+    const gross=qty*unit*(1+tax/100);
+    return `<tr><td>${escapeHtml(item.description||'')}</td><td class="num">${qty.toLocaleString(locale)}</td><td class="num">${escapeHtml(fmt(unit))}</td><td class="num">${tax.toLocaleString(locale)} %</td><td class="num">${escapeHtml(fmt(gross))}</td></tr>`;
+  }).join('');
+  const meta=row.document_type==='invoice'&&row.due_date
+    ? `<div><strong>Fällig:</strong> ${escapeHtml(row.due_date)}</div>`
+    : row.document_type==='quote'&&row.valid_until
+      ? `<div><strong>Gültig bis:</strong> ${escapeHtml(row.valid_until)}</div>`
+      : '';
+  popup.document.open();
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(type)} ${escapeHtml(row.document_number)}</title><style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:40px;color:#111;line-height:1.45}.top{display:flex;justify-content:space-between;gap:30px;margin-bottom:40px}.muted{color:#666}.recipient{margin:30px 0}.intro,.closing,.payment{margin:24px 0}table{width:100%;border-collapse:collapse;margin:24px 0}th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}.num{text-align:right;white-space:nowrap}.totals{margin-left:auto;max-width:340px}.totals div{display:flex;justify-content:space-between;padding:5px 0}.grand{font-size:1.2em;font-weight:700;border-top:2px solid #111;margin-top:5px!important;padding-top:10px!important}.print{margin-bottom:24px;padding:9px 14px}@media print{.print{display:none}body{margin:18mm}}</style></head><body>
+  <button class="print" onclick="window.print()">Drucken / als PDF sichern</button>
+  <div class="top"><div><strong>${nl(row.sender_name||'')}</strong><div class="muted">${nl(row.sender_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div><div><h1>${escapeHtml(type)}</h1><div><strong>Nr.:</strong> ${escapeHtml(row.document_number)}</div><div><strong>Datum:</strong> ${escapeHtml(row.issue_date||'')}</div>${meta}</div></div>
+  <div class="recipient"><strong>Empfänger</strong><div>${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></div>
+  ${row.intro_text?`<div class="intro">${nl(row.intro_text)}</div>`:''}
+  <table><thead><tr><th>Position</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
+  <div class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(fmt(row.subtotal))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(fmt(row.tax_total))}</strong></div><div class="grand"><span>Total</span><strong>${escapeHtml(fmt(row.total))}</strong></div></div>
+  ${row.payment_text?`<div class="payment"><strong>Zahlung</strong><br>${nl(row.payment_text)}</div>`:''}
+  ${row.closing_text?`<div class="closing">${nl(row.closing_text)}</div>`:''}
+  </body></html>`);
+  popup.document.close();
+  popup.focus();
+}
+
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
