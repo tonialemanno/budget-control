@@ -37,7 +37,7 @@ import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
 import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
-import { renderTransactions } from './views/transactions.js?v=20261006-r36';
+import { renderTransactions } from './views/transactions.js?v=20261006-r37';
 import { renderCategories } from './views/categories.js';
 import { renderMerchants } from './views/merchants.js';
 import { renderImports } from './views/imports.js';
