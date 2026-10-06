@@ -122,9 +122,9 @@ function budgetMatchesTx(budget,tx,categories=[]){
 
 export function calculateBudgetSummary({
   budgets=[],transactions=[],debtPayments=[],categories=[],merchants=[],recurringRules=[],accounts=[],
-  baseCurrency='CHF',fxRates=null,now=new Date(),fallbackDay=25,
+  baseCurrency='CHF',fxRates=null,now=new Date(),fallbackDay=25,financeMonthMode='day_25',
 }={}){
-  const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay});
+  const cycle=resolveFinanceCycle({now,fallbackDay,mode:financeMonthMode});
   const effective=effectiveBudgetSet(budgets,cycle.budgetMonth);
   const classified=effective.rows.map((row)=>({...row,_budgetKind:budgetKind(row,{categories,merchants,recurringRules})}));
   const variableRows=classified.filter((row)=>row._budgetKind==='variable');
