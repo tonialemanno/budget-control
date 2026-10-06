@@ -44,9 +44,10 @@ export function financeCycleSeries({
   now=new Date(),
   cycles=6,
   fallbackDay=25,
+  financeMonthMode='day_25',
 }={}) {
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const periods=financeCycles({transactions,recurringRules,now,fallbackDay,count:cycles});
+  const periods=financeCycles({now,fallbackDay,mode:financeMonthMode,count:cycles});
   return periods.map((cycle)=>{
     const rows=transactions.filter((tx)=>{
       const occurred=new Date(tx.occurred_at);
@@ -82,8 +83,9 @@ export function currentFinanceCycleTotals({
   fxRates=null,
   now=new Date(),
   fallbackDay=25,
+  financeMonthMode='day_25',
 }={}) {
-  const cycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay});
+  const cycle=resolveFinanceCycle({now,fallbackDay,mode:financeMonthMode});
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const rows=transactions.filter((tx)=>{
     const occurred=new Date(tx.occurred_at);
