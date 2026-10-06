@@ -147,6 +147,7 @@ const runtime = {
   investmentTransactions: [],
   pensions: [],
   documents: [],
+  transactionDuplicateIgnores: [],
   taxRuleVersions: [],
   taxCases: [],
   taxPeople: [],
@@ -928,6 +929,7 @@ async function loadFinanceData() {
     () => financeApi.listTaxItems(h).catch(()=>[]),
     () => financeApi.listTaxObligations(h).catch(()=>[]),
     () => financeApi.listTaxPayments(h).catch(()=>[]),
+    () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
   ];
   const results = await runLimited(tasks, 5);
   [
@@ -939,6 +941,7 @@ async function loadFinanceData() {
     runtime.countryMasterCategories, runtime.countryMasterMerchants, runtime.masterDataHouseholds,
     runtime.changeHistory,
     runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
+    runtime.transactionDuplicateIgnores,
   ] = results.map((value) => value || (value === null ? null : []));
   runtime.changeHistory=(runtime.changeHistory||[]).map((row)=>({
     id:row.id,
@@ -3652,7 +3655,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
@@ -4273,6 +4276,21 @@ async function handleAction(target) {
     if(!confirm(`Diese zwei Buchungen zusammenführen? Finance behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
     await financeApi.mergeDuplicateTransactions({householdId:runtime.household.id,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
     await refresh('Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
+    return;
+  }
+  if (action === 'transaction-duplicate-ignore') {
+    const leftId=String(target.dataset.leftId||'');
+    const rightId=String(target.dataset.rightId||'');
+    const left=runtime.transactions.find((row)=>row.id===leftId);
+    const right=runtime.transactions.find((row)=>row.id===rightId);
+    if(!left||!right) throw new Error('Eine der Buchungen wurde nicht gefunden.');
+    if(!confirm('Diese zwei Buchungen künftig nicht mehr als mögliche Dublette vorschlagen? Die Buchungen selbst bleiben unverändert.')) return;
+    await financeApi.ignoreTransactionDuplicate({
+      householdId:runtime.household.id,
+      transactionAId:left.id,
+      transactionBId:right.id,
+    });
+    await refresh('Finance merkt sich: Diese beiden Buchungen sind verschieden.');
     return;
   }
   if (action === 'transaction-delete') {
