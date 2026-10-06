@@ -3056,6 +3056,45 @@ async function handleForm(form) {
     await financeApi.createBill({ household_id:h, account_id:accountId, category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency:account?.currency||currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
   }
+  if (id === 'sales-document-create') {
+    const type=formValue(data,'documentType');
+    if(!['invoice','quote','receipt'].includes(type)) throw new Error('Ungültiger Dokumenttyp.');
+    const items=[...form.querySelectorAll('[data-sales-item]')].map((row)=>({
+      description:String(row.querySelector('[name="itemDescription"]')?.value||'').trim(),
+      quantity:Number(row.querySelector('[name="itemQuantity"]')?.value||0),
+      unit_price:Number(row.querySelector('[name="itemUnitPrice"]')?.value||0),
+      tax_rate:Number(row.querySelector('[name="itemTaxRate"]')?.value||0),
+    }));
+    if(!items.length||items.some((item)=>!item.description||!(item.quantity>0)||!(item.unit_price>=0)||!(item.tax_rate>=0&&item.tax_rate<=100))) {
+      throw new Error('Bitte alle Positionen vollständig und gültig ausfüllen.');
+    }
+    const documentNumber=formValue(data,'documentNumber').trim();
+    const recipientName=formValue(data,'recipientName').trim();
+    if(!documentNumber) throw new Error('Bitte eine Dokumentnummer angeben.');
+    if(!recipientName) throw new Error('Bitte einen Empfänger angeben.');
+    await financeApi.createSalesDocument({
+      household_id:h,
+      document_type:type,
+      document_number:documentNumber,
+      status:type==='receipt'?'paid':'draft',
+      issue_date:formValue(data,'issueDate')||dateInputValue(),
+      due_date:type==='invoice'?nullValue(data,'dueDate'):null,
+      valid_until:type==='quote'?nullValue(data,'validUntil'):null,
+      currency:formValue(data,'currency')||currency,
+      sender_name:nullValue(data,'senderName'),
+      sender_address:nullValue(data,'senderAddress'),
+      sender_tax_id:nullValue(data,'senderTaxId'),
+      recipient_name:recipientName,
+      recipient_address:nullValue(data,'recipientAddress'),
+      intro_text:nullValue(data,'introText'),
+      closing_text:nullValue(data,'closingText'),
+      payment_text:nullValue(data,'paymentText'),
+      notes:nullValue(data,'notes'),
+      items,
+    });
+    await refresh(`${salesDocumentTypeLabel(type)} gespeichert.`);
+    return;
+  }
   if (id === 'bill-edit') {
     const billId=formValue(data,'billId');
     const bill=runtime.bills.find((row)=>row.id===billId);
@@ -4944,6 +4983,10 @@ pageContent.addEventListener('change', async (event) => {
       startLiveTimers();
       render();
       showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
+      return;
+    }
+    if (target.id === 'salesDocumentType') {
+      syncSalesDocumentType(target.value,{updateNumber:true});
       return;
     }
     if (target.id === 'financeMonthModeSelect') {
