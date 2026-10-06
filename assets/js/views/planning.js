@@ -19,7 +19,7 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 }
 
 export function renderPlanning({
-  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
+  budgets=[], goals=[], bills=[], salesDocuments=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
   transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard',
 }={}) {
   const currency=household?.base_currency||'CHF';
@@ -44,11 +44,18 @@ export function renderPlanning({
     text:'Technische Gesamtansicht aller wiederkehrenden Regeln und ihrer Quellen',
     meta:`${activeRecurring.length} aktiv`
   }));
-  if(enabled('bills',moduleAccess,hiddenModules)) cards.push(planCard({
-    href:'#/bills',iconName:'receipt',title:'Rechnungen & Verträge',
-    text:'Fälligkeiten, Zahlungen und Verträge',
-    meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
-  }));
+  if(enabled('bills',moduleAccess,hiddenModules)) {
+    cards.push(planCard({
+      href:'#/bills',iconName:'receipt',title:'Zu zahlende Rechnungen & Verträge',
+      text:'Fälligkeiten, Zahlungen und Verträge, die du selbst bezahlen musst',
+      meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
+    }));
+    cards.push(planCard({
+      href:'#/sales-documents',iconName:'receipt',title:'Rechnungen / Offerten erstellen',
+      text:'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
+      meta:`${salesDocuments.length} erstellt`
+    }));
+  }
   if(enabled('debts',moduleAccess,hiddenModules)) cards.push(planCard({
     href:'#/debts',iconName:'credit-card',title:'Raten',
     text:'Geplante Tilgungen und offene Kredite',
