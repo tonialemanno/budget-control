@@ -135,6 +135,7 @@ export const financeApi = Object.freeze({
   updateTransactionChangeLog: (id, patch) => update('transaction_change_log', id, patch),
   async bulkUpdateTransactions(ids, patch) { const unique = [...new Set((ids || []).filter(Boolean))]; for (let index = 0; index < unique.length; index += 80) { const chunk = unique.slice(index, index + 80); await backend.rest(buildQuery('transactions', { id: `in.(${chunk.join(',')})` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=minimal' } }); } },
   deleteTransaction: (id) => remove('transactions', id),
+  mergeDuplicateTransactions: ({householdId,keepTransactionId,duplicateTransactionId}) => backend.rpc('merge_duplicate_transactions_v1',{p_household_id:householdId,p_keep_transaction_id:keepTransactionId,p_duplicate_transaction_id:duplicateTransactionId}),
   createTransfer: (payload) => backend.rpc('create_transfer_v2', payload),
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),
   convertTransactionToTransfer: ({ householdId, transactionId, toAccountId, toAmount = null, description = null }) => backend.rpc('convert_transaction_to_transfer', { p_household_id: householdId, p_transaction_id: transactionId, p_to_account_id: toAccountId, p_to_amount: toAmount, p_description: description }),
