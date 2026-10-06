@@ -23,6 +23,23 @@ function appleMobile(){
   return /iPhone|iPad|iPod/i.test(navigator.userAgent||'');
 }
 
+async function ensureWebAssemblyAvailable(){
+  if(typeof WebAssembly==='undefined'||typeof WebAssembly.compile!=='function'){
+    throw new Error('WebAssembly wird von diesem Browser nicht unterstützt.');
+  }
+  try{
+    // Small valid empty WASM module. This also detects CSP rules that block
+    // WebAssembly compilation before Tesseract starts a worker.
+    await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));
+  }catch(error){
+    const detail=String(error?.message||error||'');
+    if(/content security|wasm-unsafe-eval|unsafe-eval|refused|blocked/i.test(detail)){
+      throw new Error('Die Sicherheitsrichtlinie der App blockiert die OCR-Engine (WebAssembly).');
+    }
+    throw new Error(`WebAssembly konnte auf diesem Gerät nicht gestartet werden: ${detail||'unbekannter Fehler'}`);
+  }
+}
+
 function normalizeSpaces(value){ return String(value||'').replace(/[\u00a0\t]+/g,' ').replace(/\s+/g,' ').trim(); }
 function safeDate(year,month,day){ const d=new Date(year,month-1,day,12); return d.getFullYear()===year&&d.getMonth()===month-1&&d.getDate()===day?d:null; }
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -292,7 +309,9 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
   if(!(file instanceof Blob)||!file.size) throw new Error('Bitte ein Belegfoto auswählen.');
   if(!String(file.type||'').startsWith('image/')) throw new Error('Für die Belegerkennung wird ein Foto bzw. Bild benötigt.');
 
-  onProgress({status:'OCR wird geladen',progress:0.06});
+  onProgress({status:'OCR-Kompatibilität wird geprüft',progress:0.06});
+  await ensureWebAssemblyAvailable();
+  onProgress({status:'OCR wird geladen',progress:0.08});
   const tesseract=await loadTesseract();
   onProgress({status:'Bild wird vorbereitet',progress:0.12});
   const normal=await withTimeout(prepareImage(file,{binary:false}),15000,'Das Belegfoto konnte nicht rechtzeitig vorbereitet werden.');
