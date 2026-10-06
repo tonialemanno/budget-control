@@ -3,6 +3,16 @@ import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue } from './format.js';
 
+function withTimeout(promise,ms,message){
+  return new Promise((resolve,reject)=>{
+    const timer=window.setTimeout(()=>reject(new Error(message)),ms);
+    Promise.resolve(promise).then(
+      (value)=>{window.clearTimeout(timer);resolve(value);},
+      (error)=>{window.clearTimeout(timer);reject(error);}
+    );
+  });
+}
+
 const state = {
   file: null,
   previewUrl: null,
@@ -168,8 +178,10 @@ function selectSuggestedCategory(analysis) {
 }
 
 async function detectGeoCurrency(fallbackCurrency='CHF') {
+  const controller=new AbortController();
+  const timer=window.setTimeout(()=>controller.abort(),3500);
   try {
-    const response=await fetch('/api/geo',{cache:'no-store'});
+    const response=await fetch('/api/geo',{cache:'no-store',signal:controller.signal});
     if(!response.ok) throw new Error('geo unavailable');
     const data=await response.json();
     return {
@@ -178,6 +190,8 @@ async function detectGeoCurrency(fallbackCurrency='CHF') {
     };
   } catch {
     return {country:null,currency:fallbackCurrency};
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 
@@ -195,9 +209,10 @@ async function analyzeFile(file) {
   if (preview) preview.src = state.previewUrl;
   form?.removeAttribute('hidden');
   form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setProgress('Beleg wird vorbereitet', 0.03);
+  setProgress('Belegdaten werden geladen', 0.03);
 
-  state.context = await loadContext();
+  state.context = await withTimeout(loadContext(),15000,'Belegdaten konnten nicht rechtzeitig geladen werden.');
+  setProgress('Standort und Währung werden geprüft', 0.05);
   state.geo = await detectGeoCurrency(state.context.household.base_currency || 'CHF');
   const presetCurrency=document.querySelector('#receiptCurrency');
   if(presetCurrency) presetCurrency.value=state.geo.currency;
