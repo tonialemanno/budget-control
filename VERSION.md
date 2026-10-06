@@ -1,4 +1,13 @@
-# Finance 2.4.2
+# Finance 2.4.3
+
+## 2.4.3 – Tilgung ist Buchungstyp, nicht Kategorie
+
+- Offene Händler-/Personengruppen zeigen klarer, dass Kategorien nur für echte Einnahmen und Ausgaben gedacht sind.
+- Der Einstieg für Sonderfälle heißt jetzt **„Umbuchung / Tilgung / Teilmenge“** statt des unspezifischen „Auswahl bearbeiten“.
+- Historische Rückzahlungen geliehenen Geldes können als **Darlehensrückzahlung / Schuldentilgung** markiert werden, ohne eine künstliche Ausgabenkategorie anzulegen.
+- Solche Tilgungen bleiben als Kontobewegung erhalten, zählen aber nicht als Konsumausgabe.
+- Release 2026.10.06-r27.
+
 
 ## 2.4.2 – PDF-Saldo und Buchungsbetrag sicher getrennt
 

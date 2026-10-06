@@ -84,12 +84,19 @@ const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8
 assert.match(main,/categorizationSelectedIds/);
 assert.match(main,/categorization-apply-selected-category/);
 assert.match(main,/categorization-apply-selected-transfer/);
+assert.match(main,/categorization-apply-selected-debt-repayment/);
 assert.match(main,/convertCategorizationSelectionToTransfers/);
 assert.match(main,/uniqueBulkTransferCandidate/);
 assert.match(main,/convertTransactionToTransferV2/);
 assert.match(main,/Keine feste Regel angelegt/);
 assert.match(main,/missingCategories/);
 assert.match(main,/Mehrere Buchungen können nur bei gleicher Währung gesammelt umgebucht werden/);
+
+
+assert.match(html,/Umbuchung \/ Tilgung \/ Teilmenge/);
+assert.match(html,/Kategorie · nur echte Ein-\/Ausgabe/);
+assert.match(html,/Darlehensrückzahlung \/ Schuldentilgung/);
+assert.match(html,/Auswahl als Tilgung verbuchen/);
 
 console.log('categorization bulk selection assertions OK');
 
