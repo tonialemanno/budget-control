@@ -20,6 +20,13 @@ const edekaB=merchantFromTransaction({description:'EDEKA BRAND BACKSHOP'});
 assert.equal(edekaA.name,'EDEKA');
 assert.equal(edekaA.key,'edeka');
 assert.equal(edekaB.key,'edeka');
+const edekaC=merchantFromTransaction({description:'EDK*HAFERKATER STORES 05.07.2026'});
+assert.equal(edekaC.name,'EDEKA');
+assert.equal(edekaC.key,'edeka');
+assert.deepEqual(
+  suggestKnownCategoryCandidates({description:'EDK*HAFERKATER STORES 05.07.2026'}),
+  ['Supermarkt','Lebensmittel']
+);
 
 const sumup=merchantFromTransaction({description:'bezug SUMUP *KEBAB HUSLI IMBI;0000 ARBON'});
 assert.equal(sumup.paymentProcessor,'SumUp');

@@ -1,4 +1,12 @@
-# Finance 2.4.3
+# Finance 2.4.4
+
+## 2.4.4 – EDEKA-Schreibweise EDK*
+
+- Banktexte wie `EDK*HAFERKATER STORES` werden als **EDEKA** kanonisiert.
+- EDEKA wird bevorzugt der Kategorie **Supermarkt** zugeordnet; **Lebensmittel** bleibt Fallback.
+- Der bestehende Händler-Datensatz wurde auf EDEKA bereinigt und der Alias `edk haferkater stores` gespeichert.
+- Release 2026.10.06-r28.
+
 
 ## 2.4.3 – Tilgung ist Buchungstyp, nicht Kategorie
 

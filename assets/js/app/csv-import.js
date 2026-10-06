@@ -231,7 +231,7 @@ function canonicalMerchantIdentity(name) {
   if(/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i.test(text)) return {name:'Migros Restaurant',key:'migros restaurant'};
   if(/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i.test(text)) return {name:'Coop Restaurant',key:'coop restaurant'};
   if(/\bsbb\b|\bcff\b|\bffs\b/i.test(text)) return {name:'SBB',key:'sbb'};
-  if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\bedeka\b|\bedk\*/i.test(text)) return {name:'EDEKA',key:'edeka'};
   if(/\bmigros\b/i.test(text)) return {name:'Migros',key:'migros'};
   if(/\bcoop\b/i.test(text)) return {name:'Coop',key:'coop'};
   if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner'};
@@ -330,7 +330,7 @@ export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
   { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
-  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
   { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
