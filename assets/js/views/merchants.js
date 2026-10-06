@@ -112,6 +112,7 @@ export function renderMerchants({
       usage.budgetCount?`${usage.budgetCount} Budget${usage.budgetCount===1?'':'s'}`:'',
     ].filter(Boolean).join(' · ');
     return `<tr>
+      <td>${canWrite?`<input type="checkbox" data-merchant-select value="${merchant.id}" aria-label="${escapeHtml(merchant.name)} auswählen">`:''}</td>
       <td><strong>${escapeHtml(merchant.name)}</strong>${standardMeta}${aliasMeta}</td>
       <td>${escapeHtml(category?.name||'—')}</td>
       <td>${escapeHtml(usageParts)}</td>
@@ -152,9 +153,20 @@ export function renderMerchants({
       <label class="field"><span>Händler, Alias oder Kategorie suchen</span><input class="text-control" id="merchantSearch" value="${escapeHtml(merchantQuery)}" placeholder="z. B. Uzon, Avenir, Wohnen"></label>
     </article>
 
+    ${canWrite?`<article class="card card-padding" style="margin-bottom:16px">
+      <div class="card-heading">
+        <div><h3 class="card-title">Mehrere Händler zusammenführen</h3><p class="card-subtitle">Markiere beliebig viele Händler unten und wähle einmal, welcher Name bleiben soll.</p></div>
+      </div>
+      <div class="form-grid form-grid--2">
+        <label class="field"><span>Zielhändler behalten</span><select class="text-control" id="merchantBulkCanonical"><option value="">Bitte wählen</option>${merchants.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select></label>
+        <div class="field"><span>Auswahl</span><div class="row-actions"><button class="table-action" type="button" data-action="merchant-select-visible">Alle sichtbaren markieren</button><button class="table-action" type="button" data-action="merchant-select-clear">Auswahl aufheben</button></div></div>
+      </div>
+      <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="merchant-bulk-merge">Ausgewählte zusammenführen</button></div>
+    </article>`:''}
+
     <article class="card card-padding">
       ${dataTable({
-        headers:['Händler','Standardkategorie','Verwendung',''],
+        headers:['','Händler','Standardkategorie','Verwendung',''],
         rows,
         emptyText:query?'Keine Händler für diese Suche gefunden.':'Noch keine Händler vorhanden.'
       })}
