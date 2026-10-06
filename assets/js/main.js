@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261006-r40';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261006-r41';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261006-r40';
+import { financeApi } from './app/finance-api.js?v=20261006-r41';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -34,7 +34,7 @@ import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandida
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
-import { renderPlanning } from './views/planning.js';
+import { renderPlanning } from './views/planning.js?v=20261006-r41';
 import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js?v=20261006-r38';
@@ -47,7 +47,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel } from './views/sales-documents.js?v=20261006-r40';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel } from './views/sales-documents.js?v=20261006-r41';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
