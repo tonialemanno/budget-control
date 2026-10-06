@@ -194,10 +194,47 @@ function looksLikePdfHeader(text) {
   return /^(?:buchungsdatum|datum|beschreibung|belastung|gutschrift|valuta|saldo|kontostand|betrag|debit|credit|soll|haben)(?:\s|$)/i.test(normalize(text));
 }
 
+function validIbanChecksum(value) {
+  const iban=String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return false;
+  const rearranged=iban.slice(4)+iban.slice(0,4);
+  let mod=0;
+  for(const char of rearranged){
+    const digits=/\d/.test(char)?char:String(char.charCodeAt(0)-55);
+    for(const digit of digits) mod=(mod*10+Number(digit))%97;
+  }
+  return mod===1;
+}
+
 function extractIban(text) {
-  const compact=String(text||'').toUpperCase().replace(/\s+/g,' ');
-  const matches=compact.match(/\b[A-Z]{2}\d{2}(?:[ \t]?[A-Z0-9]){11,30}\b/g)||[];
-  return matches.map((value)=>value.replace(/\s+/g,'')).find((value)=>value.length>=15&&value.length<=34)||'';
+  const countryLengths={
+    AL:28,AD:24,AT:20,AZ:28,BH:22,BE:16,BA:20,BR:29,BG:22,CR:22,HR:21,CY:28,
+    CZ:24,DK:18,DO:28,EE:20,FO:18,FI:18,FR:27,GE:22,DE:22,GI:23,GR:27,GL:18,
+    GT:28,HU:28,IS:26,IE:22,IL:23,IT:27,JO:30,KZ:20,XK:20,KW:30,LV:21,LB:28,
+    LI:21,LT:20,LU:20,MT:31,MR:27,MU:30,MC:27,MD:24,ME:22,NL:18,MK:19,NO:15,
+    PK:24,PS:29,PL:28,PT:25,QA:29,RO:24,SM:27,SA:24,RS:22,SK:24,SI:19,ES:24,
+    SE:24,CH:21,TN:24,TR:26,AE:23,GB:22,VA:22,
+  };
+  const lines=String(text||'').split(/\r?\n/);
+  for(const line of lines){
+    const upper=line.toUpperCase();
+    const starts=[...upper.matchAll(/\b[A-Z]{2}\d{2}/g)];
+    for(const match of starts){
+      const country=match[0].slice(0,2);
+      const requiredLength=countryLengths[country]||null;
+      const tail=upper.slice(match.index).replace(/[^A-Z0-9]/g,'');
+      if(requiredLength){
+        const candidate=tail.slice(0,requiredLength);
+        if(candidate.length===requiredLength&&validIbanChecksum(candidate)) return candidate;
+      } else {
+        for(let length=15; length<=Math.min(34,tail.length); length+=1){
+          const candidate=tail.slice(0,length);
+          if(validIbanChecksum(candidate)) return candidate;
+        }
+      }
+    }
+  }
+  return '';
 }
 
 function extractBankReference(text) {
