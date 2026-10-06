@@ -30,3 +30,11 @@ assert.match(main, /routeSection/);
 assert.match(index, /quickAddSheet/);
 
 console.log('mobile UX assertions OK');
+
+const componentsCss = fs.readFileSync(new URL('../assets/css/components.css', import.meta.url), 'utf8');
+const txView = fs.readFileSync(new URL('../assets/js/views/transactions.js', import.meta.url), 'utf8');
+assert.match(componentsCss, /@media \(max-width: 660px\)[\s\S]*\.categorization-select-row\s*\{[\s\S]*grid-template-columns:\s*32px minmax\(0,1fr\)/);
+assert.match(componentsCss, /\.categorization-select-context\s*\{[\s\S]*font-size:\s*12px/);
+assert.match(componentsCss, /\.categorization-select-amount\s*\{[\s\S]*font-size:\s*14px/);
+assert.match(txView, /categorization-select-heading/);
+assert.match(txView, /redundantMerchant/);

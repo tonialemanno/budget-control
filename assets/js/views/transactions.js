@@ -198,14 +198,22 @@ function renderCategorizationSelectionDetail(group,{categories=[],accounts=[],tr
         : hints.length>1
           ? `<span class="categorization-transfer-hint categorization-transfer-hint--ambiguous"><b>Mehrere mögliche Gegenbuchungen:</b> ${escapeHtml(hints.map((hint)=>hint.account?.name||hint.row.accounts?.name||'Konto').filter((name,index,list)=>list.indexOf(name)===index).join(' · '))}</span>`
           : '';
+      const normalizedDescription=String(tx.description||'').trim().toLowerCase();
+      const normalizedMerchant=String(merchant||'').trim().toLowerCase();
+      const normalizedCounterparty=String(counterparty||'').trim().toLowerCase();
+      const redundantMerchant=merchant && (
+        normalizedDescription===normalizedMerchant
+        || normalizedDescription.startsWith(`${normalizedMerchant} `)
+        || normalizedCounterparty===normalizedMerchant
+      );
       const context=[
         `<span><b>Von Konto:</b> ${escapeHtml(sourceAccount)}</span>`,
-        counterparty?`<span><b>Gegenpartei:</b> ${escapeHtml(counterparty)}</span>`:'',
-        merchant?`<span><b>Händler:</b> ${escapeHtml(merchant)}</span>`:'',
         tx.description?`<span><b>Banktext:</b> ${escapeHtml(tx.description)}</span>`:'',
         note?`<span><b>Notiz / Zweck:</b> ${escapeHtml(note)}</span>`:'',
+        counterparty && normalizedCounterparty!==normalizedDescription?`<span><b>Gegenpartei:</b> ${escapeHtml(counterparty)}</span>`:'',
+        merchant && !redundantMerchant?`<span><b>Händler:</b> ${escapeHtml(merchant)}</span>`:'',
       ].filter(Boolean).join('');
-      return `<label class="categorization-select-row"><input type="checkbox" data-categorization-select value="${tx.id}" ${canWrite?'':'disabled'}><span class="categorization-select-copy"><strong>${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(category)}</strong><span class="categorization-select-context">${context}</span>${transferHint}</span><span class="categorization-select-amount">${money(tx.amount,{sign:Number(tx.amount)>=0,currency:tx.currency,locale})}</span></label>`;
+      return `<label class="categorization-select-row"><input type="checkbox" data-categorization-select value="${tx.id}" ${canWrite?'':'disabled'}><span class="categorization-select-copy"><span class="categorization-select-heading"><strong>${dateLabel(tx.occurred_at,locale)} · ${escapeHtml(category)}</strong><span class="categorization-select-amount">${money(tx.amount,{sign:Number(tx.amount)>=0,currency:tx.currency,locale})}</span></span><span class="categorization-select-context">${context}</span>${transferHint}</span></label>`;
     }).join('');
   return `<section class="categorization-selection" data-categorization-detail="${escapeHtml(group.key)}">
     <div class="categorization-selection-head">

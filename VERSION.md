@@ -1,4 +1,14 @@
-# Finance 2.4.0
+# Finance 2.4.1
+
+## 2.4.1 – iPhone-Kategorisierung lesbar
+
+- Teilmengenansicht auf iPhone neu aufgebaut: eine Buchung ist eine eigene Karte ohne überlappende Zeilen.
+- Betrag steht im Kopf der Buchung, Kontext darunter in lesbaren Abständen.
+- Konto, Banktext, Notiz/Zweck und erkannte Gegenbuchung werden mobil priorisiert.
+- Händler/Gegenpartei werden nicht doppelt angezeigt, wenn sie nur denselben Text wie der Banktext wiederholen.
+- Grössere Checkboxen und Touch-Ziele für iPhone 11/12 Pro.
+- Release 2026.10.06-r25.
+
 
 ## 2.4.0 – Alltag zuerst: Prüfen, Suchen, Projekte und vollständiger Importkontext
 

@@ -380,7 +380,14 @@
 .categorization-select-row:last-child { border-bottom: 0; }
 .categorization-select-row:hover { background: var(--surface-2); }
 .categorization-select-row input { width: 18px; height: 18px; }
-.categorization-select-copy { min-width: 0; display: grid; gap: 3px; }
+.categorization-select-copy { min-width: 0; display: grid; gap: 6px; }
+.categorization-select-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
 .categorization-select-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .categorization-select-copy small { color: var(--text-3); font-size: 9px; }
 .categorization-select-context {
@@ -427,8 +434,88 @@
   .categorization-group-row { grid-template-columns: 1fr; align-items: stretch; }
   .categorization-group-actions { justify-content: flex-start; }
   .categorization-bulk-actions { grid-template-columns: 1fr; }
-  .categorization-select-row { grid-template-columns: auto minmax(0,1fr); }
-  .categorization-select-amount { grid-column: 2; }
+  .categorization-select-row { grid-template-columns: auto minmax(0,1fr); align-items:start; }
+}
+
+@media (max-width: 660px) {
+  .categorization-selection {
+    padding: 10px;
+    gap: 10px;
+    border-radius: 16px;
+  }
+  .categorization-select-list {
+    max-height: none;
+    overflow: visible;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .categorization-select-row {
+    grid-template-columns: 32px minmax(0,1fr);
+    align-items: start;
+    gap: 0 10px;
+    min-height: 0;
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface-1);
+  }
+  .categorization-select-row:last-child { border-bottom: 1px solid var(--border); }
+  .categorization-select-row input {
+    width: 24px;
+    height: 24px;
+    margin: 1px 0 0;
+    align-self: start;
+  }
+  .categorization-select-copy {
+    gap: 8px;
+  }
+  .categorization-select-heading {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .categorization-select-copy strong {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    font-size: 14px;
+    line-height: 1.28;
+  }
+  .categorization-select-amount {
+    flex: 0 0 auto;
+    font-size: 14px;
+    line-height: 1.28;
+    font-weight: 780;
+  }
+  .categorization-select-context {
+    gap: 5px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .categorization-select-context span {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+  .categorization-transfer-hint {
+    margin-top: 0;
+    padding: 8px 9px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .categorization-selection-tools {
+    gap: 8px;
+  }
+  .categorization-selection-tools .table-action {
+    min-height: 38px;
+  }
+  .categorization-bulk-box {
+    padding: 12px;
+  }
+  .categorization-bulk-box .action-button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 
