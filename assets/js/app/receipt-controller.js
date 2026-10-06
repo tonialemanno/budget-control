@@ -5,6 +5,16 @@ import { dateInputValue, financeEventTimestamp } from './format.js';
 import { getLocale, t } from './i18n.js';
 import { createEconomicTransaction, merchantDefaultCategory } from './transaction-engine.js';
 
+function withTimeout(promise,ms,message){
+  return new Promise((resolve,reject)=>{
+    const timer=window.setTimeout(()=>reject(new Error(message)),ms);
+    Promise.resolve(promise).then(
+      (value)=>{window.clearTimeout(timer);resolve(value);},
+      (error)=>{window.clearTimeout(timer);reject(error);}
+    );
+  });
+}
+
 const state = {
   file: null,
   previewUrl: null,
@@ -201,9 +211,10 @@ async function analyzeFile(file) {
   if (preview) preview.src = state.previewUrl;
   form?.removeAttribute('hidden');
   form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setProgress(t('Beleg wird vorbereitet'), 0.03);
+  setProgress(t('Belegdaten werden geladen'), 0.03);
 
-  state.context = await loadContext();
+  state.context = await withTimeout(loadContext(),15000,t('Belegdaten konnten nicht rechtzeitig geladen werden.'));
+  setProgress(t('Standort und Währung werden geprüft'), 0.05);
   state.geo = await detectGeoCurrency(state.context.household.base_currency || 'CHF');
   const presetCurrency=document.querySelector('#receiptCurrency');
   if(presetCurrency) presetCurrency.value=state.geo.currency;
