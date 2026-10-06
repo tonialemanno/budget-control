@@ -144,7 +144,7 @@ export function likelyTransactionDuplicates(transactions=[],{documents=[],limit=
       const similarity=merchantSimilarity(left,right);
       score+=similarity>=0.98?20:similarity>=0.85?14:similarity>=0.55?7:0;
       if(norm(left.description)===norm(right.description)) score+=8;
-      if(score>=75) pairs.push({left,right,score,days,merchantSimilarity:similarity});
+      if(score>=75) pairs.push({left,right,score:Math.min(100,score),days,merchantSimilarity:similarity});
     }
   }
   return pairs.sort((a,b)=>b.score-a.score||a.days-b.days).slice(0,limit);
