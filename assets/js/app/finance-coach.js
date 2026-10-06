@@ -336,6 +336,7 @@ export function buildBudgetDecisionGuide({
   household,
   fxRates=null,
   now=new Date(),
+  financeMonthMode='day_25',
 }={}){
   if(!categoryId&&!merchantId) return {found:false};
 
