@@ -72,15 +72,16 @@ async function loadContext() {
   const households = await financeApi.listHouseholds();
   const household = households?.[0];
   if (!household) throw new Error(t('Haushalt wurde nicht gefunden.'));
-  const [accounts, categories, merchants, transactions, documents] = await Promise.all([
+  const [accounts, categories, merchants, merchantAliases, transactions, documents] = await Promise.all([
     financeApi.listAccounts(household.id),
     financeApi.listCategories(household.id),
     financeApi.listMerchants(household.id),
+    financeApi.listMerchantAliases(household.id),
     financeApi.listTransactions(household.id),
     financeApi.listDocuments(household.id),
   ]);
   const receiptTransactionIds = new Set((documents || []).filter((row) => row.object_type === 'transaction' && /Fotoerfassung/i.test(row.notes || '')).map((row) => row.object_id));
-  return { household, accounts: accounts || [], categories: categories || [], merchants: merchants || [], transactions: transactions || [], receiptTransactionIds };
+  return { household, accounts: accounts || [], categories: categories || [], merchants: merchants || [], merchantAliases: merchantAliases || [], transactions: transactions || [], receiptTransactionIds };
 }
 
 function selectedValues() {
@@ -171,7 +172,9 @@ function selectSuggestedCategory(analysis) {
   const select = document.querySelector('#receiptCategory');
   if (!select || !state.context) return;
   const key = normalizeMerchantKey(analysis.merchant);
-  const remembered = state.context.merchants.find((row) => row.normalized_key === key)?.default_category_id;
+  const directMerchant=state.context.merchants.find((row)=>row.normalized_key===key);
+  const alias=state.context.merchantAliases?.find((row)=>row.normalized_key===key);
+  const remembered=(directMerchant||state.context.merchants.find((row)=>row.id===alias?.merchant_id))?.default_category_id;
   let id = remembered || '';
   if (!id && analysis.suggestedCategoryName) {
     id = state.context.categories.find((row) => row.kind === 'expense' && row.name.toLowerCase() === analysis.suggestedCategoryName.toLowerCase())?.id || '';
@@ -268,7 +271,8 @@ async function analyzeFile(file) {
 async function ensureMerchant(context, merchantName, categoryId, remember) {
   const key = normalizeMerchantKey(merchantName);
   if (!key) return null;
-  let merchant = context.merchants.find((row) => row.normalized_key === key) || null;
+  const alias=context.merchantAliases?.find((row)=>row.normalized_key===key)||null;
+  let merchant=context.merchants.find((row)=>row.normalized_key===key)||context.merchants.find((row)=>row.id===alias?.merchant_id)||null;
   if (!merchant) {
     merchant = await financeApi.upsertMerchant({
       household_id: context.household.id,
@@ -277,7 +281,7 @@ async function ensureMerchant(context, merchantName, categoryId, remember) {
       default_category_id: remember && categoryId ? categoryId : null,
     });
   } else if (remember && categoryId && merchant.default_category_id !== categoryId) {
-    merchant = await financeApi.updateMerchant(merchant.id, { name: merchantName, default_category_id: categoryId });
+    merchant = await financeApi.updateMerchant(merchant.id, { default_category_id: categoryId });
   }
   return merchant;
 }
