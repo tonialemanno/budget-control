@@ -39,6 +39,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Als Händler behalten": "Mantieni come esercente",
   "Mehrere Händler zusammenführen": "Unisci più esercenti",
   "Rechnungen / Offerten": "Fatture / offerte",
+  "Rechnungen / Offerten erstellen": "Crea fatture / offerte",
+  "Fälligkeiten, Zahlungen und Verträge, die du selbst bezahlen musst": "Scadenze, pagamenti e contratti che devi pagare tu",
+  "Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten": "Crea e gestisci fatture, offerte e ricevute per i clienti",
   "Zu zahlende Rechnungen & Verträge": "Fatture e contratti da pagare",
   "Rechnungen, Offerten & Quittungen": "Fatture, offerte e ricevute",
   "Dokumente, die du selbst an andere ausstellst. Zu zahlende Rechnungen bleiben separat unter „Zu zahlende Rechnungen & Verträge“.": "Documenti che emetti tu stesso verso altri. Le fatture da pagare restano separate in «Fatture e contratti da pagare».",
@@ -1314,6 +1317,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "Als Händler behalten": "Keep as merchant",
   "Mehrere Händler zusammenführen": "Merge multiple merchants",
   "Rechnungen / Offerten": "Invoices / quotes",
+  "Rechnungen / Offerten erstellen": "Create invoices / quotes",
+  "Fälligkeiten, Zahlungen und Verträge, die du selbst bezahlen musst": "Due dates, payments and contracts you need to pay",
+  "Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten": "Create and manage your own invoices, quotes and receipts for customers",
   "Zu zahlende Rechnungen & Verträge": "Bills & contracts to pay",
   "Rechnungen, Offerten & Quittungen": "Invoices, quotes & receipts",
   "Dokumente, die du selbst an andere ausstellst. Zu zahlende Rechnungen bleiben separat unter „Zu zahlende Rechnungen & Verträge“.": "Documents you issue to others. Bills you need to pay remain separate under “Bills & contracts to pay”.",
@@ -2553,6 +2559,7 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^(\d+) erstellt$/, '$1 creati'],
     [/^(.+) · Rechnung$/, '$1 · Fattura'],
     [/^(.+) · Fällig (.+)$/, '$1 · Scadenza $2'],
     [/^Fällig (.+)$/, 'Scadenza $1'],
@@ -2652,6 +2659,7 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^(\d+) erstellt$/, '$1 created'],
     [/^(.+) · Rechnung$/, '$1 · Invoice'],
     [/^(.+) · Fällig (.+)$/, '$1 · Due $2'],
     [/^Fällig (.+)$/, 'Due $1'],
