@@ -85,9 +85,9 @@ function duplicateComparePanel(tx,{locale,receiptIds}){
   const category=tx?.categories?.name||'Ohne Kategorie';
   const account=tx?.accounts?.name||'Konto';
   const note=String(tx?.note||'').trim();
-  return `<div class="card" style="padding:14px;min-width:0">
-    <div class="metric-label">${escapeHtml(duplicateSourceLabel(tx,receiptIds))}</div>
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:start;margin-top:6px"><strong>${escapeHtml(title)}</strong><strong>${money(tx.amount,{currency:tx.currency,locale})}</strong></div>
+  return `<div class="duplicate-compare-panel">
+    <div class="duplicate-compare-source">${escapeHtml(duplicateSourceLabel(tx,receiptIds))}</div>
+    <div class="duplicate-compare-title"><strong>${escapeHtml(title)}</strong><strong>${money(tx.amount,{currency:tx.currency,locale})}</strong></div>
     <div class="table-meta" style="margin-top:8px"><strong>Datum:</strong> ${escapeHtml(dateLabel(tx.occurred_at,locale))}</div>
     <div class="table-meta"><strong>Konto:</strong> ${escapeHtml(account)}</div>
     <div class="table-meta"><strong>Kategorie:</strong> ${escapeHtml(category)}</div>
@@ -95,7 +95,7 @@ function duplicateComparePanel(tx,{locale,receiptIds}){
     ${tx?.counterparty?`<div class="table-meta"><strong>Gegenpartei:</strong> ${escapeHtml(tx.counterparty)}</div>`:''}
     ${note?`<div class="table-meta"><strong>Notiz:</strong> ${escapeHtml(note)}</div>`:''}
     <div class="table-meta"><strong>Beleg:</strong> ${receiptIds.has(tx?.id)?'vorhanden':'kein Beleg verknüpft'}</div>
-    <div class="row-actions" style="margin-top:10px"><button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Buchung bearbeiten</button></div>
+    <div class="duplicate-compare-edit"><button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Buchung bearbeiten</button></div>
   </div>`;
 }
 function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,context='all',vehicle='all',direction='all',semantic='all',categories=[],recurringRules=[]}){
@@ -359,12 +359,12 @@ export function renderTransactions({ accounts = [], categories = [], transaction
   const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage, categorizationGroupKey }) : '';
 
   const entityDatalists=`<datalist id="counterpartyDatalist">${counterparties.map((row)=>`<option value="${escapeHtml(row.name)}"></option>`).join('')}</datalist>`;
-  const duplicateHtml=duplicatePairs.length?`<article class="card card-padding" style="margin-bottom:16px">
-    <div class="card-heading">
-      <div><h3 class="card-title">Mögliche Doppelbuchungen</h3><p class="card-subtitle">Finance macht nur einen Vorschlag. Öffne zuerst „Vergleichen“ und entscheide danach. Ohne deine Bestätigung wird nichts gelöscht oder zusammengeführt.</p></div>
+  const duplicateHtml=duplicatePairs.length?`<article class="card card-padding duplicate-review">
+    <div class="card-heading duplicate-review-heading">
+      <div><h3 class="card-title">Mögliche Doppelbuchungen</h3><p class="card-subtitle">Finance macht nur Vorschläge. Öffne „Vergleichen“, prüfe beide Buchungen in Ruhe und entscheide erst danach.</p></div>
       <span class="status-pill status-pill--warning">${duplicatePairs.length} prüfen</span>
     </div>
-    <div class="suggestion-grid">
+    <div class="duplicate-review-list">
       ${duplicatePairs.map(({left,right,score,days,merchantSimilarity})=>{
         const reasons=[
           'gleicher Betrag',
@@ -373,23 +373,29 @@ export function renderTransactions({ accounts = [], categories = [], transaction
           merchantSimilarity>=0.85?'ähnlicher Händler':'',
           (receiptIds.has(left.id)!==receiptIds.has(right.id))?'Beleg + Bankbuchung':'',
         ].filter(Boolean);
-        return `<div class="suggestion-card">
-          <div>
-            <strong>${money(Math.abs(Number(left.amount)),{currency:left.currency,locale})} · mögliche Dublette</strong>
-            <span>${escapeHtml(reasons.join(' · '))} · Treffer ${Math.round(score)}%</span>
-          </div>
-          <details style="margin-top:10px">
-            <summary class="table-action" style="display:inline-flex;cursor:pointer">Vergleichen</summary>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px">
+        const leftTitle=left.merchants?.name||left.counterparty||left.description||'Buchung';
+        const rightTitle=right.merchants?.name||right.counterparty||right.description||'Buchung';
+        return `<details class="duplicate-review-item">
+          <summary class="duplicate-review-summary">
+            <div class="duplicate-review-amount">${money(Math.abs(Number(left.amount)),{currency:left.currency,locale})}</div>
+            <div class="duplicate-review-summary-copy">
+              <strong>${escapeHtml(leftTitle)} <span aria-hidden="true">↔</span> ${escapeHtml(rightTitle)}</strong>
+              <span>${escapeHtml(dateLabel(left.occurred_at,locale))} · ${escapeHtml(left.accounts?.name||'Konto')} &nbsp;↔&nbsp; ${escapeHtml(dateLabel(right.occurred_at,locale))} · ${escapeHtml(right.accounts?.name||'Konto')}</span>
+              <small>${escapeHtml(reasons.join(' · '))} · Treffer ${Math.round(score)}%</small>
+            </div>
+            <span class="duplicate-review-open">Vergleichen</span>
+          </summary>
+          <div class="duplicate-review-body">
+            <div class="duplicate-compare-grid">
               ${duplicateComparePanel(left,{locale,receiptIds})}
               ${duplicateComparePanel(right,{locale,receiptIds})}
             </div>
-            ${canWrite?`<div class="form-actions" style="margin-top:12px">
+            ${canWrite?`<div class="duplicate-review-actions">
               <button class="action-button action-button--secondary" type="button" data-action="transaction-duplicate-ignore" data-left-id="${left.id}" data-right-id="${right.id}">Sind verschieden</button>
               <button class="action-button action-button--primary" type="button" data-action="transaction-merge-suggested" data-left-id="${left.id}" data-right-id="${right.id}">Zusammenführen</button>
             </div>`:''}
-          </details>
-        </div>`;
+          </div>
+        </details>`;
       }).join('')}
     </div>
   </article>`:'';
