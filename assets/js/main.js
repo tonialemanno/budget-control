@@ -3652,7 +3652,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
@@ -3705,6 +3705,31 @@ async function handleAction(target) {
       Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
     ].filter(Boolean);
     await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    return;
+  }
+  if (action === 'merchant-select-visible') {
+    document.querySelectorAll('[data-merchant-select]').forEach((input)=>{ input.checked=true; });
+    return;
+  }
+  if (action === 'merchant-select-clear') {
+    document.querySelectorAll('[data-merchant-select]').forEach((input)=>{ input.checked=false; });
+    return;
+  }
+  if (action === 'merchant-bulk-merge') {
+    const canonicalId=String(document.querySelector('#merchantBulkCanonical')?.value||'');
+    const canonical=runtime.merchants.find((row)=>row.id===canonicalId);
+    if(!canonical) throw new Error('Bitte auswählen, welcher Händlername bleiben soll.');
+    const selectedIds=[...document.querySelectorAll('[data-merchant-select]:checked')].map((input)=>String(input.value||'')).filter(Boolean);
+    const duplicateIds=[...new Set(selectedIds.filter((id)=>id!==canonical.id))];
+    if(!duplicateIds.length) throw new Error('Bitte mindestens einen weiteren Händler markieren.');
+    const duplicateNames=duplicateIds.map((id)=>runtime.merchants.find((row)=>row.id===id)?.name).filter(Boolean);
+    if(!confirm(`${duplicateNames.length} Händler mit „${canonical.name}“ zusammenführen? Alle bisherigen Namen bleiben als gelernte Aliase erhalten.`)) return;
+    const merged=await financeApi.mergeMerchantsBulk({
+      householdId:runtime.household.id,
+      canonicalMerchantId:canonical.id,
+      duplicateMerchantIds:duplicateIds,
+    });
+    await refresh(`${Number(merged)||duplicateIds.length} Händler wurden unter ${canonical.name} zusammengeführt und als Aliase gelernt.`);
     return;
   }
   if (action === 'merchant-merge-open') {
