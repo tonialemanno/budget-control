@@ -36,5 +36,6 @@ assert.match(main,/category\.dataset\.userSelected==='true'/);
 assert.match(main,/target\?\.name==='description'/);
 assert.match(view,/rankCategoriesByUsage/);
 assert.match(view,/Häufig verwendete Kategorien stehen oben/);
+assert.doesNotMatch(main,/× verwendet|categoryUsageLabel/,'usage frequency must stay internal and not be rendered in category labels');
 
 console.log('category ranking assertions OK');

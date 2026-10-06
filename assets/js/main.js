@@ -29,7 +29,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { withPrimaryAccountPreference } from './app/user-preferences.js';
-import { rankCategoriesByUsage, categoryUsageLabel } from './app/category-ranking.js';
+import { rankCategoriesByUsage } from './app/category-ranking.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -1808,10 +1808,9 @@ function categoryKindForForm(form) {
 function rebuildRankedCategorySelect(select,{kind,selectedId=''}={}) {
   if(!select) return;
   const ranked=rankCategoriesByUsage(runtime.categories,runtime.transactions,{kind,excludeNames:['Sparen']});
-  select.innerHTML=`<option value="">Ohne Kategorie</option>${ranked.map((category)=>{
-    const usage=categoryUsageLabel(category.id,runtime.transactions,t('verwendet'));
-    return `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}${usage?` · ${escapeHtml(usage)}`:''}</option>`;
-  }).join('')}`;
+  select.innerHTML=`<option value="">Ohne Kategorie</option>${ranked.map((category)=>
+    `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`
+  ).join('')}`;
   if(selectedId && ranked.some((category)=>category.id===selectedId)) select.value=selectedId;
 }
 

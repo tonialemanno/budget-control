@@ -1,4 +1,12 @@
-# Finance 2.4.5
+# Finance 2.4.6
+
+## 2.4.6 – Ranking bleibt unsichtbar
+
+- Kategorien bleiben nach persönlicher Nutzung priorisiert.
+- Die sichtbare Auswahl zeigt wieder nur den Kategorienamen; Angaben wie `58× verwendet` werden nicht mehr angezeigt.
+- Händler-/Beschreibungs-Erkennung und ML-Vorschläge bleiben unverändert aktiv.
+- Release 2026.10.06-r30.
+
 
 ## 2.4.5 – Intelligente Kategorien statt alphabetischer Liste
 
