@@ -222,6 +222,7 @@ async function analyzeFile(file) {
   try {
     analysisResult = await analyzeReceiptImage(file, {
       fallbackCurrency: state.geo.currency,
+      country: state.geo.country || 'CH',
       onProgress: ({ status, progress }) => setProgress(status === 'recognizing text' ? 'Text wird erkannt' : status, progress),
     });
   } catch (error) {
