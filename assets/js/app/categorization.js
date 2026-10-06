@@ -25,7 +25,7 @@ export function buildCategorizationGroups({
   const groups = new Map();
 
   for (const tx of transactions) {
-    if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) continue;
+    if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type) || tx.semantic_type === 'debt_repayment') continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
     const directMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
