@@ -28,7 +28,7 @@ import {
   createReceivableMovement, recordReceivableMovement, recordBillMovement, recordTaxMovement,
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
-import { withPrimaryAccountPreference } from './app/user-preferences.js';
+import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
@@ -2044,6 +2044,7 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
     household:runtime.household,
     fxRates:runtime.fxRates,
     now:new Date(),
+    financeMonthMode:financeMonthMode(runtime.profile),
   });
   const locale=runtime.profile?.locale||'de-CH';
   const currency=runtime.household?.base_currency||'CHF';
@@ -3042,7 +3043,7 @@ async function handleForm(form) {
     if (!categoryId && !merchantId) throw new Error('Bitte Kategorie oder Händler auswählen.');
     const amount=numberValue(data,'amount');
     if(!(amount>0)) throw new Error('Bitte einen Budgetbetrag grösser als 0 eingeben.');
-    const activeCycle=resolveFinanceCycle({transactions:runtime.transactions,recurringRules:runtime.recurringRules,now:new Date(),fallbackDay:25});
+    const activeCycle=resolveFinanceCycle({now:new Date(),fallbackDay:25,mode:financeMonthMode(runtime.profile)});
     await financeApi.upsertBudget({ household_id:h, category_id:categoryId, merchant_id:merchantId, month_start:`${activeCycle.budgetMonth}-01`, amount });
     await refresh('Budget für den aktuellen Finanzmonat gespeichert.'); return;
   }
@@ -4040,7 +4041,7 @@ async function handleAction(target) {
     await financeApi.convertTransactionToTransfer({householdId:runtime.household.id,transactionId:tx.id,toAccountId:to.account_id,toAmount,description:to.account_type==='savings'?'Sparen':'Bargeldtransfer'}); await refresh(`Als Umbuchung nach ${to.name} erkannt.`); return;
   }
   if (action === 'budget-suggestion') {
-    const cycle=resolveFinanceCycle({transactions:runtime.transactions,recurringRules:runtime.recurringRules,now:new Date(),fallbackDay:25});
+    const cycle=resolveFinanceCycle({now:new Date(),fallbackDay:25,mode:financeMonthMode(runtime.profile)});
     const merchantId=target.dataset.merchantId||null;
     const categoryId=merchantId?null:(target.dataset.categoryId||null);
     if(!merchantId&&!categoryId) throw new Error('Budgetvorschlag hat keinen gültigen Händler oder keine Kategorie.');
@@ -4796,6 +4797,17 @@ pageContent.addEventListener('change', async (event) => {
       startLiveTimers();
       render();
       showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
+      return;
+    }
+    if (target.id === 'financeMonthModeSelect') {
+      const mode=target.value==='calendar'?'calendar':'day_25';
+      await saveUserPreferences({finance_month_mode:mode});
+      uiState.transactionPeriod='month';
+      uiState.transactionFrom='';
+      uiState.transactionTo='';
+      uiState.transactionPage=1;
+      render();
+      showToast(mode==='calendar'?'Kalendermonat 1.–Monatsende gespeichert.':'Finanzmonat 25.–24. gespeichert.');
       return;
     }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
