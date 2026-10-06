@@ -30,7 +30,7 @@ import {
 } from './app/transaction-engine.js';
 import { withPrimaryAccountPreference } from './app/user-preferences.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
-import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
+import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
