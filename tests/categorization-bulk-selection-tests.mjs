@@ -89,7 +89,7 @@ assert.match(main,/uniqueBulkTransferCandidate/);
 assert.match(main,/convertTransactionToTransferV2/);
 assert.match(main,/Keine feste Regel angelegt/);
 assert.match(main,/missingCategories/);
-assert.match(main,/Sammelumbuchungen funktionieren nur bei gleicher Währung/);
+assert.match(main,/Mehrere Buchungen können nur bei gleicher Währung gesammelt umgebucht werden/);
 
 console.log('categorization bulk selection assertions OK');
 
