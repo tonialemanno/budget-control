@@ -86,25 +86,48 @@ function receiptTransactionIds(documents){
     .map((doc)=>doc.object_id));
 }
 
+function bankEvidence(tx){
+  return Boolean(
+    tx?.source==='import'
+    || tx?.external_reference
+    || tx?.bank_reference
+    || tx?.import_batch_id
+  );
+}
+
+function safeAccountPair(left,right,receiptIds){
+  if(left?.account_id===right?.account_id) return true;
+  return Boolean(
+    (receiptIds.has(left?.id)&&bankEvidence(right))
+    || (receiptIds.has(right?.id)&&bankEvidence(left))
+  );
+}
+
 function mergeEligible(tx){
   return Boolean(tx&&tx.status==='booked'&&!tx.transfer_group_id&&tx.cashflow_type==='standard');
 }
 
-export function transactionMergeCandidates(base,transactions=[]){
+export function transactionMergeCandidates(base,transactions=[],{documents=[]}={}){
   if(!mergeEligible(base)) return [];
   const amount=Math.abs(Number(base.amount)||0);
   const tolerance=Math.max(0.02,amount*0.002);
   const at=new Date(base.occurred_at).getTime();
+  const receiptIds=receiptTransactionIds(documents);
   return (transactions||[])
     .filter((row)=>{
       if(!mergeEligible(row)||row.id===base.id) return false;
-      if(row.account_id!==base.account_id||row.currency!==base.currency) return false;
+      if(row.currency!==base.currency) return false;
+      if(!safeAccountPair(base,row,receiptIds)) return false;
       if(Math.sign(Number(row.amount)||0)!==Math.sign(Number(base.amount)||0)) return false;
       if(Math.abs(Math.abs(Number(row.amount)||0)-amount)>tolerance) return false;
       const bt=new Date(row.occurred_at).getTime();
       return Number.isFinite(at)&&Number.isFinite(bt)&&Math.abs(bt-at)<=7*86400000;
     })
-    .sort((a,b)=>Math.abs(new Date(a.occurred_at)-new Date(base.occurred_at))-Math.abs(new Date(b.occurred_at)-new Date(base.occurred_at)));
+    .sort((a,b)=>{
+      const accountPenalty=(a.account_id===base.account_id?0:1)-(b.account_id===base.account_id?0:1);
+      if(accountPenalty) return accountPenalty;
+      return Math.abs(new Date(a.occurred_at)-new Date(base.occurred_at))-Math.abs(new Date(b.occurred_at)-new Date(base.occurred_at));
+    });
 }
 
 export function preferredTransactionToKeep(left,right,documents=[]){
@@ -128,7 +151,8 @@ export function likelyTransactionDuplicates(transactions=[],{documents=[],limit=
     const left=rows[i];
     for(let j=i+1;j<rows.length;j++){
       const right=rows[j];
-      if(left.account_id!==right.account_id||left.currency!==right.currency) continue;
+      if(left.currency!==right.currency) continue;
+      if(!safeAccountPair(left,right,receiptIds)) continue;
       if(Math.sign(Number(left.amount)||0)!==Math.sign(Number(right.amount)||0)) continue;
       const amount=Math.abs(Number(left.amount)||0);
       const tolerance=Math.max(0.02,amount*0.002);
@@ -141,6 +165,7 @@ export function likelyTransactionDuplicates(transactions=[],{documents=[],limit=
       score+=days<=1?15:days<=3?8:3;
       if(left.source!==right.source&&[left.source,right.source].includes('import')) score+=18;
       if(receiptIds.has(left.id)!==receiptIds.has(right.id)) score+=12;
+      if(left.account_id!==right.account_id&&safeAccountPair(left,right,receiptIds)) score+=10;
       const similarity=merchantSimilarity(left,right);
       score+=similarity>=0.98?20:similarity>=0.85?14:similarity>=0.55?7:0;
       if(norm(left.description)===norm(right.description)) score+=8;
