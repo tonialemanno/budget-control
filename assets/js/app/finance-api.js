@@ -136,6 +136,17 @@ export const financeApi = Object.freeze({
   async bulkUpdateTransactions(ids, patch) { const unique = [...new Set((ids || []).filter(Boolean))]; for (let index = 0; index < unique.length; index += 80) { const chunk = unique.slice(index, index + 80); await backend.rest(buildQuery('transactions', { id: `in.(${chunk.join(',')})` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=minimal' } }); } },
   deleteTransaction: (id) => remove('transactions', id),
   mergeDuplicateTransactions: ({householdId,keepTransactionId,duplicateTransactionId}) => backend.rpc('merge_duplicate_transactions_v1',{p_household_id:householdId,p_keep_transaction_id:keepTransactionId,p_duplicate_transaction_id:duplicateTransactionId}),
+  listTransactionDuplicateIgnores(householdId) { return listByHousehold('transaction_duplicate_ignores', householdId, { order:'created_at.desc', limit:1000 }); },
+  async ignoreTransactionDuplicate({householdId,transactionAId,transactionBId}) {
+    const ordered=[String(transactionAId||''),String(transactionBId||'')].sort();
+    if(!ordered[0]||!ordered[1]||ordered[0]===ordered[1]) throw new Error('Ungültiges Buchungspaar.');
+    const rows=await backend.rest(buildQuery('transaction_duplicate_ignores',{on_conflict:'household_id,transaction_a_id,transaction_b_id'}),{
+      method:'POST',
+      body:{household_id:householdId,transaction_a_id:ordered[0],transaction_b_id:ordered[1]},
+      headers:{Prefer:'resolution=ignore-duplicates,return=representation'},
+    });
+    return rows?.[0]||null;
+  },
   createTransfer: (payload) => backend.rpc('create_transfer_v2', payload),
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),
   convertTransactionToTransfer: ({ householdId, transactionId, toAccountId, toAmount = null, description = null }) => backend.rpc('convert_transaction_to_transfer', { p_household_id: householdId, p_transaction_id: transactionId, p_to_account_id: toAccountId, p_to_amount: toAmount, p_description: description }),
