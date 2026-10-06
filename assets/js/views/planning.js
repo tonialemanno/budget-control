@@ -2,6 +2,7 @@ import { pageHeader, sectionHeading } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { budgetSummary, goalSummaries } from '../app/finance-insights.js';
+import { financeMonthMode } from '../app/user-preferences.js';
 
 function enabled(key, moduleAccess, hiddenModules) {
   return moduleAccess?.[key] === true && !hiddenModules.includes(key);
@@ -23,7 +24,8 @@ export function renderPlanning({
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
-  const budget=budgetSummary({budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25});
+  const selectedFinanceMonthMode=financeMonthMode(profile);
+  const budget=budgetSummary({budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode});
   const goalRows=goalSummaries(goals).slice(0,4);
   const openBills=bills.filter((b)=>!['paid','cancelled'].includes(b.status));
   const activeRecurring=recurringRules.filter((r)=>r.active!==false);
