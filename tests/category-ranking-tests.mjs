@@ -33,7 +33,7 @@ const view=fs.readFileSync(new URL('../assets/js/views/transactions.js',import.m
 assert.match(main,/function syncSmartCategoryForForm/);
 assert.match(main,/suggestedCategoryIdForTransaction/);
 assert.match(main,/category\.dataset\.userSelected==='true'/);
-assert.match(main,/target\.name==='description'/);
+assert.match(main,/target\?\.name==='description'/);
 assert.match(view,/rankCategoriesByUsage/);
 assert.match(view,/Häufig verwendete Kategorien stehen oben/);
 
