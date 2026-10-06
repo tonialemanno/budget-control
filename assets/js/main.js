@@ -2170,7 +2170,7 @@ function syncTransactionTransferEditor() {
   });
   const locale=runtime.profile?.locale||'de-CH';
   for(const row of matches){
-    const option=new Option(`${Math.abs(Number(row.amount)).toLocaleString(locale,{minimumFractionDigits:2,maximumFractionDigits:2})} ${row.currency} · ${new Intl.DateTimeFormat(locale).format(new Date(row.occurred_at))} · ${row.description||'Gegenposten'}`,row.id);
+    const option=new Option(`${moneyText(Math.abs(Number(row.amount)),{currency:row.currency,locale})} · ${new Intl.DateTimeFormat(locale).format(new Date(row.occurred_at))} · ${row.description||'Gegenposten'}`,row.id);
     option.dataset.amount=String(Math.abs(Number(row.amount)));
     counterpart.add(option);
   }
@@ -2240,7 +2240,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (fields) fields.hidden=!recurringWanted||Boolean(linkedRule);
   const recurringHint=document.querySelector('#transactionRecurringMatchHint');
   if(recurringHint) recurringHint.textContent=linkedRule
-    ? `Bereits erkannt: ${linkedRule.description} · ${Number(linkedRule.amount).toFixed(2)} ${linkedRule.currency} · ${linkedRule.cadence}. Finance verknüpft die Buchung und erstellt keine zweite Regel.`
+    ? `Bereits erkannt: ${linkedRule.description} · ${moneyText(Number(linkedRule.amount),{currency:linkedRule.currency,locale})} · ${linkedRule.cadence}. Finance verknüpft die Buchung und erstellt keine zweite Regel.`
     : 'Keine bestehende Wiederholung erkannt. Nur wenn aktiviert, wird eine neue Regel angelegt.';
   const next=document.querySelector('#transactionRecurringNextDate');
   if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
@@ -4259,8 +4259,8 @@ async function handleAction(target) {
     const select=document.querySelector('#transactionMergeCandidate');
     if(!form||!input||!select) throw new Error('Zusammenführen-Dialog ist nicht verfügbar.');
     input.value=tx.id;
-    if(source) source.innerHTML=`<strong>${escapeHtml(tx.merchants?.name||tx.counterparty||tx.description)}</strong><span>${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency)}</span>`;
-    select.innerHTML='<option value="">Bitte wählen</option>'+candidates.map((row)=>`<option value="${row.id}">${escapeHtml(dateInputValue(new Date(row.occurred_at)))} · ${escapeHtml(row.merchants?.name||row.counterparty||row.description)} · ${escapeHtml(row.accounts?.name||'Konto')} · ${Math.abs(Number(row.amount)).toFixed(2)} ${escapeHtml(row.currency)}${row.source==='import'?' · Bankimport':''}</option>`).join('');
+    if(source) source.innerHTML=`<strong>${escapeHtml(tx.merchants?.name||tx.counterparty||tx.description)}</strong><span>${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${escapeHtml(moneyText(Math.abs(Number(tx.amount)),{currency:tx.currency,locale}))}</span>`;
+    select.innerHTML='<option value="">Bitte wählen</option>'+candidates.map((row)=>`<option value="${row.id}">${escapeHtml(dateInputValue(new Date(row.occurred_at)))} · ${escapeHtml(row.merchants?.name||row.counterparty||row.description)} · ${escapeHtml(row.accounts?.name||'Konto')} · ${escapeHtml(moneyText(Math.abs(Number(row.amount)),{currency:row.currency,locale}))}${row.source==='import'?' · Bankimport':''}</option>`).join('');
     form.removeAttribute('hidden');
     form.scrollIntoView({behavior:'smooth',block:'start'});
     return;
@@ -4398,7 +4398,7 @@ async function handleAction(target) {
     const used=new Set(runtime.bills.filter((row)=>row.paid_transaction_id).map((row)=>row.paid_transaction_id));
     const matches=runtime.transactions.filter((tx)=>tx.status==='booked'&&Number(tx.amount)<0&&!tx.transfer_group_id&&tx.cashflow_type!=='debt_payment'&&tx.currency===bill.currency&&Math.abs(Number(tx.amount)-(-Number(bill.amount)))<0.005&&!used.has(tx.id));
     const select=document.querySelector('#billPaymentTransaction');
-    select.innerHTML='<option value="">Bitte wählen</option>'+matches.map((tx)=>`<option value="${tx.id}">${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${escapeHtml(tx.description)} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency)}</option>`).join('');
+    select.innerHTML='<option value="">Bitte wählen</option>'+matches.map((tx)=>`<option value="${tx.id}">${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${escapeHtml(tx.description)} · ${escapeHtml(moneyText(Math.abs(Number(tx.amount)),{currency:tx.currency,locale}))}</option>`).join('');
     showBillPaymentSource('created_transaction');
     const form=document.querySelector('#bill-payment'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
