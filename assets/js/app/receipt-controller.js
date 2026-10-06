@@ -1,5 +1,5 @@
 import { financeApi } from './finance-api.js';
-import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
+import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js?v=20261006-r31-ocr';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue, financeEventTimestamp } from './format.js';
 import { getLocale, t } from './i18n.js';
@@ -224,6 +224,7 @@ async function analyzeFile(file) {
   try {
     analysisResult = await analyzeReceiptImage(file, {
       fallbackCurrency: state.geo.currency,
+      country: state.geo.country || 'CH',
       onProgress: ({ status, progress }) => setProgress(status === 'recognizing text' ? t('Text wird erkannt') : status, progress),
     });
   } catch (error) {
