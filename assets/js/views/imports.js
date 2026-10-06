@@ -56,7 +56,7 @@ export function renderImports({
     const currentCategoryIds = [...new Set(g.rows.map((row)=>row.category_id).filter(Boolean))];
     const currentCategory = currentCategoryIds.length===1 ? currentCategoryIds[0] : '';
     return `<div class="import-group-row" data-tx-ids="${escapeHtml(ids)}" data-merchant-id="${escapeHtml(g.merchantId)}">
-      <div class="import-group-copy"><strong>${escapeHtml(g.merchant)}</strong><span>${g.rows.length} Buchung${g.rows.length===1?'':'en'} · ${money(Math.abs(g.total),{currency:g.rows[0]?.currency||currency,locale})}</span></div>
+      <div class="import-group-copy"><strong>${escapeHtml(g.merchant)}</strong><span>${money(Math.abs(g.total),{currency:g.rows[0]?.currency||currency,locale})}</span></div>
       <select class="text-control import-category-select" data-import-group-category><option value="">Ohne Kategorie</option>${categories.filter((c)=>c.kind===(g.total<0?'expense':'income')).map((c)=>`<option value="${c.id}" ${c.id===currentCategory?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>
       ${canWrite?`<button class="table-action" type="button" data-action="import-group-assign">Zuordnen & merken</button>`:''}
     </div>`;
