@@ -30,6 +30,7 @@ import {
 } from './app/transaction-engine.js';
 import { withPrimaryAccountPreference } from './app/user-preferences.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
+import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -2446,6 +2447,17 @@ async function handleForm(form) {
     await refresh(correction !== '' ? 'Konto und Stand-jetzt-Anker korrigiert.' : 'Konto aktualisiert.'); return;
   }
 
+  if (id === 'transaction-merge') {
+    const left=runtime.transactions.find((row)=>row.id===formValue(data,'transactionId'));
+    const right=runtime.transactions.find((row)=>row.id===formValue(data,'duplicateTransactionId'));
+    if(!left||!right||left.id===right.id) throw new Error('Bitte zwei unterschiedliche Buchungen auswählen.');
+    const keep=preferredTransactionToKeep(left,right,runtime.documents);
+    const duplicate=keep.id===left.id?right:left;
+    if(!confirm('Diese Doppelbuchung zusammenführen? Finance behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
+    await financeApi.mergeDuplicateTransactions({householdId:h,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
+    await refresh('Doppelbuchung zusammengeführt. Der Beleg bleibt mit der verbleibenden Buchung verknüpft.');
+    return;
+  }
   if (id === 'transaction-create') {
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Bitte ein Konto auswählen.');
@@ -2737,6 +2749,17 @@ async function handleForm(form) {
       default_category_id:nullValue(data,'categoryId')
     });
     await refresh('Händler gespeichert.'); return;
+  }
+  if (id === 'merchant-merge-manual') {
+    const duplicateId=formValue(data,'duplicateMerchantId');
+    const canonicalId=formValue(data,'canonicalMerchantId');
+    const duplicate=runtime.merchants.find((row)=>row.id===duplicateId);
+    const canonical=runtime.merchants.find((row)=>row.id===canonicalId);
+    if(!duplicate||!canonical||duplicate.id===canonical.id) throw new Error('Bitte zwei unterschiedliche Händler auswählen.');
+    if(!confirm(`${duplicate.name} mit ${canonical.name} zusammenführen? Künftige Varianten von ${duplicate.name} werden als ${canonical.name} erkannt.`)) return;
+    await financeApi.mergeMerchants({householdId:h,canonicalMerchantId:canonical.id,duplicateMerchantId:duplicate.id});
+    await refresh(`${duplicate.name} wurde als Alias von ${canonical.name} gespeichert.`);
+    return;
   }
   if (id === 'merchant-edit') {
     const merchantId=formValue(data,'merchantId');
@@ -3629,7 +3652,7 @@ const deleteMap = {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
@@ -3684,10 +3707,27 @@ async function handleAction(target) {
     await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
     return;
   }
+  if (action === 'merchant-merge-open') {
+    const duplicate=runtime.merchants.find((row)=>row.id===target.dataset.id);
+    if(!duplicate) throw new Error('Händler wurde nicht gefunden.');
+    const form=document.querySelector('#merchant-merge-manual');
+    const idInput=document.querySelector('#merchantMergeDuplicateId');
+    const source=document.querySelector('#merchantMergeSource');
+    const select=document.querySelector('#merchantMergeCanonical');
+    if(!form||!idInput||!select) throw new Error('Zusammenführen-Dialog ist nicht verfügbar.');
+    idInput.value=duplicate.id;
+    if(source) source.innerHTML=`<strong>${escapeHtml(duplicate.name)}</strong><span>Dieser Name wird nach der Zusammenführung als Alias gespeichert.</span>`;
+    [...select.options].forEach((option)=>{ option.disabled=option.value===duplicate.id; });
+    select.value='';
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
   if (action === 'merchant-merge') {
     const canonical=runtime.merchants.find((row)=>row.id===target.dataset.canonicalId);
     const duplicate=runtime.merchants.find((row)=>row.id===target.dataset.duplicateId);
     if(!canonical||!duplicate) throw new Error('Händler für die Zusammenführung wurden nicht gefunden.');
+    if(!confirm(`${duplicate.name} wirklich mit ${canonical.name} zusammenführen? Der Name ${duplicate.name} bleibt als gelernter Alias erhalten.`)) return;
     await financeApi.mergeMerchants({
       householdId:runtime.household.id,
       canonicalMerchantId:canonical.id,
@@ -4177,6 +4217,37 @@ async function handleAction(target) {
     render();
     requestAnimationFrame(()=>window.scrollTo({top:scrollY,behavior:'auto'}));
     showToast(`${result.name}: ${result.count} Buchung${result.count===1?'':'en'} zugeordnet und dauerhaft gemerkt.`);
+    return;
+  }
+  if (action === 'transaction-merge-open') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
+    const candidates=transactionMergeCandidates(tx,runtime.transactions);
+    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Gegenbuchung gefunden.');
+    const form=document.querySelector('#transaction-merge');
+    const input=document.querySelector('#transactionMergeId');
+    const source=document.querySelector('#transactionMergeSource');
+    const select=document.querySelector('#transactionMergeCandidate');
+    if(!form||!input||!select) throw new Error('Zusammenführen-Dialog ist nicht verfügbar.');
+    input.value=tx.id;
+    if(source) source.innerHTML=`<strong>${escapeHtml(tx.merchants?.name||tx.counterparty||tx.description)}</strong><span>${escapeHtml(dateInputValue(new Date(tx.occurred_at)))} · ${Math.abs(Number(tx.amount)).toFixed(2)} ${escapeHtml(tx.currency)}</span>`;
+    select.innerHTML='<option value="">Bitte wählen</option>'+candidates.map((row)=>`<option value="${row.id}">${escapeHtml(dateInputValue(new Date(row.occurred_at)))} · ${escapeHtml(row.merchants?.name||row.counterparty||row.description)} · ${Math.abs(Number(row.amount)).toFixed(2)} ${escapeHtml(row.currency)}${row.source==='import'?' · Bankimport':''}</option>`).join('');
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  if (action === 'transaction-merge-suggested') {
+    const left=runtime.transactions.find((row)=>row.id===target.dataset.leftId);
+    const right=runtime.transactions.find((row)=>row.id===target.dataset.rightId);
+    if(!left||!right) throw new Error('Eine der vorgeschlagenen Buchungen wurde nicht gefunden.');
+    const keep=preferredTransactionToKeep(left,right,runtime.documents);
+    const duplicate=keep.id===left.id?right:left;
+    const merchantHint=left.merchant_id&&right.merchant_id&&left.merchant_id!==right.merchant_id&&merchantSimilarity(left,right)>=0.85
+      ? ' Die Händlernamen sehen ebenfalls ähnlich aus und können danach unter Händler vereinheitlicht werden.'
+      : '';
+    if(!confirm(`Diese zwei Buchungen zusammenführen? Finance behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
+    await financeApi.mergeDuplicateTransactions({householdId:runtime.household.id,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
+    await refresh('Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
     return;
   }
   if (action === 'transaction-delete') {
