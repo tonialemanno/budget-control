@@ -1,15 +1,11 @@
 import { knownMerchantSuggestion, normalizeMerchantKey, suggestKnownCategoryName } from './csv-import.js';
 
-const TESSERACT_VERSION='5.1.1';
+const TESSERACT_VERSION='6.0.1';
 const TESSERACT_BASE=`https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VERSION}/dist`;
 const TESSERACT_SCRIPT=`${TESSERACT_BASE}/tesseract.min.js`;
-const TESSERACT_WORKER=`${TESSERACT_BASE}/worker.min.js`;
-const TESSERACT_CORE=`https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESSERACT_VERSION}`;
-const TESSERACT_CORE_IOS_COMPAT=`${TESSERACT_CORE}/tesseract-core-lstm.wasm.js`;
-const TESSERACT_LANG_PATH='https://tessdata.projectnaptha.com/4.0.0';
 const OCR_SCRIPT_TIMEOUT_MS=15000;
 const OCR_WORKER_TIMEOUT_MS=30000;
-const OCR_WORKER_TIMEOUT_IOS_MS=18000;
+const OCR_WORKER_TIMEOUT_IOS_MS=25000;
 const OCR_RECOGNIZE_TIMEOUT_MS=60000;
 let tesseractPromise=null;
 
@@ -317,26 +313,24 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
     }
   };
 
-  // iOS/WebKit can stall while instantiating the automatically selected WASM core.
-  // Use the LSTM-only, non-SIMD core on Apple mobile as a conservative compatibility
-  // path. It is slower, but avoids a class of WebAssembly/SIMD initialization stalls.
+  // Let Tesseract use its own version-matched worker/core/language defaults.
+  // The library explicitly recommends a core directory (or no corePath override)
+  // instead of pinning a single WASM wrapper. This is especially important on iOS,
+  // where WebKit capabilities decide which core build is safe to load.
   // Do not start multiple workers after a timeout: createWorker can remain pending on
   // initialization failures, which would otherwise leak another worker on each retry.
   const languages=isAppleMobile?'deu':'deu+eng';
   const workerOptions={
-    workerPath:TESSERACT_WORKER,
-    corePath:isAppleMobile?TESSERACT_CORE_IOS_COMPAT:TESSERACT_CORE,
-    langPath:TESSERACT_LANG_PATH,
     logger,
     errorHandler:(error)=>{ workerError=error; },
   };
-  onProgress({status:isAppleMobile?'OCR-Engine wird gestartet · iPhone-Modus':'OCR-Engine wird gestartet',progress:0.15});
+  onProgress({status:isAppleMobile?'OCR-Engine wird gestartet · iPhone':'OCR-Engine wird gestartet',progress:0.15});
   try{
     worker=await withTimeout(
       tesseract.createWorker(languages,1,workerOptions),
       isAppleMobile?OCR_WORKER_TIMEOUT_IOS_MS:OCR_WORKER_TIMEOUT_MS,
       isAppleMobile
-        ? 'OCR-Engine konnte auf dem iPhone nicht gestartet werden.'
+        ? 'Die lokale OCR-Engine konnte auf diesem iPhone nicht gestartet werden.'
         : 'OCR-Engine reagiert auf diesem Gerät nicht.'
     );
   }catch(error){
