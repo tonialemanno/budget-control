@@ -2,6 +2,8 @@ import { metricCard, pageHeader, sectionHeading } from '../app/components.js';
 import { money, moneyText, percent } from '../app/format.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
+import { financeCycleLabel } from '../app/finance-cycle.js';
+import { financeMonthMode } from '../app/user-preferences.js';
 
 export function renderIntelligence({
   transactions = [],
@@ -22,12 +24,14 @@ export function renderIntelligence({
   fxRates,
 } = {}) {
   const locale = profile?.locale || 'de-CH';
+  const selectedFinanceMonthMode=financeMonthMode(profile);
   const snapshot = buildFinanceSnapshot({
     accounts, transactions, debtPayments, recurringRules, budgets, bills, debts,
     receivables, assets, properties, vehicles, investments, pensions,
-    household, fxRates,
+    household, fxRates, financeMonthMode:selectedFinanceMonthMode,
   });
   const currency = snapshot.currency;
+  const financePeriodLabel=financeCycleLabel(snapshot.financeCycle,locale);
   const planTone = snapshot.plannedFreeMonthly >= 0 ? 'positive' : 'warning';
 
   return `
@@ -66,9 +70,9 @@ export function renderIntelligence({
       ${metricCard('Runway',`${snapshot.runwayMonths.toFixed(1)} Monate`,'Liquidität / Ø Konsumausgaben der letzten 90 Tage')}
     </div>
 
-    ${sectionHeading('Tatsächlicher Monat','Was wurde bereits wirklich gebucht?')}
+    ${sectionHeading(selectedFinanceMonthMode==='calendar'?'Tatsächlicher Monat':'Tatsächlicher Finanzmonat',`Gebucht im Zeitraum ${financePeriodLabel}`)}
     <div class="metric-grid">
-      ${metricCard('Gebuchte Einnahmen',money(snapshot.actualIncomeMonth,{currency,locale}),'aktueller Monat','positive')}
+      ${metricCard('Gebuchte Einnahmen',money(snapshot.actualIncomeMonth,{currency,locale}),financePeriodLabel,'positive')}
       ${metricCard('Gebuchte Ausgaben',money(snapshot.actualExpensesMonth,{currency,locale}),'Konsum, Zins und Gebühren')}
       ${metricCard('Cashflow Monat',money(snapshot.actualCashflowMonth,{currency,locale}),'gebuchte Einnahmen minus Ausgaben',snapshot.actualCashflowMonth>=0?'positive':'warning')}
       ${metricCard('Sparquote',percent(snapshot.savingsRate,1,locale),'aus tatsächlichen Buchungen')}
