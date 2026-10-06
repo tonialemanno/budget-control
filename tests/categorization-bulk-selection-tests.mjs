@@ -53,7 +53,7 @@ assert.match(html,/Auswahl als interne Umbuchung \/ Sparen/);
 assert.match(html,/Auswahl als Umbuchung verbuchen/);
 assert.match(html,/Von Konto:/);
 assert.match(html,/Lohnkonto/);
-assert.match(html,/Gegenpartei:/);
+assert.doesNotMatch(html,/Gegenpartei:\s*Antonio Giuseppe Alemanno/,'redundant counterparty should not duplicate the bank text');
 assert.match(html,/Banktext:/);
 assert.match(html,/Notiz \/ Zweck:/);
 assert.match(html,/Sparrate erhöht/);
