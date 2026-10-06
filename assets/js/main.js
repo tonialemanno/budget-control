@@ -1183,11 +1183,12 @@ function updateCategorizationSelectedCount(container) {
   return count;
 }
 
-function uniqueBulkTransferCandidate(tx,otherAccountId,selectedIds) {
+function uniqueBulkTransferCandidate(tx,otherAccountId,selectedIds,expectedAmount=null) {
   const selected=new Set(selectedIds||[]);
   const txTime=new Date(tx.occurred_at).getTime();
   const sign=Math.sign(Number(tx.amount));
-  const amount=Math.abs(Number(tx.amount));
+  const requestedAmount=Number(expectedAmount);
+  const amount=Number.isFinite(requestedAmount)&&requestedAmount>0 ? Math.abs(requestedAmount) : Math.abs(Number(tx.amount));
   const candidates=runtime.transactions.filter((row)=>{
     if(row.id===tx.id||selected.has(row.id)) return false;
     if(row.account_id!==otherAccountId||row.transfer_group_id||row.status!=='booked'||row.cashflow_type!=='standard') return false;
@@ -1200,7 +1201,48 @@ function uniqueBulkTransferCandidate(tx,otherAccountId,selectedIds) {
   return candidates[0]||null;
 }
 
-async function convertCategorizationSelectionToTransfers(ids,otherAccountId) {
+function syncCategorizationTransferFx(container) {
+  const box=container?.querySelector('[data-categorization-transfer-fx]');
+  if(!box) return null;
+  const input=box.querySelector('[data-categorization-transfer-amount]');
+  const label=box.querySelector('[data-categorization-transfer-fx-label]');
+  const rateLabel=box.querySelector('[data-categorization-transfer-rate]');
+  const ids=categorizationSelectedIds(container);
+  const otherAccountId=container?.querySelector('[data-categorization-transfer-account]')?.value||'';
+  const tx=ids.length===1 ? runtime.transactions.find((row)=>row.id===ids[0]) : null;
+  const currentAccount=tx ? runtime.accounts.find((row)=>row.account_id===tx.account_id) : null;
+  const otherAccount=runtime.accounts.find((row)=>row.account_id===otherAccountId&&!row.is_archived) || null;
+  const foreign=Boolean(tx&&currentAccount&&otherAccount&&currentAccount.currency!==otherAccount.currency);
+
+  box.hidden=!foreign;
+  if(input){
+    input.disabled=!foreign;
+    input.required=foreign;
+    if(!foreign) input.value='';
+  }
+  if(!foreign){
+    if(rateLabel) rateLabel.textContent='';
+    return null;
+  }
+
+  if(label) label.textContent=`Erhaltener Betrag in ${otherAccount.currency}`;
+  const sourceAmount=Math.abs(Number(tx.amount));
+  const targetAmount=Number(input?.value||0);
+  const locale=runtime.profile?.locale||'de-CH';
+  if(rateLabel){
+    if(targetAmount>0&&sourceAmount>0){
+      const direct=targetAmount/sourceAmount;
+      const inverse=sourceAmount/targetAmount;
+      const format=(value)=>value.toLocaleString(locale,{minimumFractionDigits:4,maximumFractionDigits:6});
+      rateLabel.textContent=`Effektiver Kurs: 1 ${currentAccount.currency} = ${format(direct)} ${otherAccount.currency} · 1 ${otherAccount.currency} = ${format(inverse)} ${currentAccount.currency}`;
+    } else {
+      rateLabel.textContent=`Gib den Betrag ein, der tatsächlich in ${otherAccount.currency} angekommen ist. Finance berechnet daraus den effektiven Wechselkurs.`;
+    }
+  }
+  return {tx,currentAccount,otherAccount,sourceAmount,targetAmount};
+}
+
+async function convertCategorizationSelectionToTransfers(ids,otherAccountId,{otherAmount=null}={}) {
   const selectedIds=[...new Set((ids||[]).filter(Boolean))];
   if(!selectedIds.length) throw new Error('Bitte mindestens eine Buchung markieren.');
   const otherAccount=runtime.accounts.find((row)=>row.account_id===otherAccountId&&!row.is_archived);
@@ -1209,6 +1251,7 @@ async function convertCategorizationSelectionToTransfers(ids,otherAccountId) {
   const selected=selectedIds.map((id)=>runtime.transactions.find((row)=>row.id===id));
   if(selected.some((tx)=>!tx)) throw new Error('Mindestens eine markierte Buchung wurde nicht gefunden.');
 
+  let foreignTransfer=null;
   for(const tx of selected){
     if(tx.transfer_group_id) throw new Error('Mindestens eine markierte Buchung ist bereits eine Umbuchung.');
     if(tx.status!=='booked'||tx.cashflow_type!=='standard') throw new Error('Fachmodul- oder vorgemerkte Buchungen können nicht gesammelt umgebucht werden.');
@@ -1216,18 +1259,34 @@ async function convertCategorizationSelectionToTransfers(ids,otherAccountId) {
     const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
     if(!currentAccount) throw new Error('Konto einer markierten Buchung wurde nicht gefunden.');
     if(currentAccount.account_id===otherAccount.account_id) throw new Error('Das Gegenkonto muss sich vom Konto der markierten Buchungen unterscheiden.');
-    if(currentAccount.currency!==otherAccount.currency) throw new Error('Sammelumbuchungen funktionieren nur bei gleicher Währung. Fremdwährungsbuchungen bitte einzeln prüfen.');
+    if(currentAccount.currency!==otherAccount.currency){
+      if(selectedIds.length!==1) throw new Error('Mehrere Buchungen können nur bei gleicher Währung gesammelt umgebucht werden. Fremdwährungsbuchungen bitte einzeln markieren.');
+      const targetAmount=Number(otherAmount);
+      if(!Number.isFinite(targetAmount)||targetAmount<=0) throw new Error(`Bitte den tatsächlich erhaltenen Betrag in ${otherAccount.currency} eingeben.`);
+      const sourceAmount=Math.abs(Number(tx.amount));
+      foreignTransfer={
+        sourceCurrency:currentAccount.currency,
+        targetCurrency:otherAccount.currency,
+        sourceAmount,
+        targetAmount,
+        effectiveRate:targetAmount/sourceAmount,
+        inverseRate:sourceAmount/targetAmount,
+      };
+    }
   }
 
   let converted=0;
   for(const tx of selected){
-    const counterpart=uniqueBulkTransferCandidate(tx,otherAccount.account_id,selectedIds);
+    const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
+    const foreign=currentAccount?.currency!==otherAccount.currency;
+    const targetAmount=foreign?Number(otherAmount):null;
+    const counterpart=uniqueBulkTransferCandidate(tx,otherAccount.account_id,selectedIds,targetAmount);
     await financeApi.convertTransactionToTransferV2({
       householdId:runtime.household.id,
       transactionId:tx.id,
       otherAccountId:otherAccount.account_id,
       amount:Math.abs(Number(tx.amount)),
-      otherAmount:null,
+      otherAmount:targetAmount,
       otherTransactionId:counterpart?.id||null,
       occurredAt:tx.occurred_at,
       description:tx.description,
@@ -1235,7 +1294,7 @@ async function convertCategorizationSelectionToTransfers(ids,otherAccountId) {
     });
     converted+=1;
   }
-  return {converted,otherAccount};
+  return {converted,otherAccount,foreignTransfer};
 }
 
 async function applyCategorizationGroup(group, categoryId, { onlyUncategorized = false } = {}) {
@@ -3634,6 +3693,7 @@ async function handleAction(target) {
     const checked=action==='categorization-select-all';
     detail?.querySelectorAll('[data-categorization-select]').forEach((input)=>{ if(!input.disabled) input.checked=checked; });
     updateCategorizationSelectedCount(detail);
+    syncCategorizationTransferFx(detail);
     return;
   }
   if (action === 'categorization-apply-selected-category') {
@@ -3655,8 +3715,16 @@ async function handleAction(target) {
     const detail=target.closest('[data-categorization-detail]');
     const ids=categorizationSelectedIds(detail);
     const otherAccountId=detail?.querySelector('[data-categorization-transfer-account]')?.value||'';
-    const result=await convertCategorizationSelectionToTransfers(ids,otherAccountId);
-    await refresh(`${result.converted} markierte Buchung${result.converted===1?'':'en'} als interne Umbuchung mit ${result.otherAccount.name} verknüpft. Diese Beträge zählen nicht mehr als Konsumausgaben.`);
+    const amountInput=detail?.querySelector('[data-categorization-transfer-amount]');
+    const enteredAmount=String(amountInput?.value||'').trim();
+    const otherAmount=enteredAmount ? Number(enteredAmount.replace(/['’\s]/g,'').replace(',','.')) : null;
+    const result=await convertCategorizationSelectionToTransfers(ids,otherAccountId,{otherAmount});
+    const fx=result.foreignTransfer;
+    const locale=runtime.profile?.locale||'de-CH';
+    const fxText=fx
+      ? ` Effektiver Kurs: 1 ${fx.sourceCurrency} = ${fx.effectiveRate.toLocaleString(locale,{minimumFractionDigits:4,maximumFractionDigits:6})} ${fx.targetCurrency}.`
+      : '';
+    await refresh(`${result.converted} markierte Buchung${result.converted===1?'':'en'} als interne Umbuchung mit ${result.otherAccount.name} verknüpft. Diese Beträge zählen nicht mehr als Konsumausgaben.${fxText}`);
     requestAnimationFrame(()=>document.querySelector('[data-categorization-detail]')?.scrollIntoView({behavior:'smooth',block:'center'}));
     return;
   }
@@ -4430,6 +4498,10 @@ pageContent.addEventListener('click', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target=event.target;
+  if(target?.matches?.('[data-categorization-transfer-amount]')) {
+    syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
+    return;
+  }
   if(target?.name==='amount' && target.closest?.('#transaction-create')) syncTransactionBudgetCoach(target.closest('form'));
 });
 
@@ -4445,7 +4517,13 @@ pageContent.addEventListener('change', async (event) => {
   }
   try {
     if (target.matches?.('[data-categorization-select]')) {
-      updateCategorizationSelectedCount(target.closest('[data-categorization-detail]'));
+      const detail=target.closest('[data-categorization-detail]');
+      updateCategorizationSelectedCount(detail);
+      syncCategorizationTransferFx(detail);
+      return;
+    }
+    if (target.matches?.('[data-categorization-transfer-account]')) {
+      syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
       return;
     }
     if (target.id === 'localeSelect') {
