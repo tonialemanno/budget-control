@@ -1,4 +1,14 @@
-# Finance 2.4.4
+# Finance 2.4.5
+
+## 2.4.5 – Intelligente Kategorien statt alphabetischer Liste
+
+- Kategorien werden nach tatsächlicher Nutzung im Haushalt sortiert: häufig verwendete zuerst, danach zuletzt verwendete und erst dann die übrigen.
+- Transaktionsformulare filtern Vorschläge nach Einnahme/Ausgabe und zeigen Nutzungshäufigkeit direkt in der Auswahl.
+- Beim Tippen einer Beschreibung bzw. eines Händlers versucht Finance sofort, die passende Kategorie aus gemerktem Händler, bekannten Händlerregeln und sicherem ML vorzuschlagen.
+- Eine manuell gewählte Kategorie wird durch spätere Vorschläge nicht überschrieben.
+- Beleg-OCR nutzt dieselbe Händler-/Kategorieerkennung.
+- Release 2026.10.06-r29.
+
 
 ## 2.4.4 – EDEKA-Schreibweise EDK*
 

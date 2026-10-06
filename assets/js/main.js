@@ -29,6 +29,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { withPrimaryAccountPreference } from './app/user-preferences.js';
+import { rankCategoriesByUsage, categoryUsageLabel } from './app/category-ranking.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -1798,6 +1799,84 @@ function suggestedCategoryIdForTransaction({
   return mlPrediction?.safe ? mlPrediction.categoryId : null;
 }
 
+
+function categoryKindForForm(form) {
+  const direction=form?.querySelector('[name="direction"]')?.value||'expense';
+  return direction==='income'?'income':'expense';
+}
+
+function rebuildRankedCategorySelect(select,{kind,selectedId=''}={}) {
+  if(!select) return;
+  const ranked=rankCategoriesByUsage(runtime.categories,runtime.transactions,{kind,excludeNames:['Sparen']});
+  select.innerHTML=`<option value="">Ohne Kategorie</option>${ranked.map((category)=>{
+    const usage=categoryUsageLabel(category.id,runtime.transactions,t('verwendet'));
+    return `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}${usage?` · ${escapeHtml(usage)}`:''}</option>`;
+  }).join('')}`;
+  if(selectedId && ranked.some((category)=>category.id===selectedId)) select.value=selectedId;
+}
+
+function syncSmartCategoryForForm(form,{allowSuggestion=true,selectedId=null}={}) {
+  if(!form) return null;
+  const category=form.querySelector('[name="categoryId"]');
+  if(!category) return null;
+  const previous=selectedId??category.value??'';
+  const kind=categoryKindForForm(form);
+  rebuildRankedCategorySelect(category,{kind,selectedId:previous});
+
+  const hint=form.querySelector(kind==='income'?'#transactionCreateCategoryHint, #transactionEditCategoryHint':'#transactionCreateCategoryHint, #transactionEditCategoryHint');
+  if(!allowSuggestion||category.dataset.userSelected==='true') return category.value||null;
+
+  const amountField=form.querySelector('[name="amount"]');
+  const rawAmount=Math.abs(Number(amountField?.value||0));
+  const amount=kind==='income'?rawAmount:-rawAmount;
+  const merchantId=form.querySelector('[name="merchantId"]')?.value||null;
+  const description=form.querySelector('[name="description"]')?.value||'';
+  const counterparty=form.querySelector('[name="counterparty"]')?.value||'';
+  const note=form.querySelector('[name="note"]')?.value||'';
+  const currentAuto=category.dataset.autoCategory||'';
+  const explicit=(category.value && category.value!==currentAuto)?category.value:null;
+  const suggestion=suggestedCategoryIdForTransaction({
+    explicitCategoryId:explicit,
+    merchantId,
+    description,
+    counterparty,
+    note,
+    amount,
+  });
+
+  if(suggestion && (!category.value || category.value===currentAuto)){
+    category.value=suggestion;
+    category.dataset.autoCategory=suggestion;
+    const suggestedCategory=runtime.categories.find((row)=>row.id===suggestion);
+    const merchant=runtime.merchants.find((row)=>row.id===merchantId);
+    const source=merchant?.default_category_id===suggestion
+      ? `${t('Händler erkannt')}: ${merchant.name}`
+      : t('Finance-Vorschlag aus Händler/Beschreibung');
+    if(hint&&suggestedCategory) hint.textContent=`${source} → ${suggestedCategory.name}. ${t('Du kannst die Kategorie jederzeit ändern.')}`;
+  } else if(hint && !category.value) {
+    hint.textContent=t('Häufig verwendete Kategorien stehen oben. Finance versucht Händler und Beschreibung direkt zu erkennen.');
+  }
+  if(form.id==='transaction-create') syncTransactionBudgetCoach(form);
+  return category.value||null;
+}
+
+function syncReceiptSmartCategory() {
+  const merchant=document.querySelector('#receiptMerchant');
+  const category=document.querySelector('#receiptCategory');
+  if(!merchant||!category||category.dataset.userSelected==='true') return;
+  const amount=Math.abs(Number(document.querySelector('#receiptAmount')?.value||0));
+  const suggestion=suggestedCategoryIdForTransaction({
+    description:merchant.value||'',
+    counterparty:merchant.value||'',
+    amount:-amount,
+  });
+  const currentAuto=category.dataset.autoCategory||'';
+  if(suggestion&&(!category.value||category.value===currentAuto)){
+    category.value=suggestion;
+    category.dataset.autoCategory=suggestion;
+  }
+}
+
 function transactionTaxDefaults(txLike={}) {
   const amount=Number(txLike.amount||0);
   const text=`${txLike.tax_category||txLike.taxCategory||''} ${txLike.description||''} ${txLike.counterparty||''} ${txLike.note||''}`.toLowerCase();
@@ -2105,7 +2184,11 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   document.querySelector('#transactionEditAccount').value=tx.account_id;
   document.querySelector('#transactionEditDate').value=dateTimeLocalValue(new Date(tx.occurred_at));
   document.querySelector('#transactionEditDescription').value=tx.description||'';
-  document.querySelector('#transactionEditCategory').value=tx.category_id||'';
+  const editForm=document.querySelector('#transaction-edit');
+  const editCategory=document.querySelector('#transactionEditCategory');
+  if(editCategory){ editCategory.dataset.userSelected=''; editCategory.dataset.autoCategory=''; }
+  syncSmartCategoryForForm(editForm,{allowSuggestion:false,selectedId:tx.category_id||''});
+  if(editCategory) editCategory.value=tx.category_id||'';
   const merchantSelect=document.querySelector('#transactionEditMerchant'); if(merchantSelect) merchantSelect.value=tx.merchant_id||'';
   document.querySelector('#transactionEditCounterparty').value=tx.counterparties?.name||tx.counterparty||'';
   const counterpartyKind=document.querySelector('#transactionEditCounterpartyKind'); if(counterpartyKind) counterpartyKind.value=tx.counterparties?.kind||'';
@@ -4532,7 +4615,18 @@ pageContent.addEventListener('input', (event) => {
     syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
     return;
   }
-  if(target?.name==='amount' && target.closest?.('#transaction-create')) syncTransactionBudgetCoach(target.closest('form'));
+  if(target?.name==='amount' && target.closest?.('#transaction-create')) {
+    syncSmartCategoryForForm(target.closest('form'));
+    return;
+  }
+  if(target?.name==='description' && target.closest?.('#transaction-create, #transaction-edit')) {
+    syncSmartCategoryForForm(target.closest('form'));
+    return;
+  }
+  if(target?.id==='receiptMerchant' || target?.id==='receiptAmount') {
+    syncReceiptSmartCategory();
+    return;
+  }
 });
 
 pageContent.addEventListener('change', async (event) => {
@@ -4617,10 +4711,19 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.name==='direction' && target.closest('#transaction-create')) {
-      syncTransactionBudgetCoach(target.closest('form'));
+      const form=target.closest('form');
+      const category=form?.querySelector('[name="categoryId"]');
+      if(category){ category.dataset.userSelected=''; category.dataset.autoCategory=''; }
+      syncSmartCategoryForForm(form);
       return;
     }
         if (['transactionEditDirection','transactionEditOtherAccount'].includes(target.id)) {
+      if(target.id==='transactionEditDirection'){
+        const form=target.closest('form');
+        const category=form?.querySelector('[name="categoryId"]');
+        if(category){ category.dataset.userSelected=''; category.dataset.autoCategory=''; }
+        syncSmartCategoryForForm(form);
+      }
       syncTransactionTransferEditor();
       return;
     }
@@ -4630,6 +4733,8 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (['transactionEditCategory','transactionCreateCategory'].includes(target.id)) {
+      target.dataset.userSelected=target.value?'true':'';
+      target.dataset.autoCategory='';
       const category=runtime.categories.find((row)=>row.id===target.value);
       if(category && /(fahrzeugkauf|wartung|reparatur|mietfahrzeug|roller|motorrad|auto)/i.test(category.name||'')){
         const details=document.querySelector(target.id==='transactionEditCategory'?'#transactionEditOptionalDetails':'#transactionCreateOptionalDetails');
@@ -4653,11 +4758,18 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.name === 'merchantId' && target.closest('#transaction-create, #transaction-edit')) {
-      const merchant=runtime.merchants.find((row)=>row.id===target.value);
       const form=target.closest('form');
       const category=form?.querySelector('[name="categoryId"]');
-      if(category && merchant?.default_category_id) category.value=merchant.default_category_id;
-      if(form?.id==='transaction-create') syncTransactionBudgetCoach(form);
+      if(category && category.dataset.userSelected!=='true'){
+        category.value='';
+        category.dataset.autoCategory='';
+      }
+      syncSmartCategoryForForm(form);
+      return;
+    }
+    if(target.id==='receiptCategory') {
+      target.dataset.userSelected=target.value?'true':'';
+      target.dataset.autoCategory='';
       return;
     }
     if (target.id === 'debtPaymentTransaction') {
