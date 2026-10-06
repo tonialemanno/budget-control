@@ -6,9 +6,10 @@ import { buildCategorizationGroups, categorizationSourceLabel } from '../app/cat
 import { buildDebtPaymentTransactionMap, cashOutflowBase } from '../app/financial-effects.js';
 import { semanticDebtPrincipalBase, semanticExpenseBase, semanticIncomeBase, semanticType } from '../app/finance-semantics.js';
 import { primaryOperatingAccount } from '../app/finance-insights.js';
-import { primaryAccountPreferenceId } from '../app/user-preferences.js';
+import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { rankCategoriesByUsage } from '../app/category-ranking.js';
 import { likelyTransactionDuplicates } from '../app/duplicate-intelligence.js?v=20261006-r35';
+import { financeCycleLabel, previousFinanceCycle, resolveFinanceCycle } from '../app/finance-cycle.js';
 
 const TAX_YEAR_OPTIONS=[2025,2026,2027];
 const TAX_SECTION_OPTIONS=[
@@ -47,23 +48,42 @@ function taxTreatmentOptions(selected){
   return TAX_TREATMENT_OPTIONS.map(([key,label])=>`<option value="${key}" ${selected===key?'selected':''}>${label}</option>`).join('');
 }
 
-function periodStart(period) {
-  const now=new Date();
-  if(period==='year') return new Date(now.getFullYear(),0,1);
-  if(period==='quarter') return new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1);
-  if(period==='month') return new Date(now.getFullYear(),now.getMonth(),1);
-  return null;
+function periodBounds(period,{mode='day_25',now=new Date()}={}) {
+  if(period==='month'){
+    const cycle=resolveFinanceCycle({now,fallbackDay:25,mode});
+    return {start:cycle.start,endExclusive:cycle.endExclusive};
+  }
+  if(period==='previous_month'){
+    const cycle=resolveFinanceCycle({now,fallbackDay:25,mode});
+    const previous=previousFinanceCycle(cycle,{fallbackDay:25});
+    return {start:previous.start,endExclusive:previous.endExclusive};
+  }
+  if(period==='year') return {start:new Date(now.getFullYear(),0,1),endExclusive:null};
+  if(period==='quarter') return {start:new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1),endExclusive:null};
+  return {start:null,endExclusive:null};
 }
-function periodLabel(period){
+function periodLabel(period,{currentCycle,previousCycle,locale='de-CH',mode='day_25'}={}){
   if(period==='year') return 'Dieses Jahr';
   if(period==='quarter') return 'Dieses Quartal';
-  if(period==='month') return 'Dieser Monat';
+  if(period==='month') return `${mode==='calendar'?'Aktueller Monat':'Aktueller Finanzmonat'} · ${financeCycleLabel(currentCycle,locale)}`;
+  if(period==='previous_month') return `${mode==='calendar'?'Letzter Monat':'Letzter Finanzmonat'} · ${financeCycleLabel(previousCycle,locale)}`;
   if(period==='custom') return 'Benutzerdefiniert';
   return 'Gesamter Zeitraum';
 }
 function monthKey(value){ const d=new Date(value); return Number.isNaN(d.getTime())?'':`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function monthLabel(key,locale){ const [y,m]=key.split('-').map(Number); return new Intl.DateTimeFormat(locale,{month:'short',year:'numeric'}).format(new Date(y,m-1,1)); }
-function normalizedSearch(tx){ return `${tx.description||''} ${tx.counterparty||''} ${tx.counterparties?.name||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''} ${tx.transaction_contexts?.name||''} ${tx.vehicles?.name||''}`.toLowerCase(); }
+function normalizedSearch(tx){
+  const amount=Number(tx?.amount||0);
+  const abs=Math.abs(amount);
+  const amountTokens=[
+    amount.toString(),abs.toString(),
+    amount.toFixed(2),abs.toFixed(2),
+    amount.toFixed(2).replace('.',','),abs.toFixed(2).replace('.',','),
+    tx?.currency||'',
+    `${tx?.currency||''} ${abs.toFixed(2)}`,
+  ];
+  return `${tx.description||''} ${tx.counterparty||''} ${tx.counterparties?.name||''} ${tx.note||''} ${tx.merchants?.name||''} ${tx.categories?.name||''} ${tx.accounts?.name||''} ${tx.transaction_contexts?.name||''} ${tx.vehicles?.name||''} ${amountTokens.join(' ')}`.toLowerCase();
+}
 function duplicatePairKey(leftId,rightId){
   return [String(leftId||''),String(rightId||'')].sort().join(':');
 }
@@ -98,13 +118,14 @@ function duplicateComparePanel(tx,{locale,receiptIds}){
     <div class="duplicate-compare-edit"><button class="table-action" type="button" data-action="transaction-edit" data-id="${tx.id}">Buchung bearbeiten</button></div>
   </div>`;
 }
-function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,context='all',vehicle='all',direction='all',semantic='all',categories=[],recurringRules=[]}){
-  const start=period==='custom'||period==='all'?null:periodStart(period);
+function filterTransactions(transactions,{period,from,to,query,category,categoryIds=[],sourceSet=[],account,context='all',vehicle='all',direction='all',semantic='all',categories=[],recurringRules=[],financeMode='day_25'}){
+  const {start,endExclusive}=period==='custom'||period==='all'?{start:null,endExclusive:null}:periodBounds(period,{mode:financeMode});
   const needle=String(query||'').trim().toLowerCase();
   return transactions.filter((tx)=>{
     if(tx.status!=='booked') return false;
     const d=new Date(tx.occurred_at);
     if(start&&d<start) return false;
+    if(endExclusive&&d>=endExclusive) return false;
     const iso=dateInputValue(new Date(tx.occurred_at));
     if(from&&iso<from) return false;
     if(to&&iso>to) return false;
@@ -306,7 +327,10 @@ function renderCategorizationReview({
 
 export function renderTransactions({ accounts = [], categories = [], transactions = [], debtPayments = [], bills = [], household, profile, canWrite = false, fxRates, transactionView='summary', transactionPeriod='month', transactionQuery='', transactionCategory='all', transactionCategoryIds=[], transactionSourceSet=[], transactionAccount='all', transactionContext='all', transactionVehicle='all', transactionDirection='all', transactionSemantic='all', transactionFrom='', transactionTo='', transactionPage=1, moduleAccess = {}, hiddenModules = [], merchants = [], merchantAliases = [], counterparties = [], transactionContexts = [], vehicles = [], categorizationRules = [], recurringRules = [], documents = [], transactionDuplicateIgnores = [], categorizationOpen = false, categorizationFilter = 'action', categorizationPage = 1, categorizationGroupKey = '' } = {}) {
   const baseCurrency = household?.base_currency || 'CHF'; const canTax = moduleAccess?.tax === true && !hiddenModules.includes('tax'); const locale = profile?.locale || 'de-CH';
-  const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,categoryIds:transactionCategoryIds,sourceSet:transactionSourceSet,account:transactionAccount,context:transactionContext,vehicle:transactionVehicle,direction:transactionDirection,semantic:transactionSemantic,categories,recurringRules});
+  const selectedFinanceMonthMode=financeMonthMode(profile);
+  const currentFinanceCycle=resolveFinanceCycle({now:new Date(),fallbackDay:25,mode:selectedFinanceMonthMode});
+  const previousCycle=previousFinanceCycle(currentFinanceCycle,{fallbackDay:25});
+  const rows=filterTransactions(transactions,{period:transactionPeriod,from:transactionFrom,to:transactionTo,query:transactionQuery,category:transactionCategory,categoryIds:transactionCategoryIds,sourceSet:transactionSourceSet,account:transactionAccount,context:transactionContext,vehicle:transactionVehicle,direction:transactionDirection,semantic:transactionSemantic,categories,recurringRules,financeMode:selectedFinanceMonthMode});
   const now=new Date();
   const actualRows=rows.filter((tx)=>{ const date=new Date(tx.occurred_at); return !Number.isNaN(date.getTime())&&date<=now; });
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
@@ -355,7 +379,7 @@ export function renderTransactions({ accounts = [], categories = [], transaction
   const accountFilterOptions=accounts.map((a)=>`<option value="${a.account_id}" ${transactionAccount===a.account_id?'selected':''}>${escapeHtml(a.name)}</option>`).join('');
   const contextFilterOptions=transactionContexts.filter((row)=>!row.is_archived).map((row)=>`<option value="${row.id}" ${transactionContext===row.id?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
   const vehicleFilterOptions=vehicles.map((row)=>`<option value="${row.id}" ${transactionVehicle===row.id?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
-  const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||transactionCategoryIds.length||transactionSourceSet.length||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||(transactionContext&&transactionContext!=='all')||(transactionVehicle&&transactionVehicle!=='all')||(transactionDirection&&transactionDirection!=='all')||(transactionSemantic&&transactionSemantic!=='all')||transactionPeriod==='all'||transactionPeriod==='custom');
+  const hasFilters=Boolean(transactionQuery||transactionFrom||transactionTo||transactionCategoryIds.length||transactionSourceSet.length||(transactionCategory&&transactionCategory!=='all')||(transactionAccount&&transactionAccount!=='all')||(transactionContext&&transactionContext!=='all')||(transactionVehicle&&transactionVehicle!=='all')||(transactionDirection&&transactionDirection!=='all')||(transactionSemantic&&transactionSemantic!=='all')||transactionPeriod!=='month');
   const categorizationReview = categorizationOpen ? renderCategorizationReview({ transactions, categories, merchants, merchantAliases, categorizationRules, accounts, household, profile, fxRates, canWrite, categorizationFilter, categorizationPage, categorizationGroupKey }) : '';
 
   const entityDatalists=`<datalist id="counterpartyDatalist">${counterparties.map((row)=>`<option value="${escapeHtml(row.name)}"></option>`).join('')}</datalist>`;
@@ -432,7 +456,7 @@ export function renderTransactions({ accounts = [], categories = [], transaction
     ${categorizationReview}
     ${duplicateHtml}
 
-    <article class="card card-padding transaction-filter-card"><div class="transaction-filter-grid"><label class="field"><span>Suchen</span><input class="text-control" id="transactionSearch" type="search" value="${escapeHtml(transactionQuery)}" placeholder="z. B. Migros, MediaMarkt, TWINT"></label><label class="field"><span>Zeitraum</span><select class="text-control" id="transactionPeriodSelect"><option value="month" ${transactionPeriod==='month'?'selected':''}>Aktueller Monat</option><option value="quarter" ${transactionPeriod==='quarter'?'selected':''}>Aktuelles Quartal</option><option value="year" ${transactionPeriod==='year'?'selected':''}>Aktuelles Jahr</option><option value="all" ${transactionPeriod==='all'?'selected':''}>Alle Buchungen</option><option value="custom" ${transactionPeriod==='custom'?'selected':''}>Von / Bis</option></select></label><label class="field"><span>Kategorie</span><select class="text-control" id="transactionCategoryFilter"><option value="all">Alle Kategorien</option><option value="uncategorized" ${transactionCategory==='uncategorized'?'selected':''}>Ohne Kategorie</option>${categoryFilterOptions}</select></label><label class="field"><span>Konto</span><select class="text-control" id="transactionAccountFilter"><option value="all">Alle Konten</option>${accountFilterOptions}</select></label><label class="field"><span>Kontext / Projekt</span><select class="text-control" id="transactionContextFilter"><option value="all">Alle Kontexte</option>${contextFilterOptions}</select></label><label class="field"><span>Fahrzeug</span><select class="text-control" id="transactionVehicleFilter"><option value="all">Alle Fahrzeuge</option>${vehicleFilterOptions}</select></label><label class="field"><span>Richtung</span><select class="text-control" id="transactionDirectionFilter"><option value="all" ${transactionDirection==='all'?'selected':''}>Alle</option><option value="income" ${transactionDirection==='income'?'selected':''}>Nur Eingänge</option><option value="expense" ${transactionDirection==='expense'?'selected':''}>Nur Ausgänge</option></select></label><label class="field"><span>Bedeutung</span><select class="text-control" id="transactionSemanticFilter"><option value="all" ${transactionSemantic==='all'?'selected':''}>Alles</option><option value="earned" ${transactionSemantic==='earned'?'selected':''}>Verdienst</option><option value="refund" ${transactionSemantic==='refund'?'selected':''}>Rückerstattungen</option><option value="repayment" ${transactionSemantic==='repayment'?'selected':''}>Rückzahlungen an mich</option><option value="debt_repayment" ${transactionSemantic==='debt_repayment'?'selected':''}>Darlehen / Schuldentilgung</option><option value="unclassified" ${transactionSemantic==='unclassified'?'selected':''}>Ungeklärte Eingänge</option><option value="fixed" ${transactionSemantic==='fixed'?'selected':''}>Fixkosten</option><option value="variable" ${transactionSemantic==='variable'?'selected':''}>Variable Ausgaben</option><option value="saving" ${transactionSemantic==='saving'?'selected':''}>Sparen / Umbuchungen</option><option value="tax" ${transactionSemantic==='tax'?'selected':''}>Steuern</option></select></label><label class="field"><span>Von</span><input class="text-control" id="transactionFrom" type="date" value="${escapeHtml(transactionFrom)}"></label><label class="field"><span>Bis</span><input class="text-control" id="transactionTo" type="date" value="${escapeHtml(transactionTo)}"></label><label class="field"><span>Ansicht</span><select class="text-control" id="transactionViewSelect"><option value="summary" ${transactionView==='summary'?'selected':''}>Kacheln</option><option value="details" ${transactionView==='details'?'selected':''}>Einzelbuchungen</option></select></label><div class="transaction-filter-actions"><button class="table-action" type="button" data-action="transaction-filter-reset" ${hasFilters?'':'disabled'}>Filter zurücksetzen</button></div></div><div class="toolbar-note">${transactions.length} Buchungen geladen${earliest&&latest?` · Daten von ${dateLabel(earliest.occurred_at,locale)} bis ${dateLabel(latest.occurred_at,locale)}`:''} · ${escapeHtml(fxLabel(fxRates,baseCurrency))}</div></article>
-    <div class="metric-grid" style="margin-bottom:16px">${metricCard('Einnahmen',money(income,{currency:baseCurrency,locale}),`${periodLabel(transactionPeriod)} · aktueller Filter`,'positive')}${metricCard('Ausgaben',money(expenses,{currency:baseCurrency,locale}),'Konsum, Zins & Gebühren')}${monthlyRows.length?metricCard('Ø Ausgaben / Monat',money(monthlyAverage,{currency:baseCurrency,locale}),monthlyAverageNote):''}${debtPrincipal>0?metricCard('Schuldentilgung',money(debtPrincipal,{currency:baseCurrency,locale}),'reduziert Verbindlichkeiten'):''}${metricCard('Cashflow',money(income+receivableInflow-cashOutflow,{currency:baseCurrency,locale}),'alle externen Geldbewegungen',income+receivableInflow-cashOutflow>=0?'positive':'warning')}${metricCard('Sparen',money(savings,{currency:baseCurrency,locale}),'Umbuchungen auf Sparkonten','positive')}</div>
+    <article class="card card-padding transaction-filter-card"><div class="transaction-filter-grid"><label class="field"><span>Suchen</span><input class="text-control" id="transactionSearch" type="search" value="${escapeHtml(transactionQuery)}" placeholder="z. B. Migros, TWINT, 8.60 oder CHF 8.60"></label><label class="field"><span>Zeitraum</span><select class="text-control" id="transactionPeriodSelect"><option value="month" ${transactionPeriod==='month'?'selected':''}>${selectedFinanceMonthMode==='calendar'?'Aktueller Monat':'Aktueller Finanzmonat'} · ${escapeHtml(financeCycleLabel(currentFinanceCycle,locale))}</option><option value="previous_month" ${transactionPeriod==='previous_month'?'selected':''}>${selectedFinanceMonthMode==='calendar'?'Letzter Monat':'Letzter Finanzmonat'} · ${escapeHtml(financeCycleLabel(previousCycle,locale))}</option><option value="quarter" ${transactionPeriod==='quarter'?'selected':''}>Aktuelles Quartal</option><option value="year" ${transactionPeriod==='year'?'selected':''}>Aktuelles Jahr</option><option value="all" ${transactionPeriod==='all'?'selected':''}>Alle Buchungen</option><option value="custom" ${transactionPeriod==='custom'?'selected':''}>Von / Bis</option></select></label><label class="field"><span>Kategorie</span><select class="text-control" id="transactionCategoryFilter"><option value="all">Alle Kategorien</option><option value="uncategorized" ${transactionCategory==='uncategorized'?'selected':''}>Ohne Kategorie</option>${categoryFilterOptions}</select></label><label class="field"><span>Konto</span><select class="text-control" id="transactionAccountFilter"><option value="all">Alle Konten</option>${accountFilterOptions}</select></label><label class="field"><span>Kontext / Projekt</span><select class="text-control" id="transactionContextFilter"><option value="all">Alle Kontexte</option>${contextFilterOptions}</select></label><label class="field"><span>Fahrzeug</span><select class="text-control" id="transactionVehicleFilter"><option value="all">Alle Fahrzeuge</option>${vehicleFilterOptions}</select></label><label class="field"><span>Richtung</span><select class="text-control" id="transactionDirectionFilter"><option value="all" ${transactionDirection==='all'?'selected':''}>Alle</option><option value="income" ${transactionDirection==='income'?'selected':''}>Nur Eingänge</option><option value="expense" ${transactionDirection==='expense'?'selected':''}>Nur Ausgänge</option></select></label><label class="field"><span>Bedeutung</span><select class="text-control" id="transactionSemanticFilter"><option value="all" ${transactionSemantic==='all'?'selected':''}>Alles</option><option value="earned" ${transactionSemantic==='earned'?'selected':''}>Verdienst</option><option value="refund" ${transactionSemantic==='refund'?'selected':''}>Rückerstattungen</option><option value="repayment" ${transactionSemantic==='repayment'?'selected':''}>Rückzahlungen an mich</option><option value="debt_repayment" ${transactionSemantic==='debt_repayment'?'selected':''}>Darlehen / Schuldentilgung</option><option value="unclassified" ${transactionSemantic==='unclassified'?'selected':''}>Ungeklärte Eingänge</option><option value="fixed" ${transactionSemantic==='fixed'?'selected':''}>Fixkosten</option><option value="variable" ${transactionSemantic==='variable'?'selected':''}>Variable Ausgaben</option><option value="saving" ${transactionSemantic==='saving'?'selected':''}>Sparen / Umbuchungen</option><option value="tax" ${transactionSemantic==='tax'?'selected':''}>Steuern</option></select></label><label class="field"><span>Von</span><input class="text-control" id="transactionFrom" type="date" value="${escapeHtml(transactionFrom)}"></label><label class="field"><span>Bis</span><input class="text-control" id="transactionTo" type="date" value="${escapeHtml(transactionTo)}"></label><label class="field"><span>Ansicht</span><select class="text-control" id="transactionViewSelect"><option value="summary" ${transactionView==='summary'?'selected':''}>Kacheln</option><option value="details" ${transactionView==='details'?'selected':''}>Einzelbuchungen</option></select></label><div class="transaction-filter-actions"><button class="table-action" type="button" data-action="transaction-filter-reset" ${hasFilters?'':'disabled'}>Filter zurücksetzen</button></div></div><div class="toolbar-note">${transactions.length} Buchungen geladen${earliest&&latest?` · Daten von ${dateLabel(earliest.occurred_at,locale)} bis ${dateLabel(latest.occurred_at,locale)}`:''} · ${escapeHtml(fxLabel(fxRates,baseCurrency))}</div></article>
+    <div class="metric-grid" style="margin-bottom:16px">${metricCard('Einnahmen',money(income,{currency:baseCurrency,locale}),`${periodLabel(transactionPeriod,{currentCycle:currentFinanceCycle,previousCycle,locale,mode:selectedFinanceMonthMode})} · aktueller Filter`,'positive')}${metricCard('Ausgaben',money(expenses,{currency:baseCurrency,locale}),'Konsum, Zins & Gebühren')}${monthlyRows.length?metricCard('Ø Ausgaben / Monat',money(monthlyAverage,{currency:baseCurrency,locale}),monthlyAverageNote):''}${debtPrincipal>0?metricCard('Schuldentilgung',money(debtPrincipal,{currency:baseCurrency,locale}),'reduziert Verbindlichkeiten'):''}${metricCard('Cashflow',money(income+receivableInflow-cashOutflow,{currency:baseCurrency,locale}),'alle externen Geldbewegungen',income+receivableInflow-cashOutflow>=0?'positive':'warning')}${metricCard('Sparen',money(savings,{currency:baseCurrency,locale}),'Umbuchungen auf Sparkonten','positive')}</div>
     ${transactionView==='summary'?`<div class="transaction-summary-grid">${summary||emptyState('list','Noch keine Ausgaben','Für den gewählten Filter liegen keine Ausgaben vor.')}</div>${monthlyHistory}`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Buchungen</h3><p class="card-subtitle">${escapeHtml(rangeText)} · keine Endlosliste</p></div><div class="admin-pager"><button class="table-action" type="button" data-action="transaction-page" data-page="${page-1}" ${page<=1?'disabled':''}>Zurück</button><span>Seite ${page} / ${totalPages}</span><button class="table-action" type="button" data-action="transaction-page" data-page="${page+1}" ${page>=totalPages?'disabled':''}>Weiter</button></div></div>${pageRows.length?`<div class="list">${pageRows.map((tx)=>txRow(tx,{locale,canWrite,accounts,canTax,paymentMap,billMap})).join('')}</div>`:emptyState('list','Keine Treffer','Passe Suche oder Filter an.')}</article>`}`;
 }
