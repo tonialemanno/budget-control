@@ -3,6 +3,7 @@ import { escapeHtml, money, monthLabel, progress } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { buildBudgetPatterns, calculateBudgetSummary } from '../app/budget-engine.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
+import { financeMonthMode } from '../app/user-preferences.js';
 
 function sourceLabel(pattern){
   if(pattern.source==='known_recurring') return 'Bekannte Verpflichtung';
@@ -40,9 +41,10 @@ export function renderBudget({
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
   const now=new Date();
+  const selectedFinanceMonthMode=financeMonthMode(profile);
   const summary=calculateBudgetSummary({
     budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
-    baseCurrency:currency,fxRates,now,fallbackDay:25,
+    baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
   });
   const financePeriodLabel=financeCycleLabel(summary.cycle,locale);
   const currentMonth=summary.cycle.budgetMonth;
