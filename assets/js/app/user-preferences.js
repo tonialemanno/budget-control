@@ -26,3 +26,20 @@ export function withPrimaryAccountPreference(preferences, householdId, accountId
     },
   };
 }
+
+export function financeMonthMode(profile) {
+  const preferences = normalizedProfilePreferences(profile);
+  return preferences.finance_month_mode === 'calendar' ? 'calendar' : 'day_25';
+}
+
+export function financeMonthModeLabel(mode) {
+  return mode === 'calendar' ? 'Kalendermonat · 1.–letzter Tag' : 'Finanzmonat · 25.–24.';
+}
+
+export function withFinanceMonthPreference(preferences, mode) {
+  const base = preferences && typeof preferences === 'object' && !Array.isArray(preferences) ? preferences : {};
+  return {
+    ...base,
+    finance_month_mode: mode === 'calendar' ? 'calendar' : 'day_25',
+  };
+}
