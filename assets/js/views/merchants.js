@@ -1,6 +1,7 @@
 import { dataTable, formShell, pageHeader } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
+import { merchantFamilyKey } from '../app/duplicate-intelligence.js';
 
 function usageLabel(merchant, transactions, recurringRules, budgets) {
   const txCount=transactions.filter((tx)=>tx.merchant_id===merchant.id).length;
@@ -20,23 +21,7 @@ function norm(value){
 }
 
 function duplicateFamily(merchant){
-  const raw=String(merchant?.name||merchant?.normalized_key||'').trim();
-  const value=norm(raw);
-  if(!value) return null;
-  if(/^(?:bezug\s+)?sumup\s*\*/i.test(raw)){
-    const underlying=raw.replace(/^(?:bezug\s+)?sumup\s*\*\s*/i,'').split(';')[0].trim();
-    const key=norm(underlying);
-    return key.length>=5?'processor:sumup:'+key:null;
-  }
-  if(/\bedeka\b/.test(value)) return 'brand:edeka';
-  if(/\belvetino\b/.test(value)) return 'brand:elvetino';
-  if(/\bserafe\b/.test(value)) return 'brand:serafe';
-  const stripped=value
-    .replace(/\b(?:ag|gmbh|srl|srls|sa|ltd|inc)\b/g,' ')
-    .replace(/\b\d{4,}\b/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-  return stripped.length>=6?'exact:'+stripped:null;
+  return merchantFamilyKey(merchant);
 }
 
 function duplicateSuggestions(merchants,transactions,recurringRules,budgets){
@@ -90,6 +75,8 @@ export function renderMerchants({
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Uzon Immobilien AG"></label>
     <label class="field"><span>Standardkategorie</span><select class="text-control" name="categoryId"><option value="">Keine Standardkategorie</option>${categoryOptions}</select><small>Wird bei künftigen Imports für diesen Händler vorgeschlagen.</small></label>`;
 
+  const mergeFields=`<input type="hidden" name="duplicateMerchantId" id="merchantMergeDuplicateId"><div class="inline-alert form-grid-span" id="merchantMergeSource"></div><label class="field form-grid-span"><span>Als Händler behalten</span><select class="text-control" name="canonicalMerchantId" id="merchantMergeCanonical" required><option value="">Bitte wählen</option>${merchants.map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select><small>Der andere Name wird als Alias gespeichert und bei künftigen Imports, OCR-Belegen und Buchungen wieder erkannt.</small></label>`;
+
   const editFields=`
     <input type="hidden" name="merchantId" id="merchantEditId">
     <label class="field"><span>Name</span><input class="text-control" name="name" id="merchantEditName" required></label>
@@ -128,7 +115,7 @@ export function renderMerchants({
       <td><strong>${escapeHtml(merchant.name)}</strong>${standardMeta}${aliasMeta}</td>
       <td>${escapeHtml(category?.name||'—')}</td>
       <td>${escapeHtml(usageParts)}</td>
-      <td>${canWrite?`<div class="table-actions"><button class="table-action" type="button" data-action="merchant-edit" data-id="${merchant.id}">Bearbeiten</button>${promoteAction}</div>`:''}</td>
+      <td>${canWrite?`<div class="table-actions"><button class="table-action" type="button" data-action="merchant-edit" data-id="${merchant.id}">Bearbeiten</button><button class="table-action" type="button" data-action="merchant-merge-open" data-id="${merchant.id}">Zusammenführen</button>${promoteAction}</div>`:''}</td>
     </tr>`;
   });
 
@@ -154,6 +141,7 @@ export function renderMerchants({
     })}
     ${canWrite?formShell('merchant-create','Neuer Händler','Händler einmal zentral anlegen und künftig wiederverwenden',createFields,{hidden:true,submitLabel:'Händler speichern'}):''}
     ${canWrite?formShell('merchant-edit','Händler bearbeiten','Name und Standardkategorie zentral pflegen',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('merchant-merge-manual','Händler zusammenführen','Wähle, unter welchem Namen Finance beide Varianten künftig führen soll.',mergeFields,{hidden:true,submitLabel:'Zusammenführen'}):''}
 
     ${duplicateHtml}
 
