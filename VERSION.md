@@ -1,5 +1,20 @@
 # Finance 2.4.6
 
+## R48 – Zentraler Router mit echten URLs
+
+- Hash-Routen wie `#/transactions` wurden durch echte Browser-Pfade ersetzt.
+- Zentrale Route-Registry in `assets/js/app/router.js` definiert Pfad, Navigation, Modul, Bereich und Seitentitel pro Seite.
+- Direkte Deep-Links funktionieren, z. B. `/finance/transactions`, `/planning/invoices`, `/selfservice/profile` und `/admin`.
+- Browser Zurück/Vorwärts verwendet die History API ohne vollständigen Reload.
+- Alte `#/...`-Links werden automatisch auf die neuen Pfade migriert.
+- Cloudflare SPA-Fallback über `_redirects` ermöglicht Reloads auf tiefen URLs.
+- Alle App-Shell Assets werden absolut vom Root geladen, damit Deep-Links keine CSS/JS-Dateien verlieren.
+- Definition of Done für neue Seiten: Route + Rechte + Übersetzung + Desktop/Mobile + Regressionstest.
+- Keine Datenbankänderung gegenüber R47.
+- Release 2026.10.07-r48.
+
+# Finance 2.4.6
+
 ## R47 – Sprache ist eine persönliche Benutzereinstellung
 
 - Jeder eingeloggte Benutzer kann seine Sprache unabhängig von Haushaltsrolle oder Adminrechten ändern.
