@@ -259,6 +259,6 @@ export function renderSalesDocuments({
     ${settingsPanel({settings:salesDocumentSettings,templates:salesDocumentTemplates,household,profile,canWrite})}
     ${form}
     <div class="metric-grid" style="margin:16px 0">${metricCard('Offene Rechnungen',String(openInvoices.length),`${invoiceCount} Rechnungen total`)}${metricCard('Offerten',String(quoteCount),'Entwürfe, versendet oder angenommen')}${metricCard('Quittungen',String(receiptCount),'ausgestellte Zahlungsbestätigungen')}</div>
-    <div class="inline-alert"><strong>Zahlungen werden mit echten Kontobuchungen verbunden.</strong><span>Spendy schlägt passende Zahlungseingänge nach Betrag, Währung und Datum vor. Eine vollständig zugeordnete Rechnung wird bezahlt; auf Wunsch entsteht automatisch eine Quittung.</span></div>
+    <div class="inline-alert"><strong>Zahlungen werden mit echten Kontobuchungen verbunden.</strong><span>ALEMANNO BUCHHALTUNG schlägt passende Zahlungseingänge nach Betrag, Währung und Datum vor. Eine vollständig zugeordnete Rechnung wird bezahlt; auf Wunsch entsteht automatisch eine Quittung.</span></div>
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Ausgangsdokumente</h3><p class="card-subtitle">${salesDocuments.length} Dokumente</p></div></div>${rows?`<div class="list">${rows}</div>`:'<div class="table-empty">Noch keine Rechnungen, Offerten oder Quittungen erstellt.</div>'}</article>`;
 }
