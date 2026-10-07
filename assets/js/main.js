@@ -862,7 +862,7 @@ function showAuth(notice='') {
   const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Spendy</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('spendy')}</span><div><strong>Spendy</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Spendy Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
