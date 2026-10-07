@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261006-r41';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r43';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261006-r41';
+import { financeApi } from './app/finance-api.js?v=20261007-r43';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -61,7 +61,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js';
+import { renderSettings } from './views/settings.js?v=20261007-r43';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
