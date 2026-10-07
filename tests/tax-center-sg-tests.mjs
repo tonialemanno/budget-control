@@ -62,7 +62,7 @@ assert.match(html,/Demo AG/);
 assert.match(html,/Homeoffice-Tage/);
 assert.match(html,/Pendeltage/);
 assert.match(html,/Kind erfassen/);
-assert.match(html,/Finance-Quelle/);
+assert.match(html,/Spendy-Quelle/);
 assert.match(html,/taxItemDocumentInput/);
 assert.match(html,/taxPaymentTransaction/);
 assert.match(html,/Steuerrelevante Einnahmen/);
