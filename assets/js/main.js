@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r45';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r46';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r45';
+import { financeApi } from './app/finance-api.js?v=20261007-r46';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -47,7 +47,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r45';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r46';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -61,7 +61,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r45';
+import { renderSettings } from './views/settings.js?v=20261007-r46';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
@@ -536,16 +536,12 @@ function releaseUiMeta() {
 
 function applyReleaseChannelUI() {
   const {channel,label,shortRelease}=releaseUiMeta();
-  const pill=document.querySelector('#releaseVersionPill');
   const heading=document.querySelector('#releaseChannelLabel');
   const caption=document.querySelector('#releaseChannelCaption');
-  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()} · ${shortRelease.toUpperCase()}`;
-  if(heading) heading.textContent=`${label} ${APP_CONFIG.version}`;
-  if(caption) caption.textContent=`${shortRelease.toUpperCase()} · ${channel==='beta'
-    ? t('Teststand · kann sich ändern')
-    : channel==='local'
-      ? t('Lokale Entwicklungsumgebung')
-      : t('Freigegebener Stand · Supabase')}`;
+  const status=document.querySelector('#releaseStatus');
+  if(heading) heading.textContent=label;
+  if(caption) caption.textContent=`v${APP_CONFIG.version} · ${shortRelease.toUpperCase()}`;
+  if(status) status.setAttribute('aria-label',`${label} · Version ${APP_CONFIG.version} · ${shortRelease.toUpperCase()}`);
   document.documentElement.dataset.releaseChannel=channel;
   document.documentElement.dataset.releaseId=APP_CONFIG.releaseId;
 }
