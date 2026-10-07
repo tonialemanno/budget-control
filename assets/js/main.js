@@ -3779,7 +3779,7 @@ function addDaysInput(days, baseDate = new Date()) {
 function syncSalesDocumentTemplateSelects(type) {
   const normalized=['invoice','quote','receipt'].includes(type)?type:'invoice';
   pageContent.querySelectorAll('[data-sales-template-select]').forEach((select)=>{
-    const targetName=select.dataset.target||'';
+    const targetName=select.dataset.salesTarget||'';
     const section=targetName==='introText'?'intro':targetName==='paymentText'?'payment':'closing';
     select.replaceChildren(new Option('Textbaustein wählen …',''));
     for(const row of (runtime.salesDocumentTemplates||[])){
@@ -5232,7 +5232,7 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.matches?.('[data-sales-template-select]')) {
       const template=runtime.salesDocumentTemplates.find((row)=>row.id===target.value);
-      const targetName=target.dataset.target||'';
+      const targetName=target.dataset.salesTarget||'';
       const textarea=target.closest('form')?.querySelector(`[name="${targetName}"]`);
       if(template&&textarea) textarea.value=template.content||'';
       return;
