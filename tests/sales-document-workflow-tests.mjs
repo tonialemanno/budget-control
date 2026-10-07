@@ -50,7 +50,9 @@ const html=renderSalesDocuments({
   profile:{display_name:'Toni',locale:'de-CH'},
   canWrite:true,
 });
-assert.match(html,/Dokumenteinstellungen · Logo, Absender & Textbausteine/);
+assert.match(html,/Dokumenteinstellungen/);
+assert.match(html,/Automatik ist aktiv/);
+assert.match(html,/Logo, Absender, Zahlungsdaten, Automatik und Textbausteine/);
 assert.match(html,/Logo ist hinterlegt/);
 assert.match(html,/Standard Kunde/);
 assert.match(html,/Zahlung zuordnen/);
