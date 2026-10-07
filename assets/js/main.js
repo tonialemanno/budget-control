@@ -481,9 +481,10 @@ async function saveCurrentUserLocale(locale) {
   const nextLocale=String(locale||'').trim();
   const allowed=new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
   if(!allowed.has(nextLocale)) throw new Error('Ungültige Sprache & Region.');
+  const previousProfile=runtime.profile||{};
   const saved=await financeApi.setMyLocale(nextLocale);
-  runtime.profile=saved && !Array.isArray(saved) ? saved : (Array.isArray(saved) ? saved[0] : null);
-  if(!runtime.profile) runtime.profile={...(runtime.profile||{}),user_id:runtime.user.id,locale:nextLocale};
+  const returned=saved && !Array.isArray(saved) ? saved : (Array.isArray(saved) ? saved[0] : null);
+  runtime.profile=returned||{...previousProfile,user_id:runtime.user.id,locale:nextLocale};
   setLocale(nextLocale);
   updateProfileUI();
   render();
