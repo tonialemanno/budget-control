@@ -1,4 +1,13 @@
-# Finance 2.4.6
+# Finance 2.4.7
+
+## 2.4.7 – Lebensmittel statt Händlerart Supermarkt
+
+- `Lebensmittel` ist wieder die eindeutige Ausgabenkategorie für Einkäufe bei Supermärkten.
+- EDEKA bzw. Banktexte mit `EDK*` werden direkt als `Lebensmittel` vorgeschlagen.
+- Die frühere R28-Logik `Supermarkt -> Lebensmittel` ist damit fachlich abgelöst; `Supermarkt` bleibt keine parallele Ausgabenkategorie.
+- Bestehende `Supermarkt`-Buchungen und Händler werden kontrolliert auf `Lebensmittel` konsolidiert; die alte Kategorie wird anschließend archiviert.
+- Regressionstest verhindert, dass die Händlerart `Supermarkt` künftig erneut als Ausgabenzweck eingeführt wird.
+- Release 2026.10.07-r42.
 
 ## 2.4.6 – Ranking bleibt unsichtbar
 
