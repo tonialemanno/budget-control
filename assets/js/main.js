@@ -704,7 +704,7 @@ async function ensureCurrentRelease(){
   if(releaseCheckInFlight) return releaseCheckInFlight;
   releaseCheckInFlight=(async()=>{
     try {
-      const manifest=await fetchReleaseManifest(`./version.json?check=${Date.now()}`);
+      const manifest=await fetchReleaseManifest(`/version.json?check=${Date.now()}`);
       if(releaseMismatch(APP_CONFIG.releaseId,manifest)){
         return reloadForRelease(manifest.releaseId,'Neue ALEMANNO BUCHHALTUNG-Version verfügbar. ALEMANNO BUCHHALTUNG wird aktualisiert …');
       }
@@ -736,7 +736,7 @@ async function ensureRuntimeCompatibility(){
       showReleaseUpdating('ALEMANNO BUCHHALTUNG-Datenbank wird aktualisiert. Bitte kurz warten …');
       return false;
     }
-    const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
+    const manifest=await fetchReleaseManifest(`/version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
     return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'ALEMANNO BUCHHALTUNG-Version und Datenbank werden synchronisiert …');
   }
   return true;
