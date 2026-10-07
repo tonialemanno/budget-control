@@ -16,7 +16,7 @@ assert.match(index,/<title>Finance<\/title>/);
 assert.match(index,/Stable 2\.4/);
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);
-assert.match(ci,/finance-v2\.3\.0-stable\.zip/);
+assert.match(ci,/finance-v\$\{VERSION\}-\$\{GITHUB_REF_NAME\}-\$\{RELEASE\}\.zip/);
 assert.doesNotMatch(bills,/\\`/,'bills view must not contain escaped template delimiters');
 assert.doesNotMatch(bills,/\\\$\{/,'bills view must not contain escaped template interpolation');
 assert.doesNotMatch(main,/const\s+_v\d+\w*\s*=|renderAll\s*=\s*function/,'stable must not reintroduce patch-wrapper chains');
