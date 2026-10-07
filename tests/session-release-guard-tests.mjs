@@ -67,7 +67,9 @@ assert.match(migration,/get_finance_runtime_state/);
 assert.match(migration,/set search_path = pg_catalog, public/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
-assert.match(main,/sessionTimeoutSelect/);
+const settings=fs.readFileSync(new URL('../assets/js/views/settings.js',import.meta.url),'utf8');
+assert.match(settings,/sessionTimeoutSelect/);
+assert.match(main,/session_timeout_minutes/);
 assert.match(main,/enforceSessionGuard/);
 assert.match(main,/ensureCurrentRelease/);
 assert.match(main,/ensureRuntimeCompatibility/);
