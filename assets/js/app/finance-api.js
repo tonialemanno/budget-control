@@ -37,6 +37,7 @@ async function listByHousehold(table, householdId, { select = '*', order = 'crea
 export const financeApi = Object.freeze({
   async getProfile(userId) { const rows = await backend.rest(buildQuery('profiles', { select: '*', user_id: `eq.${userId}`, limit: '1' })); return rows?.[0] || null; },
   async updateProfile(userId, patch) { const rows = await backend.rest(buildQuery('profiles', { user_id: `eq.${userId}` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=representation' } }); return rows?.[0] || null; },
+  setMyLocale: (locale) => backend.rpc('set_my_locale_v1',{ p_locale: locale }),
   async getAdminRole(userId) { const rows = await backend.rest(buildQuery('app_admins', { select: 'role', user_id: `eq.${userId}`, limit: '1' })); return rows?.[0]?.role || null; },
   listProductModules() { return backend.rest(buildQuery('product_modules', { select: '*', order: 'sort_order.asc' })); },
   async listUserModules(userId) { const rows = await backend.rest(buildQuery('user_module_access', { select: 'module_key,enabled', user_id: `eq.${userId}` })); return Object.fromEntries((rows || []).map((row) => [row.module_key, Boolean(row.enabled)])); },
