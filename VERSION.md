@@ -1,5 +1,16 @@
 # Finance 2.4.6
 
+## R45 – Dokumenteinstellungen sofort sichtbar
+
+- Logo, Absender, Zahlungsdaten, Automatik und Textbausteine sind auf der Seite `Rechnungen / Offerten` nicht mehr hinter einem zugeklappten Bereich versteckt.
+- Ein sichtbarer Automatik-Hinweis erklärt Offerte → Rechnung → Zahlungseingang → Bezahlt → Quittung.
+- Offene Rechnungen zeigen ausdrücklich an, wenn noch kein passender Zahlungseingang erkannt wurde.
+- Neue Texte sind für Deutsch, Englisch und Italienisch hinterlegt.
+- Keine Datenbankänderung gegenüber R43/R44.
+- Release 2026.10.07-r45.
+
+# Finance 2.4.6
+
 ## R44 – ALEMANNO BUCHHALTUNG Branding
 
 - Der versehentlich in R43 eingeführte Name `Spendy` wurde vollständig aus der sichtbaren Anwendung entfernt.
