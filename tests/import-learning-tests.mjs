@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { merchantFromTransaction } from '../assets/js/app/csv-import.js';
+import { merchantFromTransaction, suggestKnownCategoryCandidates } from '../assets/js/app/csv-import.js';
 
 const salarySep=merchantFromTransaction({description:'Abacus Umantis AG 25.09.2026',amount:6412.05});
 const salaryOct=merchantFromTransaction({description:'Abacus Umantis AG 25.10.2026',amount:6412.05});
@@ -20,6 +20,15 @@ const sumup=merchantFromTransaction({description:'SUMUP *LADMANN CATERING 03.10.
 assert.equal(sumup.name,'LADMANN CATERING');
 assert.equal(sumup.key,'ladmann catering');
 assert.equal(sumup.paymentProcessor,'SumUp');
+
+const edeka=merchantFromTransaction({description:'EDK*HAFERKATER STORES 05.07.2026',amount:-42.7});
+assert.equal(edeka.name,'EDEKA');
+assert.equal(edeka.key,'edeka');
+assert.deepEqual(
+  suggestKnownCategoryCandidates({description:'EDK*HAFERKATER STORES 05.07.2026',amount:-42.7}),
+  ['Lebensmittel'],
+  'Supermarket merchants must use the spending purpose Lebensmittel rather than a merchant-type category.',
+);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/async function applyImportGroupLearning/);

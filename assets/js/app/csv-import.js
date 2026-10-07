@@ -330,7 +330,7 @@ export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
   { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
-  { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Lebensmittel' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
   { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
@@ -382,7 +382,6 @@ export function suggestKnownCategoryCandidates(tx) {
   if(!category) return [];
   const fallback={
     'Restaurant & Café':['Restaurant & Café','Restaurant','Freizeit'],
-    'Supermarkt':['Supermarkt','Lebensmittel'],
     'Haushaltsabgaben':['Haushaltsabgaben','Wohnen'],
     'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
     'Wartung & Reparatur':['Wartung & Reparatur','Mobilität'],

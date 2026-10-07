@@ -38,7 +38,8 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "JSON.parse(require('fs').readFileSync('version.json','utf8')).version")"
           RELEASE="$(node -p "JSON.parse(require('fs').readFileSync('version.json','utf8')).releaseId")"
-          ARCHIVE="finance-v${VERSION}-${GITHUB_REF_NAME}-${RELEASE}.zip"
+          SAFE_REF="${GITHUB_REF_NAME//\//-}"
+          ARCHIVE="finance-v${VERSION}-${SAFE_REF}-${RELEASE}.zip"
           zip -r "$ARCHIVE" . -x ".git/*" ".github/*" "payload/*" "*.zip" "runtime-config.local.js" "local-data.sql" "*.backup"
           echo "FINANCE_ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
