@@ -4043,29 +4043,41 @@ async function handleAction(target) {
     const quote=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='quote');
     if(!quote) throw new Error('Offerte wurde nicht gefunden.');
     if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error('Für diese Offerte wurde bereits eine Rechnung erstellt.');
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const issueDate=dateInputValue();
+    const dueDate=addDaysInput(defaults.paymentDays);
+    const documentNumber=nextSalesDocumentNumber(runtime.salesDocuments,'invoice');
+    const context={
+      recipientName:quote.recipient_name,
+      documentNumber,
+      issueDate,
+      dueDate,
+      total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:quote.currency||runtime.household?.base_currency||'CHF'}).format(Number(quote.total||0)),
+      paymentDays:defaults.paymentDays,
+    };
     await financeApi.createSalesDocument({
       household_id:runtime.household.id,
       document_type:'invoice',
-      document_number:nextSalesDocumentNumber(runtime.salesDocuments,'invoice'),
+      document_number:documentNumber,
       status:'draft',
-      issue_date:dateInputValue(),
-      due_date:addDaysInput(salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'').paymentDays),
+      issue_date:issueDate,
+      due_date:dueDate,
       valid_until:null,
       currency:quote.currency,
-      sender_name:quote.sender_name,
-      sender_address:quote.sender_address,
-      sender_tax_id:quote.sender_tax_id,
+      sender_name:quote.sender_name||defaults.senderName,
+      sender_address:quote.sender_address||defaults.senderAddress,
+      sender_tax_id:quote.sender_tax_id||defaults.senderTaxId,
       recipient_name:quote.recipient_name,
       recipient_address:quote.recipient_address,
-      intro_text:quote.intro_text,
-      closing_text:quote.closing_text,
-      payment_text:quote.payment_text,
+      intro_text:expandSalesDocumentText(defaults.invoiceIntro,context),
+      closing_text:expandSalesDocumentText(defaults.closingText,context),
+      payment_text:expandSalesDocumentText(defaults.paymentText,context),
       notes:quote.notes,
       items:quote.items,
       source_document_id:quote.id,
     });
     if(quote.status!=='accepted') await financeApi.updateSalesDocument(quote.id,{status:'accepted'});
-    await refresh('Offerte in eine neue Rechnung übernommen.');
+    await refresh('Offerte angenommen und als neue Rechnung übernommen.');
     return;
   }
   if (action === 'sales-document-delete') {
