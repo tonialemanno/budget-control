@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R46 – Ruhige Release-Anzeige in der Sidebar
+
+- Versions-/Release-Badge neben dem Logo entfernt.
+- Marke steht oben für sich; Version und Release-Status sitzen als dezente Statuszeile ganz unten in der Sidebar.
+- Release-Anzeige reduziert auf Kanal + Version + Release, z. B. `Stable · v2.4.6 · R46`.
+- Stable/Beta werden nur noch über einen kleinen Statuspunkt unterschieden.
+- Doppelte `Einstellungen`-Navigation im Sidebar-Footer entfernt.
+- Keine Datenbankänderung.
+- Release 2026.10.07-r46.
+
+# Finance 2.4.6
+
 ## R45 – Dokumenteinstellungen sofort sichtbar
 
 - Logo, Absender, Zahlungsdaten, Automatik und Textbausteine sind auf der Seite `Rechnungen / Offerten` nicht mehr hinter einem zugeklappten Bereich versteckt.
