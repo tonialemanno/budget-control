@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R47 – Sprache ist eine persönliche Benutzereinstellung
+
+- Jeder eingeloggte Benutzer kann seine Sprache unabhängig von Haushaltsrolle oder Adminrechten ändern.
+- Sprachwahl ist zusätzlich direkt unter `Mein Profil` sichtbar; die Auswahl in `Einstellungen` bleibt bestehen.
+- Eigener Self-Service-Endpunkt `set_my_locale_v1` schreibt ausschließlich die Sprache des aktuell angemeldeten Benutzers.
+- Profile-Seite wird nicht mehr fälschlich durch Haushalts-Nur-Lese-Rechte als schreibgeschützt behandelt.
+- Deutsch, Italienisch und Englisch bleiben vollständig auswählbar.
+- Regressionstest schützt die persönliche Sprachwahl dauerhaft.
+- Schema 2026100702, Release 2026.10.07-r47.
+
+# Finance 2.4.6
+
 ## R46 – Ruhige Release-Anzeige in der Sidebar
 
 - Versions-/Release-Badge neben dem Logo entfernt.
