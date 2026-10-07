@@ -1,8 +1,8 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r49';
-import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r49';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r50';
+import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r50';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r49';
+import { financeApi } from './app/finance-api.js?v=20261007-r50';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -30,7 +30,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
-import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r49';
+import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r50';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
@@ -49,7 +49,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r49';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r50';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -63,7 +63,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r49';
+import { renderSettings } from './views/settings.js?v=20261007-r50';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
