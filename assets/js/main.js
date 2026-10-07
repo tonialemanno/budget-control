@@ -359,6 +359,14 @@ function resolveRoute() {
   return allowed.has(requested) ? requested : 'overview';
 }
 
+function goToRoute(route,params=null,{replace=false}={}) {
+  navigateToRoute(route,params,{replace});
+  if(runtime.user){
+    render();
+    void pulsePresence();
+  }
+}
+
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#000000' : '#f5f5f7');
@@ -728,7 +736,7 @@ async function pulsePresence({force=false,stateOverride=null}={}){
     lastInteractionAt:clock.lastInteractionAt,
   });
   await financeApi.touchPresence({
-    route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
+    route:currentRouteLocation().route||'overview',
     appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}-${APP_CONFIG.releaseId}`,
     deviceLabel:currentDeviceLabel(),
     activityState,
@@ -799,7 +807,7 @@ async function logoutCurrentUser({notice=''}={}) {
   runtime.householdRole=null;
   runtime.adminRole=null;
   runtime.runtimeState=null;
-  location.hash='';
+  navigateToRoute('overview',null,{replace:true});
   window.scrollTo({top:0,left:0,behavior:'auto'});
   showAuth(notice);
 }
@@ -1070,6 +1078,7 @@ function render() {
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
     taxYear: uiState.taxYear,
   });
+  rewriteLegacyRouteLinks(pageContent);
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   const section = routeSection(route);
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -2068,7 +2077,7 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
 
   if(!guide.found){
     hint.className='budget-decision-hint budget-decision-hint--neutral form-grid-span';
-    hint.innerHTML=`<div><strong>${escapeHtml(t('Kein Budgetrahmen für diese Auswahl'))}</strong><span>${escapeHtml(t('Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget festlegen'))}</a>`;
+    hint.innerHTML=`<div><strong>${escapeHtml(t('Kein Budgetrahmen für diese Auswahl'))}</strong><span>${escapeHtml(t('Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.'))}</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget festlegen'))}</a>`;
     return;
   }
 
@@ -2079,8 +2088,8 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
   const afterText=moneyText(Math.max(0,after),{currency,locale,decimals:0});
   const overshoot=moneyText(Math.abs(Math.min(0,after)),{currency,locale,decimals:0});
   hint.innerHTML=after<0
-    ? `<div><strong>${escapeHtml(guide.label)} · ${escapeHtml(t('Budget würde überschritten'))}</strong><span>${escapeHtml(t('Vor dieser Ausgabe noch'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar. Danach'))} ${escapeHtml(overshoot)} ${escapeHtml(t('über dem Rahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`
-    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % ${escapeHtml(t('verbraucht'))}</strong><span>${escapeHtml(t('Aktuell'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar'))}${entered>0?` · ${escapeHtml(t('nach dieser Ausgabe'))} ${escapeHtml(afterText)}`:''}.</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`;
+    ? `<div><strong>${escapeHtml(guide.label)} · ${escapeHtml(t('Budget würde überschritten'))}</strong><span>${escapeHtml(t('Vor dieser Ausgabe noch'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar. Danach'))} ${escapeHtml(overshoot)} ${escapeHtml(t('über dem Rahmen.'))}</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget prüfen'))}</a>`
+    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % ${escapeHtml(t('verbraucht'))}</strong><span>${escapeHtml(t('Aktuell'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar'))}${entered>0?` · ${escapeHtml(t('nach dieser Ausgabe'))} ${escapeHtml(afterText)}`:''}.</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget prüfen'))}</a>`;
 }
 
 function syncTransactionTransferEditor() {
@@ -2322,7 +2331,7 @@ async function handleForm(form) {
     });
     await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
     await refresh('Grunddaten gespeichert. Richte jetzt dein erstes Konto ein.');
-    location.hash = '#/setup';
+    goToRoute('setup');
     return;
   }
   if (id === 'setup-income-create') {
@@ -2350,7 +2359,7 @@ async function handleForm(form) {
       active:true,
     });
     await refresh('Monatseinnahme gespeichert.');
-    location.hash='#/setup';
+    goToRoute('setup');
     return;
   }
   if (id === 'setup-expense-create') {
@@ -2391,7 +2400,7 @@ async function handleForm(form) {
       active:true,
     });
     await refresh(merchant?'Fixkosten gespeichert und Empfänger verknüpft.':'Fixkosten gespeichert.');
-    location.hash='#/setup';
+    goToRoute('setup');
     return;
   }
 
@@ -2409,7 +2418,7 @@ async function handleForm(form) {
       preferences:{...profilePreferences(),setup_completed_version:2},
     });
     await refresh('Einrichtung abgeschlossen. ALEMANNO BUCHHALTUNG ist bereit.');
-    location.hash = '#/overview';
+    goToRoute('overview');
     return;
   }
 
@@ -4100,7 +4109,7 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Buchung wurde nicht gefunden.');
     uiState.pendingTransactionEditId=tx.id;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'review-link-transfer') {
@@ -4616,7 +4625,7 @@ async function handleAction(target) {
     uiState.transactionView='details';
     uiState.transactionPage=1;
     uiState.pendingTransactionEditId=tx.id;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'overview-drilldown-expense') {
@@ -4636,7 +4645,7 @@ async function handleAction(target) {
     if(key==='uncategorized') uiState.transactionCategory='uncategorized';
     else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'overview-drilldown-income') {
@@ -4654,7 +4663,7 @@ async function handleAction(target) {
     uiState.transactionPeriod='custom';
     uiState.transactionView='details';
     uiState.transactionPage=1;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'transaction-filter-category') {
@@ -5119,7 +5128,7 @@ async function handleAction(target) {
     await backend.rpc('admin_reset_user_finance',{p_user_id:userId,p_confirmation_email:confirmation.trim()});
     if(userId===runtime.user?.id){
       await loadContext();
-      location.hash='#/setup';
+      goToRoute('setup');
       render();
       showToast('Deine ALEMANNO BUCHHALTUNG-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
       return;
@@ -5638,7 +5647,11 @@ async function enterApp(session,{freshLogin=false}={}) {
   }
 }
 
-window.addEventListener('hashchange',()=>{ render(); void pulsePresence(); });
+window.addEventListener('popstate',()=>{ if(runtime.user){ render(); void pulsePresence(); } });
+window.addEventListener('hashchange',()=>{
+  if(!migrateLegacyHash()) return;
+  if(runtime.user){ render(); void pulsePresence(); }
+});
 document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){
     hiddenAt=Date.now();
@@ -5667,7 +5680,7 @@ window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
-searchButton?.addEventListener('click',()=>{ location.hash='#/search'; });
+searchButton?.addEventListener('click',()=>{ goToRoute('search'); });
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
