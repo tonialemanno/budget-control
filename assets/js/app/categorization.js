@@ -1,4 +1,5 @@
-import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestAccountCategory, suggestKnownCategoryCandidates } from './csv-import.js';
+import { applyCategoryRules, merchantFromTransaction, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './csv-import.js';
+import { buildCategoryMlModel, predictCategoryMl } from './ml-categorization.js';
 
 function validCategory(categoryId, kind, categoryById) {
   const category = categoryById.get(categoryId);
@@ -16,48 +17,32 @@ export function buildCategorizationGroups({
   merchants = [],
   aliases = [],
   rules = [],
-  accounts = [],
 } = {}) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const merchantById = new Map(merchants.map((merchant) => [merchant.id, merchant]));
   const merchantByKey = new Map(merchants.map((merchant) => [merchant.normalized_key, merchant]));
-  const accountById = new Map(accounts.map((account) => [account.account_id || account.id, account]));
+  const mlModel = buildCategoryMlModel({ transactions, categories });
   const groups = new Map();
 
   for (const tx of transactions) {
-    if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) continue;
+    if (tx.status !== 'booked' || tx.transfer_group_id || ['debt_payment','receivable_principal'].includes(tx.cashflow_type) || tx.semantic_type === 'debt_repayment') continue;
     const kind = Number(tx.amount) < 0 ? 'expense' : 'income';
     const directMerchant = (tx.merchant_id && merchantById.get(tx.merchant_id))
       || (tx.merchants?.normalized_key && merchantByKey.get(tx.merchants.normalized_key))
       || null;
-    const parsed=merchantFromTransaction(tx);
-    const detected = parsed?.genericPaymentRail
-      ? parsed
-      : directMerchant
-        ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
-        : parsed;
-    const genericPaymentRail=Boolean(detected?.genericPaymentRail);
-    const linkedMerchant = genericPaymentRail ? null : (directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases}));
-    const account=accountById.get(tx.account_id)||null;
-    const accountCategory=genericPaymentRail?suggestAccountCategory(tx,{account,categories}):null;
-    const unknownScope=accountCategory
-      ? `${tx.account_id||'konto'}:purpose`
-      : (tx.id||`${tx.account_id||'konto'}:${tx.occurred_at||''}:${Number(tx.amount||0).toFixed(2)}`);
-    const merchantKey = genericPaymentRail
-      ? `unbekannt:${detected.paymentProcessor||'zahlung'}:${unknownScope}`
-      : (detected.key || 'unbekannt');
+    const detected = directMerchant
+      ? { name: directMerchant.name, key: directMerchant.normalized_key, aliasKey:directMerchant.normalized_key }
+      : merchantFromTransaction(tx);
+    const linkedMerchant = directMerchant || resolveCanonicalMerchant(detected,{merchants,aliases});
+    const merchantKey = detected.key || 'unbekannt';
     const key = `${kind}:${merchantKey}`;
     const group = groups.get(key) || {
       key,
       merchantKey,
-      merchantId: genericPaymentRail ? null : (linkedMerchant?.id || tx.merchant_id || null),
+      merchantId: linkedMerchant?.id || tx.merchant_id || null,
       merchant: linkedMerchant || null,
-      name: genericPaymentRail ? (detected.name || 'Zahlungsweg') : (linkedMerchant?.name || detected.name || 'Unbekannter Händler'),
+      name: linkedMerchant?.name || detected.name || 'Unbekannter Händler',
       kind,
-      genericPaymentRail,
-      paymentProcessor:detected?.paymentProcessor||null,
-      accountId:tx.account_id||null,
-      accountCategoryId:accountCategory?.id||null,
       rows: [],
     };
     group.rows.push(tx);
@@ -98,11 +83,21 @@ export function buildCategorizationGroups({
       if (knownId) suggestion = { categoryId: knownId, source: 'known', safe: true };
     }
 
-    if (!suggestion && group.genericPaymentRail) {
-      const accountCategory=group.accountCategoryId
-        ? categoryById.get(group.accountCategoryId)
-        : suggestAccountCategory(group.rows[0],{account:accountById.get(group.accountId),categories});
-      if(accountCategory) suggestion={categoryId:accountCategory.id,source:'account',safe:true};
+    if (!suggestion && unassignedRows.length) {
+      const predictions = unassignedRows.map((row) => predictCategoryMl(mlModel, row)).filter(Boolean);
+      if (predictions.length === unassignedRows.length) {
+        const mlCategoryId = uniform(predictions.map((prediction) => validCategory(prediction.categoryId, group.kind, categoryById)?.id));
+        if (mlCategoryId) {
+          const confidence = predictions.reduce((sum, prediction) => sum + prediction.confidence, 0) / predictions.length;
+          suggestion = {
+            categoryId: mlCategoryId,
+            source: 'ml',
+            safe: predictions.every((prediction) => prediction.safe),
+            confidence,
+            modelVersion: predictions[0].modelVersion,
+          };
+        }
+      }
     }
 
     // Bestehende, einheitliche Benutzerzuordnungen sind ein Vorschlag, aber nie Teil der sicheren Sammelautomatik.
@@ -120,7 +115,7 @@ export function buildCategorizationGroups({
       unassignedCount: unassignedRows.length,
       suggestion: suggestion ? { ...suggestion, category: categoryById.get(suggestion.categoryId) } : null,
       selectedCategoryId,
-      needsAttention: unassignedRows.length > 0 || mixed,
+      needsAttention: unassignedRows.length > 0,
     });
   }
 
@@ -139,12 +134,15 @@ export function buildCategorizationGroups({
   });
 }
 
-export function categorizationSourceLabel(source) {
+export function categorizationSourceLabel(source, confidence = null) {
+  if (source === 'ml') {
+    const value = Number(confidence);
+    return `Machine Learning${Number.isFinite(value) ? ` · ${Math.round(value * 100)} %` : ''}`;
+  }
   return ({
     remembered: 'Gemerkte Händlerkategorie',
     rule: 'Kategorisierungsregel',
     known: 'Eindeutiger Händler',
     history: 'Bisherige Zuordnung',
-    account: 'Kontozweck',
   })[source] || 'Vorschlag';
 }

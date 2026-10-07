@@ -3,7 +3,7 @@ import { buildSetupStatus } from '../app/setup-model.js';
 import { pageHeader, statusPill } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { primaryAccountPreferenceId } from '../app/user-preferences.js';
+import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 
 function householdRoleLabel(role) {
   return ({ owner:'Owner · verwalten & bearbeiten', admin:'Admin · verwalten & bearbeiten', editor:'Editor · bearbeiten', viewer:'Viewer · nur lesen' })[role] || 'Keine Haushaltsrolle';
@@ -46,6 +46,7 @@ export function renderSettings({
     ? Number(preferences.session_timeout_minutes)
     : 30;
   const primaryAccountId=primaryAccountPreferenceId(profile,household?.id,accounts);
+  const selectedFinanceMonthMode=financeMonthMode(profile);
   const primaryAccountOptions=accounts.map((account)=>`<option value="${escapeHtml(account.account_id)}" ${account.account_id===primaryAccountId?'selected':''}>${escapeHtml(account.name)} · ${escapeHtml(account.currency)}</option>`).join('');
 
   return `
@@ -67,7 +68,8 @@ export function renderSettings({
       <div class="settings-row"><div class="settings-row-copy"><strong>Sprache & Region</strong><span>Sprache der Oberfläche sowie Datums-, Zahlen- und Regionsformat.</span></div><select class="select-control" id="localeSelect"><option value="de-CH" ${profile?.locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option><option value="de-DE" ${profile?.locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option><option value="it-CH" ${profile?.locale==='it-CH'?'selected':''}>Italiano · Svizzera</option><option value="it-IT" ${profile?.locale==='it-IT'?'selected':''}>Italiano · Italia</option><option value="en-CH" ${profile?.locale==='en-CH'?'selected':''}>English · Switzerland</option><option value="en-GB" ${profile?.locale==='en-GB'?'selected':''}>English · United Kingdom</option></select></div>
       <form class="settings-row" id="household-preferences" data-form="household-preferences"><div class="settings-row-copy"><strong>Basiswährung</strong><span>Nur die Darstellung und Umrechnung des Haushalts. Originalwährungen der Konten und Buchungen bleiben unverändert.</span></div><div class="settings-inline-control"><select class="select-control" name="baseCurrency" ${canAdminHousehold?'':'disabled'}><option value="CHF" ${household?.base_currency==='CHF'?'selected':''}>CHF</option><option value="EUR" ${household?.base_currency==='EUR'?'selected':''}>EUR</option></select>${canAdminHousehold?'<button class="action-button action-button--secondary" type="submit">Speichern</button>':''}</div></form>
       <form class="settings-row" id="primary-account-preference" data-form="primary-account-preference"><div class="settings-row-copy"><strong>Hauptkonto / Standardkonto</strong><span>Dieses Konto wird im Dashboard angezeigt und bei neuen Ein- und Auszahlungen vorausgewählt. Die Auswahl ist persönlich und wird nicht automatisch geändert.</span></div><div class="settings-inline-control"><select class="select-control" name="accountId" ${accounts.length?'':'disabled'}><option value="">Bitte wählen</option>${primaryAccountOptions}</select><button class="action-button action-button--secondary" type="submit" ${accounts.length?'':'disabled'}>Speichern</button></div></form>
-      <div class="settings-row"><div class="settings-row-copy"><strong>Informationstiefe</strong><span>Einfach, Standard oder Experte</span></div><select class="select-control" id="depthSelect"><option value="simple" ${depth==='simple'?'selected':''}>Einfach</option><option value="standard" ${depth==='standard'?'selected':''}>Standard</option><option value="expert" ${depth==='expert'?'selected':''}>Experte</option></select></div>
+      <div class="settings-row"><div class="settings-row-copy"><strong>Finanzmonat</strong><span>Legt fest, welcher Zeitraum in Monatsübersichten, Budgets, Planung und Transaktionen als Monat gilt.</span></div><select class="select-control" id="financeMonthModeSelect"><option value="day_25" ${selectedFinanceMonthMode==='day_25'?'selected':''}>25. bis 24. des Folgemonats</option><option value="calendar" ${selectedFinanceMonthMode==='calendar'?'selected':''}>1. bis letzter Tag des Monats</option></select></div>
+      <div class="settings-row"><div class="settings-row-copy"><strong>Informationstiefe</strong><span>Einfach zeigt nur Alltagsfelder. Standard ergänzt Zuordnungen. Experte zeigt Semantik, technische Filter und Verwaltungsdetails.</span></div><select class="select-control" id="depthSelect"><option value="simple" ${depth==='simple'?'selected':''}>Einfach</option><option value="standard" ${depth==='standard'?'selected':''}>Standard</option><option value="expert" ${depth==='expert'?'selected':''}>Experte</option></select></div>
       <div class="settings-row"><div class="settings-row-copy"><strong>Privatsphäre-Modus</strong><span>Finanzwerte werden sofort durch neutrale Punkte ersetzt.</span></div><button class="action-button action-button--secondary" type="button" data-action="privacy-toggle">${privacyEnabled ? 'Zahlen anzeigen' : 'Zahlen verbergen'}</button></div>
     </div></article>
 

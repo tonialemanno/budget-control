@@ -2,6 +2,7 @@ import { pageHeader, sectionHeading } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { budgetSummary, goalSummaries } from '../app/finance-insights.js';
+import { financeMonthMode } from '../app/user-preferences.js';
 
 function enabled(key, moduleAccess, hiddenModules) {
   return moduleAccess?.[key] === true && !hiddenModules.includes(key);
@@ -18,12 +19,13 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 }
 
 export function renderPlanning({
-  budgets=[], goals=[], bills=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
-  transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[],
+  budgets=[], goals=[], bills=[], salesDocuments=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
+  transactions=[], debtPayments=[], categories=[], merchants=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard',
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
-  const budget=budgetSummary({budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25});
+  const selectedFinanceMonthMode=financeMonthMode(profile);
+  const budget=budgetSummary({budgets,transactions,debtPayments,categories,merchants,recurringRules,baseCurrency:currency,fxRates,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode});
   const goalRows=goalSummaries(goals).slice(0,4);
   const openBills=bills.filter((b)=>!['paid','cancelled'].includes(b.status));
   const activeRecurring=recurringRules.filter((r)=>r.active!==false);
@@ -33,20 +35,27 @@ export function renderPlanning({
   const cards=[];
 
   cards.push(planCard({
-    href:'#/fixed-costs',iconName:'receipt',title:'Fixkosten',
-    text:'Miete, Krankenkasse, Abos und feste Umbuchungen',
-    meta:`${fixedExpenses.length} Ausgaben · ${fixedIncome.length} Einnahmen`
+    href:'#/fixed-costs',iconName:'receipt',title:'Feste Zahlungen',
+    text:'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Sparraten und andere wiederkehrende Bewegungen',
+    meta:`${fixedExpenses.length} Ausgaben · ${fixedIncome.length} Einnahmen · ${activeRecurring.filter((r)=>r.direction==='transfer').length} Umbuchungen`
   }));
-  cards.push(planCard({
-    href:'#/recurring',iconName:'repeat',title:'Daueraufträge & Automatik',
-    text:'Rhythmus, nächste Termine und wiederkehrende Bewegungen',
+  if(depth!=='simple') cards.push(planCard({
+    href:'#/recurring',iconName:'repeat',title:'Automatik im Detail',
+    text:'Technische Gesamtansicht aller wiederkehrenden Regeln und ihrer Quellen',
     meta:`${activeRecurring.length} aktiv`
   }));
-  if(enabled('bills',moduleAccess,hiddenModules)) cards.push(planCard({
-    href:'#/bills',iconName:'receipt',title:'Rechnungen & Verträge',
-    text:'Fälligkeiten, Zahlungen und Verträge',
-    meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
-  }));
+  if(enabled('bills',moduleAccess,hiddenModules)) {
+    cards.push(planCard({
+      href:'#/bills',iconName:'receipt',title:'Zu zahlende Rechnungen & Verträge',
+      text:'Fälligkeiten, Zahlungen und Verträge, die du selbst bezahlen musst',
+      meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
+    }));
+    cards.push(planCard({
+      href:'#/sales-documents',iconName:'receipt',title:'Rechnungen / Offerten erstellen',
+      text:'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
+      meta:`${salesDocuments.length} erstellt`
+    }));
+  }
   if(enabled('debts',moduleAccess,hiddenModules)) cards.push(planCard({
     href:'#/debts',iconName:'credit-card',title:'Raten',
     text:'Geplante Tilgungen und offene Kredite',
@@ -78,8 +87,10 @@ export function renderPlanning({
   return `
     ${pageHeader({
       title:'Planung',
-      subtitle:'Was mit deinem Geld als Nächstes passiert: Budget, Rücklagen, Fixkosten, Rechnungen, Raten und langfristige Ziele.'
+      subtitle:'Was mit deinem Geld als Nächstes passiert. Für normale wiederkehrende Zahlungen beginnst du bei „Feste Zahlungen“; Finance ordnet den Rest intern richtig zu.'
     })}
+
+    <div class="inline-alert inline-alert--success"><strong>Du musst das Datenmodell nicht kennen.</strong><span>Lohn, Miete, Krankenkasse, Abo oder feste Sparrate → „Feste Zahlungen“. Eine einzelne Rechnung mit Fälligkeit → „Rechnungen & Verträge“. Finance hält Wiederholungen intern zusammen.</span></div>
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">

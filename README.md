@@ -1,4 +1,13 @@
-# Finance 2.3.0 Stable
+# Finance 2.4.0
+
+## Neu in 2.4.0: Alltag zuerst
+
+Finance hat jetzt einen zentralen Bereich **„Prüfen“** für alle Buchungen, die wirklich eine Entscheidung brauchen, eine globale Suche, Anlässe & Projekte, vollständigeren Bank-Importkontext, eigene-Konto-/Umbuchungserkennung über IBAN/Kontokennung sowie einen persistenten Änderungsverlauf für Sammel-Kategorisierungen. Die Informationstiefe „Einfach / Standard / Experte“ beeinflusst nun tatsächlich die sichtbaren Felder. Sparen auf eigene Konten wird als Umbuchung statt als Konsumausgabe behandelt.
+
+## Neu in 2.3.14: Machine Learning für Kategorien
+
+Finance ergänzt die bestehende Händler-, Regel- und Kategorienlogik um ein lokales, überwachtes ML-Modell. Das Modell lernt aus bereits kategorisierten Buchungen des aktiven Haushalts, zeigt ML-Vorschläge mit Confidence und darf nur bei strenger Evidenz automatisch als sicher gelten. Regeln und explizit gemerkte Händler bleiben vorrangig. Die Buchungstexte verlassen Finance dafür nicht.
+
 
 ## Aktueller Stand
 

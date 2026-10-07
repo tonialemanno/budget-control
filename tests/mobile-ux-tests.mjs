@@ -12,8 +12,8 @@ assert.match(table, /<td data-label="Betrag">CHF 100\.00<\/td>/);
 assert.match(table, /<td data-label=""><button>Öffnen<\/button><\/td>/);
 
 const primaryItems = NAV_ITEMS.filter((item) => item.primary);
-assert.deepEqual(primaryItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Geld', 'Planung']);
-assert.deepEqual(primaryItems.map((item) => item.section), ['overview', 'money', 'planning']);
+assert.deepEqual(primaryItems.map((item) => item.mobileLabel || item.label), ['Übersicht', 'Prüfen', 'Geld', 'Planung']);
+assert.deepEqual(primaryItems.map((item) => item.section), ['overview', 'review', 'money', 'planning']);
 
 const css = fs.readFileSync(new URL('../assets/css/responsive.css', import.meta.url), 'utf8');
 const main = fs.readFileSync(new URL('../assets/js/main.js', import.meta.url), 'utf8');
@@ -30,3 +30,11 @@ assert.match(main, /routeSection/);
 assert.match(index, /quickAddSheet/);
 
 console.log('mobile UX assertions OK');
+
+const componentsCss = fs.readFileSync(new URL('../assets/css/components.css', import.meta.url), 'utf8');
+const txView = fs.readFileSync(new URL('../assets/js/views/transactions.js', import.meta.url), 'utf8');
+assert.match(componentsCss, /@media \(max-width: 660px\)[\s\S]*\.categorization-select-row\s*\{[\s\S]*grid-template-columns:\s*32px minmax\(0,1fr\)/);
+assert.match(componentsCss, /\.categorization-select-context\s*\{[\s\S]*font-size:\s*12px/);
+assert.match(componentsCss, /\.categorization-select-amount\s*\{[\s\S]*font-size:\s*14px/);
+assert.match(txView, /categorization-select-heading/);
+assert.match(txView, /redundantMerchant/);

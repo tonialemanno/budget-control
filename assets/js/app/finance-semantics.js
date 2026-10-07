@@ -1,6 +1,6 @@
 import { plannedMonthlyAmount } from './recurring-planning.js';
 import { convertAmount } from './fx.js';
-import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './financial-effects.js';
+import { buildDebtPaymentTransactionMap, consumptionExpenseBase, debtPrincipalBase } from './financial-effects.js';
 import { occurrenceNear } from './recurrence.js';
 
 function norm(value) {
@@ -128,9 +128,21 @@ export function semanticExpenseBase(tx,{
 }={}) {
   if(!tx||tx.status!=='booked'||Number(tx.amount)>=0) return 0;
   const type=semanticType(tx,{categories,recurringRules});
-  if(['ignored','internal_transfer','saving','receivable_principal','asset_acquisition'].includes(type)) return 0;
+  if(['ignored','internal_transfer','saving','debt_repayment','receivable_principal','asset_acquisition'].includes(type)) return 0;
   const paymentMap=debtPayments instanceof Map?debtPayments:buildDebtPaymentTransactionMap(debtPayments);
   return consumptionExpenseBase(tx,paymentMap,baseCurrency,fxRates);
+}
+
+export function semanticDebtPrincipalBase(tx,{
+  categories=[],recurringRules=[],debtPayments=[],baseCurrency='CHF',fxRates=null,
+}={}) {
+  if(!tx||tx.status!=='booked'||Number(tx.amount)>=0) return 0;
+  const type=semanticType(tx,{categories,recurringRules});
+  if(type==='debt_repayment'){
+    return Math.max(0,convertAmount(Math.abs(Number(tx.amount)),tx.currency,baseCurrency,fxRates)??0);
+  }
+  const paymentMap=debtPayments instanceof Map?debtPayments:buildDebtPaymentTransactionMap(debtPayments);
+  return debtPrincipalBase(tx,paymentMap,baseCurrency,fxRates);
 }
 
 export function semanticIncomeBase(tx,{
@@ -165,6 +177,7 @@ export function reportingBucket(tx,context={}) {
     saving:'saving',
     internal_transfer:'transfer',
     debt_payment:'debt',
+    debt_repayment:'debt',
     receivable_principal:'receivable',
     asset_acquisition:'asset',
     ignored:'ignored',

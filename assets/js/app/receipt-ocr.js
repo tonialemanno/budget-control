@@ -4,7 +4,67 @@ const TESSERACT_VERSION='5.1.1';
 const TESSERACT_BASE=`https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VERSION}/dist`;
 const TESSERACT_SCRIPT=`${TESSERACT_BASE}/tesseract.min.js`;
 const TESSERACT_WORKER=`${TESSERACT_BASE}/worker.min.js`;
+const TESSERACT_CORE=`https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESSERACT_VERSION}`;
+const OCR_SCRIPT_TIMEOUT_MS=15000;
+const OCR_WORKER_TIMEOUT_MS=35000;
+const OCR_RECOGNIZE_TIMEOUT_MS=60000;
+const TESSERACT_WASM_VERSION='0.11.0';
+const TESSERACT_WASM_MODULE=`https://cdn.jsdelivr.net/npm/tesseract-wasm@${TESSERACT_WASM_VERSION}/+esm`;
+const TESSERACT_WASM_BINARY=`https://cdn.jsdelivr.net/npm/tesseract-wasm@${TESSERACT_WASM_VERSION}/dist/tesseract-core-fallback.wasm`;
+const TESSDATA_FAST_VERSION='4.1.0';
 let tesseractPromise=null;
+let tesseractWasmPromise=null;
+
+function withTimeout(promise,ms,message){
+  return new Promise((resolve,reject)=>{
+    const timer=window.setTimeout(()=>reject(new Error(message)),ms);
+    Promise.resolve(promise).then(
+      (value)=>{window.clearTimeout(timer);resolve(value);},
+      (error)=>{window.clearTimeout(timer);reject(error);}
+    );
+  });
+}
+
+function appleMobile(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+}
+
+function receiptLanguageForCountry(country){
+  const code=String(country||'').toUpperCase();
+  if(code==='IT') return 'ita';
+  if(['CH','DE','AT'].includes(code)) return 'deu';
+  return 'eng';
+}
+
+function tesseractModelUrl(language){
+  return `https://cdn.jsdelivr.net/gh/tesseract-ocr/tessdata_fast@${TESSDATA_FAST_VERSION}/${language}.traineddata`;
+}
+
+function loadTesseractWasm(){
+  if(!tesseractWasmPromise){
+    tesseractWasmPromise=withTimeout(
+      import(TESSERACT_WASM_MODULE),
+      20000,
+      'Die iPhone-OCR-Bibliothek konnte nicht geladen werden.'
+    ).catch((error)=>{ tesseractWasmPromise=null; throw error; });
+  }
+  return tesseractWasmPromise;
+}
+
+async function ensureWebAssemblyAvailable(){
+  if(typeof WebAssembly==='undefined'||typeof WebAssembly.compile!=='function'){
+    throw new Error('WebAssembly wird von diesem Browser nicht unterstützt.');
+  }
+  try{
+    await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0]));
+  }catch(error){
+    const detail=String(error?.message||error||'');
+    if(/content security|wasm-unsafe-eval|unsafe-eval|refused|blocked/i.test(detail)){
+      throw new Error('Die Sicherheitsrichtlinie der App blockiert die OCR-Engine (WebAssembly).');
+    }
+    throw new Error(`WebAssembly konnte auf diesem Gerät nicht gestartet werden: ${detail||'unbekannter Fehler'}`);
+  }
+}
 
 function normalizeSpaces(value){ return String(value||'').replace(/[\u00a0\t]+/g,' ').replace(/\s+/g,' ').trim(); }
 function safeDate(year,month,day){ const d=new Date(year,month-1,day,12); return d.getFullYear()===year&&d.getMonth()===month-1&&d.getDate()===day?d:null; }
@@ -154,13 +214,26 @@ function dateDistanceDays(a,b){
 async function loadTesseract(){
   if(globalThis.Tesseract?.createWorker) return globalThis.Tesseract;
   if(!tesseractPromise){
-    tesseractPromise=new Promise((resolve,reject)=>{
+    const loader=new Promise((resolve,reject)=>{
       const existing=document.querySelector('script[data-finance-tesseract]');
-      if(existing){existing.addEventListener('load',()=>resolve(globalThis.Tesseract),{once:true});existing.addEventListener('error',()=>reject(new Error('OCR-Bibliothek konnte nicht geladen werden.')),{once:true});return;}
-      const script=document.createElement('script'); script.src=TESSERACT_SCRIPT; script.async=true; script.dataset.financeTesseract='true';
-      script.onload=()=>globalThis.Tesseract?.createWorker?resolve(globalThis.Tesseract):reject(new Error('OCR-Bibliothek ist nicht verfügbar.'));
-      script.onerror=()=>reject(new Error('OCR-Bibliothek konnte nicht geladen werden.')); document.head.appendChild(script);
+      const ready=()=>globalThis.Tesseract?.createWorker?resolve(globalThis.Tesseract):reject(new Error('OCR-Bibliothek ist nicht verfügbar.'));
+      const failed=()=>reject(new Error('OCR-Bibliothek konnte nicht geladen werden.'));
+      if(existing){
+        existing.addEventListener('load',ready,{once:true});
+        existing.addEventListener('error',failed,{once:true});
+        return;
+      }
+      const script=document.createElement('script');
+      script.src=TESSERACT_SCRIPT;
+      script.async=true;
+      script.crossOrigin='anonymous';
+      script.dataset.financeTesseract='true';
+      script.onload=ready;
+      script.onerror=failed;
+      document.head.appendChild(script);
     });
+    tesseractPromise=withTimeout(loader,OCR_SCRIPT_TIMEOUT_MS,'OCR konnte auf diesem Gerät nicht rechtzeitig geladen werden.')
+      .catch((error)=>{tesseractPromise=null;throw error;});
   }
   return tesseractPromise;
 }
@@ -168,18 +241,107 @@ async function loadTesseract(){
 async function loadImage(file){
   const url=URL.createObjectURL(file);
   try{
-    const image=new Image(); image.decoding='async'; image.src=url;
-    if(typeof image.decode==='function'){try{await image.decode();}catch{}}
-    if(!image.complete||!image.naturalWidth) await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('Das Belegfoto konnte nicht gelesen werden.'));});
+    const image=new Image();
+    image.decoding='async';
+    image.src=url;
+    if(typeof image.decode==='function'){
+      try{await withTimeout(image.decode(),12000,'Das Belegfoto konnte nicht rechtzeitig dekodiert werden.');}catch{}
+    }
+    if(!image.complete||!image.naturalWidth){
+      await withTimeout(new Promise((resolve,reject)=>{
+        image.onload=resolve;
+        image.onerror=()=>reject(new Error('Das Belegfoto konnte nicht gelesen werden.'));
+      }),12000,'Das Belegfoto konnte nicht rechtzeitig geladen werden.');
+    }
     if(!image.naturalWidth||!image.naturalHeight) throw new Error('Das Belegfoto konnte nicht dekodiert werden.');
     return image;
   } finally { URL.revokeObjectURL(url); }
 }
 
+async function prepareImageData(file,{maxLongest=1400}={}){
+  const image=await loadImage(file);
+  const longest=Math.max(image.naturalWidth,image.naturalHeight);
+  const scale=longest>maxLongest?maxLongest/longest:1;
+  const width=Math.max(1,Math.round(image.naturalWidth*scale));
+  const height=Math.max(1,Math.round(image.naturalHeight*scale));
+  const canvas=document.createElement('canvas');
+  canvas.width=width;
+  canvas.height=height;
+  const ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:true});
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,width,height);
+  if('filter' in ctx) ctx.filter='grayscale(1) contrast(1.35)';
+  ctx.drawImage(image,0,0,width,height);
+  return ctx.getImageData(0,0,width,height);
+}
+
+async function analyzeReceiptImageApple(file,{fallbackCurrency='CHF',country='CH',onProgress=()=>{}}={}){
+  onProgress({status:'iPhone-OCR wird vorbereitet',progress:0.08});
+  await ensureWebAssemblyAvailable();
+
+  onProgress({status:'iPhone-OCR wird geladen',progress:0.12});
+  const ocrLib=await loadTesseractWasm();
+  const language=receiptLanguageForCountry(country);
+
+  onProgress({status:'OCR-Dateien werden geladen',progress:0.18});
+  const [wasmResponse,modelResponse,imageData]=await withTimeout(
+    Promise.all([
+      fetch(TESSERACT_WASM_BINARY,{cache:'force-cache'}),
+      fetch(tesseractModelUrl(language),{cache:'force-cache'}),
+      prepareImageData(file,{maxLongest:1400}),
+    ]),
+    30000,
+    'Die iPhone-OCR-Dateien konnten nicht rechtzeitig geladen werden.'
+  );
+  if(!wasmResponse.ok) throw new Error(`OCR-Engine konnte nicht geladen werden (HTTP ${wasmResponse.status}).`);
+  if(!modelResponse.ok) throw new Error(`OCR-Sprachmodell konnte nicht geladen werden (HTTP ${modelResponse.status}).`);
+
+  const [wasmBinary,modelBinary]=await Promise.all([
+    wasmResponse.arrayBuffer(),
+    modelResponse.arrayBuffer(),
+  ]);
+
+  onProgress({status:'OCR-Engine wird initialisiert',progress:0.32});
+  const engine=await withTimeout(
+    ocrLib.createOCREngine({wasmBinary}),
+    25000,
+    'Die worker-freie OCR-Engine konnte auf diesem iPhone nicht initialisiert werden.'
+  );
+
+  try{
+    onProgress({status:'Sprachmodell wird vorbereitet',progress:0.43});
+    engine.loadModel(modelBinary);
+    engine.loadImage(imageData);
+    try{engine.setVariable('preserve_interword_spaces','1');}catch{}
+
+    onProgress({status:'Text wird erkannt',progress:0.52});
+    await new Promise((resolve)=>requestAnimationFrame(()=>resolve()));
+
+    const text=engine.getText((value)=>{
+      const p=Math.max(0,Math.min(1,Number(value||0)));
+      onProgress({status:'Text wird erkannt',progress:0.52+p*0.38});
+    })||'';
+
+    let ocrConfidence=0;
+    try{
+      const words=engine.getTextBoxes('word')||[];
+      const confidences=words.map((word)=>Number(word?.confidence)).filter(Number.isFinite);
+      if(confidences.length) ocrConfidence=confidences.reduce((sum,value)=>sum+value,0)/confidences.length;
+    }catch{}
+
+    onProgress({status:'Belegdaten werden geprüft',progress:0.94});
+    const parsed=parseReceiptText(text,{fallbackCurrency});
+    return {...parsed,ocrConfidence};
+  } finally {
+    try{engine.destroy();}catch{}
+  }
+}
+
 async function prepareImage(file,{binary=false}={}){
   const image=await loadImage(file);
   const longest=Math.max(image.naturalWidth,image.naturalHeight);
-  const scale=longest>2200?2200/longest:1;
+  const maxLongest=appleMobile()?1600:2200;
+  const scale=longest>maxLongest?maxLongest/longest:1;
   const width=Math.max(1,Math.round(image.naturalWidth*scale)), height=Math.max(1,Math.round(image.naturalHeight*scale));
   const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height;
   const ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:binary});
@@ -248,17 +410,45 @@ export function findReceiptMatches({transactions=[],amount,currency,date,merchan
   return matches.sort((a,b)=>b.score-a.score||a.days-b.days).slice(0,limit).map((x)=>({...x,highConfidence:x.score>=86&&x.merchantSimilarity>=0.34}));
 }
 
-export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgress=()=>{}}={}){
+export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',country='CH',onProgress=()=>{}}={}){
   if(!(file instanceof Blob)||!file.size) throw new Error('Bitte ein Belegfoto auswählen.');
   if(!String(file.type||'').startsWith('image/')) throw new Error('Für die Belegerkennung wird ein Foto bzw. Bild benötigt.');
-  const tesseract=await loadTesseract();
-  onProgress({status:'Bild wird vorbereitet',progress:0.03});
-  const normal=await prepareImage(file,{binary:false});
 
-  let worker=null,lastError=null;
-  for(const languages of ['deu+eng','deu','eng']){
+  // Safari/iOS reaches WebAssembly but the Tesseract.js worker can stall during
+  // initialization. iPhone/iPad therefore use the worker-free WASM engine.
+  if(appleMobile()){
+    return analyzeReceiptImageApple(file,{fallbackCurrency,country,onProgress});
+  }
+
+  onProgress({status:'OCR wird geladen',progress:0.06});
+  const tesseract=await loadTesseract();
+  onProgress({status:'Bild wird vorbereitet',progress:0.12});
+  const normal=await withTimeout(prepareImage(file,{binary:false}),15000,'Das Belegfoto konnte nicht rechtzeitig vorbereitet werden.');
+
+  let worker=null,lastError=null,recognitionPass=1;
+  const logger=(m)=>{
+    const p=Math.max(0,Math.min(1,Number(m?.progress||0)));
+    const status=String(m?.status||'');
+    if(status==='loading tesseract core') onProgress({status:'OCR-Engine wird geladen',progress:0.16+p*0.06});
+    else if(status==='initializing tesseract') onProgress({status:'OCR-Engine wird gestartet',progress:0.22+p*0.06});
+    else if(status==='loading language traineddata') onProgress({status:'Sprachmodell wird geladen',progress:0.28+p*0.10});
+    else if(status==='initializing api') onProgress({status:'Texterkennung wird vorbereitet',progress:0.38+p*0.07});
+    else if(status==='recognizing text'){
+      const phaseStart=recognitionPass===1?0.45:0.76;
+      const span=recognitionPass===1?0.28:0.15;
+      onProgress({status:recognitionPass===1?'Text wird erkannt':'Zweiter OCR-Lauf',progress:phaseStart+p*span});
+    }
+  };
+
+  const languageAttempts=appleMobile()?['deu','eng','deu+eng']:['deu+eng','deu','eng'];
+  for(const languages of languageAttempts){
     try{
-      worker=await tesseract.createWorker(languages,1,{workerPath:TESSERACT_WORKER,logger:(m)=>{if(m?.status==='recognizing text')onProgress({status:'Text wird erkannt',progress:Number(m.progress||0)*0.65});}});
+      onProgress({status:'OCR-Engine wird gestartet',progress:0.15});
+      worker=await withTimeout(
+        tesseract.createWorker(languages,1,{workerPath:TESSERACT_WORKER,corePath:TESSERACT_CORE,logger}),
+        OCR_WORKER_TIMEOUT_MS,
+        'OCR-Engine reagiert auf diesem Gerät nicht.'
+      );
       break;
     }catch(error){lastError=error;worker=null;}
   }
@@ -266,16 +456,18 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
 
   try{
     await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
-    const first=await worker.recognize(normal);
+    recognitionPass=1;
+    const first=await withTimeout(worker.recognize(normal),OCR_RECOGNIZE_TIMEOUT_MS,'Die Texterkennung dauert zu lange.');
     let parsed=parseReceiptText(first?.data?.text||'',{fallbackCurrency});
     let ocrConfidence=Number(first?.data?.confidence||0)/100;
 
     if(!parsed.amount||!parsed.date||!parsed.merchant||parsed.merchant==='Unbekannter Händler'||parsed.confidence<0.82){
-      onProgress({status:'Zweiter OCR-Lauf',progress:0.7});
+      onProgress({status:'Zweiter OCR-Lauf wird vorbereitet',progress:0.74});
       try{
-        const binary=await prepareImage(file,{binary:true});
+        const binary=await withTimeout(prepareImage(file,{binary:true}),15000,'Das Belegfoto konnte nicht für den zweiten Lauf vorbereitet werden.');
         await worker.setParameters({tessedit_pageseg_mode:'11',preserve_interword_spaces:'1'});
-        const second=await worker.recognize(binary);
+        recognitionPass=2;
+        const second=await withTimeout(worker.recognize(binary),OCR_RECOGNIZE_TIMEOUT_MS,'Der zweite OCR-Lauf dauert zu lange.');
         const parsedSecond=parseReceiptText(second?.data?.text||'',{fallbackCurrency});
         const secondConfidence=Number(second?.data?.confidence||0)/100;
         const quality=(p,c)=>p.confidence*0.8+c*0.2;
@@ -284,5 +476,7 @@ export async function analyzeReceiptImage(file,{fallbackCurrency='CHF',onProgres
     }
     onProgress({status:'Belegdaten werden geprüft',progress:0.95});
     return {...parsed,ocrConfidence};
-  } finally { await worker.terminate(); }
+  } finally {
+    try{await worker.terminate();}catch{}
+  }
 }

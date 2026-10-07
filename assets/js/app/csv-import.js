@@ -75,6 +75,10 @@ export function guessMapping(headers) {
     date: find(/buchungsdatum/i, /abschlussdatum/i, /^datum$/i, /date/i, /valuta/i),
     description: find(/beschreibung1/i, /beschreibung/i, /description/i, /text/i, /details/i),
     counterparty: find(/auftraggeber/i, /beguenst/i, /begünst/i, /counterparty/i, /empfaenger/i, /empfänger/i),
+    counterpartyAccount: find(/gegenkonto/i, /gegen.*iban/i, /empfaenger.*iban/i, /empfänger.*iban/i, /auftraggeber.*iban/i, /^iban$/i, /account.*iban/i, /counterparty.*account/i),
+    bankReference: find(/referenz/i, /reference/i, /zahlungszweck/i, /mitteilung/i, /meldung/i, /purpose/i),
+    sourcePage: find(/pdf.*seite/i, /^seite$/i, /source.*page/i),
+    rawData: find(/original/i, /raw/i),
     debit: find(/belastung/i, /debit/i, /soll/i),
     credit: find(/gutschrift/i, /credit/i, /haben/i),
     amount: find(/^betrag$/i, /amount/i),
@@ -114,6 +118,11 @@ export function rowToTransaction(row, mapping) {
   const date = parseDate(row[mapping.date]);
   const description = String(row[mapping.description] || '').trim() || 'Importierte Transaktion';
   const counterparty = mapping.counterparty ? String(row[mapping.counterparty] || '').trim() : '';
+  const counterpartyAccountRef = mapping.counterpartyAccount ? String(row[mapping.counterpartyAccount] || '').trim() : '';
+  const bankReference = mapping.bankReference ? String(row[mapping.bankReference] || '').trim() : '';
+  const sourcePageRaw = mapping.sourcePage ? String(row[mapping.sourcePage] || '').trim() : '';
+  const sourcePage = Number(sourcePageRaw);
+  const importedRaw = mapping.rawData ? String(row[mapping.rawData] || '').trim() : '';
 
   let amount = null;
   if (mapping.amount) amount = parseAmount(row[mapping.amount]);
@@ -125,7 +134,19 @@ export function rowToTransaction(row, mapping) {
   }
 
   if (!date || amount === null || amount === 0) return null;
-  return { occurred_at: date, amount, description, counterparty: counterparty || null };
+  return {
+    occurred_at: date,
+    amount,
+    description,
+    counterparty: counterparty || null,
+    counterparty_account_ref: counterpartyAccountRef || null,
+    bank_reference: bankReference || null,
+    import_source_page: Number.isInteger(sourcePage)&&sourcePage>0 ? sourcePage : null,
+    import_raw_data: {
+      row: row && typeof row==='object' ? {...row} : row,
+      raw_text: importedRaw || null,
+    },
+  };
 }
 
 export function applyCategoryRules(tx, rules) {
@@ -197,7 +218,7 @@ function stripVolatileMerchantSuffix(value) {
   while(text && text!==previous){
     previous=text;
     text=text
-      .replace(/(?:\s+|[,;\-–]\s*)\b(?:0?[1-9]|[12]\d|3[01])[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:(?:19|20)\d{2}|\d{2})\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
+      .replace(/(?:\s+|[,;\-–]\s*)\b(?:0?[1-9]|[12]\d|3[01])[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:19|20)\d{2}\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
       .replace(/(?:\s+|[,;\-–]\s*)\b(?:19|20)\d{2}[.\/-](?:0?[1-9]|1[0-2])[.\/-](?:0?[1-9]|[12]\d|3[01])\b(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$/i,'')
       .replace(/\s+/g,' ')
       .trim();
@@ -210,7 +231,7 @@ function canonicalMerchantIdentity(name) {
   if(/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i.test(text)) return {name:'Migros Restaurant',key:'migros restaurant'};
   if(/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i.test(text)) return {name:'Coop Restaurant',key:'coop restaurant'};
   if(/\bsbb\b|\bcff\b|\bffs\b/i.test(text)) return {name:'SBB',key:'sbb'};
-  if(/\bedeka\b/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\bedeka\b|\bedk\*/i.test(text)) return {name:'EDEKA',key:'edeka'};
   if(/\bmigros\b/i.test(text)) return {name:'Migros',key:'migros'};
   if(/\bcoop\b/i.test(text)) return {name:'Coop',key:'coop'};
   if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner'};
@@ -251,20 +272,6 @@ export function merchantFromTransaction(tx) {
   const rawName=name.length>120 ? name.slice(0,120).trim() : name;
   name=stripVolatileMerchantSuffix(name) || rawName;
   if (name.length > 80) name = name.slice(0, 80).trim();
-
-  const genericPaymentRail=Boolean(processor.paymentProcessor)
-    && /^(?:zahlung|payment|belastung|gutschrift|eingang|ausgang|buchung|transaktion|transaction)?$/i.test(String(name||'').trim());
-  if(genericPaymentRail){
-    return {
-      name:processor.paymentProcessor,
-      key:'unbekannt',
-      rawName,
-      aliasKey:'',
-      sourceField:tx?.counterparty ? 'counterparty' : 'description',
-      paymentProcessor:processor.paymentProcessor,
-      genericPaymentRail:true,
-    };
-  }
 
   const canonical=canonicalMerchantIdentity(name);
   if(canonical){
@@ -323,10 +330,10 @@ export function resolveCanonicalMerchant(detected,{merchants=[],aliases=[]}={}) 
 const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
   { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
-  { pattern:/\bedeka\b/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
+  { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Supermarkt' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
-  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner|catering)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
   { pattern:/\b(?:garage|officina|werkstatt|reparatur|riparazione|pneu|reifen)\b/i, name:null, key:null, category:'Wartung & Reparatur' },
   { pattern:/\b(?:noleggio|mietroller|rollermiete|scooter\s*rental|rent\s*a\s*scooter|mietfahrzeug)\b/i, name:null, key:null, category:'Mietfahrzeug' },
   { pattern:/\b(?:blumen|florist|fiori|grabpflege|gedenken)\b/i, name:null, key:null, category:'Geschenke & Gedenken' },
@@ -383,19 +390,6 @@ export function suggestKnownCategoryCandidates(tx) {
     'Lotterie & Gewinnspiele':['Lotterie & Gewinnspiele','Freizeit'],
   };
   return fallback[category]||[category];
-}
-
-export function suggestAccountCategory(tx,{account=null,categories=[]}={}) {
-  if(Number(tx?.amount)>=0 || !account) return null;
-  const detected=merchantFromTransaction(tx);
-  if(!detected?.genericPaymentRail) return null;
-
-  const accountKey=normalizeMerchantKey(account.name);
-  if(!accountKey) return null;
-  const matches=(categories||[]).filter((category)=>
-    category?.kind==='expense' && normalizeMerchantKey(category.name)===accountKey
-  );
-  return matches.length===1?matches[0]:null;
 }
 
 export function suggestKnownCategoryName(tx) {

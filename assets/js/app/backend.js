@@ -198,8 +198,13 @@ export const backend = Object.freeze({
     try {
       const user = await authRequest('user', { method: 'GET', token: active.access_token });
       return { ...active, user };
-    } catch {
-      return saveSession(null);
+    } catch (error) {
+      // Only a definitive auth rejection invalidates the local session.
+      // Network errors, transient 5xx responses or an interrupted release reload
+      // must not throw the user out of Finance.
+      const status = Number(error?.status || 0);
+      if (status === 401 || status === 403) return saveSession(null);
+      return { ...active, user: active.user || null, restoreWarning: String(error?.message || error) };
     }
   },
 

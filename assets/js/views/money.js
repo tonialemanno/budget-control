@@ -41,6 +41,7 @@ export function renderMoney({
     hubCard({ href:'#/transactions', iconName:'list', title:'Alle Transaktionen', text:'Einnahmen, Ausgaben und Umbuchungen', meta:`${transactions.length} Buchung${transactions.length===1?'':'en'}` }),
     hubCard({ href:'#/imports', iconName:'arrow-down-left', title:'Bankdaten importieren', text:'CSV und Kontoauszüge einlesen', meta:importBatches.length?`${importBatches.length} Import${importBatches.length===1?'':'s'}`:'Noch kein Import' }),
     hubCard({ href:'#/documents', iconName:'receipt', title:'Dokumente & Belege', text:'Belege und Finanzdokumente', meta:`${documents.length} Dokument${documents.length===1?'':'e'}` }),
+    hubCard({ href:'#/projects', iconName:'folder', title:'Anlässe & Projekte', text:'Scheidung, Ferien, Umzug oder andere zusammengehörende Kosten' }),
     hubCard({ href:'#/categories', iconName:'layout-grid', title:'Kategorien & Händler', text:'Automatische Zuordnung konfigurieren' }),
   ];
 

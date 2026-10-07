@@ -166,6 +166,7 @@ export function buildFinanceCoach({
   household,
   fxRates=null,
   now=new Date(),
+  financeMonthMode='day_25',
 }={}){
   if(!snapshot) throw new Error('Finance snapshot is required.');
   const baseCurrency=snapshot.currency||household?.base_currency||'CHF';
@@ -205,7 +206,7 @@ export function buildFinanceCoach({
 
   const budgetState=calculateBudgetSummary({
     budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
-    baseCurrency,fxRates,now,fallbackDay:25,
+    baseCurrency,fxRates,now,fallbackDay:25,financeMonthMode:snapshot.financeCycle?.mode||'day_25',
   });
 
   const budgetRisk=budgetState.variableRows
@@ -335,13 +336,14 @@ export function buildBudgetDecisionGuide({
   household,
   fxRates=null,
   now=new Date(),
+  financeMonthMode='day_25',
 }={}){
   if(!categoryId&&!merchantId) return {found:false};
 
   const baseCurrency=household?.base_currency||'CHF';
   const budget=calculateBudgetSummary({
     budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
-    baseCurrency,fxRates,now,fallbackDay:25,
+    baseCurrency,fxRates,now,fallbackDay:25,financeMonthMode,
   });
   const lineageIds=new Set();
   if(categoryId){

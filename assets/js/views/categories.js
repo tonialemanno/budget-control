@@ -64,6 +64,7 @@ export function renderCategories({
 
   const ruleRows = categorizationRules.map((r)=>`<tr><td>${escapeHtml(r.categories?.name || categories.find((c)=>c.id===r.category_id)?.name || '')}</td><td>${escapeHtml(r.field_name==='counterparty'?'Händler / Gegenpartei':'Beschreibung')}</td><td>${escapeHtml(r.match_type)}: <strong>${escapeHtml(r.match_value)}</strong></td><td>${canWrite?deleteButton('categorization_rules',r.id):''}</td></tr>`);
   const parents=categories.filter((c)=>!c.parent_id);
+  const legacySavingCategory=categories.find((c)=>c.kind==='expense'&&String(c.name||'').trim().toLowerCase()==='sparen');
 
   return `
     ${pageHeader({
@@ -73,6 +74,7 @@ export function renderCategories({
     })}
 
     <div class="inline-alert inline-alert--success"><strong>So ist es gedacht: Lebensmittel › Supermarkt › Coop.</strong><span>„Coop“ bleibt ein Händler. Seine Standardkategorie ist „Supermarkt“. Dadurch kann Finance neue Buchungen automatisch richtig einordnen.</span></div>
+    ${legacySavingCategory?'<div class="inline-alert"><strong>„Sparen“ ist keine neue Ausgabenkategorie mehr.</strong><span>Historische Zuordnungen bleiben erhalten. Neue Sparbewegungen bitte als Umbuchung auf ein Sparkonto oder als Rücklage erfassen; dadurch werden deine Ausgaben nicht künstlich erhöht.</span></div>':''}
 
     ${canWrite?formShell('category-create','Kategorie oder Unterkategorie','Eine Hauptkategorie kann weitere Unterkategorien enthalten.',categoryFields,{hidden:true,submitLabel:'Kategorie speichern'}):''}
 

@@ -61,7 +61,7 @@ export const financeApi = Object.freeze({
   listCategorizationRules(householdId) { return listByHousehold('categorization_rules', householdId, { select: '*,categories(name,kind)', order: 'priority.asc,created_at.asc' }); },
   createCategorizationRule: (payload) => insert('categorization_rules', payload), deleteCategorizationRule: (id) => remove('categorization_rules', id),
   async listTransactions(householdId) {
-    const select = 'id,household_id,account_id,category_id,merchant_id,counterparty_id,context_id,vehicle_id,recurring_rule_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,tax_relevant,tax_category,tax_year,tax_section_key,tax_treatment,cashflow_type,semantic_type,exclude_from_reports,accounts(name),categories(name,kind,parent_id),merchants(name,normalized_key,default_category_id),counterparties(name,kind),transaction_contexts(name,context_type,vehicle_id),vehicles(name,vehicle_type),recurring_rules(id,description,cadence,next_date)';
+    const select = 'id,household_id,account_id,category_id,merchant_id,counterparty_id,context_id,vehicle_id,recurring_rule_id,import_batch_id,occurred_at,amount,currency,description,counterparty,note,status,source,transfer_group_id,external_reference,bank_reference,counterparty_account_ref,import_raw_data,import_source_page,created_at,updated_at,tax_relevant,tax_category,tax_year,tax_section_key,tax_treatment,cashflow_type,semantic_type,exclude_from_reports,accounts(name),categories(name,kind,parent_id),merchants(name,normalized_key,default_category_id),counterparties(name,kind),transaction_contexts(name,context_type,vehicle_id),vehicles(name,vehicle_type),recurring_rules(id,description,cadence,next_date)';
     const pageSize = 1000; const rows = [];
     for (let offset = 0; ; offset += pageSize) { const page = await listByHousehold('transactions', householdId, { select, order: 'occurred_at.desc,created_at.desc', limit: pageSize, extra: { offset: String(offset) } }); rows.push(...(page || [])); if (!page || page.length < pageSize) break; }
     return rows;
@@ -130,8 +130,23 @@ export const financeApi = Object.freeze({
     return rows || [];
   },
   updateTransaction: (id, patch) => update('transactions', id, patch),
+  listTransactionChangeLogs(householdId) { return listByHousehold('transaction_change_log', householdId, { order:'created_at.desc', limit:100 }); },
+  createTransactionChangeLog: (payload) => insert('transaction_change_log', payload),
+  updateTransactionChangeLog: (id, patch) => update('transaction_change_log', id, patch),
   async bulkUpdateTransactions(ids, patch) { const unique = [...new Set((ids || []).filter(Boolean))]; for (let index = 0; index < unique.length; index += 80) { const chunk = unique.slice(index, index + 80); await backend.rest(buildQuery('transactions', { id: `in.(${chunk.join(',')})` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=minimal' } }); } },
   deleteTransaction: (id) => remove('transactions', id),
+  mergeDuplicateTransactions: ({householdId,keepTransactionId,duplicateTransactionId}) => backend.rpc('merge_duplicate_transactions_v1',{p_household_id:householdId,p_keep_transaction_id:keepTransactionId,p_duplicate_transaction_id:duplicateTransactionId}),
+  listTransactionDuplicateIgnores(householdId) { return listByHousehold('transaction_duplicate_ignores', householdId, { order:'created_at.desc', limit:1000 }); },
+  async ignoreTransactionDuplicate({householdId,transactionAId,transactionBId}) {
+    const ordered=[String(transactionAId||''),String(transactionBId||'')].sort();
+    if(!ordered[0]||!ordered[1]||ordered[0]===ordered[1]) throw new Error('Ungültiges Buchungspaar.');
+    const rows=await backend.rest(buildQuery('transaction_duplicate_ignores',{on_conflict:'household_id,transaction_a_id,transaction_b_id'}),{
+      method:'POST',
+      body:{household_id:householdId,transaction_a_id:ordered[0],transaction_b_id:ordered[1]},
+      headers:{Prefer:'resolution=ignore-duplicates,return=representation'},
+    });
+    return rows?.[0]||null;
+  },
   createTransfer: (payload) => backend.rpc('create_transfer_v2', payload),
   deleteTransfer: (householdId, transferGroupId) => backend.rpc('delete_transfer_v2', { p_household_id: householdId, p_transfer_group_id: transferGroupId }),
   convertTransactionToTransfer: ({ householdId, transactionId, toAccountId, toAmount = null, description = null }) => backend.rpc('convert_transaction_to_transfer', { p_household_id: householdId, p_transaction_id: transactionId, p_to_account_id: toAccountId, p_to_amount: toAmount, p_description: description }),
@@ -155,6 +170,7 @@ export const financeApi = Object.freeze({
   async upsertMerchantAlias(payload) { const rows=await backend.rest(buildQuery('merchant_aliases',{on_conflict:'household_id,normalized_key'}),{method:'POST',body:payload,headers:{Prefer:'resolution=merge-duplicates,return=representation'}}); return rows?.[0]||null; },
   deleteMerchantAlias: (id) => remove('merchant_aliases', id),
   mergeMerchants: ({householdId,canonicalMerchantId,duplicateMerchantId}) => backend.rpc('merge_merchants_v2',{p_household_id:householdId,p_canonical_merchant_id:canonicalMerchantId,p_duplicate_merchant_id:duplicateMerchantId}),
+  mergeMerchantsBulk: ({householdId,canonicalMerchantId,duplicateMerchantIds}) => backend.rpc('merge_merchants_bulk_v1',{p_household_id:householdId,p_canonical_merchant_id:canonicalMerchantId,p_duplicate_merchant_ids:duplicateMerchantIds}),
   listCounterparties(householdId) { return listByHousehold('counterparties', householdId, { order: 'kind.asc,name.asc', limit: 2000 }); },
   async upsertCounterparty(payload) { const rows=await backend.rest(buildQuery('counterparties',{on_conflict:'household_id,kind,normalized_key'}),{method:'POST',body:payload,headers:{Prefer:'resolution=merge-duplicates,return=representation'}}); return rows?.[0]||null; },
   listTransactionContexts(householdId) { return listByHousehold('transaction_contexts', householdId, { select: '*,vehicles(name,vehicle_type)', order: 'is_archived.asc,starts_on.desc.nullslast,name.asc', limit: 1000 }); },
@@ -166,6 +182,10 @@ export const financeApi = Object.freeze({
   async upsertBudget(payload) { const scope = payload.merchant_id ? { merchant_id: `eq.${payload.merchant_id}`, category_id: 'is.null' } : { category_id: `eq.${payload.category_id}`, merchant_id: 'is.null' }; const existing = await backend.rest(buildQuery('budgets', { select: 'id', household_id: `eq.${payload.household_id}`, month_start: `eq.${payload.month_start}`, ...scope, limit: '1' })); if (existing?.[0]?.id) return update('budgets', existing[0].id, payload); return insert('budgets', payload); },
   deleteBudget: (id) => remove('budgets', id),
   listBills(householdId) { return listByHousehold('bills', householdId, { select: '*,accounts(name),categories(name,kind)', order: 'due_date.asc,created_at.asc' }); },
+  listSalesDocuments(householdId) { return listByHousehold('sales_documents', householdId, { order: 'issue_date.desc,created_at.desc', limit: 500 }); },
+  createSalesDocument: (payload) => insert('sales_documents', payload),
+  updateSalesDocument: (id, patch) => update('sales_documents', id, patch),
+  deleteSalesDocument: (id) => remove('sales_documents', id),
   createBill: (payload) => insert('bills', payload), updateBill: (id, patch) => update('bills', id, patch),
   payBill: ({ householdId, billId, source, paidAt = null, accountId = null, transactionId = null }) => backend.rpc('pay_bill_v2', { p_household_id:householdId, p_bill_id:billId, p_source:source, p_paid_at:paidAt, p_account_id:accountId, p_transaction_id:transactionId }),
   unpayBill: ({ householdId, billId }) => backend.rpc('unpay_bill_v2', { p_household_id:householdId, p_bill_id:billId }), deleteBill: (id) => remove('bills', id),

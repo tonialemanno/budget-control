@@ -9,9 +9,9 @@ function releaseChannel() {
 
 export const APP_CONFIG = Object.freeze({
   appName: 'Finance',
-  version: '2.3.14',
-  releaseId: '2026.10.05-r19',
-  schemaVersion: 2026100403,
+  version: '2.4.6',
+  releaseId: '2026.10.06-r41',
+  schemaVersion: 2026100504,
   releaseChannel: releaseChannel(),
   defaultCountry: 'CH',
   defaultCurrency: 'CHF',
@@ -40,6 +40,7 @@ export const MODULES = Object.freeze({
 
 export const NAV_ITEMS = Object.freeze([
   { route: 'overview', label: 'Übersicht', mobileLabel: 'Übersicht', icon: 'home', group: 'Start', module: 'core', primary: true, section: 'overview' },
+  { route: 'review', label: 'Prüfen', mobileLabel: 'Prüfen', icon: 'check-circle', group: 'Start', module: 'core', primary: true, section: 'review' },
   { route: 'money', label: 'Geld', mobileLabel: 'Geld', icon: 'wallet', group: 'Start', module: 'core', primary: true, section: 'money' },
   { route: 'planning', label: 'Planung', mobileLabel: 'Planung', icon: 'target', group: 'Start', module: 'core', primary: true, section: 'planning' },
 
@@ -47,14 +48,16 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'transactions', label: 'Transaktionen', icon: 'list', group: 'Geld', module: 'money', section: 'money' },
   { route: 'imports', label: 'Datenimport', icon: 'arrow-down-left', group: 'Geld', module: 'money', section: 'money' },
   { route: 'documents', label: 'Dokumente', icon: 'receipt', group: 'Geld', module: 'core', section: 'money' },
+  { route: 'projects', label: 'Anlässe & Projekte', icon: 'folder', group: 'Geld', module: 'core', section: 'money' },
   { route: 'debts', label: 'Schulden & Kredite', icon: 'credit-card', group: 'Geld', module: 'debts', section: 'money' },
   { route: 'receivables', label: 'Forderungen', icon: 'banknote', group: 'Geld', module: 'debts', section: 'money' },
   { route: 'legal', label: 'Mahnung / Betreibung', icon: 'shield', group: 'Geld', module: 'legal', section: 'money' },
 
   { route: 'budget', label: 'Budget', icon: 'chart', group: 'Planung', module: 'budget', section: 'planning' },
-  { route: 'fixed-costs', label: 'Fixkosten & Einnahmen', icon: 'receipt', group: 'Planung', module: 'money', section: 'planning' },
-  { route: 'recurring', label: 'Regelmässige Zahlungen', icon: 'repeat', group: 'Planung', module: 'money', section: 'planning' },
-  { route: 'bills', label: 'Rechnungen & Verträge', icon: 'receipt', group: 'Planung', module: 'bills', section: 'planning' },
+  { route: 'fixed-costs', label: 'Feste Zahlungen', icon: 'receipt', group: 'Planung', module: 'money', section: 'planning' },
+  { route: 'recurring', label: 'Automatik im Detail', icon: 'repeat', group: 'Planung', module: 'money', section: 'planning' },
+  { route: 'bills', label: 'Zu zahlende Rechnungen & Verträge', icon: 'receipt', group: 'Planung', module: 'bills', section: 'planning' },
+  { route: 'sales-documents', label: 'Rechnungen / Offerten', icon: 'receipt', group: 'Planung', module: 'bills', section: 'planning' },
   { route: 'goals', label: 'Sparziele', icon: 'target', group: 'Planung', module: 'goals', section: 'planning' },
   { route: 'tax-advisor', label: 'Steuern', icon: 'receipt', group: 'Planung', module: 'tax', section: 'planning' },
   { route: 'family', label: 'Familie & Haushalt', icon: 'heart-pulse', group: 'Weitere Bereiche', module: 'family', section: 'planning' },
@@ -71,6 +74,9 @@ export const NAV_ITEMS = Object.freeze([
 
 export const PAGE_META = Object.freeze({
   overview: { title: 'Übersicht', eyebrow: 'Finance' },
+  review: { title: 'Zu prüfen', eyebrow: 'Finance' },
+  search: { title: 'Suchen', eyebrow: 'Finance' },
+  projects: { title: 'Anlässe & Projekte', eyebrow: 'Geld' },
   money: { title: 'Geld', eyebrow: 'Finance' },
   planning: { title: 'Planung', eyebrow: 'Finance' },
   setup: { title: 'Einrichtung', eyebrow: 'Finance' },
@@ -81,11 +87,12 @@ export const PAGE_META = Object.freeze({
   merchants: { title: 'Händler', eyebrow: 'Einstellungen' },
   imports: { title: 'Datenimport', eyebrow: 'Geld' },
   'import-history': { title: 'Import-Historie', eyebrow: 'Geld' },
-  recurring: { title: 'Regelmässige Zahlungen', eyebrow: 'Planung' },
-  'fixed-costs': { title: 'Fixkosten & Einnahmen', eyebrow: 'Planung' },
+  recurring: { title: 'Automatik im Detail', eyebrow: 'Planung' },
+  'fixed-costs': { title: 'Feste Zahlungen', eyebrow: 'Planung' },
   documents: { title: 'Dokumente', eyebrow: 'Geld' },
   budget: { title: 'Budget', eyebrow: 'Planung' },
-  bills: { title: 'Rechnungen & Verträge', eyebrow: 'Planung' },
+  bills: { title: 'Zu zahlende Rechnungen & Verträge', eyebrow: 'Planung' },
+  'sales-documents': { title: 'Rechnungen / Offerten', eyebrow: 'Planung' },
   goals: { title: 'Sparziele', eyebrow: 'Planung' },
   'tax-advisor': { title: 'Steuern', eyebrow: 'Planung' },
   debts: { title: 'Schulden & Kredite', eyebrow: 'Geld' },

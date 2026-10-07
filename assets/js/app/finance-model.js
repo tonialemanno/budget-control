@@ -110,10 +110,11 @@ export function buildFinanceSnapshot({
   household,
   fxRates,
   now = new Date(),
+  financeMonthMode='day_25',
 } = {}) {
   const currency = household?.base_currency || 'CHF';
   const today = now.toISOString().slice(0,10);
-  const financeCycle=resolveFinanceCycle({transactions,recurringRules,now,fallbackDay:25});
+  const financeCycle=resolveFinanceCycle({now,fallbackDay:25,mode:financeMonthMode});
   const monthKey = financeCycle.budgetMonth;
   const monthEnd=new Date(financeCycle.endExclusive.getTime()-1);
   const inBase = (value, sourceCurrency = currency) => convertAmount(value, sourceCurrency || currency, currency, fxRates) ?? 0;
@@ -139,7 +140,7 @@ export function buildFinanceSnapshot({
 
   const budgetState=calculateBudgetSummary({
     budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
-    baseCurrency:currency,fxRates,now,fallbackDay:25,
+    baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode,
   });
   const monthBudgets=budgetState.variableRows;
   const variableBudgets=budgetState.variableRows;

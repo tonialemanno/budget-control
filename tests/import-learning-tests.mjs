@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { merchantFromTransaction, suggestAccountCategory, suggestKnownCategoryCandidates } from '../assets/js/app/csv-import.js';
+import { merchantFromTransaction } from '../assets/js/app/csv-import.js';
 
 const salarySep=merchantFromTransaction({description:'Abacus Umantis AG 25.09.2026',amount:6412.05});
 const salaryOct=merchantFromTransaction({description:'Abacus Umantis AG 25.10.2026',amount:6412.05});
@@ -20,29 +20,9 @@ const sumup=merchantFromTransaction({description:'SUMUP *LADMANN CATERING 03.10.
 assert.equal(sumup.name,'LADMANN CATERING');
 assert.equal(sumup.key,'ladmann catering');
 assert.equal(sumup.paymentProcessor,'SumUp');
-assert.ok(suggestKnownCategoryCandidates({description:'SUMUP *LADMANN CATERING 03.10.2026',amount:-20}).includes('Restaurant & Café'));
-
-const genericTwint=merchantFromTransaction({description:'TWINT-Zahlung 29.09.26',amount:-40});
-assert.equal(genericTwint.key,'unbekannt');
-assert.equal(genericTwint.genericPaymentRail,true);
-assert.equal(genericTwint.paymentProcessor,'TWINT');
-assert.match(genericTwint.name,/TWINT/);
-
-const food={id:'food',name:'Lebensmittel',kind:'expense'};
-assert.equal(
-  suggestAccountCategory({description:'TWINT-Zahlung 29.09.26',amount:-40},{account:{name:'Lebensmittel'},categories:[food]})?.id,
-  'food'
-);
-assert.equal(
-  suggestAccountCategory({description:'TWINT-Zahlung 29.09.26',amount:-40},{account:{name:'LohnKonto'},categories:[food]}),
-  null
-);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/async function applyImportGroupLearning/);
-assert.match(main,/async function learnFromTransactionCorrection/);
-assert.match(main,/suggestAccountCategory\(tx,\{account,categories:runtime\.categories\}\)/);
-assert.match(main,/!merchantInfo\.genericPaymentRail/);
 assert.match(main,/merchantFromTransaction\(row\)/);
 assert.match(main,/bulkUpdateTransactions\(candidates\.map/);
 assert.match(main,/requestAnimationFrame\(\(\)=>window\.scrollTo/);

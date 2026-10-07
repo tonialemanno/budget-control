@@ -1,4 +1,124 @@
-# Finance 2.3.0 Stable
+# Finance 2.4.6
+
+## 2.4.6 – Ranking bleibt unsichtbar
+
+- Kategorien bleiben nach persönlicher Nutzung priorisiert.
+- Die sichtbare Auswahl zeigt wieder nur den Kategorienamen; Angaben wie `58× verwendet` werden nicht mehr angezeigt.
+- Händler-/Beschreibungs-Erkennung und ML-Vorschläge bleiben unverändert aktiv.
+- Release 2026.10.06-r30.
+
+
+## 2.4.5 – Intelligente Kategorien statt alphabetischer Liste
+
+- Kategorien werden nach tatsächlicher Nutzung im Haushalt sortiert: häufig verwendete zuerst, danach zuletzt verwendete und erst dann die übrigen.
+- Transaktionsformulare filtern Vorschläge nach Einnahme/Ausgabe und zeigen Nutzungshäufigkeit direkt in der Auswahl.
+- Beim Tippen einer Beschreibung bzw. eines Händlers versucht Finance sofort, die passende Kategorie aus gemerktem Händler, bekannten Händlerregeln und sicherem ML vorzuschlagen.
+- Eine manuell gewählte Kategorie wird durch spätere Vorschläge nicht überschrieben.
+- Beleg-OCR nutzt dieselbe Händler-/Kategorieerkennung.
+- Release 2026.10.06-r29.
+
+
+## 2.4.4 – EDEKA-Schreibweise EDK*
+
+- Banktexte wie `EDK*HAFERKATER STORES` werden als **EDEKA** kanonisiert.
+- EDEKA wird bevorzugt der Kategorie **Supermarkt** zugeordnet; **Lebensmittel** bleibt Fallback.
+- Der bestehende Händler-Datensatz wurde auf EDEKA bereinigt und der Alias `edk haferkater stores` gespeichert.
+- Release 2026.10.06-r28.
+
+
+## 2.4.3 – Tilgung ist Buchungstyp, nicht Kategorie
+
+- Offene Händler-/Personengruppen zeigen klarer, dass Kategorien nur für echte Einnahmen und Ausgaben gedacht sind.
+- Der Einstieg für Sonderfälle heißt jetzt **„Umbuchung / Tilgung / Teilmenge“** statt des unspezifischen „Auswahl bearbeiten“.
+- Historische Rückzahlungen geliehenen Geldes können als **Darlehensrückzahlung / Schuldentilgung** markiert werden, ohne eine künstliche Ausgabenkategorie anzulegen.
+- Solche Tilgungen bleiben als Kontobewegung erhalten, zählen aber nicht als Konsumausgabe.
+- Release 2026.10.06-r27.
+
+
+## 2.4.2 – PDF-Saldo und Buchungsbetrag sicher getrennt
+
+- PDF-Import behandelt die Saldo/Kontostand-Spalte nicht mehr als Buchungsbetrag, auch wenn der Saldo als einziger Wert ein Vorzeichen trägt.
+- Regressionstest für den realen Fehlerfall: Gutschrift CHF 1'000.00 + Saldo CHF -175.12 muss als +CHF 1'000.00 importiert werden.
+- Release 2026.10.06-r26.
+
+
+## 2.4.1 – iPhone-Kategorisierung lesbar
+
+- Teilmengenansicht auf iPhone neu aufgebaut: eine Buchung ist eine eigene Karte ohne überlappende Zeilen.
+- Betrag steht im Kopf der Buchung, Kontext darunter in lesbaren Abständen.
+- Konto, Banktext, Notiz/Zweck und erkannte Gegenbuchung werden mobil priorisiert.
+- Händler/Gegenpartei werden nicht doppelt angezeigt, wenn sie nur denselben Text wie der Banktext wiederholen.
+- Grössere Checkboxen und Touch-Ziele für iPhone 11/12 Pro.
+- Release 2026.10.06-r25.
+
+
+## 2.4.0 – Alltag zuerst: Prüfen, Suchen, Projekte und vollständiger Importkontext
+
+- Neuer Kernbereich **„Prüfen“** als zentrale Arbeitsliste: unkategorisierte Ausgaben, ungeklärte Eingänge, mögliche eigene Umbuchungen und bald fällige Rechnungen werden an einem Ort abgearbeitet.
+- **Gespeichert = erledigt:** bereits kategorisierte Buchungen erscheinen nicht erneut als offene Aufgabe. Eindeutige Gegenbuchungen werden nur nach Bestätigung als Umbuchung verbunden.
+- **Seit dem letzten Besuch:** Finance merkt sich den vorherigen sinnvollen Besuchszeitpunkt und zeigt neue Buchungen seitdem, ohne dass ein normaler Seiten-Refresh die Vergleichsbasis sofort löscht.
+- **Globale Suche** über Betrag, Datum, Beschreibung, Person/Gegenpartei, Händler, Konto, Kategorie, Projekt, Bankreferenz, Gegenkonto, Rechnungen, Verträge, Forderungen, Schulden und Dokumente.
+- **Anlässe & Projekte** verwenden die bestehende Transaktionskontext-Struktur. Kategorien sagen dauerhaft wofür Geld war; Projekte erklären den zeitlich begrenzten Anlass, z. B. „Scheidung“ oder „Italien 2026“.
+- **Importkontext bleibt erhalten:** CSV/PDF können Gegenkonto/IBAN, Bankreferenz/Zweck, Originalzeile bzw. PDF-Folgezeilen und Quellseite speichern. Originalinformationen werden nicht mehr auf Beschreibung + Betrag reduziert.
+- **Eigene Konten erkennen:** Konten können optional eine IBAN/Kontokennung erhalten. Stimmen Import-Gegenkonto und eigenes Konto überein, erkennt Finance die Bewegung als interne Umbuchung; vorhandene eindeutige Gegenbuchungen werden verknüpft.
+- PDF-Import wertet Folgezeilen bis zur nächsten Buchung aus und bewahrt den Rohkontext für spätere Nachvollziehbarkeit.
+- **Informationstiefe funktioniert jetzt:** Einfach blendet technische Händler-/Semantik-/Expertenfelder aus, Standard zeigt normale Zuordnungen, Experte den vollständigen technischen Umfang.
+- Planung ist menschlicher gebündelt: **„Feste Zahlungen“** ist der normale Einstieg für Lohn, Miete, Krankenkasse, Abos, Rücklagen und feste Umbuchungen. „Automatik im Detail“ bleibt als technische Gesamtansicht.
+- **Sparen ist keine neue Ausgabenkategorie mehr.** Historische Daten bleiben erhalten; neue Sparbewegungen laufen als Umbuchung/Rücklage.
+- Einnahmen werden klarer getrennt: „Rückerstattung“ und „Rückzahlung“ werden nicht als normaler Verdienst behandelt; Forderungsrückzahlungen bleiben an das Forderungsmodul gekoppelt.
+- Neue dauerhafte Kategorie **„Rechts- & Gerichtskosten“**; im Startermodell zusätzlich „Gerichtskosten“ und „Anwaltskosten“. Ein Anlass wie „Scheidung“ gehört in ein Projekt, nicht in die dauerhafte Kategorie.
+- **Änderungsverlauf + Rückgängig** für Sammel-Kategorisierungen wird persistent pro Haushalt gespeichert.
+- Schema 2026100504, Release 2026.10.05-r24.
+
+
+## 2.3.18 – gezielte Einnahme-Basiskategorien
+
+- Bestehende Haushalte erhalten bei der Kategorienanalyse nur die fehlenden gewünschten Einnahmekategorien „Lohn/Gehalt“, „Rückzahlung“ und „Sonstige Einnahmen“.
+- Finance installiert dabei nicht pauschal andere entfernte Standardkategorien erneut.
+- Enthält alle Korrekturen aus 2.3.17 zur erledigten Arbeitsliste, Einzelspeicherung ohne feste Regel und erweiterten Transaktionskontext.
+
+
+## 2.3.17 – Kategorisierung als echte Arbeitsliste
+
+- „Kategorien analysieren“ zeigt im Standardfilter nur noch Buchungen, die tatsächlich noch eine Entscheidung benötigen.
+- Eine gespeicherte Buchung verschwindet sofort aus der offenen Arbeitsliste. Unterschiedliche, bereits korrekt gesetzte Kategorien innerhalb derselben Person-/Händlergruppe gelten nicht mehr als Fehler.
+- „Auswahl speichern“ speichert nur die markierten Buchungen und legt ausdrücklich keine dauerhafte Händler- oder Personenregel an.
+- Die Auswahl zeigt mehr Kontext: Quellkonto, Gegenpartei, Händler, Banktext und Notiz/Zweck.
+- Passende Gegenbuchungen auf anderen eigenen Konten werden als mögliche Umbuchung angezeigt. Mehrdeutige Treffer werden nur als Hinweis gezeigt und nie automatisch entschieden.
+- Für Einnahmen gehören „Lohn“, „Rückzahlung“ und „Sonstige Einnahmen“ zur empfohlenen Basisauswahl. Fehlende Basis-Kategorien werden auch in bestehenden Haushalten beim Öffnen der Analyse ergänzt.
+- Benutzerentscheidungen bleiben Trainingsbeispiele für Machine Learning; sie werden nicht automatisch zu festen Regeln.
+- Keine Datenbankmigration erforderlich.
+
+
+## 2.3.16 – sichtbare zentrale Versionsanzeige
+
+- Login-Seite, Seitenleiste und Release-Hinweis verwenden dieselbe zentrale Version aus `APP_CONFIG`.
+- Auf der Login-Seite ist der tatsächlich geladene Stand sofort sichtbar, inklusive Kanal und kurzer Release-ID, z. B. `V2.3.16 · STABLE · R21`.
+- Die veraltete hart codierte Anzeige `V2.3 · Beta 5.4` wurde entfernt.
+- Auch innerhalb der App zeigt die Versions-Pille zusätzlich die Release-ID, damit Cache-/Deployment-Probleme sofort erkennbar sind.
+- Keine Datenbankmigration erforderlich.
+
+
+## 2.3.15 – Teilmengen in Händlergruppen
+
+- „Kategorien analysieren“ kann Händler-/Gegenparteigruppen jetzt aufklappen und einzelne Teilmengen per Checkbox bearbeiten.
+- Mehrere markierte Buchungen lassen sich gemeinsam kategorisieren, ohne die komplette Gruppe oder den Händlerstandard zu überschreiben.
+- Mehrere markierte Buchungen lassen sich gesammelt als echte interne Umbuchungen verbuchen; ein Sparkonto kann dabei direkt als Gegenkonto gewählt werden.
+- Bei gleicher Währung wird eine eindeutig vorhandene Gegenbuchung verknüpft. Fehlt sie, erzeugt Finance die Gegenbuchung kontrolliert. Mehrdeutige Gegenbuchungen werden nicht geraten.
+- Teilmengen-Kategorisierungen fliessen anschließend als Trainingsdaten in das lokale Machine Learning ein.
+- Keine Datenbankmigration erforderlich.
+
+
+## 2.3.14 – lokales Machine Learning für Kategorien
+
+- Finance trainiert einen überwachten Multinomial-Naive-Bayes-Klassifikator direkt aus bereits kategorisierten Haushaltsbuchungen.
+- Merkmale sind unter anderem kanonischer Händler, Beschreibung/Gegenpartei, Text-Bigramme, Zahlungsprozessor, Betragsspanne und Währung.
+- Die Priorität bleibt deterministisch: gemerkte Händlerkategorie → Regel → eindeutige Händlerbibliothek → Machine Learning → bisherige Gruppenhistorie.
+- ML-Vorschläge erscheinen mit Confidence. Nur bei ausreichender Datenbasis, Klassenstützung, Merkmalsabdeckung und deutlichem Abstand zur zweitbesten Kategorie gelten sie als sicher.
+- Importvorschauen dürfen auch prüfbare ML-Vorschläge vorselektieren; stille Fallback-Kategorisierung und manuelle Neuanlage verwenden ML nur bei hoher Sicherheit.
+- Benutzerkorrekturen wirken beim nächsten Modellaufbau als neue Trainingslabels. Es gibt keinen externen ML-Dienst und keine Übertragung von Buchungstexten.
+- Keine Datenbankmigration: das Modell wird aus den bereits vorhandenen, haushaltsisolierten Transaktionsdaten aufgebaut.
+
 
 ## Stable 2.3.0 – konsolidierter Finanzkern
 
