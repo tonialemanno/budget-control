@@ -1,4 +1,5 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r47';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r48';
+import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r48';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js?v=20261007-r47';
@@ -317,38 +318,34 @@ function enabledNavItems() {
 function renderNavigation() {
   const primary = enabledNavItems().filter((item) => item.primary);
   const management = [
-    `<a class="nav-item" href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Einstellungen'))}</span></a>`,
+    `<a class="nav-item" href="${routeHref('settings')}" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Einstellungen'))}</span></a>`,
     runtime.adminRole
-      ? `<a class="nav-item" href="#/admin" data-route="admin" data-section="settings">${icon('shield')}<span>${escapeHtml(t('Administration'))}</span></a>`
+      ? `<a class="nav-item" href="${routeHref('admin')}" data-route="admin" data-section="settings">${icon('shield')}<span>${escapeHtml(t('Administration'))}</span></a>`
       : '',
   ].filter(Boolean).join('');
 
   desktopNav.innerHTML = `
     <div class="nav-group-label">${escapeHtml(t('ALEMANNO BUCHHALTUNG'))}</div>
-    ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
+    ${primary.map((item) => `<a class="nav-item" href="${routeHref(item.route)}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
     <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Mehr'))}</div>
     ${management}
   `;
 
   mobileNav.innerHTML = `
-    <a href="#/overview" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
-    <a href="#/review" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
+    <a href="${routeHref('overview')}" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
+    <a href="${routeHref('review')}" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
     <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
-    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
-    <a href="#/planning" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
+    <a href="${routeHref('money')}" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
+    <a href="${routeHref('planning')}" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
   `;
 }
 
 function routeSection(route) {
-  if (['settings','categories','merchants','setup','profile','admin'].includes(route)) return 'settings';
-  if (route === 'import-history') return 'money';
-  if (route === 'search') return 'settings';
-  if (route === 'review') return 'review';
-  return NAV_ITEMS.find((item) => item.route === route)?.section || route;
+  return routeDefinition(route)?.section || route;
 }
 
 function resolveRoute() {
-  const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
+  const requested = currentRouteLocation().route || 'overview';
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup', 'profile', 'search']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
