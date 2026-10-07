@@ -3644,6 +3644,7 @@ async function handleForm(form) {
     const nextMode=formValue(data,'financeMonthMode')==='calendar'?'calendar':'day_25';
     const nextMinutes=normalizeIdleMinutes(formValue(data,'sessionTimeout'));
     const nextPrivacy=data.get('privacyEnabled')==='on';
+    const previousMode=financeMonthMode(runtime.profile);
     const accountId=formValue(data,'accountId');
     const allowedThemes=new Set(['auto','light','dark']);
     const allowedDepths=new Set(['simple','standard','expert']);
@@ -3679,7 +3680,7 @@ async function handleForm(form) {
     persistNumber(SESSION_KEYS.timeout,nextMinutes);
     markInteraction(true);
     startLiveTimers();
-    if(nextMode!==financeMonthMode({preferences:{...profilePreferences(),finance_month_mode:nextMode}})){
+    if(nextMode!==previousMode){
       uiState.transactionPeriod='month';
       uiState.transactionFrom='';
       uiState.transactionTo='';
