@@ -25,7 +25,7 @@ assert.equal(edekaC.name,'EDEKA');
 assert.equal(edekaC.key,'edeka');
 assert.deepEqual(
   suggestKnownCategoryCandidates({description:'EDK*HAFERKATER STORES 05.07.2026'}),
-  ['Supermarkt','Lebensmittel']
+  ['Lebensmittel']
 );
 
 const sumup=merchantFromTransaction({description:'bezug SUMUP *KEBAB HUSLI IMBI;0000 ARBON'});
