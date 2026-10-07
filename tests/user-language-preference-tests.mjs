@@ -9,7 +9,10 @@ const migration=fs.readFileSync(new URL('../supabase/migrations/20261007154500_u
 
 assert.match(profile,/id="profileLocaleSelect"/);
 assert.match(settings,/id="localeSelect"/);
-assert.match(main,/target\.id === 'localeSelect' \|\| target\.id === 'profileLocaleSelect'/);
+assert.match(settings,/id="personal-settings"[\s\S]*data-deferred-settings/);
+assert.match(profile,/id="profile-settings"[\s\S]*data-deferred-settings/);
+assert.match(main,/if \(id === 'profile-settings'\)/);
+assert.doesNotMatch(main,/target\.id === 'localeSelect' \|\| target\.id === 'profileLocaleSelect'/);
 assert.match(main,/saveCurrentUserLocale/);
 assert.match(main,/route === 'profile'/);
 assert.match(api,/setMyLocale/);

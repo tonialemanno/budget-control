@@ -1,8 +1,8 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r49';
-import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r49';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r50';
+import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r50';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r49';
+import { financeApi } from './app/finance-api.js?v=20261007-r50';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -30,6 +30,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
+import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r50';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
@@ -48,7 +49,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r49';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r50';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -62,12 +63,14 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r49';
+import { renderSettings } from './views/settings.js?v=20261007-r50';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
 import { renderSearch } from './views/search.js';
 import { renderProjects } from './views/projects.js';
+
+let lastRenderedHref=`${location.pathname}${location.search}`;
 
 const views = {
   overview: renderOverview,
@@ -375,6 +378,7 @@ function handleAppRouteLink(event) {
   try { url=new URL(anchor.href,location.href); } catch { return; }
   if(url.origin!==location.origin || !isKnownRouteUrl(url)) return;
   event.preventDefault();
+  if(hasDeferredSettingsChanges(pageContent) && !confirm(t('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?'))) return;
   history.pushState(null,'',`${url.pathname}${url.search}`);
   if(runtime.user){
     render();
@@ -497,7 +501,7 @@ function syncMobileScrollState() {
   document.body.classList.toggle('mobile-title-collapsed', compact);
 }
 
-async function saveCurrentUserLocale(locale) {
+async function saveCurrentUserLocale(locale,{renderAfter=true,notify=true}={}) {
   const nextLocale=String(locale||'').trim();
   const allowed=new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
   if(!allowed.has(nextLocale)) throw new Error('Ungültige Sprache & Region.');
@@ -507,8 +511,8 @@ async function saveCurrentUserLocale(locale) {
   runtime.profile=returned||{...previousProfile,user_id:runtime.user.id,locale:nextLocale};
   setLocale(nextLocale);
   updateProfileUI();
-  render();
-  showToast('Sprache & Region gespeichert.');
+  if(renderAfter) render();
+  if(notify) showToast('Sprache & Region gespeichert.');
 }
 
 function updateProfileUI() {
@@ -796,6 +800,7 @@ function startLiveTimers() {
   releaseTimer=window.setInterval(()=>{ void ensureCurrentRelease(); },RELEASE_CHECK_INTERVAL_MS);
   adminPresenceTimer=window.setInterval(async()=>{
     if (!runtime.user || !runtime.adminRole || resolveRoute()!=='admin' || document.visibilityState==='hidden') return;
+    if (hasDeferredSettingsChanges(pageContent)) return;
     if (document.activeElement?.matches('input,select,textarea')) return;
     try {
       runtime.adminUsers=(await backend.adminListUsers())?.users||[];
@@ -1100,6 +1105,7 @@ function render() {
     taxYear: uiState.taxYear,
   });
   rewriteLegacyRouteLinks(pageContent);
+  lastRenderedHref=`${location.pathname}${location.search}`;
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   const section = routeSection(route);
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -2301,7 +2307,7 @@ async function handleForm(form) {
   const h = runtime.household?.id;
   const currency = runtime.household?.base_currency || 'CHF';
 
-  if (!['setup-create','password-change','admin-user-create','admin-demo-create'].includes(id)) {
+  if (!['setup-create','password-change','admin-user-create','admin-demo-create','personal-settings','profile-settings','admin-user-access'].includes(id)) {
     if (id === 'family-add') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder verwalten.'); }
     else if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   }
@@ -3637,12 +3643,104 @@ async function handleForm(form) {
     uiState.taxYear=numberValue(data,'taxYear',new Date().getFullYear());
     await refresh('Steuerprofil gespeichert.'); return;
   }
+  if (id === 'personal-settings') {
+    const nextTheme=formValue(data,'theme')||'auto';
+    const nextDepth=formValue(data,'depth')||'standard';
+    const nextLocale=formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale;
+    const nextMode=formValue(data,'financeMonthMode')==='calendar'?'calendar':'day_25';
+    const nextMinutes=normalizeIdleMinutes(formValue(data,'sessionTimeout'));
+    const nextPrivacy=data.get('privacyEnabled')==='on';
+    const previousMode=financeMonthMode(runtime.profile);
+    const accountId=formValue(data,'accountId');
+    const allowedThemes=new Set(['auto','light','dark']);
+    const allowedDepths=new Set(['simple','standard','expert']);
+    if(!allowedThemes.has(nextTheme)) throw new Error('Ungültige Darstellung.');
+    if(!allowedDepths.has(nextDepth)) throw new Error('Ungültige Informationstiefe.');
+
+    const hidden=new Set(hiddenModuleKeys());
+    const selectedVisible=new Set(data.getAll('visibleModules').map(String));
+    const optionalEntitled=(runtime.productModules||[])
+      .filter((module)=>!module.is_core && module.key!=='admin' && runtime.moduleAccess[module.key]===true && !MODULES[module.key]?.locked);
+    for(const module of optionalEntitled){
+      if(selectedVisible.has(module.key)) hidden.delete(module.key);
+      else hidden.add(module.key);
+    }
+
+    let preferences={
+      ...profilePreferences(),
+      session_timeout_minutes:nextMinutes,
+      finance_month_mode:nextMode,
+      privacy_enabled:nextPrivacy,
+      hidden_modules:[...hidden],
+    };
+    if(accountId){
+      const account=runtime.accounts.find((row)=>row.account_id===accountId&&!row.is_archived);
+      if(!account) throw new Error('Bitte ein gültiges Hauptkonto auswählen.');
+      preferences=withPrimaryAccountPreference(preferences,runtime.household?.id,accountId);
+    }
+
+    const localeChanged=nextLocale!==(runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    if(localeChanged) await saveCurrentUserLocale(nextLocale,{renderAfter:false,notify:false});
+    runtime.profile=await financeApi.updateProfile(runtime.user.id,{preferences});
+    store.setState({theme:nextTheme,depth:nextDepth},{persistPreferences:true});
+    persistNumber(SESSION_KEYS.timeout,nextMinutes);
+    markInteraction(true);
+    startLiveTimers();
+    if(nextMode!==previousMode){
+      uiState.transactionPeriod='month';
+      uiState.transactionFrom='';
+      uiState.transactionTo='';
+      uiState.transactionPage=1;
+    }
+    updateProfileUI();
+    render();
+    showToast(t('Einstellungen gespeichert.'));
+    return;
+  }
+  if (id === 'profile-settings') {
+    await saveCurrentUserLocale(formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    return;
+  }
+  if (id === 'admin-user-access') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Benutzerzugriffe ändern.');
+    const userId=String(form.dataset.userId||'').trim();
+    const user=runtime.adminUsers.find((row)=>row.id===userId);
+    if(!user) throw new Error('Benutzer wurde nicht gefunden.');
+    const nextLocale=formValue(data,'locale')||user.locale||'de-CH';
+    const enabled=new Set(data.getAll('enabledModules').map(String));
+    const moduleList=(runtime.productModules||[]).filter((m)=>!m.is_core&&m.key!=='admin');
+
+    if(nextLocale!==user.locale) await backend.adminSetLocale({userId,locale:nextLocale});
+    for(const module of moduleList){
+      const nextEnabled=enabled.has(module.key);
+      const currentEnabled=user.modules?.[module.key]===true;
+      if(nextEnabled!==currentEnabled){
+        await backend.adminSetModule({userId,moduleKey:module.key,enabled:nextEnabled});
+      }
+    }
+
+    user.locale=nextLocale;
+    user.modules={...(user.modules||{})};
+    for(const module of moduleList) user.modules[module.key]=enabled.has(module.key);
+
+    if(userId===runtime.user?.id){
+      runtime.moduleAccess={...runtime.moduleAccess};
+      for(const module of moduleList) runtime.moduleAccess[module.key]=enabled.has(module.key);
+      runtime.profile={...(runtime.profile||{}),locale:nextLocale};
+      setLocale(nextLocale);
+      updateProfileUI();
+    }
+    render();
+    showToast(t('Benutzerzugriff gespeichert.'));
+    return;
+  }
   if (id === 'household-preferences') {
     if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen die Basiswährung ändern.');
     const baseCurrency=formValue(data,'baseCurrency');
     if (!['CHF','EUR'].includes(baseCurrency)) throw new Error('Ungültige Basiswährung.');
     runtime.household=await financeApi.updateHousehold(h,{base_currency:baseCurrency});
-    await refresh('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
+    render();
+    showToast('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
     return;
   }
   if (id === 'primary-account-preference') {
@@ -4396,12 +4494,6 @@ async function handleAction(target) {
   }
   if (action === 'hide-form') { document.getElementById(target.dataset.target)?.setAttribute('hidden',''); return; }
   if (action === 'profile-close') { closeProfileMenu(); return; }
-  if (action === 'privacy-toggle') {
-    await saveUserPreferences({ privacy_enabled: !privacyEnabled() });
-    render();
-    showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.');
-    return;
-  }
   if (action === 'admin-user-toggle-details') {
     uiState.adminExpandedUserId = uiState.adminExpandedUserId === target.dataset.userId ? null : target.dataset.userId;
     render(); return;
@@ -5194,6 +5286,7 @@ pageContent.addEventListener('click', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target=event.target;
+  markDeferredSettingsDirty(target);
   if(target?.matches?.('[data-categorization-transfer-amount]')) {
     syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
     return;
@@ -5214,6 +5307,7 @@ pageContent.addEventListener('input', (event) => {
 
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
+  markDeferredSettingsDirty(target);
   const filePicker = target.closest?.('.file-picker');
   if (filePicker && target.matches?.('input[type="file"]')) {
     const fileName = filePicker.querySelector('[data-file-name]');
@@ -5231,37 +5325,6 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.matches?.('[data-categorization-transfer-account]')) {
       syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
-      return;
-    }
-    if (target.id === 'localeSelect' || target.id === 'profileLocaleSelect') {
-      await saveCurrentUserLocale(target.value);
-      return;
-    }
-    if (target.dataset.action === 'admin-set-locale') {
-      target.disabled=true;
-      await backend.adminSetLocale({userId:target.dataset.userId,locale:target.value});
-      const user=runtime.adminUsers.find((row)=>row.id===target.dataset.userId);
-      if(user) user.locale=target.value;
-      if(target.dataset.userId===runtime.user?.id){
-        runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
-        setLocale(target.value);
-        updateProfileUI();
-        render();
-      }
-      showToast('Sprache & Region des Benutzers aktualisiert.');
-      target.disabled=false;
-      return;
-    }
-    if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
-    if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
-    if (target.id === 'sessionTimeoutSelect') {
-      const minutes=normalizeIdleMinutes(target.value);
-      persistNumber(SESSION_KEYS.timeout,minutes);
-      await saveUserPreferences({session_timeout_minutes:minutes});
-      markInteraction(true);
-      startLiveTimers();
-      render();
-      showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
       return;
     }
     if (target.matches?.('[data-sales-template-select]')) {
@@ -5282,17 +5345,6 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.id === 'salesDocumentType') {
       syncSalesDocumentType(target.value,{updateNumber:true});
-      return;
-    }
-    if (target.id === 'financeMonthModeSelect') {
-      const mode=target.value==='calendar'?'calendar':'day_25';
-      await saveUserPreferences({finance_month_mode:mode});
-      uiState.transactionPeriod='month';
-      uiState.transactionFrom='';
-      uiState.transactionTo='';
-      uiState.transactionPage=1;
-      render();
-      showToast(mode==='calendar'?'Kalendermonat 1.–Monatsende gespeichert.':'Finanzmonat 25.–24. gespeichert.');
       return;
     }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
@@ -5567,27 +5619,6 @@ pageContent.addEventListener('change', async (event) => {
       renderImportReview();
       return;
     }
-    if (target.dataset.action === 'user-toggle-module-visibility') {
-      target.disabled = true;
-      const moduleKey = target.dataset.moduleKey;
-      if (!moduleEntitled(moduleKey) || MODULES[moduleKey]?.locked || moduleKey === 'admin') throw new Error('Dieses Modul kann nicht persönlich ausgeblendet werden.');
-      const hidden = new Set(hiddenModuleKeys());
-      if (target.checked) hidden.delete(moduleKey); else hidden.add(moduleKey);
-      await saveUserPreferences({ hidden_modules: [...hidden] });
-      render();
-      showToast(target.checked ? 'Modul wieder eingeblendet.' : 'Modul aus deiner Navigation ausgeblendet.');
-      return;
-    }
-    if (target.dataset.action === 'admin-toggle-module') {
-      target.disabled=true;
-      await backend.adminSetModule({userId:target.dataset.userId,moduleKey:target.dataset.moduleKey,enabled:target.checked});
-      const user=runtime.adminUsers.find((u)=>u.id===target.dataset.userId); if (user) (user.modules ||= {})[target.dataset.moduleKey]=target.checked;
-      if (target.dataset.userId===runtime.user?.id) {
-        runtime.moduleAccess[target.dataset.moduleKey]=target.checked;
-        render();
-      }
-      showToast('Modulfreigabe aktualisiert.'); target.disabled=false;
-    }
   } catch (error) { showToast(humanError(error),'error'); target.disabled=false; }
 });
 
@@ -5669,7 +5700,21 @@ async function enterApp(session,{freshLogin=false}={}) {
   }
 }
 
-window.addEventListener('popstate',()=>{ if(runtime.user){ render(); void pulsePresence(); } });
+window.addEventListener('popstate',()=>{
+  if(!runtime.user) return;
+  if(hasDeferredSettingsChanges(pageContent) && !confirm(t('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?'))){
+    history.pushState(null,'',lastRenderedHref);
+    return;
+  }
+  render();
+  void pulsePresence();
+});
+window.addEventListener('beforeunload',(event)=>{
+  if(!hasDeferredSettingsChanges(pageContent)) return;
+  event.preventDefault();
+  event.returnValue='';
+});
+
 window.addEventListener('hashchange',()=>{
   if(!migrateLegacyHash()) return;
   if(runtime.user){ render(); void pulsePresence(); }
@@ -5686,7 +5731,7 @@ document.addEventListener('visibilitychange',async()=>{
   if(await enforceSessionGuard()) return;
   if(!(await ensureCurrentRelease())) return;
   if(!(await ensureRuntimeCompatibility())) return;
-  if(awayMs>=BACKGROUND_REFRESH_MS){
+  if(awayMs>=BACKGROUND_REFRESH_MS && !hasDeferredSettingsChanges(pageContent)){
     try {
       showLoading('Daten werden synchronisiert …');
       await loadContext();
@@ -5703,7 +5748,7 @@ store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.datas
 
 themeButton?.addEventListener('click',cycleTheme);
 searchButton?.addEventListener('click',()=>{ goToRoute('search'); });
-privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
+privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
 mobileNav?.addEventListener('click',(event)=>{ if (event.target.closest('#mobileQuickAddButton')) { event.preventDefault(); openQuickAdd(); } });

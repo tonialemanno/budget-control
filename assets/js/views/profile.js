@@ -51,11 +51,11 @@ export function renderProfile({
     </div>
 
     <div class="grid-main-aside">
-      <article class="card card-padding">
-        <div class="card-heading"><div><h3 class="card-title">Persönliche Einstellungen</h3><p class="card-subtitle">Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.</p></div></div>
+      <form class="card card-padding" id="profile-settings" data-form="profile-settings" data-deferred-settings>
+        <div class="card-heading"><div><h3 class="card-title">Persönliche Einstellungen</h3><p class="card-subtitle">Änderungen werden erst mit „Speichern“ übernommen.</p></div></div>
         <label class="field">
           <span>Sprache & Region</span>
-          <select class="select-control" id="profileLocaleSelect">
+          <select class="select-control" id="profileLocaleSelect" name="locale">
             <option value="de-CH" ${locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option>
             <option value="de-DE" ${locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option>
             <option value="it-CH" ${locale==='it-CH'?'selected':''}>Italiano · Svizzera</option>
@@ -65,7 +65,8 @@ export function renderProfile({
           </select>
           <small>Die Sprache wird nur für dein Benutzerkonto gespeichert.</small>
         </label>
-      </article>
+        <div class="form-actions"><span class="settings-save-state" data-deferred-status>Keine offenen Änderungen</span><button class="action-button action-button--primary" type="submit" data-deferred-save disabled>Speichern</button></div>
+      </form>
       <article class="card card-padding">
         <div class="card-heading"><div><h3 class="card-title">Mein Zugriff</h3><p class="card-subtitle">Was dein Login aktuell sehen und bearbeiten darf</p></div></div>
         <div class="mini-detail-list">

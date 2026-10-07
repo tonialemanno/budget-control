@@ -1,5 +1,20 @@
 # Finance 2.4.6
 
+## R50 – Einstellungen zuerst wählen, dann speichern
+
+- Normale Einstellungsänderungen werden nicht mehr beim Anklicken automatisch gespeichert oder gerendert.
+- Persönliche Einstellungen bündeln Darstellung, Sprache, Hauptkonto, Finanzmonat, Informationstiefe, Logout-Zeit, Privatsphäre und Modul-Sichtbarkeit in einem gemeinsamen Speichervorgang.
+- Admin-Sprache und Modulfreigaben werden pro Benutzer gesammelt und erst mit „Zugriff speichern“ übernommen.
+- Profil-Sprache verwendet ebenfalls explizites Speichern.
+- Haushaltspräferenzen erhalten einen Dirty-State; der Speichern-Button wird erst bei einer Änderung aktiv.
+- Ungespeicherte Entwürfe sind gegen automatische Admin-Refreshes, interne Navigation und Browser-Reload geschützt.
+- Filter, Suche, Vorschauen und abhängige Formularfelder bleiben sofort reaktiv, weil sie keine Datenbankänderung auslösen.
+- Systemregel und Definition of Done sind in `docs/INTERACTION-PATTERNS.md` dokumentiert.
+- Keine Datenbankänderung gegenüber R49.
+- Release 2026.10.07-r50.
+
+# Finance 2.4.6
+
 ## R49 – Transaktionseditor für wiederkehrende Buchungen
 
 - Fehler `locale is not defined` beim Bearbeiten bereits als wiederkehrend erkannter Buchungen behoben.

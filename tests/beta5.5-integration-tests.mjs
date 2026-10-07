@@ -62,7 +62,8 @@ assert.match(read('assets/js/views/goals.js'), /current_balance/);
 assert.match(read('assets/js/main.js'), /goalCreateAccount/);
 assert.match(read('assets/js/main.js'), /account_id:account\?\.account_id/);
 assert.match(read('assets/js/views/settings.js'), /localeSelect/);
-assert.match(read('assets/js/views/admin.js'), /admin-set-locale/);
+assert.match(read('assets/js/views/admin.js'), /data-form="admin-user-access"/);
+assert.match(read('assets/js/views/admin.js'), /name="enabledModules"/);
 assert.match(read('assets/js/app/backend.js'), /adminSetLocale/);
 assert.match(read('supabase/functions/admin-users/index.ts'), /set_locale/);
 
