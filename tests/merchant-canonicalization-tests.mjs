@@ -45,3 +45,23 @@ assert.equal(aldiRetail.key,'aldi suisse');
 assert.equal(suggestKnownCategoryName(aldiRetailTx),'Lebensmittel');
 assert.notEqual(merchantFamilyKey(aldiMobile),merchantFamilyKey(aldiRetail));
 assert.ok(merchantSimilarity(aldiMobile,aldiRetail)<0.5);
+
+const migrosRestaurant=merchantFromTransaction({counterparty:'Migros Restaurant'});
+const migrosRetail=merchantFromTransaction({counterparty:'Migros'});
+assert.equal(migrosRestaurant.name,'Migros Restaurant');
+assert.equal(migrosRestaurant.key,'migros restaurant');
+assert.equal(suggestKnownCategoryName({counterparty:'Migros Restaurant'}),'Restaurant & Café');
+assert.equal(migrosRetail.name,'Migros');
+assert.equal(migrosRetail.key,'migros');
+assert.notEqual(merchantFamilyKey(migrosRestaurant),merchantFamilyKey(migrosRetail));
+assert.ok(merchantSimilarity(migrosRestaurant,migrosRetail)<0.5);
+
+const coopRestaurant=merchantFromTransaction({counterparty:'Coop Restaurant'});
+const coopRetail=merchantFromTransaction({counterparty:'Coop'});
+assert.equal(coopRestaurant.name,'Coop Restaurant');
+assert.equal(coopRestaurant.key,'coop restaurant');
+assert.equal(suggestKnownCategoryName({counterparty:'Coop Restaurant'}),'Restaurant & Café');
+assert.equal(coopRetail.name,'Coop');
+assert.equal(coopRetail.key,'coop');
+assert.notEqual(merchantFamilyKey(coopRestaurant),merchantFamilyKey(coopRetail));
+assert.ok(merchantSimilarity(coopRestaurant,coopRetail)<0.5);
