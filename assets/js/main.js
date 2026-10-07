@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261006-r41';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r43';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261006-r41';
+import { financeApi } from './app/finance-api.js?v=20261007-r43';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -47,7 +47,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel } from './views/sales-documents.js?v=20261006-r41';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r43';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -61,7 +61,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js';
+import { renderSettings } from './views/settings.js?v=20261007-r43';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
@@ -134,6 +134,9 @@ const runtime = {
   bills: [],
   contracts: [],
   salesDocuments: [],
+  salesDocumentSettings: null,
+  salesDocumentTemplates: [],
+  salesDocumentPayments: [],
   goals: [],
   goalSources: [],
   debts: [],
@@ -321,7 +324,7 @@ function renderNavigation() {
   ].filter(Boolean).join('');
 
   desktopNav.innerHTML = `
-    <div class="nav-group-label">${escapeHtml(t('Finance'))}</div>
+    <div class="nav-group-label">${escapeHtml(t('Spendy'))}</div>
     ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
     <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Mehr'))}</div>
     ${management}
@@ -493,7 +496,7 @@ function profileMenuHtml() {
   const available = (runtime.productModules || []).filter((m)=>!m.is_core && runtime.moduleAccess[m.key] !== true);
   const visible = entitled.filter((m)=>!hidden.has(m.key));
   return `<div class="profile-popover-card">
-    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'Finance Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
+    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'Spendy Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
@@ -643,7 +646,7 @@ function currentSessionStatus(){
   });
 }
 
-function showReleaseUpdating(message='Neue Finance-Version wird geladen …'){
+function showReleaseUpdating(message='Neue Spendy-Version wird geladen …'){
   let overlay=document.querySelector(`#${RELEASE_OVERLAY_ID}`);
   if(!overlay){
     overlay=document.createElement('div');
@@ -655,7 +658,7 @@ function showReleaseUpdating(message='Neue Finance-Version wird geladen …'){
   overlay.innerHTML=`<div class="release-update-card"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t(message))}</strong><span>${escapeHtml(t('Deine Finanzdaten bleiben unverändert.'))}</span></div>`;
 }
 
-async function reloadForRelease(releaseId,message='Neue Finance-Version wird geladen …'){
+async function reloadForRelease(releaseId,message='Neue Spendy-Version wird geladen …'){
   if(releaseReloading) return false;
   releaseReloading=true;
   showReleaseUpdating(message);
@@ -673,7 +676,7 @@ async function ensureCurrentRelease(){
     try {
       const manifest=await fetchReleaseManifest(`./version.json?check=${Date.now()}`);
       if(releaseMismatch(APP_CONFIG.releaseId,manifest)){
-        return reloadForRelease(manifest.releaseId,'Neue Finance-Version verfügbar. Finance wird aktualisiert …');
+        return reloadForRelease(manifest.releaseId,'Neue Spendy-Version verfügbar. Spendy wird aktualisiert …');
       }
       return true;
     } catch {
@@ -700,11 +703,11 @@ async function ensureRuntimeCompatibility(){
   const compatibility=schemaCompatibility(APP_CONFIG.schemaVersion,state);
   if(!compatibility.ok){
     if(compatibility.reason==='server_too_old'){
-      showReleaseUpdating('Finance-Datenbank wird aktualisiert. Bitte kurz warten …');
+      showReleaseUpdating('Spendy-Datenbank wird aktualisiert. Bitte kurz warten …');
       return false;
     }
     const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
-    return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'Finance-Version und Datenbank werden synchronisiert …');
+    return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'Spendy-Version und Datenbank werden synchronisiert …');
   }
   return true;
 }
@@ -859,8 +862,8 @@ function showAuth(notice='') {
   const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('wallet')}</span><div><strong>Finance</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
-      <div class="auth-copy"><span class="eyebrow">Finance Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('spendy')}</span><div><strong>Spendy</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
+      <div class="auth-copy"><span class="eyebrow">Spendy Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -916,6 +919,7 @@ async function loadFinanceData() {
   const tasks = [
     () => financeApi.listAccounts(h), () => financeApi.listCategories(h), () => financeApi.listCategorizationRules(h), () => financeApi.listTransactions(h),
     () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listMerchantAliases(h), () => financeApi.listCounterparties(h), () => financeApi.listTransactionContexts(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h), () => financeApi.listSalesDocuments(h),
+    () => financeApi.getSalesDocumentSettings(h).catch(()=>null), () => financeApi.listSalesDocumentTemplates(h).catch(()=>[]), () => financeApi.listSalesDocumentPayments(h).catch(()=>[]),
     () => financeApi.listGoals(h), () => financeApi.listGoalSources(h), () => financeApi.listDebts(h), () => financeApi.listDebtPayments(h), () => financeApi.listReceivables(h), () => financeApi.listReceivablePayments(h), () => financeApi.listLegalCases(h), () => financeApi.listLegalEvents(h), () => financeApi.listAssets(h),
     () => financeApi.listProperties(h), () => financeApi.listVehicles(h), () => financeApi.listInsurance(h), () => financeApi.listInvestments(h), () => financeApi.listInvestmentTransactions(h), () => financeApi.listPensions(h),
     () => financeApi.listDocuments(h), () => financeApi.listHouseholdMembers(h), () => financeApi.getFxRates().catch(()=>null),
@@ -938,6 +942,7 @@ async function loadFinanceData() {
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.merchantAliases, runtime.counterparties, runtime.transactionContexts, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts, runtime.salesDocuments,
+    runtime.salesDocumentSettings, runtime.salesDocumentTemplates, runtime.salesDocumentPayments,
     runtime.goals, runtime.goalSources, runtime.debts, runtime.debtPayments, runtime.receivables, runtime.receivablePayments, runtime.legalCases, runtime.legalEvents, runtime.assets,
     runtime.properties, runtime.vehicles, runtime.insurance, runtime.investments, runtime.investmentTransactions, runtime.pensions,
     runtime.documents, runtime.householdMembers, runtime.fxRates,
@@ -981,11 +986,11 @@ async function loadContext() {
 function renderSetup() {
   renderNavigation();
   pageTitle.textContent = t('Einrichtung');
-  pageEyebrow.textContent = t('Finance Core');
-  document.title = `${t('Einrichtung')} · Finance`;
+  pageEyebrow.textContent = t('Spendy Core');
+  document.title = `${t('Einrichtung')} · Spendy`;
   const displayName = runtime.profile?.display_name || '';
   pageContent.innerHTML = `
-    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Finance Core</h2><p class="page-subtitle">Lege zuerst Sprache, Land, Basiswährung und Haushalt fest. Danach führt dich Finance durch Konten, Kategorien und Händler.</p></header>
+    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Spendy Core</h2><p class="page-subtitle">Lege zuerst Sprache, Land, Basiswährung und Haushalt fest. Danach führt dich Spendy durch Konten, Kategorien und Händler.</p></header>
     <form class="card card-padding setup-card" id="setup-create" data-form="setup-create">
       <div class="form-grid form-grid--2">
         <label class="field"><span>Anzeigename</span><input class="text-control" name="displayName" value="${escapeHtml(displayName)}" required></label>
@@ -1015,7 +1020,7 @@ function render() {
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
   pageEyebrow.textContent = t(meta.eyebrow);
-  document.title = `${t(meta.title)} · Finance`;
+  document.title = `${t(meta.title)} · Spendy`;
   const renderer = views[route] || views.overview;
   pageContent.innerHTML = renderer({
     ...runtime,
@@ -1253,7 +1258,7 @@ function syncCategorizationTransferFx(container) {
       const format=(value)=>value.toLocaleString(locale,{minimumFractionDigits:4,maximumFractionDigits:6});
       rateLabel.textContent=`Effektiver Kurs: 1 ${currentAccount.currency} = ${format(direct)} ${otherAccount.currency} · 1 ${otherAccount.currency} = ${format(inverse)} ${currentAccount.currency}`;
     } else {
-      rateLabel.textContent=`Gib den Betrag ein, der tatsächlich in ${otherAccount.currency} angekommen ist. Finance berechnet daraus den effektiven Wechselkurs.`;
+      rateLabel.textContent=`Gib den Betrag ein, der tatsächlich in ${otherAccount.currency} angekommen ist. Spendy berechnet daraus den effektiven Wechselkurs.`;
     }
   }
   return {tx,currentAccount,otherAccount,sourceAmount,targetAmount};
@@ -1857,10 +1862,10 @@ function syncSmartCategoryForForm(form,{allowSuggestion=true,selectedId=null}={}
     const merchant=runtime.merchants.find((row)=>row.id===merchantId);
     const source=merchant?.default_category_id===suggestion
       ? `${t('Händler erkannt')}: ${merchant.name}`
-      : t('Finance-Vorschlag aus Händler/Beschreibung');
+      : t('Spendy-Vorschlag aus Händler/Beschreibung');
     if(hint&&suggestedCategory) hint.textContent=`${source} → ${suggestedCategory.name}. ${t('Du kannst die Kategorie jederzeit ändern.')}`;
   } else if(hint && !category.value) {
-    hint.textContent=t('Häufig verwendete Kategorien stehen oben. Finance versucht Händler und Beschreibung direkt zu erkennen.');
+    hint.textContent=t('Häufig verwendete Kategorien stehen oben. Spendy versucht Händler und Beschreibung direkt zu erkennen.');
   }
   if(form.id==='transaction-create') syncTransactionBudgetCoach(form);
   return category.value||null;
@@ -2243,7 +2248,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (fields) fields.hidden=!recurringWanted||Boolean(linkedRule);
   const recurringHint=document.querySelector('#transactionRecurringMatchHint');
   if(recurringHint) recurringHint.textContent=linkedRule
-    ? `Bereits erkannt: ${linkedRule.description} · ${moneyText(Number(linkedRule.amount),{currency:linkedRule.currency,locale})} · ${linkedRule.cadence}. Finance verknüpft die Buchung und erstellt keine zweite Regel.`
+    ? `Bereits erkannt: ${linkedRule.description} · ${moneyText(Number(linkedRule.amount),{currency:linkedRule.currency,locale})} · ${linkedRule.cadence}. Spendy verknüpft die Buchung und erstellt keine zweite Regel.`
     : 'Keine bestehende Wiederholung erkannt. Nur wenn aktiviert, wird eine neue Regel angelegt.';
   const next=document.querySelector('#transactionRecurringNextDate');
   if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
@@ -2396,7 +2401,7 @@ async function handleForm(form) {
       onboarding_completed_at:new Date().toISOString(),
       preferences:{...profilePreferences(),setup_completed_version:2},
     });
-    await refresh('Einrichtung abgeschlossen. Finance ist bereit.');
+    await refresh('Einrichtung abgeschlossen. Spendy ist bereit.');
     location.hash = '#/overview';
     return;
   }
@@ -2460,7 +2465,7 @@ async function handleForm(form) {
     if(!left||!right||left.id===right.id) throw new Error('Bitte zwei unterschiedliche Buchungen auswählen.');
     const keep=preferredTransactionToKeep(left,right,runtime.documents);
     const duplicate=keep.id===left.id?right:left;
-    if(!confirm('Diese Doppelbuchung zusammenführen? Finance behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
+    if(!confirm('Diese Doppelbuchung zusammenführen? Spendy behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
     await financeApi.mergeDuplicateTransactions({householdId:h,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
     await refresh('Doppelbuchung zusammengeführt. Der Beleg bleibt mit der verbleibenden Buchung verknüpft.');
     return;
@@ -3056,6 +3061,62 @@ async function handleForm(form) {
     await financeApi.createBill({ household_id:h, account_id:accountId, category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency:account?.currency||currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
   }
+  if (id === 'sales-document-settings') {
+    const previousLogo=runtime.salesDocumentSettings?.logo_storage_path||null;
+    const logoFile=form.querySelector('[name="logoFile"]')?.files?.[0]||null;
+    let nextLogo=previousLogo;
+    let uploadedLogo=null;
+    if(logoFile){
+      if(!/^image\/(png|jpeg|webp|svg\+xml)$/i.test(String(logoFile.type||''))) throw new Error('Logo bitte als PNG, JPG, WebP oder SVG hochladen.');
+      if(Number(logoFile.size||0)>2*1024*1024) throw new Error('Das Logo darf maximal 2 MB gross sein.');
+      uploadedLogo=await financeApi.uploadSalesDocumentLogo(h,logoFile);
+      nextLogo=uploadedLogo;
+    }
+    try {
+      await financeApi.upsertSalesDocumentSettings({
+        household_id:h,
+        company_name:nullValue(data,'companyName'),
+        company_address:nullValue(data,'companyAddress'),
+        company_email:nullValue(data,'companyEmail'),
+        company_phone:nullValue(data,'companyPhone'),
+        company_website:nullValue(data,'companyWebsite'),
+        tax_id:nullValue(data,'taxId'),
+        iban:nullValue(data,'iban'),
+        bank_name:nullValue(data,'bankName'),
+        logo_storage_path:nextLogo,
+        default_payment_days:Math.max(0,Math.min(365,numberValue(data,'defaultPaymentDays',30))),
+        default_quote_valid_days:Math.max(0,Math.min(365,numberValue(data,'defaultQuoteValidDays',30))),
+        default_tax_rate:Math.max(0,Math.min(100,numberValue(data,'defaultTaxRate',0))),
+        footer_text:nullValue(data,'footerText'),
+        auto_receipt_on_payment:Boolean(form.querySelector('[name="autoReceiptOnPayment"]')?.checked),
+        default_quote_intro:nullValue(data,'defaultQuoteIntro'),
+        default_invoice_intro:nullValue(data,'defaultInvoiceIntro'),
+        default_receipt_intro:nullValue(data,'defaultReceiptIntro'),
+        default_payment_text:nullValue(data,'defaultPaymentText'),
+        default_closing_text:nullValue(data,'defaultClosingText'),
+      });
+    } catch(error) {
+      if(uploadedLogo) await financeApi.deleteSalesDocumentLogo(uploadedLogo).catch(()=>null);
+      throw error;
+    }
+    if(uploadedLogo && previousLogo && previousLogo!==uploadedLogo) await financeApi.deleteSalesDocumentLogo(previousLogo).catch(()=>null);
+    await refresh('Logo, Absender, Zahlungsdaten und Standardtexte gespeichert.');
+    return;
+  }
+  if (id === 'sales-template-create') {
+    const documentType=formValue(data,'documentType')||'all';
+    const section=formValue(data,'section');
+    const name=formValue(data,'name');
+    const contentText=formValue(data,'content');
+    if(!['all','invoice','quote','receipt'].includes(documentType)) throw new Error('Ungültiger Dokumenttyp.');
+    if(!['intro','payment','closing'].includes(section)) throw new Error('Ungültiger Textbereich.');
+    if(!name||!contentText) throw new Error('Name und Text des Bausteins sind erforderlich.');
+    await financeApi.createSalesDocumentTemplate({
+      household_id:h,document_type:documentType,section,name,content:contentText,is_default:false,sort_order:100,
+    });
+    await refresh('Textbaustein gespeichert.');
+    return;
+  }
   if (id === 'sales-document-create') {
     const type=formValue(data,'documentType');
     if(!['invoice','quote','receipt'].includes(type)) throw new Error('Ungültiger Dokumenttyp.');
@@ -3072,23 +3133,38 @@ async function handleForm(form) {
     const recipientName=formValue(data,'recipientName').trim();
     if(!documentNumber) throw new Error('Bitte eine Dokumentnummer angeben.');
     if(!recipientName) throw new Error('Bitte einen Empfänger angeben.');
+    const issueDate=formValue(data,'issueDate')||dateInputValue();
+    const dueDate=type==='invoice'?nullValue(data,'dueDate'):null;
+    const validUntil=type==='quote'?nullValue(data,'validUntil'):null;
+    const documentCurrency=formValue(data,'currency')||currency;
+    const total=items.reduce((sum,item)=>{
+      const net=Number(item.quantity)*Number(item.unit_price);
+      return sum+net+(net*Number(item.tax_rate)/100);
+    },0);
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const context={
+      recipientName,documentNumber,issueDate,dueDate:dueDate||validUntil||'',
+      total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:documentCurrency}).format(total),
+      paymentDays:defaults.paymentDays,
+    };
     await financeApi.createSalesDocument({
       household_id:h,
       document_type:type,
       document_number:documentNumber,
       status:type==='receipt'?'paid':'draft',
-      issue_date:formValue(data,'issueDate')||dateInputValue(),
-      due_date:type==='invoice'?nullValue(data,'dueDate'):null,
-      valid_until:type==='quote'?nullValue(data,'validUntil'):null,
-      currency:formValue(data,'currency')||currency,
+      issue_date:issueDate,
+      paid_at:type==='receipt'?issueDate:null,
+      due_date:dueDate,
+      valid_until:validUntil,
+      currency:documentCurrency,
       sender_name:nullValue(data,'senderName'),
       sender_address:nullValue(data,'senderAddress'),
       sender_tax_id:nullValue(data,'senderTaxId'),
       recipient_name:recipientName,
       recipient_address:nullValue(data,'recipientAddress'),
-      intro_text:nullValue(data,'introText'),
-      closing_text:nullValue(data,'closingText'),
-      payment_text:nullValue(data,'paymentText'),
+      intro_text:expandSalesDocumentText(nullValue(data,'introText'),context)||null,
+      closing_text:expandSalesDocumentText(nullValue(data,'closingText'),context)||null,
+      payment_text:expandSalesDocumentText(nullValue(data,'paymentText'),context)||null,
       notes:nullValue(data,'notes'),
       items,
     });
@@ -3465,7 +3541,7 @@ async function handleForm(form) {
     let sourceType=null,sourceId=null;
     if(sourceRef){
       const splitAt=sourceRef.indexOf(':');
-      if(splitAt<=0) throw new Error('Ungültige Finance-Quelle.');
+      if(splitAt<=0) throw new Error('Ungültige Spendy-Quelle.');
       sourceType=sourceRef.slice(0,splitAt); sourceId=sourceRef.slice(splitAt+1);
     }
     await financeApi.createTaxItem({
@@ -3695,8 +3771,22 @@ const deleteMap = {
   categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
-function addDaysInput(days) {
-  return dateInputValue(new Date(Date.now()+Number(days||0)*86400000));
+function addDaysInput(days, baseDate = new Date()) {
+  const base=baseDate instanceof Date && !Number.isNaN(baseDate.getTime()) ? baseDate : new Date();
+  return dateInputValue(new Date(base.getTime()+Number(days||0)*86400000));
+}
+
+function syncSalesDocumentTemplateSelects(type) {
+  const normalized=['invoice','quote','receipt'].includes(type)?type:'invoice';
+  pageContent.querySelectorAll('[data-sales-template-select]').forEach((select)=>{
+    const targetName=select.dataset.salesTarget||'';
+    const section=targetName==='introText'?'intro':targetName==='paymentText'?'payment':'closing';
+    select.replaceChildren(new Option('Textbaustein wählen …',''));
+    for(const row of (runtime.salesDocumentTemplates||[])){
+      if(row.section!==section || !['all',normalized].includes(row.document_type)) continue;
+      select.appendChild(new Option(row.name,row.id));
+    }
+  });
 }
 
 function syncSalesDocumentType(type,{updateNumber=true}={}) {
@@ -3713,6 +3803,20 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
     const number=document.querySelector('#salesDocumentNumber');
     if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
   }
+  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+  const issueValue=document.querySelector('#salesDocumentIssueDate')?.value;
+  const base=issueValue?new Date(`${issueValue}T12:00:00`):new Date();
+  const dueInput=document.querySelector('#salesDocumentDueDate');
+  const validInput=document.querySelector('#salesDocumentValidUntil');
+  if(dueInput) dueInput.value=addDaysInput(defaults.paymentDays,base);
+  if(validInput) validInput.value=addDaysInput(defaults.quoteValidDays,base);
+  const intro=document.querySelector('[name="introText"]');
+  const payment=document.querySelector('[name="paymentText"]');
+  const closing=document.querySelector('[name="closingText"]');
+  if(intro) intro.value=normalized==='quote'?defaults.quoteIntro:normalized==='receipt'?defaults.receiptIntro:defaults.invoiceIntro;
+  if(payment) payment.value=normalized==='receipt'?'Zahlung erhalten am {Datum}.':defaults.paymentText;
+  if(closing) closing.value=defaults.closingText;
+  syncSalesDocumentTemplateSelects(normalized);
 }
 
 function openSalesDocumentForm(type) {
@@ -3723,11 +3827,7 @@ function openSalesDocumentForm(type) {
   const template=document.querySelector('#salesDocumentItemTemplate');
   if(items&&template) items.replaceChildren(template.content.cloneNode(true));
   const issue=document.querySelector('#salesDocumentIssueDate');
-  const due=document.querySelector('#salesDocumentDueDate');
-  const valid=document.querySelector('#salesDocumentValidUntil');
   if(issue) issue.value=dateInputValue();
-  if(due) due.value=addDaysInput(30);
-  if(valid) valid.value=addDaysInput(30);
   syncSalesDocumentType(type,{updateNumber:true});
   form.removeAttribute('hidden');
   form.scrollIntoView({behavior:'smooth',block:'start'});
@@ -3737,45 +3837,134 @@ function salesDocumentStatusLabel(status) {
   return ({draft:'Entwurf',sent:'Versendet',accepted:'Angenommen',paid:'Bezahlt',cancelled:'Storniert',expired:'Abgelaufen'})[status]||status;
 }
 
-function printSalesDocument(row) {
+function blobToDataUrl(blob) {
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error||new Error('Logo konnte nicht gelesen werden.'));
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function printSalesDocument(row) {
   const popup=window.open('','_blank');
-  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Finance und versuche es erneut.');
+  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Spendy und versuche es erneut.');
+  const settings=runtime.salesDocumentSettings||{};
+  let logoData='';
+  if(settings.logo_storage_path){
+    try { logoData=await blobToDataUrl(await financeApi.downloadDocument(settings.logo_storage_path)); }
+    catch { logoData=''; }
+  }
   const locale=runtime.profile?.locale||'de-CH';
   const type=salesDocumentTypeLabel(row.document_type);
   const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
   const fmt=(value)=>new Intl.NumberFormat(locale,{style:'currency',currency:row.currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
+  const fmtDate=(value)=>{
+    if(!value) return '—';
+    const date=new Date(`${String(value).slice(0,10)}T12:00:00`);
+    return Number.isNaN(date.getTime())?escapeHtml(String(value)):escapeHtml(new Intl.DateTimeFormat(locale,{day:'2-digit',month:'2-digit',year:'numeric'}).format(date));
+  };
   const items=Array.isArray(row.items)?row.items:[];
   const itemRows=items.map((item)=>{
     const qty=Number(item.quantity||0),unit=Number(item.unit_price||0),tax=Number(item.tax_rate||0);
     const gross=qty*unit*(1+tax/100);
-    return `<tr><td>${escapeHtml(item.description||'')}</td><td class="num">${qty.toLocaleString(locale)}</td><td class="num">${escapeHtml(fmt(unit))}</td><td class="num">${tax.toLocaleString(locale)} %</td><td class="num">${escapeHtml(fmt(gross))}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(item.description||'')}</strong></td><td class="num">${escapeHtml(qty.toLocaleString(locale))}</td><td class="num">${escapeHtml(fmt(unit))}</td><td class="num">${escapeHtml(tax.toLocaleString(locale))} %</td><td class="num"><strong>${escapeHtml(fmt(gross))}</strong></td></tr>`;
   }).join('');
   const meta=row.document_type==='invoice'&&row.due_date
-    ? `<div><strong>Fällig:</strong> ${escapeHtml(row.due_date)}</div>`
+    ? `<div><span>Fällig</span><strong>${fmtDate(row.due_date)}</strong></div>`
     : row.document_type==='quote'&&row.valid_until
-      ? `<div><strong>Gültig bis:</strong> ${escapeHtml(row.valid_until)}</div>`
-      : '';
+      ? `<div><span>Gültig bis</span><strong>${fmtDate(row.valid_until)}</strong></div>`
+      : row.document_type==='receipt'
+        ? `<div><span>Bezahlt am</span><strong>${fmtDate(row.paid_at||row.issue_date)}</strong></div>`
+        : '';
+  const contact=[settings.company_email,settings.company_phone,settings.company_website].filter(Boolean).map(escapeHtml).join(' · ');
+  const bank=[settings.bank_name,settings.iban].filter(Boolean).map(escapeHtml).join(' · ');
+  const footer=[settings.footer_text,contact].filter(Boolean).map(nl).join('<br>');
+  const logo=logoData?`<img class="logo" src="${logoData}" alt="">`:'';
   popup.document.open();
   popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(type)} ${escapeHtml(row.document_number)}</title><style>
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:40px;color:#111;line-height:1.45}.top{display:flex;justify-content:space-between;gap:30px;margin-bottom:40px}.muted{color:#666}.recipient{margin:30px 0}.intro,.closing,.payment{margin:24px 0}table{width:100%;border-collapse:collapse;margin:24px 0}th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}.num{text-align:right;white-space:nowrap}.totals{margin-left:auto;max-width:340px}.totals div{display:flex;justify-content:space-between;padding:5px 0}.grand{font-size:1.2em;font-weight:700;border-top:2px solid #111;margin-top:5px!important;padding-top:10px!important}.print{margin-bottom:24px;padding:9px 14px}@media print{.print{display:none}body{margin:18mm}}</style></head><body>
-  <button class="print" onclick="window.print()">Drucken / als PDF sichern</button>
-  <div class="top"><div><strong>${nl(row.sender_name||'')}</strong><div class="muted">${nl(row.sender_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div><div><h1>${escapeHtml(type)}</h1><div><strong>Nr.:</strong> ${escapeHtml(row.document_number)}</div><div><strong>Datum:</strong> ${escapeHtml(row.issue_date||'')}</div>${meta}</div></div>
-  <div class="recipient"><strong>Empfänger</strong><div>${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></div>
-  ${row.intro_text?`<div class="intro">${nl(row.intro_text)}</div>`:''}
-  <table><thead><tr><th>Position</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
-  <div class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(fmt(row.subtotal))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(fmt(row.tax_total))}</strong></div><div class="grand"><span>Total</span><strong>${escapeHtml(fmt(row.total))}</strong></div></div>
-  ${row.payment_text?`<div class="payment"><strong>Zahlung</strong><br>${nl(row.payment_text)}</div>`:''}
-  ${row.closing_text?`<div class="closing">${nl(row.closing_text)}</div>`:''}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#151515;background:#e9eaed;font-size:10.5pt;line-height:1.45}
+    .toolbar{position:sticky;top:0;z-index:3;padding:10px;text-align:center;background:#252525}.toolbar button{border:0;border-radius:8px;padding:9px 16px;background:#fff;font-weight:650;cursor:pointer}
+    .sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:17mm 18mm 14mm;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.14)}
+    .doc-body{flex:1}.header{display:grid;grid-template-columns:1fr 62mm;gap:16mm;align-items:start}.brand{min-height:28mm}.logo{max-width:58mm;max-height:24mm;object-fit:contain;object-position:left top;margin-bottom:4mm}
+    .sender-name{font-size:12pt;font-weight:750;margin-bottom:1.5mm}.muted{color:#666}.doc-title{text-align:right}.doc-title h1{font-size:24pt;line-height:1;margin:0 0 6mm;font-weight:760;letter-spacing:-.02em}.meta{display:grid;gap:1.5mm}.meta div{display:grid;grid-template-columns:24mm 1fr;gap:4mm}.meta span{color:#666}.meta strong{text-align:right}
+    .recipient{margin-top:17mm;width:90mm}.recipient-label{text-transform:uppercase;letter-spacing:.08em;font-size:8pt;color:#777;font-weight:700;margin-bottom:2mm}.recipient-name{font-weight:700}
+    .intro{margin:13mm 0 8mm;max-width:155mm}.items{width:100%;border-collapse:collapse;margin:6mm 0 7mm}.items th{font-size:8.5pt;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:1.5px solid #222;padding:0 2mm 2.5mm;text-align:left}.items td{padding:3.4mm 2mm;border-bottom:1px solid #ddd;vertical-align:top}.items th:first-child,.items td:first-child{padding-left:0}.items th:last-child,.items td:last-child{padding-right:0}.num{text-align:right!important;white-space:nowrap}
+    .totals{width:72mm;margin-left:auto;margin-top:4mm}.totals div{display:grid;grid-template-columns:1fr auto;gap:8mm;padding:1.5mm 0}.totals span{color:#666}.totals .grand{border-top:1.5px solid #222;margin-top:2mm;padding-top:3mm;font-size:12pt}.totals .grand span{color:#111;font-weight:700}
+    .payment,.closing{margin-top:10mm;max-width:145mm}.payment-box{border-left:3px solid #222;padding-left:4mm}.payment-title{font-weight:750;margin-bottom:1mm}.bank{margin-top:2mm;color:#555}.closing{margin-top:8mm}
+    .footer{border-top:1px solid #ddd;padding-top:4mm;margin-top:14mm;color:#666;font-size:8.5pt;display:grid;grid-template-columns:1fr auto;gap:8mm}.footer-right{text-align:right}
+    @page{size:A4;margin:0}@media print{html,body{background:#fff}.toolbar{display:none}.sheet{margin:0;box-shadow:none;width:210mm;min-height:297mm;page-break-after:always}}
+    @media screen and (max-width:850px){.sheet{width:calc(100% - 20px);min-height:auto;margin:10px;padding:18px}.header{grid-template-columns:1fr}.doc-title{text-align:left}.meta strong{text-align:left}.meta div{grid-template-columns:90px 1fr}.recipient{width:auto;margin-top:30px}}
+  </style></head><body>
+  <div class="toolbar"><button onclick="window.print()">Drucken / als PDF sichern</button></div>
+  <main class="sheet">
+    <div class="doc-body">
+      <header class="header">
+        <div class="brand">${logo}<div class="sender-name">${nl(row.sender_name||settings.company_name||'')}</div><div class="muted">${nl(row.sender_address||settings.company_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div>
+        <div class="doc-title"><h1>${escapeHtml(type)}</h1><div class="meta"><div><span>Nr.</span><strong>${escapeHtml(row.document_number)}</strong></div><div><span>Datum</span><strong>${fmtDate(row.issue_date)}</strong></div>${meta}</div></div>
+      </header>
+      <section class="recipient"><div class="recipient-label">Empfänger</div><div class="recipient-name">${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></section>
+      ${row.intro_text?`<section class="intro">${nl(row.intro_text)}</section>`:''}
+      <table class="items"><thead><tr><th>Position / Leistung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
+      <section class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(fmt(row.subtotal))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(fmt(row.tax_total))}</strong></div><div class="grand"><span>Total</span><strong>${escapeHtml(fmt(row.total))}</strong></div></section>
+      ${row.payment_text||bank?`<section class="payment payment-box"><div class="payment-title">Zahlung</div>${row.payment_text?`<div>${nl(row.payment_text)}</div>`:''}${bank?`<div class="bank">${bank}</div>`:''}</section>`:''}
+      ${row.closing_text?`<section class="closing">${nl(row.closing_text)}</section>`:''}
+    </div>
+    <footer class="footer"><div>${footer}</div><div class="footer-right">${escapeHtml(row.sender_name||settings.company_name||'')}</div></footer>
+  </main>
   </body></html>`);
   popup.document.close();
   popup.focus();
 }
 
 
+async function createReceiptFromInvoice(invoice,paymentTx=null) {
+  if(!invoice || invoice.document_type!=='invoice') throw new Error('Rechnung wurde nicht gefunden.');
+  const existing=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id);
+  if(existing) return existing;
+  const settings=runtime.salesDocumentSettings||{};
+  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'');
+  const issueDate=paymentTx?.occurred_at ? dateInputValue(new Date(paymentTx.occurred_at)) : (invoice.paid_at||dateInputValue());
+  const totalText=new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{
+    style:'currency',currency:invoice.currency||runtime.household?.base_currency||'CHF',
+  }).format(Number(invoice.total||0));
+  const context={
+    recipientName:invoice.recipient_name,
+    documentNumber:nextSalesDocumentNumber(runtime.salesDocuments,'receipt'),
+    issueDate,
+    dueDate:'',
+    total:totalText,
+    paymentDays:defaults.paymentDays,
+  };
+  return financeApi.createSalesDocument({
+    household_id:runtime.household.id,
+    document_type:'receipt',
+    document_number:context.documentNumber,
+    status:'paid',
+    issue_date:issueDate,
+    paid_at:issueDate,
+    due_date:null,
+    valid_until:null,
+    currency:invoice.currency,
+    sender_name:invoice.sender_name||defaults.senderName,
+    sender_address:invoice.sender_address||defaults.senderAddress,
+    sender_tax_id:invoice.sender_tax_id||defaults.senderTaxId,
+    recipient_name:invoice.recipient_name,
+    recipient_address:invoice.recipient_address,
+    intro_text:expandSalesDocumentText(defaults.receiptIntro,context),
+    closing_text:expandSalesDocumentText(defaults.closingText,context),
+    payment_text:`Zahlung erhalten am ${issueDate}.`,
+    notes:'Automatisch aus bezahlter Rechnung erzeugt.',
+    items:invoice.items,
+    source_document_id:invoice.id,
+  });
+}
+
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
@@ -3796,7 +3985,51 @@ async function handleAction(target) {
   if (action === 'sales-document-print') {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
-    printSalesDocument(row);
+    await printSalesDocument(row);
+    return;
+  }
+  if (action === 'sales-document-payment-link') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    const select=target.closest('.list-row')?.querySelector(`[data-sales-payment-select][data-document-id="${invoice.id}"]`);
+    const transactionId=String(select?.value||'');
+    const tx=runtime.transactions.find((entry)=>entry.id===transactionId);
+    if(!tx) throw new Error('Bitte einen Zahlungseingang auswählen.');
+    const paid=(runtime.salesDocumentPayments||[]).filter((row)=>row.sales_document_id===invoice.id).reduce((sum,row)=>sum+Number(row.amount||0),0);
+    const remaining=Math.max(0,Number(invoice.total||0)-paid);
+    const amount=Math.min(Number(tx.amount||0),remaining||Number(tx.amount||0));
+    const result=await financeApi.linkSalesDocumentPayment({salesDocumentId:invoice.id,transactionId:tx.id,amount});
+    let receiptCreated=false;
+    if(result?.status==='paid' && runtime.salesDocumentSettings?.auto_receipt_on_payment!==false){
+      await createReceiptFromInvoice({...invoice,status:'paid',paid_at:result?.paid_at||dateInputValue(new Date(tx.occurred_at))},tx);
+      receiptCreated=true;
+    }
+    await refresh(receiptCreated?'Zahlung zugeordnet, Rechnung bezahlt und Quittung automatisch erstellt.':result?.status==='paid'?'Zahlung zugeordnet und Rechnung als bezahlt markiert.':'Teilzahlung zugeordnet.');
+    return;
+  }
+  if (action === 'sales-document-payment-unlink') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    const transactionId=String(target.dataset.transactionId||'');
+    if(!transactionId) throw new Error('Zahlungsverknüpfung wurde nicht gefunden.');
+    await financeApi.unlinkSalesDocumentPayment({salesDocumentId:invoice.id,transactionId});
+    const autoReceipt=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id&&row.notes==='Automatisch aus bezahlter Rechnung erzeugt.');
+    if(autoReceipt) await financeApi.deleteSalesDocument(autoReceipt.id);
+    await refresh('Zahlungsverknüpfung gelöst. Eine automatisch erzeugte Quittung wurde ebenfalls entfernt.');
+    return;
+  }
+  if (action === 'sales-document-create-receipt') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    await createReceiptFromInvoice(invoice);
+    await refresh('Quittung aus der bezahlten Rechnung erstellt.');
+    return;
+  }
+  if (action === 'sales-template-delete') {
+    const template=runtime.salesDocumentTemplates.find((entry)=>entry.id===target.dataset.id);
+    if(!template) throw new Error('Textbaustein wurde nicht gefunden.');
+    await financeApi.deleteSalesDocumentTemplate(template.id);
+    await refresh('Textbaustein gelöscht.');
     return;
   }
   if (action === 'sales-document-status') {
@@ -3810,29 +4043,41 @@ async function handleAction(target) {
     const quote=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='quote');
     if(!quote) throw new Error('Offerte wurde nicht gefunden.');
     if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error('Für diese Offerte wurde bereits eine Rechnung erstellt.');
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const issueDate=dateInputValue();
+    const dueDate=addDaysInput(defaults.paymentDays);
+    const documentNumber=nextSalesDocumentNumber(runtime.salesDocuments,'invoice');
+    const context={
+      recipientName:quote.recipient_name,
+      documentNumber,
+      issueDate,
+      dueDate,
+      total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:quote.currency||runtime.household?.base_currency||'CHF'}).format(Number(quote.total||0)),
+      paymentDays:defaults.paymentDays,
+    };
     await financeApi.createSalesDocument({
       household_id:runtime.household.id,
       document_type:'invoice',
-      document_number:nextSalesDocumentNumber(runtime.salesDocuments,'invoice'),
+      document_number:documentNumber,
       status:'draft',
-      issue_date:dateInputValue(),
-      due_date:addDaysInput(30),
+      issue_date:issueDate,
+      due_date:dueDate,
       valid_until:null,
       currency:quote.currency,
-      sender_name:quote.sender_name,
-      sender_address:quote.sender_address,
-      sender_tax_id:quote.sender_tax_id,
+      sender_name:quote.sender_name||defaults.senderName,
+      sender_address:quote.sender_address||defaults.senderAddress,
+      sender_tax_id:quote.sender_tax_id||defaults.senderTaxId,
       recipient_name:quote.recipient_name,
       recipient_address:quote.recipient_address,
-      intro_text:quote.intro_text,
-      closing_text:quote.closing_text,
-      payment_text:quote.payment_text,
+      intro_text:expandSalesDocumentText(defaults.invoiceIntro,context),
+      closing_text:expandSalesDocumentText(defaults.closingText,context),
+      payment_text:expandSalesDocumentText(defaults.paymentText,context),
       notes:quote.notes,
       items:quote.items,
       source_document_id:quote.id,
     });
     if(quote.status!=='accepted') await financeApi.updateSalesDocument(quote.id,{status:'accepted'});
-    await refresh('Offerte in eine neue Rechnung übernommen.');
+    await refresh('Offerte angenommen und als neue Rechnung übernommen.');
     return;
   }
   if (action === 'sales-document-delete') {
@@ -4278,7 +4523,7 @@ async function handleAction(target) {
     await financeApi.deleteTaxObligation(target.dataset.id); await refresh('Steuerforderung gelöscht.'); return;
   }
   if (action === 'tax-payment-delete') {
-    if(!confirm(t('Steuerzahlung wirklich stornieren? Eine von Finance erstellte Kontobuchung wird ebenfalls zurückgenommen.'))) return;
+    if(!confirm(t('Steuerzahlung wirklich stornieren? Eine von Spendy erstellte Kontobuchung wird ebenfalls zurückgenommen.'))) return;
     await financeApi.reverseTaxPayment({householdId:runtime.household.id,paymentId:target.dataset.id});
     await refresh('Steuerzahlung storniert und verknüpfte Kontobewegung korrekt zurückgenommen.'); return;
   }
@@ -4438,7 +4683,7 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
     const candidates=transactionMergeCandidates(tx,runtime.transactions,{documents:runtime.documents});
-    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Dublette gefunden. Finance prüft Betrag, Datum, Währung sowie bei unterschiedlichen Konten eindeutig Beleg gegen Bankbuchung.');
+    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Dublette gefunden. Spendy prüft Betrag, Datum, Währung sowie bei unterschiedlichen Konten eindeutig Beleg gegen Bankbuchung.');
     const form=document.querySelector('#transaction-merge');
     const input=document.querySelector('#transactionMergeId');
     const source=document.querySelector('#transactionMergeSource');
@@ -4460,7 +4705,7 @@ async function handleAction(target) {
     const merchantHint=left.merchant_id&&right.merchant_id&&left.merchant_id!==right.merchant_id&&merchantSimilarity(left,right)>=0.85
       ? ' Die Händlernamen sehen ebenfalls ähnlich aus und können danach unter Händler vereinheitlicht werden.'
       : '';
-    if(!confirm(`Diese zwei Buchungen zusammenführen? Finance behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
+    if(!confirm(`Diese zwei Buchungen zusammenführen? Spendy behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
     await financeApi.mergeDuplicateTransactions({householdId:runtime.household.id,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
     await refresh('Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
     return;
@@ -4477,7 +4722,7 @@ async function handleAction(target) {
       transactionAId:left.id,
       transactionBId:right.id,
     });
-    await refresh('Finance merkt sich: Diese beiden Buchungen sind verschieden.');
+    await refresh('Spendy merkt sich: Diese beiden Buchungen sind verschieden.');
     return;
   }
   if (action === 'transaction-delete') {
@@ -4589,7 +4834,7 @@ async function handleAction(target) {
     const form=document.querySelector('#bill-payment'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'bill-payment-reverse') {
-    if(!confirm(t('Rechnungszahlung wirklich zurücknehmen? Eine von Finance erzeugte Kontobuchung wird dabei ebenfalls entfernt.'))) return;
+    if(!confirm(t('Rechnungszahlung wirklich zurücknehmen? Eine von Spendy erzeugte Kontobuchung wird dabei ebenfalls entfernt.'))) return;
     await financeApi.unpayBill({householdId:runtime.household.id,billId:target.dataset.id});
     await refresh('Rechnungszahlung zurückgenommen.'); return;
   }
@@ -4645,7 +4890,7 @@ async function handleAction(target) {
   if (action === 'receivable-history') { uiState.receivableExpandedId=target.dataset.id; render(); return; }
   if (action === 'receivable-history-close') { uiState.receivableExpandedId=null; render(); return; }
   if (action === 'receivable-payment-reverse') {
-    if(!confirm(t('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von Finance erstellte Kontobuchung wird ebenfalls entfernt.'))) return;
+    if(!confirm(t('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von Spendy erstellte Kontobuchung wird ebenfalls entfernt.'))) return;
     const payment=runtime.receivablePayments.find((row)=>row.id===target.dataset.id);
     if(!payment) throw new Error('Rückzahlung wurde nicht gefunden.');
     await financeApi.reverseReceivablePayment(payment.id);
@@ -4855,11 +5100,11 @@ async function handleAction(target) {
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
   }
   if (action === 'admin-finance-reset') {
-    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Finance-Daten zurücksetzen.');
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Spendy-Daten zurücksetzen.');
     const userId=target.dataset.userId||'';
     const email=String(target.dataset.userEmail||'').trim();
     if(!userId||!email) throw new Error('Benutzer konnte nicht eindeutig bestimmt werden.');
-    const accepted=confirm(`Finance-Daten von ${email} wirklich unwiderruflich zurücksetzen?\n\nKonten, Transaktionen, Importe, Budgets, Planung, Händler, Steuer- und Vermögensdaten werden entfernt. Login und Modulfreigaben bleiben bestehen.`);
+    const accepted=confirm(`Spendy-Daten von ${email} wirklich unwiderruflich zurücksetzen?\n\nKonten, Transaktionen, Importe, Budgets, Planung, Händler, Steuer- und Vermögensdaten werden entfernt. Login und Modulfreigaben bleiben bestehen.`);
     if(!accepted) return;
     const confirmation=prompt(`Zur Bestätigung die E-Mail-Adresse exakt eingeben:\n${email}`);
     if(confirmation===null) return;
@@ -4869,13 +5114,13 @@ async function handleAction(target) {
       await loadContext();
       location.hash='#/setup';
       render();
-      showToast('Deine Finance-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
+      showToast('Deine Spendy-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
       return;
     }
     runtime.adminUsers=(await backend.adminListUsers())?.users||[];
     uiState.adminExpandedUserId=null;
     render();
-    showToast(`Finance-Daten von ${email} wurden zurückgesetzt.`);
+    showToast(`Spendy-Daten von ${email} wurden zurückgesetzt.`);
     return;
   }
   if (action === 'admin-demo-copy') {
@@ -4983,6 +5228,22 @@ pageContent.addEventListener('change', async (event) => {
       startLiveTimers();
       render();
       showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
+      return;
+    }
+    if (target.matches?.('[data-sales-template-select]')) {
+      const template=runtime.salesDocumentTemplates.find((row)=>row.id===target.value);
+      const targetName=target.dataset.salesTarget||'';
+      const textarea=target.closest('form')?.querySelector(`[name="${targetName}"]`);
+      if(template&&textarea) textarea.value=template.content||'';
+      return;
+    }
+    if (target.id === 'salesDocumentIssueDate') {
+      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+      const base=target.value?new Date(`${target.value}T12:00:00`):new Date();
+      const due=document.querySelector('#salesDocumentDueDate');
+      const valid=document.querySelector('#salesDocumentValidUntil');
+      if(due) due.value=addDaysInput(defaults.paymentDays,base);
+      if(valid) valid.value=addDaysInput(defaults.quoteValidDays,base);
       return;
     }
     if (target.id === 'salesDocumentType') {

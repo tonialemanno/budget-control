@@ -1,5 +1,22 @@
 # Finance 2.4.6
 
+## R43 – Geschäftsdokumente mit Branding und Zahlungsautomatik
+
+- Produktname und sichtbares Branding wurden appweit von `Finance` auf **Spendy** umgestellt; Deutsch, Englisch und Italienisch verwenden denselben Markennamen.
+- Neues Spendy-Monogramm für Sidebar, Login und Browser-Favicon; technische interne Namen bleiben unverändert.
+- Offerten, Rechnungen und Quittungen werden als echtes A4-Dokument (210 × 297 mm) dargestellt und drucken/PDF-unabhängig von der Monitorbreite.
+- Dokumenteinstellungen speichern Firma, Adresse, Kontakt, MWST-/UID, IBAN, Bank, Logo, Standard-Steuer, Zahlungsfrist, Offertgültigkeit und Fusszeile pro Haushalt.
+- Eigene Textbausteine für Einleitung, Zahlung und Schluss können pro Dokumenttyp gespeichert und beim Schreiben eingesetzt werden.
+- Platzhalter wie `{Kunde}`, `{Dokumentnummer}`, `{Datum}`, `{Fälligkeitsdatum}`, `{Total}` und `{Zahlungsfrist}` werden beim Speichern aufgelöst.
+- Angenommene Offerten werden mit den Rechnungs-Standardtexten in Rechnungen überführt.
+- Offene Rechnungen schlagen passende echte Zahlungseingänge nach Betrag, Währung und Datum vor; zugeordnete Zahlungen markieren die Rechnung bei vollständiger Deckung als bezahlt.
+- Bei vollständig bezahlter Rechnung kann automatisch eine Quittung erzeugt werden; die Automatik ist in den Dokumenteinstellungen abschaltbar.
+- Logo-Dateien verwenden den bestehenden geschützten Finance-Dokumentenspeicher.
+- Neue Datenbankstrukturen sind additiv und bleiben zu Stable R41 rückwärtskompatibel.
+- Schema 2026100701, Release 2026.10.07-r43.
+
+# Finance 2.4.6
+
 ## R42 – Lebensmittel statt Händlerart Supermarkt
 
 - `Lebensmittel` ist wieder die eindeutige Ausgabenkategorie für Einkäufe bei Supermärkten.

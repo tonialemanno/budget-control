@@ -47,10 +47,10 @@ export function renderSearch({
   const simpleRows=(rows,{href,label,meta})=>rows.map((row)=>`<a class="search-result-row" href="${href}"><span class="search-result-icon">${icon('chevron-right')}</span><span><strong>${escapeHtml(label(row))}</strong><small>${escapeHtml(meta(row)||'')}</small></span></a>`).join('');
 
   return `
-    ${pageHeader({title:'Suchen',subtitle:'Betrag, Datum, Person, Händler, Konto, Projekt, Rechnung oder Dokument – eine Suche über Finance.'})}
+    ${pageHeader({title:'Suchen',subtitle:'Betrag, Datum, Person, Händler, Konto, Projekt, Rechnung oder Dokument – eine Suche über Spendy.'})}
     <article class="card card-padding global-search-card">
-      <label class="field"><span>Finance durchsuchen</span><div class="global-search-input-wrap">${icon('search')}<input class="text-control" id="globalSearchInput" type="search" autocomplete="off" value="${escapeHtml(searchQuery)}" placeholder="z. B. 180, Mamma, 20.05.2026, Italien, Scheidung"></div></label>
-      <small>${needle?`${total} Treffer in den geladenen Finance-Daten`:'Tippe einen Begriff, Betrag oder ein Datum ein.'}</small>
+      <label class="field"><span>Spendy durchsuchen</span><div class="global-search-input-wrap">${icon('search')}<input class="text-control" id="globalSearchInput" type="search" autocomplete="off" value="${escapeHtml(searchQuery)}" placeholder="z. B. 180, Mamma, 20.05.2026, Italien, Scheidung"></div></label>
+      <small>${needle?`${total} Treffer in den geladenen Spendy-Daten`:'Tippe einen Begriff, Betrag oder ein Datum ein.'}</small>
     </article>
     ${needle?`
       <article class="card card-padding search-section"><div class="card-heading"><div><h3 class="card-title">Buchungen</h3><p class="card-subtitle">${txResults.length} Treffer</p></div></div><div class="search-result-list">${txHtml||'<div class="table-empty">Keine Buchungen.</div>'}</div></article>

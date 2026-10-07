@@ -55,10 +55,11 @@ export function renderSettings({
     <div class="settings-section-label">Einrichtung</div>
     <div class="settings-nav-grid">
       ${settingsLink({href:'#/profile',iconName:'user',title:'Mein Profil',text:'Login, Rolle und persönlicher Zugriff'})}
-      ${settingsLink({href:'#/setup',iconName:'sparkles',title:'Finance einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':`${setupState.preparationDone}/8`})}
+      ${settingsLink({href:'#/setup',iconName:'sparkles',title:'Spendy einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':`${setupState.preparationDone}/8`})}
       ${settingsLink({href:'#/accounts',iconName:'wallet',title:'Konten & Währungen',text:`Basis ${household?.base_currency||'CHF'} · Konten dürfen eigene Währungen führen`,badge:`${accounts.length} Konten`})}
       ${settingsLink({href:'#/categories',iconName:'layout-grid',title:'Kategorien & Unterkategorien',text:'Deine persönliche Finanzstruktur',badge:`${categories.length} Kategorien`})}
       ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}
+      ${settingsLink({href:'#/sales-documents',iconName:'receipt',title:'Rechnungen & Dokumente',text:'Logo, Absender, Zahlungsdaten und Textbausteine'})}
       ${adminRole?settingsLink({href:'#/admin',iconName:'shield',title:'Administration',text:'Benutzer, Module und Systemstatus'}):''}
     </div>
 
@@ -77,7 +78,7 @@ export function renderSettings({
     <article class="card card-padding">
       <div class="card-heading"><div><h3 class="card-title">Meine Bereiche</h3><p class="card-subtitle">Optionale Module können persönlich ausgeblendet werden. Übersicht, Geld und Planung bleiben immer erreichbar.</p></div><span>${statusPill('active',`${visibleCount} sichtbar`)}</span></div>
       ${optionalEntitled.length ? `<div class="module-visibility-list">${optionalEntitled.map((module)=>`<label class="module-visibility-row"><div><strong>${escapeHtml(module.label || MODULES[module.key]?.label || module.key)}</strong><span>${escapeHtml(module.group_name || '')}</span></div><input type="checkbox" data-action="user-toggle-module-visibility" data-module-key="${escapeHtml(module.key)}" ${hidden.has(module.key)?'':'checked'}></label>`).join('')}</div>` : '<div class="table-empty">Keine optionalen freigeschalteten Module vorhanden.</div>'}
-      <div class="inline-alert settings-core-note"><strong>Finance Core bleibt sichtbar.</strong><span>Übersicht, Geld, Planung und die technischen Grundfunktionen können nicht deaktiviert werden.</span></div>
+      <div class="inline-alert settings-core-note"><strong>Spendy Core bleibt sichtbar.</strong><span>Übersicht, Geld, Planung und die technischen Grundfunktionen können nicht deaktiviert werden.</span></div>
     </article>
 
     <div class="settings-section-label">Stammdaten</div>
@@ -97,7 +98,7 @@ export function renderSettings({
           <div class="mini-detail-list"><span>Name <strong>${escapeHtml(profile?.display_name||'—')}</strong></span><span>E-Mail <strong>${escapeHtml(user?.email||'—')}</strong></span><span>Haushalt <strong>${escapeHtml(household?.name||'—')}</strong></span><span>Haushaltsrolle <strong>${escapeHtml(householdRoleLabel(householdRole))}</strong></span><span>Systemrolle <strong>${escapeHtml(adminRole ? `App-${adminRole}` : 'Benutzer')}</strong></span><span>Land <strong>${escapeHtml(household?.country_code||'—')}</strong></span><span>Basiswährung <strong>${escapeHtml(household?.base_currency||'—')}</strong></span></div>
         </article>
         <article class="card card-padding">
-          <div class="card-heading"><div><h3 class="card-title">Sitzung & Sicherheit</h3><p class="card-subtitle">Finance meldet dich bei Inaktivität automatisch ab.</p></div><span class="list-row-leading">${icon('shield')}</span></div>
+          <div class="card-heading"><div><h3 class="card-title">Sitzung & Sicherheit</h3><p class="card-subtitle">Spendy meldet dich bei Inaktivität automatisch ab.</p></div><span class="list-row-leading">${icon('shield')}</span></div>
           <div class="settings-row settings-row--embedded"><div class="settings-row-copy"><strong>Automatischer Logout</strong><span>Nach dieser Zeit ohne Bedienung wird die Sitzung beendet. 5 Minuten vorher erscheint eine Warnung.</span></div><select class="select-control" id="sessionTimeoutSelect"><option value="15" ${sessionTimeout===15?'selected':''}>15 Minuten</option><option value="30" ${sessionTimeout===30?'selected':''}>30 Minuten · empfohlen</option><option value="60" ${sessionTimeout===60?'selected':''}>60 Minuten</option><option value="120" ${sessionTimeout===120?'selected':''}>2 Stunden</option></select></div>
           <div class="mini-detail-list" style="margin-top:14px"><span>Maximale Sitzung <strong>12 Stunden</strong></span><span>Release <strong>${escapeHtml(APP_CONFIG.releaseId)}</strong></span><span>App <strong>V${escapeHtml(APP_CONFIG.version)}</strong></span><span>Schema <strong>${Number(runtimeState?.schema_version||APP_CONFIG.schemaVersion)}</strong></span></div>
         </article>

@@ -186,6 +186,41 @@ export const financeApi = Object.freeze({
   createSalesDocument: (payload) => insert('sales_documents', payload),
   updateSalesDocument: (id, patch) => update('sales_documents', id, patch),
   deleteSalesDocument: (id) => remove('sales_documents', id),
+  async getSalesDocumentSettings(householdId) {
+    const rows=await listByHousehold('sales_document_settings', householdId, { order:'updated_at.desc', limit:1 });
+    return rows?.[0]||null;
+  },
+  async upsertSalesDocumentSettings(payload) {
+    const rows=await backend.rest(buildQuery('sales_document_settings',{on_conflict:'household_id'}),{
+      method:'POST', body:payload, headers:{Prefer:'resolution=merge-duplicates,return=representation'},
+    });
+    return rows?.[0]||null;
+  },
+  listSalesDocumentTemplates(householdId) {
+    return listByHousehold('sales_document_templates',householdId,{order:'sort_order.asc,created_at.asc',limit:500});
+  },
+  createSalesDocumentTemplate: (payload) => insert('sales_document_templates',payload),
+  updateSalesDocumentTemplate: (id,patch) => update('sales_document_templates',id,patch),
+  deleteSalesDocumentTemplate: (id) => remove('sales_document_templates',id),
+  listSalesDocumentPayments(householdId) {
+    return listByHousehold('sales_document_payments',householdId,{
+      select:'*,transactions(id,occurred_at,amount,currency,description,counterparty,account_id,accounts(name)),sales_documents(id,document_number,document_type,total,currency,status)',
+      order:'created_at.desc',
+      limit:1000,
+    });
+  },
+  linkSalesDocumentPayment: ({salesDocumentId,transactionId,amount=null}) => backend.rpc('link_sales_document_payment_v1',{
+    p_sales_document_id:salesDocumentId,p_transaction_id:transactionId,p_amount:amount,
+  }),
+  unlinkSalesDocumentPayment: ({salesDocumentId,transactionId}) => backend.rpc('unlink_sales_document_payment_v1',{
+    p_sales_document_id:salesDocumentId,p_transaction_id:transactionId,
+  }),
+  uploadSalesDocumentLogo(householdId,file) {
+    const ext=String(file?.name||'logo').split('.').pop()?.replace(/[^a-zA-Z0-9]/g,'').slice(0,8)||'img';
+    const path=`${householdId}/branding/${crypto.randomUUID()}-logo.${ext}`;
+    return backend.storageUpload('finance-documents',path,file).then(()=>path);
+  },
+  deleteSalesDocumentLogo: (path) => backend.storageDelete('finance-documents',[path]),
   createBill: (payload) => insert('bills', payload), updateBill: (id, patch) => update('bills', id, patch),
   payBill: ({ householdId, billId, source, paidAt = null, accountId = null, transactionId = null }) => backend.rpc('pay_bill_v2', { p_household_id:householdId, p_bill_id:billId, p_source:source, p_paid_at:paidAt, p_account_id:accountId, p_transaction_id:transactionId }),
   unpayBill: ({ householdId, billId }) => backend.rpc('unpay_bill_v2', { p_household_id:householdId, p_bill_id:billId }), deleteBill: (id) => remove('bills', id),

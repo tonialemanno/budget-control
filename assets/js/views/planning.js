@@ -82,15 +82,15 @@ export function renderPlanning({
   if(enabled('vehicles',moduleAccess,hiddenModules)) more.push(planCard({href:'#/vehicles',iconName:'train',title:'Fahrzeuge',text:'Fahrzeuge und Mobilität'}));
   if(enabled('insurance',moduleAccess,hiddenModules)) more.push(planCard({href:'#/insurance',iconName:'shield',title:'Versicherungen',text:'Policen, Prämien und Termine'}));
   if(enabled('family',moduleAccess,hiddenModules)) more.push(planCard({href:'#/family',iconName:'heart-pulse',title:'Familie & Haushalt',text:'Gemeinsame Finanzen und Zugriffe'}));
-  if(enabled('intelligence',moduleAccess,hiddenModules)) more.push(planCard({href:'#/intelligence',iconName:'sparkles',title:'Finance Intelligence',text:'Hinweise und Analysen'}));
+  if(enabled('intelligence',moduleAccess,hiddenModules)) more.push(planCard({href:'#/intelligence',iconName:'sparkles',title:'Spendy Intelligence',text:'Hinweise und Analysen'}));
 
   return `
     ${pageHeader({
       title:'Planung',
-      subtitle:'Was mit deinem Geld als Nächstes passiert. Für normale wiederkehrende Zahlungen beginnst du bei „Feste Zahlungen“; Finance ordnet den Rest intern richtig zu.'
+      subtitle:'Was mit deinem Geld als Nächstes passiert. Für normale wiederkehrende Zahlungen beginnst du bei „Feste Zahlungen“; Spendy ordnet den Rest intern richtig zu.'
     })}
 
-    <div class="inline-alert inline-alert--success"><strong>Du musst das Datenmodell nicht kennen.</strong><span>Lohn, Miete, Krankenkasse, Abo oder feste Sparrate → „Feste Zahlungen“. Eine einzelne Rechnung mit Fälligkeit → „Rechnungen & Verträge“. Finance hält Wiederholungen intern zusammen.</span></div>
+    <div class="inline-alert inline-alert--success"><strong>Du musst das Datenmodell nicht kennen.</strong><span>Lohn, Miete, Krankenkasse, Abo oder feste Sparrate → „Feste Zahlungen“. Eine einzelne Rechnung mit Fälligkeit → „Rechnungen & Verträge“. Spendy hält Wiederholungen intern zusammen.</span></div>
 
     <div class="planning-focus-grid">
       <article class="card card-padding planning-budget-card">

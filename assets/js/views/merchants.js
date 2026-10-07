@@ -142,7 +142,7 @@ export function renderMerchants({
     })}
     ${canWrite?formShell('merchant-create','Neuer Händler','Händler einmal zentral anlegen und künftig wiederverwenden',createFields,{hidden:true,submitLabel:'Händler speichern'}):''}
     ${canWrite?formShell('merchant-edit','Händler bearbeiten','Name und Standardkategorie zentral pflegen',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
-    ${canWrite?formShell('merchant-merge-manual','Händler zusammenführen','Wähle, unter welchem Namen Finance beide Varianten künftig führen soll.',mergeFields,{hidden:true,submitLabel:'Zusammenführen'}):''}
+    ${canWrite?formShell('merchant-merge-manual','Händler zusammenführen','Wähle, unter welchem Namen Spendy beide Varianten künftig führen soll.',mergeFields,{hidden:true,submitLabel:'Zusammenführen'}):''}
 
     ${duplicateHtml}
 

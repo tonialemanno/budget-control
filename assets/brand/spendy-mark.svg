@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Spendy</title>
+  <rect width="64" height="64" rx="18" fill="#111318"/>
+  <path fill="#fff" d="M12.2 14h27.2L56 28.7l-8.5 8.3-11.2-10.6H22.7l7.5 7.1-8 7.5L8 26.9z"/>
+  <path fill="#fff" d="M51.8 50H24.6L8 35.3l8.5-8.3 11.2 10.6h13.6l-7.5-7.1 8-7.5L56 37.1z"/>
+</svg>

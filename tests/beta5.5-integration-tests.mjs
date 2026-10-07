@@ -1,4 +1,4 @@
-// Integrated Finance consistency baseline
+// Integrated Spendy consistency baseline
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
@@ -7,7 +7,7 @@ const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
 assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.6'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
-assert.match(read('index.html'), /Finance wird geladen/);
+assert.match(read('index.html'), /Spendy wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
 assert.equal(exists('assets/js/views/fixed-costs.js'), true);
 assert.match(read('assets/js/views/fixed-costs.js'), /Fixe Ausgaben \/ Monat/);
@@ -16,7 +16,7 @@ assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Rücklagen & Umbuchungen \/ Monat/);
 assert.match(read('assets/js/views/overview.js'), /Bis zum nächsten Lohn frei/);
-assert.match(read('assets/js/views/overview.js'), /Finance hat bemerkt/);
+assert.match(read('assets/js/views/overview.js'), /Spendy hat bemerkt/);
 assert.match(read('assets/js/views/overview.js'), /renderMoneyFlow/);
 assert.match(read('assets/js/views/overview.js'), /renderCashflowChart/);
 assert.match(read('assets/js/views/overview.js'), /renderExpenseDonut/);

@@ -12,7 +12,7 @@ const settings=read('assets/js/views/settings.js');
 
 assert.match(config,/version:\s*'2\.4\.6'/);
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
-assert.match(index,/<title>Finance<\/title>/);
+assert.match(index,/<title>Spendy<\/title>/);
 assert.match(index,/Stable 2\.4/);
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);

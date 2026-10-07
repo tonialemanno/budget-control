@@ -10,10 +10,10 @@
 .brand { gap: 11px; font-weight: 720; font-size: 18px; letter-spacing: -0.025em; }
 .brand-mark {
   width: 34px; height: 34px; display: grid; place-items: center;
-  border-radius: 11px; color: white; background: var(--text);
-  box-shadow: var(--shadow-xs);
+  border-radius: 11px; color: white; background: linear-gradient(145deg, var(--text), color-mix(in srgb, var(--text) 78%, var(--surface)));
+  box-shadow: 0 6px 16px rgba(0,0,0,.14), inset 0 1px 0 rgba(255,255,255,.12);
 }
-.brand-mark svg { width: 21px; height: 21px; stroke-width: 1.65; }
+.brand-mark svg { width: 22px; height: 22px; stroke-width: 1.65; filter: drop-shadow(0 1px 1px rgba(0,0,0,.12)); }
 .version-pill, .badge, .status-pill {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 25px; padding: 4px 9px; border-radius: var(--radius-pill);

@@ -27,19 +27,19 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
   if(insight.type==='budget_risk'){
     return `<a class="coach-insight coach-insight--warning" href="${insight.href}">
       <span class="coach-insight-icon">${icon('chart')}</span>
-      <div><strong>Budget läuft schneller als der Finanzmonat</strong><p><b>${escapeHtml(insight.label)}</b>: ${amount(insight.spent)} von ${amount(insight.amount)} bereits verbraucht.</p><small>Finance vergleicht Verbrauch und vergangenen Anteil des Finanzmonats.</small></div>
+      <div><strong>Budget läuft schneller als der Finanzmonat</strong><p><b>${escapeHtml(insight.label)}</b>: ${amount(insight.spent)} von ${amount(insight.amount)} bereits verbraucht.</p><small>Spendy vergleicht Verbrauch und vergangenen Anteil des Finanzmonats.</small></div>
     </a>`;
   }
   if(insight.type==='spending_spike'){
     return `<a class="coach-insight coach-insight--warning" href="${insight.href}">
       <span class="coach-insight-icon">${icon('chart')}</span>
-      <div><strong>Ungewöhnlicher Anstieg erkannt</strong><p><b>${escapeHtml(insight.label)}</b>: letzte 7 Tage ${amount(insight.recent)}, üblicher Wochenwert etwa ${amount(insight.baseline)}.</p><small>Kein Urteil: Finance zeigt nur eine deutliche Abweichung von deinem bisherigen Muster.</small></div>
+      <div><strong>Ungewöhnlicher Anstieg erkannt</strong><p><b>${escapeHtml(insight.label)}</b>: letzte 7 Tage ${amount(insight.recent)}, üblicher Wochenwert etwa ${amount(insight.baseline)}.</p><small>Kein Urteil: Spendy zeigt nur eine deutliche Abweichung von deinem bisherigen Muster.</small></div>
     </a>`;
   }
   if(insight.type==='uncategorized'){
     return `<a class="coach-insight" href="${insight.href}">
       <span class="coach-insight-icon">${icon('sparkles')}</span>
-      <div><strong>Finance kann noch besser lernen</strong><p><b>${insight.count}</b> Ausgaben sind noch ohne Kategorie.</p><small>Einmal sauber zuordnen; bekannte Händler und Zahler werden danach wiederverwendet.</small></div>
+      <div><strong>Spendy kann noch besser lernen</strong><p><b>${insight.count}</b> Ausgaben sind noch ohne Kategorie.</p><small>Einmal sauber zuordnen; bekannte Händler und Zahler werden danach wiederverwendet.</small></div>
     </a>`;
   }
   if(insight.type==='reserve_gap'){
@@ -57,18 +57,18 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
   if(insight.type==='no_budget'){
     return `<a class="coach-insight" href="${insight.href}">
       <span class="coach-insight-icon">${icon('target')}</span>
-      <div><strong>Ausgaben sichtbar, aber noch ohne Rahmen</strong><p>Du hast variable Ausgaben, aber noch kein aktives variables Budget.</p><small>Mit wenigen Kategorien kann Finance dir vor dem Ausgeben sagen, was noch verfügbar ist.</small></div>
+      <div><strong>Ausgaben sichtbar, aber noch ohne Rahmen</strong><p>Du hast variable Ausgaben, aber noch kein aktives variables Budget.</p><small>Mit wenigen Kategorien kann Spendy dir vor dem Ausgeben sagen, was noch verfügbar ist.</small></div>
     </a>`;
   }
   if(insight.type==='subscriptions'){
     return `<a class="coach-insight" href="${insight.href}">
       <span class="coach-insight-icon">${icon('repeat')}</span>
-      <div><strong>Abos im Blick behalten</strong><p><b>${insight.count}</b> erkannte Abos kosten zusammen ${amount(insight.monthly)} pro Monat und ${amount(insight.annual)} pro Jahr.</p><small>Finance zeigt die Belastung. Ob du ein Abo behalten willst, entscheidest du selbst.</small></div>
+      <div><strong>Abos im Blick behalten</strong><p><b>${insight.count}</b> erkannte Abos kosten zusammen ${amount(insight.monthly)} pro Monat und ${amount(insight.annual)} pro Jahr.</p><small>Spendy zeigt die Belastung. Ob du ein Abo behalten willst, entscheidest du selbst.</small></div>
     </a>`;
   }
   return `<a class="coach-insight coach-insight--positive" href="${insight.href}">
     <span class="coach-insight-icon">${icon('shield')}</span>
-    <div><strong>Dein Plan ist aktuell im Rahmen</strong><p>Finance sieht im Moment keinen akuten Budget- oder Ausgabenalarm.</p><small>Die Einschätzung wird mit jeder neuen Buchung neu berechnet.</small></div>
+    <div><strong>Dein Plan ist aktuell im Rahmen</strong><p>Spendy sieht im Moment keinen akuten Budget- oder Ausgabenalarm.</p><small>Die Einschätzung wird mit jeder neuen Buchung neu berechnet.</small></div>
   </a>`;
 }
 
@@ -127,7 +127,7 @@ export function renderOverview({
 
   if(!accounts.length){
     return `
-      ${pageHeader({kicker:shortDate(now,locale),title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),subtitle:'Finance ist bereit für deine Einrichtung.'})}
+      ${pageHeader({kicker:shortDate(now,locale),title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),subtitle:'Spendy ist bereit für deine Einrichtung.'})}
       <article class="card onboarding-empty">
         <span class="onboarding-empty-icon">${icon('wallet')}</span>
         <div><h3>Dein erstes Konto fehlt noch.</h3><p>Erfasse den heutigen Kontostand. Historische Importe werden danach um diesen Stand herum eingeordnet und verändern den heutigen Anker nicht.</p></div>
@@ -139,7 +139,7 @@ export function renderOverview({
     ${pageHeader({
       kicker:shortDate(now,locale),
       title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),
-      subtitle:'Finance zeigt zuerst, was bis zum nächsten Lohn wirklich frei verfügbar ist.'
+      subtitle:'Spendy zeigt zuerst, was bis zum nächsten Lohn wirklich frei verfügbar ist.'
     })}
 
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>Mehrere Währungen aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben auf den Konten erhalten.</span></div>`:''}
@@ -198,7 +198,7 @@ export function renderOverview({
 
     <section class="coach-notice-section">
       <div class="coach-section-head">
-        <div><span class="coach-eyebrow">Finance hat bemerkt …</span><h3>Was jetzt relevant ist</h3></div>
+        <div><span class="coach-eyebrow">Spendy hat bemerkt …</span><h3>Was jetzt relevant ist</h3></div>
         <a class="card-link" href="#/planning">Planung öffnen</a>
       </div>
       <div class="coach-insight-grid">

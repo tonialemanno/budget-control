@@ -5,27 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f5f5f7">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Finance – modularer Finance Core für Privatpersonen und Haushalte.">
-  <title>Finance</title>
-  <link rel="stylesheet" href="./assets/css/tokens.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/base.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/components.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/layout.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/forms.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/responsive.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/receipt.css?v=20261007-r42">
-  <link rel="stylesheet" href="./assets/css/document-preview.css?v=20261007-r42">
+  <meta name="description" content="Spendy – modularer Spendy Core für Privatpersonen und Haushalte.">
+  <link rel="icon" type="image/svg+xml" href="./assets/brand/spendy-mark.svg?v=20261007-r43">
+  <title>Spendy</title>
+  <link rel="stylesheet" href="./assets/css/tokens.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/base.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/components.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/layout.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/forms.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/responsive.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/receipt.css?v=20261007-r43">
+  <link rel="stylesheet" href="./assets/css/document-preview.css?v=20261007-r43">
 </head>
 <body>
   <noscript>Diese Anwendung benötigt JavaScript.</noscript>
-  <section class="auth-gate" id="authGate" aria-live="polite" style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="max-width:520px;width:100%;padding:24px;border-radius:20px;background:#fff;color:#111;box-shadow:0 12px 40px rgba(0,0,0,.12);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><strong style="display:block;font-size:22px;margin-bottom:8px">Finance</strong><span style="display:block;font-size:15px;line-height:1.5">Finance wird geladen …</span></div></section>
+  <section class="auth-gate" id="authGate" aria-live="polite" style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="max-width:520px;width:100%;padding:24px;border-radius:20px;background:#fff;color:#111;box-shadow:0 12px 40px rgba(0,0,0,.12);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"><strong style="display:block;font-size:22px;margin-bottom:8px">Spendy</strong><span style="display:block;font-size:15px;line-height:1.5">Spendy wird geladen …</span></div></section>
 
   <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar" aria-label="Hauptnavigation">
       <div class="brand-row">
-        <a class="brand" href="#/overview" aria-label="Finance Übersicht">
-          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 22.5V9.8c0-1.55 1.25-2.8 2.8-2.8h12.4A2.8 2.8 0 0 1 25 9.8v12.4a2.8 2.8 0 0 1-2.8 2.8H9.8A2.8 2.8 0 0 1 7 22.2Z"/><path d="M11 19.5h10M11 15.8h7M11 12.2h4"/></svg></span>
-          <span>Finance</span>
+        <a class="brand" href="#/overview" aria-label="Spendy Übersicht">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M4.5 4.5h10.2L21 10l-3.2 3.1-4.2-4H8.5l2.8 2.7-3 2.8L3 9.3Z"/><path fill="currentColor" stroke="none" d="M19.5 19.5H9.3L3 14l3.2-3.1 4.2 4h5.1l-2.8-2.7 3-2.8 5.3 5.3Z"/></svg></span>
+          <span>Spendy</span>
         </a>
         <span class="version-pill" id="releaseVersionPill">V2.4 · STABLE</span>
       </div>
@@ -41,15 +42,15 @@
       <header class="topbar">
         <div class="topbar-title-wrap">
           <button class="icon-button mobile-menu-button" id="mobileMenuButton" type="button" aria-label="Navigation öffnen" aria-expanded="false"><span data-icon="menu"></span></button>
-          <div><span class="eyebrow" id="pageEyebrow">Finance Core</span><h1 class="topbar-title" id="pageTitle">Übersicht</h1></div>
+          <div><span class="eyebrow" id="pageEyebrow">Spendy Core</span><h1 class="topbar-title" id="pageTitle">Übersicht</h1></div>
         </div>
         <div class="topbar-actions">
-          <button class="icon-button" id="searchButton" type="button" aria-label="Finance durchsuchen" title="Finance durchsuchen"><span data-icon="search"></span></button>
+          <button class="icon-button" id="searchButton" type="button" aria-label="Spendy durchsuchen" title="Spendy durchsuchen"><span data-icon="search"></span></button>
           <button class="icon-button privacy-button" id="privacyButton" type="button" aria-label="Finanzwerte verbergen" title="Finanzwerte verbergen"><span data-icon="eye-off"></span></button>
           <button class="icon-button" id="themeButton" type="button" aria-label="Darstellung wechseln" title="Darstellung wechseln"><span data-icon="sun-moon"></span></button>
           <button class="profile-button" id="profileButton" type="button" aria-label="Konto und Zugriff">
-            <span class="profile-avatar" id="profileAvatar">F</span>
-            <span class="profile-copy"><strong id="profileName">Privat</strong><span id="profileMeta">Finance Core</span></span>
+            <span class="profile-avatar" id="profileAvatar">S</span>
+            <span class="profile-copy"><strong id="profileName">Privat</strong><span id="profileMeta">Spendy Core</span></span>
             <span data-icon="chevron-down"></span>
           </button>
         </div>
@@ -61,10 +62,10 @@
     <div class="quick-add-scrim" id="quickAddScrim" hidden></div>
     <section class="quick-add-sheet" id="quickAddSheet" hidden aria-label="Hinzufügen"></section>
   </div>
-  <script src="./runtime-config.js?v=20261007-r42"></script>
-  <script src="./assets/js/boot-fallback.js?v=20261007-r42"></script>
-  <script type="module" src="./assets/js/main.js?v=20261007-r42"></script>
-  <script type="module" src="./assets/js/app/receipt-controller.js?v=20261007-r42"></script>
-  <script type="module" src="./assets/js/app/document-preview.js?v=20261007-r42"></script>
+  <script src="./runtime-config.js?v=20261007-r43"></script>
+  <script src="./assets/js/boot-fallback.js?v=20261007-r43"></script>
+  <script type="module" src="./assets/js/main.js?v=20261007-r43"></script>
+  <script type="module" src="./assets/js/app/receipt-controller.js?v=20261007-r43"></script>
+  <script type="module" src="./assets/js/app/document-preview.js?v=20261007-r43"></script>
 </body>
 </html>
