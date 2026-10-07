@@ -376,7 +376,7 @@ function handleAppRouteLink(event) {
   try { url=new URL(anchor.href,location.href); } catch { return; }
   if(url.origin!==location.origin || !isKnownRouteUrl(url)) return;
   event.preventDefault();
-  if(hasDeferredSettingsChanges(pageContent) && !confirm('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?')) return;
+  if(hasDeferredSettingsChanges(pageContent) && !confirm(t('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?'))) return;
   history.pushState(null,'',`${url.pathname}${url.search}`);
   if(runtime.user){
     render();
@@ -3690,7 +3690,7 @@ async function handleForm(form) {
     }
     updateProfileUI();
     render();
-    showToast('Einstellungen gespeichert.');
+    showToast(t('Einstellungen gespeichert.'));
     return;
   }
   if (id === 'profile-settings') {
@@ -3727,7 +3727,7 @@ async function handleForm(form) {
       updateProfileUI();
     }
     render();
-    showToast('Benutzerzugriff gespeichert.');
+    showToast(t('Benutzerzugriff gespeichert.'));
     return;
   }
   if (id === 'household-preferences') {
