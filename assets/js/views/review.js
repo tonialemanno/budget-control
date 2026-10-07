@@ -74,14 +74,14 @@ export function renderReview({
       </div>
     </article>
 
-    ${queue.openCount===0?`<article class="card onboarding-empty review-done-card"><span class="onboarding-empty-icon">${icon('shield')}</span><div><h3>Alles geprüft.</h3><p>Finance sieht aktuell keine offenen Buchungen, Umbuchungen oder bald fälligen Rechnungen, die deine Entscheidung brauchen.</p></div></article>`:''}
+    ${queue.openCount===0?`<article class="card onboarding-empty review-done-card"><span class="onboarding-empty-icon">${icon('shield')}</span><div><h3>Alles geprüft.</h3><p>Spendy sieht aktuell keine offenen Buchungen, Umbuchungen oder bald fälligen Rechnungen, die deine Entscheidung brauchen.</p></div></article>`:''}
 
     <div class="review-section-grid">
       <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Ausgaben zuordnen</h3><p class="card-subtitle">Speichern = erledigt. Die Buchung verschwindet danach aus dieser Liste.</p></div><span>${statusPill(queue.uncategorizedExpenses.length?'pending':'active',String(queue.uncategorizedExpenses.length))}</span></div><div class="review-work-list">${expenseRows||empty('Keine offenen Ausgaben.')}</div></article>
       <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Eingänge klären</h3><p class="card-subtitle">Verdienst, Rückerstattung, Forderungsrückzahlung oder eigene Umbuchung unterscheiden.</p></div><span>${statusPill(queue.unknownIncoming.length?'pending':'active',String(queue.unknownIncoming.length))}</span></div><div class="review-work-list">${incomeRows||empty('Keine ungeklärten Eingänge.')}</div></article>
     </div>
 
-    <article class="card card-padding review-transfer-card"><div class="card-heading"><div><h3 class="card-title">Eigene Umbuchungen erkennen</h3><p class="card-subtitle">Gleicher Betrag, Gegenrichtung, andere eigene Konten und maximal sieben Tage Abstand. Finance verbindet nur auf deinen Klick.</p></div><span>${statusPill(queue.possibleTransfers.length?'active':'neutral',`${queue.possibleTransfers.length} eindeutig`)}</span></div><div class="review-work-list">${transferRows||empty('Keine eindeutigen Gegenbuchungen gefunden.')}${ambiguousRows}</div></article>
+    <article class="card card-padding review-transfer-card"><div class="card-heading"><div><h3 class="card-title">Eigene Umbuchungen erkennen</h3><p class="card-subtitle">Gleicher Betrag, Gegenrichtung, andere eigene Konten und maximal sieben Tage Abstand. Spendy verbindet nur auf deinen Klick.</p></div><span>${statusPill(queue.possibleTransfers.length?'active':'neutral',`${queue.possibleTransfers.length} eindeutig`)}</span></div><div class="review-work-list">${transferRows||empty('Keine eindeutigen Gegenbuchungen gefunden.')}${ambiguousRows}</div></article>
 
     <div class="review-section-grid">
       <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Fälligkeiten</h3><p class="card-subtitle">Offene und überfällige Rechnungen der nächsten 14 Tage.</p></div></div><div class="review-work-list">${billRows||empty('Keine bald fälligen Rechnungen.')}</div></article>
