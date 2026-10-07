@@ -1,6 +1,6 @@
-# Finance 2.4.7
+# Finance 2.4.6
 
-## 2.4.7 – Lebensmittel statt Händlerart Supermarkt
+## R42 – Lebensmittel statt Händlerart Supermarkt
 
 - `Lebensmittel` ist wieder die eindeutige Ausgabenkategorie für Einkäufe bei Supermärkten.
 - EDEKA bzw. Banktexte mit `EDK*` werden direkt als `Lebensmittel` vorgeschlagen.
