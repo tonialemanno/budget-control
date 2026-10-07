@@ -992,6 +992,13 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  'Dokumenteinstellungen':'Impostazioni documenti',
+  'Logo, Absender, Zahlungsdaten, Automatik und Textbausteine werden hier zentral gepflegt.':'Qui gestisci centralmente logo, mittente, dati di pagamento, automazioni e testi predefiniti.',
+  'Automatik ist aktiv.':'L’automazione è attiva.',
+  'Offerten können in Rechnungen übernommen werden. Passende Zahlungseingänge werden vorgeschlagen. Vollständig bezahlte Rechnungen werden auf „Bezahlt“ gesetzt und können automatisch eine Quittung erzeugen.':'Le offerte possono essere convertite in fatture. Vengono proposti gli incassi corrispondenti. Le fatture completamente pagate vengono contrassegnate come «Pagata» e possono generare automaticamente una ricevuta.',
+  'Textbausteine':'Testi predefiniti',
+  'Wiederverwendbare Texte, die beim Schreiben mit einem Klick eingesetzt werden. Du musst Standardformulierungen nicht jedes Mal neu schreiben.':'Testi riutilizzabili che puoi inserire con un clic. Non devi riscrivere ogni volta le formule standard.',
+  'Noch kein passender Zahlungseingang erkannt. ALEMANNO BUCHHALTUNG prüft neue positive Buchungen automatisch.':'Nessun incasso corrispondente riconosciuto. ALEMANNO BUCHHALTUNG controlla automaticamente i nuovi movimenti positivi.',
   'Noch kein Logo hinterlegt. Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.':'Nessun logo salvato. Consigliato: PNG/SVG/WebP con sfondo trasparente.',
   'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung.':'Grazie per il vostro incarico. Vi fatturiamo le seguenti prestazioni.',
   'Wir bestätigen den Eingang Ihrer Zahlung.':'Confermiamo la ricezione del vostro pagamento.',
@@ -1337,6 +1344,13 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  'Dokumenteinstellungen':'Document settings',
+  'Logo, Absender, Zahlungsdaten, Automatik und Textbausteine werden hier zentral gepflegt.':'Manage logo, sender details, payment data, automation and text blocks here in one place.',
+  'Automatik ist aktiv.':'Automation is active.',
+  'Offerten können in Rechnungen übernommen werden. Passende Zahlungseingänge werden vorgeschlagen. Vollständig bezahlte Rechnungen werden auf „Bezahlt“ gesetzt und können automatisch eine Quittung erzeugen.':'Quotes can be converted into invoices. Matching incoming payments are suggested. Fully paid invoices are marked “Paid” and can automatically create a receipt.',
+  'Textbausteine':'Text blocks',
+  'Wiederverwendbare Texte, die beim Schreiben mit einem Klick eingesetzt werden. Du musst Standardformulierungen nicht jedes Mal neu schreiben.':'Reusable text you can insert with one click. You do not need to rewrite standard wording each time.',
+  'Noch kein passender Zahlungseingang erkannt. ALEMANNO BUCHHALTUNG prüft neue positive Buchungen automatisch.':'No matching incoming payment has been detected yet. ALEMANNO BUCHHALTUNG checks new positive transactions automatically.',
   'Noch kein Logo hinterlegt. Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.':'No logo saved yet. Recommended: PNG/SVG/WebP with a transparent background.',
   'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung.':'Thank you for your order. We are invoicing the following services.',
   'Wir bestätigen den Eingang Ihrer Zahlung.':'We confirm receipt of your payment.',
