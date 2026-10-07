@@ -1,0 +1,105 @@
+name: Promote Beta to Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_note:
+        description: "Optional release note for the Stable promotion PR"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  verify-and-open-promotion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Beta
+        uses: actions/checkout@v4
+        with:
+          ref: beta
+          fetch-depth: 0
+
+      - name: Fetch release branches
+        run: git fetch origin beta stable
+
+      - name: Enforce one-way release flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          merge_base="$(git merge-base origin/stable origin/beta)"
+          echo "Stable/Beta merge base: $merge_base"
+
+          if ! git diff --quiet "$merge_base" origin/stable; then
+            echo "::error::Stable contains content changes that are not present in Beta."
+            echo "::error::Freeze Beta and reconcile the Stable hotfix forward before promoting."
+            exit 1
+          fi
+
+          if git diff --quiet origin/stable origin/beta; then
+            echo "Stable and Beta already contain the same application content."
+            echo "NO_CHANGES=true" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: env.NO_CHANGES != 'true'
+        with:
+          node-version: "22"
+
+      - name: Syntax check Beta JavaScript
+        if: env.NO_CHANGES != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets/js functions -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Run full Beta test suite
+        if: env.NO_CHANGES != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in tests/*.mjs; do
+            echo "Running $test"
+            node "$test"
+          done
+
+      - name: Open Stable promotion PR
+        if: env.NO_CHANGES != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTE: ${{ inputs.release_note }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          existing="$(gh pr list --base stable --head beta --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$existing" ]; then
+            echo "Promotion PR already exists: $existing"
+            exit 0
+          fi
+
+          body="Automated Beta → Stable promotion request.
+
+          Guardrails passed:
+          - Stable contains no content-only changes missing from Beta.
+          - Beta JavaScript syntax check passed.
+          - Full Beta test suite passed.
+          - Stable remains protected and requires a pull request.
+
+          Shared database rule:
+          Beta migrations must stay backward-compatible until this PR is merged and Stable has been verified."
+
+          if [ -n "$RELEASE_NOTE" ]; then
+            body="$body
+
+          Release note:
+          $RELEASE_NOTE"
+          fi
+
+          gh pr create \
+            --base stable \
+            --head beta \
+            --title "Promote Beta to Stable" \
+            --body "$body"
