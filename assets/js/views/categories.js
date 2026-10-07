@@ -73,7 +73,7 @@ export function renderCategories({
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="category-create">${icon('plus')} Kategorie</button><a class="action-button action-button--secondary" href="#/merchants">${icon('basket')} Händler</a><button class="action-button action-button--secondary" type="button" data-action="starter-categories">Empfohlene Struktur</button>`:'<a class="action-button action-button--secondary" href="#/merchants">Händler ansehen</a>'
     })}
 
-    <div class="inline-alert inline-alert--success"><strong>So ist es gedacht: Lebensmittel › Supermarkt › Coop.</strong><span>„Coop“ bleibt ein Händler. Seine Standardkategorie ist „Supermarkt“. Dadurch kann Spendy neue Buchungen automatisch richtig einordnen.</span></div>
+    <div class="inline-alert inline-alert--success"><strong>So ist es gedacht: Lebensmittel › Supermarkt › Coop.</strong><span>„Coop“ bleibt ein Händler. Seine Standardkategorie ist „Supermarkt“. Dadurch kann ALEMANNO BUCHHALTUNG neue Buchungen automatisch richtig einordnen.</span></div>
     ${legacySavingCategory?'<div class="inline-alert"><strong>„Sparen“ ist keine neue Ausgabenkategorie mehr.</strong><span>Historische Zuordnungen bleiben erhalten. Neue Sparbewegungen bitte als Umbuchung auf ein Sparkonto oder als Rücklage erfassen; dadurch werden deine Ausgaben nicht künstlich erhöht.</span></div>':''}
 
     ${canWrite?formShell('category-create','Kategorie oder Unterkategorie','Eine Hauptkategorie kann weitere Unterkategorien enthalten.',categoryFields,{hidden:true,submitLabel:'Kategorie speichern'}):''}
