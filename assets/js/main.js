@@ -4487,12 +4487,6 @@ async function handleAction(target) {
   }
   if (action === 'hide-form') { document.getElementById(target.dataset.target)?.setAttribute('hidden',''); return; }
   if (action === 'profile-close') { closeProfileMenu(); return; }
-  if (action === 'privacy-toggle') {
-    await saveUserPreferences({ privacy_enabled: !privacyEnabled() });
-    render();
-    showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.');
-    return;
-  }
   if (action === 'admin-user-toggle-details') {
     uiState.adminExpandedUserId = uiState.adminExpandedUserId === target.dataset.userId ? null : target.dataset.userId;
     render(); return;
@@ -5326,37 +5320,6 @@ pageContent.addEventListener('change', async (event) => {
       syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
       return;
     }
-    if (target.id === 'localeSelect' || target.id === 'profileLocaleSelect') {
-      await saveCurrentUserLocale(target.value);
-      return;
-    }
-    if (target.dataset.action === 'admin-set-locale') {
-      target.disabled=true;
-      await backend.adminSetLocale({userId:target.dataset.userId,locale:target.value});
-      const user=runtime.adminUsers.find((row)=>row.id===target.dataset.userId);
-      if(user) user.locale=target.value;
-      if(target.dataset.userId===runtime.user?.id){
-        runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
-        setLocale(target.value);
-        updateProfileUI();
-        render();
-      }
-      showToast('Sprache & Region des Benutzers aktualisiert.');
-      target.disabled=false;
-      return;
-    }
-    if (target.id === 'themeSelect') { store.setState({theme:target.value},{persistPreferences:true}); return; }
-    if (target.id === 'depthSelect') { store.setState({depth:target.value},{persistPreferences:true}); render(); return; }
-    if (target.id === 'sessionTimeoutSelect') {
-      const minutes=normalizeIdleMinutes(target.value);
-      persistNumber(SESSION_KEYS.timeout,minutes);
-      await saveUserPreferences({session_timeout_minutes:minutes});
-      markInteraction(true);
-      startLiveTimers();
-      render();
-      showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
-      return;
-    }
     if (target.matches?.('[data-sales-template-select]')) {
       const template=runtime.salesDocumentTemplates.find((row)=>row.id===target.value);
       const targetName=target.dataset.salesTarget||'';
@@ -5375,17 +5338,6 @@ pageContent.addEventListener('change', async (event) => {
     }
     if (target.id === 'salesDocumentType') {
       syncSalesDocumentType(target.value,{updateNumber:true});
-      return;
-    }
-    if (target.id === 'financeMonthModeSelect') {
-      const mode=target.value==='calendar'?'calendar':'day_25';
-      await saveUserPreferences({finance_month_mode:mode});
-      uiState.transactionPeriod='month';
-      uiState.transactionFrom='';
-      uiState.transactionTo='';
-      uiState.transactionPage=1;
-      render();
-      showToast(mode==='calendar'?'Kalendermonat 1.–Monatsende gespeichert.':'Finanzmonat 25.–24. gespeichert.');
       return;
     }
     if (target.id === 'transactionPeriodSelect') { uiState.transactionPeriod=target.value||'month'; if(uiState.transactionPeriod!=='custom'){ uiState.transactionFrom=''; uiState.transactionTo=''; } uiState.transactionPage=1; render(); return; }
@@ -5660,27 +5612,6 @@ pageContent.addEventListener('change', async (event) => {
       renderImportReview();
       return;
     }
-    if (target.dataset.action === 'user-toggle-module-visibility') {
-      target.disabled = true;
-      const moduleKey = target.dataset.moduleKey;
-      if (!moduleEntitled(moduleKey) || MODULES[moduleKey]?.locked || moduleKey === 'admin') throw new Error('Dieses Modul kann nicht persönlich ausgeblendet werden.');
-      const hidden = new Set(hiddenModuleKeys());
-      if (target.checked) hidden.delete(moduleKey); else hidden.add(moduleKey);
-      await saveUserPreferences({ hidden_modules: [...hidden] });
-      render();
-      showToast(target.checked ? 'Modul wieder eingeblendet.' : 'Modul aus deiner Navigation ausgeblendet.');
-      return;
-    }
-    if (target.dataset.action === 'admin-toggle-module') {
-      target.disabled=true;
-      await backend.adminSetModule({userId:target.dataset.userId,moduleKey:target.dataset.moduleKey,enabled:target.checked});
-      const user=runtime.adminUsers.find((u)=>u.id===target.dataset.userId); if (user) (user.modules ||= {})[target.dataset.moduleKey]=target.checked;
-      if (target.dataset.userId===runtime.user?.id) {
-        runtime.moduleAccess[target.dataset.moduleKey]=target.checked;
-        render();
-      }
-      showToast('Modulfreigabe aktualisiert.'); target.disabled=false;
-    }
   } catch (error) { showToast(humanError(error),'error'); target.disabled=false; }
 });
 
@@ -5796,7 +5727,7 @@ store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.datas
 
 themeButton?.addEventListener('click',cycleTheme);
 searchButton?.addEventListener('click',()=>{ goToRoute('search'); });
-privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
+privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
 mobileNav?.addEventListener('click',(event)=>{ if (event.target.closest('#mobileQuickAddButton')) { event.preventDefault(); openQuickAdd(); } });
