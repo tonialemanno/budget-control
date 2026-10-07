@@ -14,6 +14,7 @@ export const SUPPORTED_LOCALES = Object.freeze([
 ]);
 
 const IT = Object.freeze({
+  'Ihre Finanzen im Griff':'Le tue finanze sotto controllo',
   'Übersicht':'Panoramica',
   'Konten':'Conti',
   'Transaktionen':'Transazioni',
@@ -503,6 +504,7 @@ const IT = Object.freeze({
 });
 
 const EN = Object.freeze({
+  'Ihre Finanzen im Griff':'Your finances under control',
   'Übersicht':'Overview',
   'Konten':'Accounts',
   'Transaktionen':'Transactions',
