@@ -1,5 +1,15 @@
 # Finance 2.4.6
 
+## R49 – Transaktionseditor für wiederkehrende Buchungen
+
+- Fehler `locale is not defined` beim Bearbeiten bereits als wiederkehrend erkannter Buchungen behoben.
+- Der Transaktionseditor übernimmt die persönliche Sprache nun explizit aus dem Benutzerprofil.
+- Regressionstest schützt genau den Pfad `Wiederkehrend ✓ → Bearbeiten`.
+- Keine Datenbankänderung.
+- Release 2026.10.07-r49.
+
+# Finance 2.4.6
+
 ## R48 – Zentraler Router mit echten URLs
 
 - Hash-Routen wie `#/transactions` wurden durch echte Browser-Pfade ersetzt.
