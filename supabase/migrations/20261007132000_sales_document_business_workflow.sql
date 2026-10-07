@@ -221,3 +221,12 @@ revoke all on function public.link_sales_document_payment_v1(uuid,uuid,numeric) 
 revoke all on function public.unlink_sales_document_payment_v1(uuid,uuid) from public;
 grant execute on function public.link_sales_document_payment_v1(uuid,uuid,numeric) to authenticated, service_role;
 grant execute on function public.unlink_sales_document_payment_v1(uuid,uuid) to authenticated, service_role;
+
+
+insert into public.app_runtime_state(app_key,schema_version,min_client_schema,release_id,updated_at)
+values('finance',2026100701,2026100403,'2026.10.07-r43',now())
+on conflict(app_key) do update
+set schema_version=excluded.schema_version,
+    min_client_schema=least(public.app_runtime_state.min_client_schema,excluded.min_client_schema),
+    release_id=excluded.release_id,
+    updated_at=excluded.updated_at;
