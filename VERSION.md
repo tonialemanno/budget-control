@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R51 – ALDI SUISSE MOBILE getrennt von ALDI Supermarkt
+
+- `ALDI SUISSE MOBILE` wird als eigener Händler `aldi suisse mobile` erkannt und nicht mehr auf `Aldi Suisse` normalisiert.
+- Die bekannte Kategorie ist `Telefon & Internet`; normale ALDI-Supermarkt-Buchungen bleiben `Lebensmittel`.
+- Die Dubletten-Erkennung behandelt ALDI Mobile und ALDI Retail als unterschiedliche Geschäftskontexte und schlägt kein Zusammenführen mehr vor.
+- Schweizer Standard-Händlerdaten enthalten ALDI SUISSE MOBILE mit der Telekom-Kategorie.
+- Regressionstests schützen Händlername, Schlüssel, Kategorie und Dublettentrennung.
+- Keine Datenbankstrukturänderung.
+- Release 2026.10.07-r51.
+
+# Finance 2.4.6
+
 ## R50 – Einstellungen zuerst wählen, dann speichern
 
 - Normale Einstellungsänderungen werden nicht mehr beim Anklicken automatisch gespeichert oder gerendert.

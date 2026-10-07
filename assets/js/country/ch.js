@@ -24,7 +24,7 @@ export const CH = Object.freeze({
     ['Gerichtskosten','Rechts- & Gerichtskosten','expense'],['Anwaltskosten','Rechts- & Gerichtskosten','expense'],
   ],
   starterMerchantCategories: [
-    ['Migros','Supermarkt'],['Coop','Supermarkt'],['Denner','Supermarkt'],['Aldi Suisse','Supermarkt'],['Lidl','Supermarkt'],
+    ['Migros','Supermarkt'],['Coop','Supermarkt'],['Denner','Supermarkt'],['ALDI SUISSE MOBILE','Telefon & Internet'],['Aldi Suisse','Supermarkt'],['Lidl','Supermarkt'],
     ['SBB','ÖV'],['VBSG / Verkehrsbetriebe','ÖV'],['ParkingPay','Parken'],
     ['Elvetino','Restaurant & Café'],['Swisslos','Lotterie & Gewinnspiele'],['Serafe','Haushaltsabgaben'],
     ['Netflix','Streaming'],['Sunrise / Yallo','Telefon & Internet'],

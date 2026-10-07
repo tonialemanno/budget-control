@@ -30,6 +30,7 @@ function semanticSignature(value){
 
 function knownBrand(value){
   const text=norm(value);
+  if(/\baldi\b(?:\s+suisse)?\s+mobile\b/.test(text)) return 'aldi-mobile';
   if(/\baldi\b/.test(text)) return 'aldi';
   if(/\bedeka\b|\bedk\b/.test(text)) return 'edeka';
   if(/\bmigros\b/.test(text)) return 'migros';
@@ -66,6 +67,7 @@ export function merchantSimilarity(left,right){
   if(semanticA&&semanticB&&semanticA!==semanticB) return 0.2;
 
   const brandA=knownBrand(a), brandB=knownBrand(b);
+  if(brandA&&brandB&&brandA!==brandB) return 0.2;
   if(brandA&&brandA===brandB) return 0.99;
 
   const ta=[...new Set(significantTokens(a).filter((token)=>!SEMANTIC_TOKENS.has(token)))];

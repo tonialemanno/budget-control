@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { merchantFromTransaction } from '../assets/js/app/csv-import.js';
+import { merchantFromTransaction, suggestKnownCategoryName } from '../assets/js/app/csv-import.js';
+import { merchantFamilyKey, merchantSimilarity } from '../assets/js/app/duplicate-intelligence.js';
 
 const uzonA=merchantFromTransaction({counterparty:'Uzon Immobilien AG;CH St. Gallen 9000'});
 const uzonB=merchantFromTransaction({counterparty:'Uzon Immobilien AG;Sonneggstrasse 5; 9000 St. Gallen; CH'});
@@ -30,3 +31,17 @@ assert.equal(prefixed.name,'Beispiel AG');
 assert.equal(prefixed.key,'beispiel ag');
 
 console.log('Merchant canonicalization assertions OK');
+
+const aldiMobileTx={description:'ALDI SUISSE MOBILE; Zahlung UBS 10.03.2026'};
+const aldiMobile=merchantFromTransaction(aldiMobileTx);
+assert.equal(aldiMobile.name,'ALDI SUISSE MOBILE');
+assert.equal(aldiMobile.key,'aldi suisse mobile');
+assert.equal(suggestKnownCategoryName(aldiMobileTx),'Telefon & Internet');
+
+const aldiRetailTx={description:'ALDI SUISSE; Kartenzahlung 10.03.2026'};
+const aldiRetail=merchantFromTransaction(aldiRetailTx);
+assert.equal(aldiRetail.name,'Aldi Suisse');
+assert.equal(aldiRetail.key,'aldi suisse');
+assert.equal(suggestKnownCategoryName(aldiRetailTx),'Lebensmittel');
+assert.notEqual(merchantFamilyKey(aldiMobile),merchantFamilyKey(aldiRetail));
+assert.ok(merchantSimilarity(aldiMobile,aldiRetail)<0.5);

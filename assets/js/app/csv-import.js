@@ -235,6 +235,7 @@ function canonicalMerchantIdentity(name) {
   if(/\bmigros\b/i.test(text)) return {name:'Migros',key:'migros'};
   if(/\bcoop\b/i.test(text)) return {name:'Coop',key:'coop'};
   if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner'};
+  if(/\baldi\b(?:\s+suisse)?\s+mobile\b/i.test(text)) return {name:'ALDI SUISSE MOBILE',key:'aldi suisse mobile'};
   if(/\baldi\b/i.test(text)) return {name:'Aldi Suisse',key:'aldi suisse'};
   if(/\blidl\b/i.test(text)) return {name:'Lidl',key:'lidl'};
   if(/\bparkingpay\b/i.test(text)) return {name:'ParkingPay',key:'parkingpay'};
@@ -343,6 +344,7 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bmigros\b/i, name:'Migros', key:'migros', category:'Lebensmittel' },
   { pattern:/\bcoop\b/i, name:'Coop', key:'coop', category:'Lebensmittel' },
   { pattern:/\bdenner\b/i, name:'Denner', key:'denner', category:'Lebensmittel' },
+  { pattern:/\baldi\b(?:\s+suisse)?\s+mobile\b/i, name:'ALDI SUISSE MOBILE', key:'aldi suisse mobile', category:'Telefon & Internet' },
   { pattern:/\baldi\b/i, name:'Aldi Suisse', key:'aldi suisse', category:'Lebensmittel' },
   { pattern:/\blidl\b/i, name:'Lidl', key:'lidl', category:'Lebensmittel' },
   { pattern:/media\s*markt|mediamarkt/i, name:'MediaMarkt', key:'mediamarkt', category:'Shopping' },
