@@ -139,7 +139,7 @@ assert.equal(Math.round(guide.percent),29);
 
 const overview=fs.readFileSync(new URL('../assets/js/views/overview.js',import.meta.url),'utf8');
 assert.match(overview,/Bis zum nächsten Lohn frei/);
-assert.match(overview,/Finance hat bemerkt/);
+assert.match(overview,/Spendy hat bemerkt/);
 assert.match(overview,/renderMoneyFlow/);
 assert.match(overview,/Frei pro Tag/);
 
