@@ -378,19 +378,19 @@ function closeMobileNav() {
 
 function quickAddSheetHtml() {
   const transferOption = runtime.accounts.length > 1
-    ? `<a class="quick-add-option" href="#/transactions?create=transfer"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
+    ? `<a class="quick-add-option" href="${routeHref('transactions',{create:'transfer'})}"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
     : `<button class="quick-add-option" type="button" disabled><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Mindestens 2 Konten nötig</small></button>`;
   const debtOptions = moduleEnabled('debts') ? `
-    <a class="quick-add-option" href="#/debts?create=debt"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
-    <a class="quick-add-option" href="#/receivables?create=receivable"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
+    <a class="quick-add-option" href="${routeHref('debts',{create:'debt'})}"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
+    <a class="quick-add-option" href="${routeHref('receivables',{create:'receivable'})}"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
   ` : '';
   return `
     <div class="quick-add-handle" aria-hidden="true"></div>
     <div class="quick-add-head"><div><strong>Hinzufügen</strong><span>Was möchtest du erfassen?</span></div><button class="icon-button" type="button" data-quick-add-close aria-label="Schliessen">×</button></div>
     <div class="quick-add-grid">
-      <a class="quick-add-option" href="#/transactions?create=expense"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
-      <a class="quick-add-option" href="#/transactions?create=income"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
-      <a class="quick-add-option" href="#/transactions?create=receipt"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'expense'})}"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'income'})}"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'receipt'})}"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
       ${transferOption}
       ${debtOptions}
     </div>
@@ -418,9 +418,9 @@ function closeQuickAdd() {
 
 function applyRouteIntent(route) {
   if (!canWriteHousehold()) return;
-  const query = (location.hash.split('?')[1] || '').trim();
-  if (!query) return;
-  const params = new URLSearchParams(query);
+  const routeLocation=currentRouteLocation();
+  const params=routeLocation.params;
+  if(!params || [...params.keys()].length===0) return;
   const create = params.get('create');
   const accountId = params.get('account');
   const contextId = params.get('context');
@@ -434,11 +434,11 @@ function applyRouteIntent(route) {
     uiState.transactionPage = 1;
   }
   if (!create) {
-    if (accountId||contextId) history.replaceState(null, '', `#/${route}`);
+    if (accountId||contextId) navigateToRoute(route,null,{replace:true});
     return;
   }
 
-  history.replaceState(null, '', `#/${route}`);
+  navigateToRoute(route,null,{replace:true});
 
   if (route === 'transactions' && create === 'receipt') {
     requestAnimationFrame(() => pageContent.querySelector('[data-action="receipt-camera"]')?.click());
@@ -511,7 +511,7 @@ function profileMenuHtml() {
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
-    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="#/profile" data-action="profile-close">Mein Profil</a><a class="action-button action-button--secondary" href="#/settings" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
+    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="${routeHref('profile')}" data-action="profile-close">Mein Profil</a><a class="action-button action-button--secondary" href="${routeHref('settings')}" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
   </div>`;
 }
 
