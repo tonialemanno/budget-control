@@ -70,6 +70,8 @@ import { renderReview } from './views/review.js';
 import { renderSearch } from './views/search.js';
 import { renderProjects } from './views/projects.js';
 
+let lastRenderedHref=`${location.pathname}${location.search}`;
+
 const views = {
   overview: renderOverview,
   review: renderReview,
@@ -1103,6 +1105,7 @@ function render() {
     taxYear: uiState.taxYear,
   });
   rewriteLegacyRouteLinks(pageContent);
+  lastRenderedHref=`${location.pathname}${location.search}`;
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   const section = routeSection(route);
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -5697,7 +5700,21 @@ async function enterApp(session,{freshLogin=false}={}) {
   }
 }
 
-window.addEventListener('popstate',()=>{ if(runtime.user){ render(); void pulsePresence(); } });
+window.addEventListener('popstate',()=>{
+  if(!runtime.user) return;
+  if(hasDeferredSettingsChanges(pageContent) && !confirm('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?')){
+    history.pushState(null,'',lastRenderedHref);
+    return;
+  }
+  render();
+  void pulsePresence();
+});
+window.addEventListener('beforeunload',(event)=>{
+  if(!hasDeferredSettingsChanges(pageContent)) return;
+  event.preventDefault();
+  event.returnValue='';
+});
+
 window.addEventListener('hashchange',()=>{
   if(!migrateLegacyHash()) return;
   if(runtime.user){ render(); void pulsePresence(); }
