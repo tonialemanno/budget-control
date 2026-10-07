@@ -1,0 +1,3 @@
+# ALEMANNO BUCHHALTUNG SPA fallback.
+# Existing static assets are served normally; application routes fall back to index.html.
+/* /index.html 200

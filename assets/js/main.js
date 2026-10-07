@@ -1,7 +1,8 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r47';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r48';
+import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261007-r48';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r47';
+import { financeApi } from './app/finance-api.js?v=20261007-r48';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -47,7 +48,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r47';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r48';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -61,7 +62,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r47';
+import { renderSettings } from './views/settings.js?v=20261007-r48';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
@@ -317,38 +318,34 @@ function enabledNavItems() {
 function renderNavigation() {
   const primary = enabledNavItems().filter((item) => item.primary);
   const management = [
-    `<a class="nav-item" href="#/settings" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Einstellungen'))}</span></a>`,
+    `<a class="nav-item" href="${routeHref('settings')}" data-route="settings" data-section="settings">${icon('settings')}<span>${escapeHtml(t('Einstellungen'))}</span></a>`,
     runtime.adminRole
-      ? `<a class="nav-item" href="#/admin" data-route="admin" data-section="settings">${icon('shield')}<span>${escapeHtml(t('Administration'))}</span></a>`
+      ? `<a class="nav-item" href="${routeHref('admin')}" data-route="admin" data-section="settings">${icon('shield')}<span>${escapeHtml(t('Administration'))}</span></a>`
       : '',
   ].filter(Boolean).join('');
 
   desktopNav.innerHTML = `
     <div class="nav-group-label">${escapeHtml(t('ALEMANNO BUCHHALTUNG'))}</div>
-    ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
+    ${primary.map((item) => `<a class="nav-item" href="${routeHref(item.route)}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
     <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Mehr'))}</div>
     ${management}
   `;
 
   mobileNav.innerHTML = `
-    <a href="#/overview" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
-    <a href="#/review" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
+    <a href="${routeHref('overview')}" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
+    <a href="${routeHref('review')}" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
     <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
-    <a href="#/money" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
-    <a href="#/planning" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
+    <a href="${routeHref('money')}" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
+    <a href="${routeHref('planning')}" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
   `;
 }
 
 function routeSection(route) {
-  if (['settings','categories','merchants','setup','profile','admin'].includes(route)) return 'settings';
-  if (route === 'import-history') return 'money';
-  if (route === 'search') return 'settings';
-  if (route === 'review') return 'review';
-  return NAV_ITEMS.find((item) => item.route === route)?.section || route;
+  return routeDefinition(route)?.section || route;
 }
 
 function resolveRoute() {
-  const requested = (location.hash || '#/overview').replace(/^#\//, '').split('?')[0];
+  const requested = currentRouteLocation().route || 'overview';
   const allowed = new Set([...enabledNavItems().map((item) => item.route), 'settings', 'setup', 'profile', 'search']);
   if (moduleEntitled('money')) { allowed.add('categories'); allowed.add('merchants'); allowed.add('import-history'); }
   const onboardingPending = Boolean(runtime.profile && !runtime.profile.onboarding_completed_at);
@@ -360,6 +357,29 @@ function resolveRoute() {
     return 'setup';
   }
   return allowed.has(requested) ? requested : 'overview';
+}
+
+function goToRoute(route,params=null,{replace=false}={}) {
+  navigateToRoute(route,params,{replace});
+  if(runtime.user){
+    render();
+    void pulsePresence();
+  }
+}
+
+function handleAppRouteLink(event) {
+  if(event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const anchor=event.target.closest?.('a[href]');
+  if(!anchor || anchor.hasAttribute('download') || anchor.target==='_blank') return;
+  let url;
+  try { url=new URL(anchor.href,location.href); } catch { return; }
+  if(url.origin!==location.origin || !isKnownRouteUrl(url)) return;
+  event.preventDefault();
+  history.pushState(null,'',`${url.pathname}${url.search}`);
+  if(runtime.user){
+    render();
+    void pulsePresence();
+  }
 }
 
 function setTheme(theme) {
@@ -381,19 +401,19 @@ function closeMobileNav() {
 
 function quickAddSheetHtml() {
   const transferOption = runtime.accounts.length > 1
-    ? `<a class="quick-add-option" href="#/transactions?create=transfer"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
+    ? `<a class="quick-add-option" href="${routeHref('transactions',{create:'transfer'})}"><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Zwischen eigenen Konten</small></a>`
     : `<button class="quick-add-option" type="button" disabled><span>${icon('repeat')}</span><strong>Umbuchung</strong><small>Mindestens 2 Konten nötig</small></button>`;
   const debtOptions = moduleEnabled('debts') ? `
-    <a class="quick-add-option" href="#/debts?create=debt"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
-    <a class="quick-add-option" href="#/receivables?create=receivable"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
+    <a class="quick-add-option" href="${routeHref('debts',{create:'debt'})}"><span>${icon('credit-card')}</span><strong>Schuld</strong><small>Kredit oder offene Schuld</small></a>
+    <a class="quick-add-option" href="${routeHref('receivables',{create:'receivable'})}"><span>${icon('banknote')}</span><strong>Forderung</strong><small>Verliehenes Geld</small></a>
   ` : '';
   return `
     <div class="quick-add-handle" aria-hidden="true"></div>
     <div class="quick-add-head"><div><strong>Hinzufügen</strong><span>Was möchtest du erfassen?</span></div><button class="icon-button" type="button" data-quick-add-close aria-label="Schliessen">×</button></div>
     <div class="quick-add-grid">
-      <a class="quick-add-option" href="#/transactions?create=expense"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
-      <a class="quick-add-option" href="#/transactions?create=income"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
-      <a class="quick-add-option" href="#/transactions?create=receipt"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'expense'})}"><span>${icon('arrow-up-right')}</span><strong>Ausgabe</strong><small>Geld ist abgeflossen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'income'})}"><span>${icon('arrow-down-left')}</span><strong>Einnahme</strong><small>Geld ist eingegangen</small></a>
+      <a class="quick-add-option" href="${routeHref('transactions',{create:'receipt'})}"><span>${icon('receipt')}</span><strong>Beleg</strong><small>Fotografieren & erkennen</small></a>
       ${transferOption}
       ${debtOptions}
     </div>
@@ -421,9 +441,9 @@ function closeQuickAdd() {
 
 function applyRouteIntent(route) {
   if (!canWriteHousehold()) return;
-  const query = (location.hash.split('?')[1] || '').trim();
-  if (!query) return;
-  const params = new URLSearchParams(query);
+  const routeLocation=currentRouteLocation();
+  const params=routeLocation.params;
+  if(!params || [...params.keys()].length===0) return;
   const create = params.get('create');
   const accountId = params.get('account');
   const contextId = params.get('context');
@@ -437,11 +457,11 @@ function applyRouteIntent(route) {
     uiState.transactionPage = 1;
   }
   if (!create) {
-    if (accountId||contextId) history.replaceState(null, '', `#/${route}`);
+    if (accountId||contextId) navigateToRoute(route,null,{replace:true});
     return;
   }
 
-  history.replaceState(null, '', `#/${route}`);
+  navigateToRoute(route,null,{replace:true});
 
   if (route === 'transactions' && create === 'receipt') {
     requestAnimationFrame(() => pageContent.querySelector('[data-action="receipt-camera"]')?.click());
@@ -514,7 +534,7 @@ function profileMenuHtml() {
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
-    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="#/profile" data-action="profile-close">Mein Profil</a><a class="action-button action-button--secondary" href="#/settings" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
+    <div class="profile-popover-actions"><a class="action-button action-button--secondary" href="${routeHref('profile')}" data-action="profile-close">Mein Profil</a><a class="action-button action-button--secondary" href="${routeHref('settings')}" data-action="profile-close">Einstellungen</a><button class="action-button action-button--secondary" type="button" data-action="logout">Abmelden</button></div>
   </div>`;
 }
 
@@ -684,7 +704,7 @@ async function ensureCurrentRelease(){
   if(releaseCheckInFlight) return releaseCheckInFlight;
   releaseCheckInFlight=(async()=>{
     try {
-      const manifest=await fetchReleaseManifest(`./version.json?check=${Date.now()}`);
+      const manifest=await fetchReleaseManifest(`/version.json?check=${Date.now()}`);
       if(releaseMismatch(APP_CONFIG.releaseId,manifest)){
         return reloadForRelease(manifest.releaseId,'Neue ALEMANNO BUCHHALTUNG-Version verfügbar. ALEMANNO BUCHHALTUNG wird aktualisiert …');
       }
@@ -716,7 +736,7 @@ async function ensureRuntimeCompatibility(){
       showReleaseUpdating('ALEMANNO BUCHHALTUNG-Datenbank wird aktualisiert. Bitte kurz warten …');
       return false;
     }
-    const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
+    const manifest=await fetchReleaseManifest(`/version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
     return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'ALEMANNO BUCHHALTUNG-Version und Datenbank werden synchronisiert …');
   }
   return true;
@@ -731,7 +751,7 @@ async function pulsePresence({force=false,stateOverride=null}={}){
     lastInteractionAt:clock.lastInteractionAt,
   });
   await financeApi.touchPresence({
-    route:(location.hash||'#/overview').replace(/^#\//,'').split('?')[0],
+    route:currentRouteLocation().route||'overview',
     appVersion:`${APP_CONFIG.version}-${APP_CONFIG.releaseChannel}-${APP_CONFIG.releaseId}`,
     deviceLabel:currentDeviceLabel(),
     activityState,
@@ -802,7 +822,7 @@ async function logoutCurrentUser({notice=''}={}) {
   runtime.householdRole=null;
   runtime.adminRole=null;
   runtime.runtimeState=null;
-  location.hash='';
+  navigateToRoute('overview',null,{replace:true});
   window.scrollTo({top:0,left:0,behavior:'auto'});
   showAuth(notice);
 }
@@ -1024,9 +1044,15 @@ function renderSetup() {
 
 function render() {
   if (!runtime.user) return;
-  if (!runtime.household) { renderSetup(); return; }
+  if (!runtime.household) {
+    if(currentRouteLocation().route!=='setup') navigateToRoute('setup',null,{replace:true});
+    renderSetup();
+    return;
+  }
   renderNavigation();
+  const routeLocation=currentRouteLocation();
   const route = resolveRoute();
+  if(routeLocation.route!==route) navigateToRoute(route,null,{replace:true});
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
   pageEyebrow.textContent = t(meta.eyebrow);
@@ -1073,6 +1099,7 @@ function render() {
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
     taxYear: uiState.taxYear,
   });
+  rewriteLegacyRouteLinks(pageContent);
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   const section = routeSection(route);
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
@@ -2071,7 +2098,7 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
 
   if(!guide.found){
     hint.className='budget-decision-hint budget-decision-hint--neutral form-grid-span';
-    hint.innerHTML=`<div><strong>${escapeHtml(t('Kein Budgetrahmen für diese Auswahl'))}</strong><span>${escapeHtml(t('Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget festlegen'))}</a>`;
+    hint.innerHTML=`<div><strong>${escapeHtml(t('Kein Budgetrahmen für diese Auswahl'))}</strong><span>${escapeHtml(t('Die Ausgabe kann gespeichert werden. Für eine Entscheidung vor dem Kauf fehlt aber noch ein Budgetrahmen.'))}</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget festlegen'))}</a>`;
     return;
   }
 
@@ -2082,8 +2109,8 @@ function syncTransactionBudgetCoach(form=document.querySelector('#transaction-cr
   const afterText=moneyText(Math.max(0,after),{currency,locale,decimals:0});
   const overshoot=moneyText(Math.abs(Math.min(0,after)),{currency,locale,decimals:0});
   hint.innerHTML=after<0
-    ? `<div><strong>${escapeHtml(guide.label)} · ${escapeHtml(t('Budget würde überschritten'))}</strong><span>${escapeHtml(t('Vor dieser Ausgabe noch'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar. Danach'))} ${escapeHtml(overshoot)} ${escapeHtml(t('über dem Rahmen.'))}</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`
-    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % ${escapeHtml(t('verbraucht'))}</strong><span>${escapeHtml(t('Aktuell'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar'))}${entered>0?` · ${escapeHtml(t('nach dieser Ausgabe'))} ${escapeHtml(afterText)}`:''}.</span></div><a href="#/budget">${escapeHtml(t('Budget prüfen'))}</a>`;
+    ? `<div><strong>${escapeHtml(guide.label)} · ${escapeHtml(t('Budget würde überschritten'))}</strong><span>${escapeHtml(t('Vor dieser Ausgabe noch'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar. Danach'))} ${escapeHtml(overshoot)} ${escapeHtml(t('über dem Rahmen.'))}</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget prüfen'))}</a>`
+    : `<div><strong>${escapeHtml(guide.label)} · ${Math.round(guide.percent)} % ${escapeHtml(t('verbraucht'))}</strong><span>${escapeHtml(t('Aktuell'))} ${escapeHtml(remaining)} ${escapeHtml(t('verfügbar'))}${entered>0?` · ${escapeHtml(t('nach dieser Ausgabe'))} ${escapeHtml(afterText)}`:''}.</span></div><a href="${routeHref('budget')}">${escapeHtml(t('Budget prüfen'))}</a>`;
 }
 
 function syncTransactionTransferEditor() {
@@ -2325,7 +2352,7 @@ async function handleForm(form) {
     });
     await seedStarterCategoriesForHousehold(createdHousehold.id, countryCode, []);
     await refresh('Grunddaten gespeichert. Richte jetzt dein erstes Konto ein.');
-    location.hash = '#/setup';
+    goToRoute('setup');
     return;
   }
   if (id === 'setup-income-create') {
@@ -2353,7 +2380,7 @@ async function handleForm(form) {
       active:true,
     });
     await refresh('Monatseinnahme gespeichert.');
-    location.hash='#/setup';
+    goToRoute('setup');
     return;
   }
   if (id === 'setup-expense-create') {
@@ -2394,7 +2421,7 @@ async function handleForm(form) {
       active:true,
     });
     await refresh(merchant?'Fixkosten gespeichert und Empfänger verknüpft.':'Fixkosten gespeichert.');
-    location.hash='#/setup';
+    goToRoute('setup');
     return;
   }
 
@@ -2412,7 +2439,7 @@ async function handleForm(form) {
       preferences:{...profilePreferences(),setup_completed_version:2},
     });
     await refresh('Einrichtung abgeschlossen. ALEMANNO BUCHHALTUNG ist bereit.');
-    location.hash = '#/overview';
+    goToRoute('overview');
     return;
   }
 
@@ -4103,7 +4130,7 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Buchung wurde nicht gefunden.');
     uiState.pendingTransactionEditId=tx.id;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'review-link-transfer') {
@@ -4619,7 +4646,7 @@ async function handleAction(target) {
     uiState.transactionView='details';
     uiState.transactionPage=1;
     uiState.pendingTransactionEditId=tx.id;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'overview-drilldown-expense') {
@@ -4639,7 +4666,7 @@ async function handleAction(target) {
     if(key==='uncategorized') uiState.transactionCategory='uncategorized';
     else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'overview-drilldown-income') {
@@ -4657,7 +4684,7 @@ async function handleAction(target) {
     uiState.transactionPeriod='custom';
     uiState.transactionView='details';
     uiState.transactionPage=1;
-    location.hash='#/transactions';
+    goToRoute('transactions');
     return;
   }
   if (action === 'transaction-filter-category') {
@@ -5122,7 +5149,7 @@ async function handleAction(target) {
     await backend.rpc('admin_reset_user_finance',{p_user_id:userId,p_confirmation_email:confirmation.trim()});
     if(userId===runtime.user?.id){
       await loadContext();
-      location.hash='#/setup';
+      goToRoute('setup');
       render();
       showToast('Deine ALEMANNO BUCHHALTUNG-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
       return;
@@ -5641,7 +5668,11 @@ async function enterApp(session,{freshLogin=false}={}) {
   }
 }
 
-window.addEventListener('hashchange',()=>{ render(); void pulsePresence(); });
+window.addEventListener('popstate',()=>{ if(runtime.user){ render(); void pulsePresence(); } });
+window.addEventListener('hashchange',()=>{
+  if(!migrateLegacyHash()) return;
+  if(runtime.user){ render(); void pulsePresence(); }
+});
 document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){
     hiddenAt=Date.now();
@@ -5670,7 +5701,7 @@ window.addEventListener('resize',()=>{ syncMobileScrollState(); closeProfileMenu
 store.subscribe((state)=>{ setTheme(state.theme); document.documentElement.dataset.depth=state.depth; });
 
 themeButton?.addEventListener('click',cycleTheme);
-searchButton?.addEventListener('click',()=>{ location.hash='#/search'; });
+searchButton?.addEventListener('click',()=>{ goToRoute('search'); });
 privacyButton?.addEventListener('click',async()=>{ try { await saveUserPreferences({ privacy_enabled: !privacyEnabled() }); render(); showToast(privacyEnabled() ? 'Privatsphäre-Modus aktiviert.' : 'Finanzwerte wieder sichtbar.'); } catch (error) { showToast(humanError(error),'error'); } });
 mobileMenuButton?.addEventListener('click',()=>{ const open=!document.body.classList.contains('mobile-nav-open'); document.body.classList.toggle('mobile-nav-open',open); mobileMenuButton.setAttribute('aria-expanded',String(open)); mobileScrim.hidden=!open; });
 mobileScrim?.addEventListener('click',closeMobileNav);
@@ -5680,6 +5711,7 @@ quickAddSheet?.addEventListener('click',(event)=>{
   if (event.target.closest('[data-quick-add-close]')) { closeQuickAdd(); return; }
   if (event.target.closest('a.quick-add-option')) closeQuickAdd();
 });
+document.addEventListener('click',handleAppRouteLink);
 document.addEventListener('keydown',(event)=>{ markInteraction(); if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
 for(const eventName of ['pointerdown','touchstart','wheel']){
   document.addEventListener(eventName,()=>markInteraction(),{passive:true});
@@ -5689,6 +5721,7 @@ profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); togg
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
 document.addEventListener('click',async(event)=>{ const target=event.target.closest('#profilePopover [data-action]'); if (!target) return; try { await handleAction(target); } catch (error) { showToast(humanError(error),'error'); } });
 
+migrateLegacyHash();
 hydrateStaticIcons();
 applyReleaseChannelUI();
 setTheme(store.getState().theme);

@@ -1,6 +1,6 @@
 export const RELEASE_CHECK_INTERVAL_MS = 5*60_000;
 
-export async function fetchReleaseManifest(url='./version.json',fetchImpl=globalThis.fetch) {
+export async function fetchReleaseManifest(url='/version.json',fetchImpl=globalThis.fetch) {
   if(typeof fetchImpl!=='function') throw new Error('Versionsprüfung ist nicht verfügbar.');
   const response=await fetchImpl(url,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
   if(!response.ok) throw new Error(`Versionsprüfung fehlgeschlagen (${response.status}).`);

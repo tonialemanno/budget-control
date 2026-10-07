@@ -95,7 +95,7 @@ assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
 assert.match(read('assets/js/app/budget-engine.js'), /rule\.merchant_id/);
 
 assert.equal(exists('assets/js/views/merchants.js'), true);
-assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler'/);
+assert.match(read('assets/js/app/router.js'), /route:'merchants'.*path:'\/selfservice\/merchants'.*title:'Händler'/s);
 assert.match(read('assets/js/main.js'), /renderMerchants/);
 assert.match(read('assets/js/main.js'), /merchant-create/);
 assert.match(read('assets/js/main.js'), /merchant-edit/);
@@ -112,8 +112,8 @@ assert.doesNotMatch(recurringBlock,/merchant_id:merchantId/);
 assert.doesNotMatch(recurringBlock,/merchant\?\.name/);
 assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
 
-assert.doesNotMatch(read('assets/js/app/config.js'), /route: 'merchants'/);
-assert.match(read('assets/js/app/config.js'), /merchants: \{ title: 'Händler', eyebrow: 'Einstellungen' \}/);
+assert.match(read('assets/js/app/config.js'), /ROUTE_REGISTRY/);
+assert.match(read('assets/js/app/router.js'), /route:'merchants'.*eyebrow:'Einstellungen'/s);
 assert.match(read('assets/js/views/settings.js'), /Stammdaten/);
 assert.match(read('assets/js/views/settings.js'), /href:['"]#\/merchants/);
 
