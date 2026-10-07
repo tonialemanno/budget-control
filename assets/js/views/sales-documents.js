@@ -238,16 +238,16 @@ export function renderSalesDocuments({
         <label class="field"><span>MWST-/USt-/IVA-Nr.</span><input class="text-control" name="senderTaxId" value="${escapeHtml(defaults.senderTaxId)}"></label>
         <label class="field"><span>Empfänger / Kunde</span><input class="text-control" name="recipientName" required></label>
         <label class="field form-grid-span"><span>Empfängeradresse</span><textarea class="text-control" name="recipientAddress" rows="2"></textarea></label>
-        <label class="field"><span>Einleitung · Textbaustein</span><select class="text-control" data-sales-template-select data-target="introText">${templateOptions(salesDocumentTemplates,'intro','invoice')}</select></label>
+        <label class="field"><span>Einleitung · Textbaustein</span><select class="text-control" data-sales-template-select data-sales-target="introText">${templateOptions(salesDocumentTemplates,'intro','invoice')}</select></label>
         <label class="field form-grid-span"><span>Einleitungstext</span><textarea class="text-control" name="introText" rows="3">${escapeHtml(defaults.invoiceIntro)}</textarea></label>
       </div>
       <div class="card-heading" style="margin-top:16px"><div><h3 class="card-title">Positionen</h3><p class="card-subtitle">Steuer wird aus deinen Einstellungen vorausgefüllt und kann je Position geändert werden.</p></div><button class="action-button action-button--secondary" type="button" data-action="sales-document-add-item">${icon('plus')} Position</button></div>
       <div class="stack" id="salesDocumentItems">${itemRow(defaults.taxRate)}</div>
       <template id="salesDocumentItemTemplate">${itemRow(defaults.taxRate)}</template>
       <div class="form-grid form-grid--2" style="margin-top:16px">
-        <label class="field"><span>Zahlung · Textbaustein</span><select class="text-control" data-sales-template-select data-target="paymentText">${templateOptions(salesDocumentTemplates,'payment','invoice')}</select></label>
+        <label class="field"><span>Zahlung · Textbaustein</span><select class="text-control" data-sales-template-select data-sales-target="paymentText">${templateOptions(salesDocumentTemplates,'payment','invoice')}</select></label>
         <label class="field form-grid-span"><span>Zahlungstext</span><textarea class="text-control" name="paymentText" rows="2">${escapeHtml(defaults.paymentText)}</textarea></label>
-        <label class="field"><span>Schluss · Textbaustein</span><select class="text-control" data-sales-template-select data-target="closingText">${templateOptions(salesDocumentTemplates,'closing','invoice')}</select></label>
+        <label class="field"><span>Schluss · Textbaustein</span><select class="text-control" data-sales-template-select data-sales-target="closingText">${templateOptions(salesDocumentTemplates,'closing','invoice')}</select></label>
         <label class="field form-grid-span"><span>Schlusstext</span><textarea class="text-control" name="closingText" rows="2">${escapeHtml(defaults.closingText)}</textarea></label>
         <label class="field form-grid-span"><span>Interne Notiz</span><textarea class="text-control" name="notes" rows="2" placeholder="wird nicht gedruckt"></textarea></label>
       </div>
