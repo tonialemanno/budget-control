@@ -3847,10 +3847,53 @@ async function printSalesDocument(row) {
 }
 
 
+async function createReceiptFromInvoice(invoice,paymentTx=null) {
+  if(!invoice || invoice.document_type!=='invoice') throw new Error('Rechnung wurde nicht gefunden.');
+  const existing=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id);
+  if(existing) return existing;
+  const settings=runtime.salesDocumentSettings||{};
+  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'');
+  const issueDate=paymentTx?.occurred_at ? dateInputValue(new Date(paymentTx.occurred_at)) : (invoice.paid_at||dateInputValue());
+  const totalText=new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{
+    style:'currency',currency:invoice.currency||runtime.household?.base_currency||'CHF',
+  }).format(Number(invoice.total||0));
+  const context={
+    recipientName:invoice.recipient_name,
+    documentNumber:nextSalesDocumentNumber(runtime.salesDocuments,'receipt'),
+    issueDate,
+    dueDate:'',
+    total:totalText,
+    paymentDays:defaults.paymentDays,
+  };
+  return financeApi.createSalesDocument({
+    household_id:runtime.household.id,
+    document_type:'receipt',
+    document_number:context.documentNumber,
+    status:'paid',
+    issue_date:issueDate,
+    paid_at:issueDate,
+    due_date:null,
+    valid_until:null,
+    currency:invoice.currency,
+    sender_name:invoice.sender_name||defaults.senderName,
+    sender_address:invoice.sender_address||defaults.senderAddress,
+    sender_tax_id:invoice.sender_tax_id||defaults.senderTaxId,
+    recipient_name:invoice.recipient_name,
+    recipient_address:invoice.recipient_address,
+    intro_text:expandSalesDocumentText(defaults.receiptIntro,context),
+    closing_text:expandSalesDocumentText(defaults.closingText,context),
+    payment_text:`Zahlung erhalten am ${issueDate}.`,
+    notes:'Automatisch aus bezahlter Rechnung erzeugt.',
+    items:invoice.items,
+    source_document_id:invoice.id,
+  });
+}
+
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
@@ -3871,7 +3914,51 @@ async function handleAction(target) {
   if (action === 'sales-document-print') {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
-    printSalesDocument(row);
+    await printSalesDocument(row);
+    return;
+  }
+  if (action === 'sales-document-payment-link') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    const select=target.closest('.list-row')?.querySelector(`[data-sales-payment-select][data-document-id="${invoice.id}"]`);
+    const transactionId=String(select?.value||'');
+    const tx=runtime.transactions.find((entry)=>entry.id===transactionId);
+    if(!tx) throw new Error('Bitte einen Zahlungseingang auswählen.');
+    const paid=(runtime.salesDocumentPayments||[]).filter((row)=>row.sales_document_id===invoice.id).reduce((sum,row)=>sum+Number(row.amount||0),0);
+    const remaining=Math.max(0,Number(invoice.total||0)-paid);
+    const amount=Math.min(Number(tx.amount||0),remaining||Number(tx.amount||0));
+    const result=await financeApi.linkSalesDocumentPayment({salesDocumentId:invoice.id,transactionId:tx.id,amount});
+    let receiptCreated=false;
+    if(result?.status==='paid' && runtime.salesDocumentSettings?.auto_receipt_on_payment!==false){
+      await createReceiptFromInvoice({...invoice,status:'paid',paid_at:result?.paid_at||dateInputValue(new Date(tx.occurred_at))},tx);
+      receiptCreated=true;
+    }
+    await refresh(receiptCreated?'Zahlung zugeordnet, Rechnung bezahlt und Quittung automatisch erstellt.':result?.status==='paid'?'Zahlung zugeordnet und Rechnung als bezahlt markiert.':'Teilzahlung zugeordnet.');
+    return;
+  }
+  if (action === 'sales-document-payment-unlink') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    const transactionId=String(target.dataset.transactionId||'');
+    if(!transactionId) throw new Error('Zahlungsverknüpfung wurde nicht gefunden.');
+    await financeApi.unlinkSalesDocumentPayment({salesDocumentId:invoice.id,transactionId});
+    const autoReceipt=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id&&row.notes==='Automatisch aus bezahlter Rechnung erzeugt.');
+    if(autoReceipt) await financeApi.deleteSalesDocument(autoReceipt.id);
+    await refresh('Zahlungsverknüpfung gelöst. Eine automatisch erzeugte Quittung wurde ebenfalls entfernt.');
+    return;
+  }
+  if (action === 'sales-document-create-receipt') {
+    const invoice=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='invoice');
+    if(!invoice) throw new Error('Rechnung wurde nicht gefunden.');
+    await createReceiptFromInvoice(invoice);
+    await refresh('Quittung aus der bezahlten Rechnung erstellt.');
+    return;
+  }
+  if (action === 'sales-template-delete') {
+    const template=runtime.salesDocumentTemplates.find((entry)=>entry.id===target.dataset.id);
+    if(!template) throw new Error('Textbaustein wurde nicht gefunden.');
+    await financeApi.deleteSalesDocumentTemplate(template.id);
+    await refresh('Textbaustein gelöscht.');
     return;
   }
   if (action === 'sales-document-status') {
@@ -3891,7 +3978,7 @@ async function handleAction(target) {
       document_number:nextSalesDocumentNumber(runtime.salesDocuments,'invoice'),
       status:'draft',
       issue_date:dateInputValue(),
-      due_date:addDaysInput(30),
+      due_date:addDaysInput(salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'').paymentDays),
       valid_until:null,
       currency:quote.currency,
       sender_name:quote.sender_name,
