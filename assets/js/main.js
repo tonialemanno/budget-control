@@ -30,7 +30,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
-import { markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r49';
+import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r49';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
@@ -376,6 +376,7 @@ function handleAppRouteLink(event) {
   try { url=new URL(anchor.href,location.href); } catch { return; }
   if(url.origin!==location.origin || !isKnownRouteUrl(url)) return;
   event.preventDefault();
+  if(hasDeferredSettingsChanges(pageContent) && !confirm('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?')) return;
   history.pushState(null,'',`${url.pathname}${url.search}`);
   if(runtime.user){
     render();
@@ -797,6 +798,7 @@ function startLiveTimers() {
   releaseTimer=window.setInterval(()=>{ void ensureCurrentRelease(); },RELEASE_CHECK_INTERVAL_MS);
   adminPresenceTimer=window.setInterval(async()=>{
     if (!runtime.user || !runtime.adminRole || resolveRoute()!=='admin' || document.visibilityState==='hidden') return;
+    if (hasDeferredSettingsChanges(pageContent)) return;
     if (document.activeElement?.matches('input,select,textarea')) return;
     try {
       runtime.adminUsers=(await backend.adminListUsers())?.users||[];
@@ -5711,7 +5713,7 @@ document.addEventListener('visibilitychange',async()=>{
   if(await enforceSessionGuard()) return;
   if(!(await ensureCurrentRelease())) return;
   if(!(await ensureRuntimeCompatibility())) return;
-  if(awayMs>=BACKGROUND_REFRESH_MS){
+  if(awayMs>=BACKGROUND_REFRESH_MS && !hasDeferredSettingsChanges(pageContent)){
     try {
       showLoading('Daten werden synchronisiert …');
       await loadContext();
