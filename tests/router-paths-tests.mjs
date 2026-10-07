@@ -33,18 +33,14 @@ assert.equal(routeFromPath('/admin/users')?.route,'admin');
 assert.equal(routeFromPath('/planning/sales-documents')?.route,'sales-documents');
 
 assert.equal(legacyHashToHref('#/transactions?create=income'),'/finance/transactions?create=income');
-assert.deepEqual(
-  currentRouteLocation({pathname:'/finance/accounts',search:'?x=1',hash:''}),
-  {
-    route:'accounts',
-    definition:routeDefinition('accounts'),
-    pathname:'/finance/accounts',
-    search:'?x=1',
-    params:new URLSearchParams('x=1'),
-    legacy:false,
-    href:'/finance/accounts?x=1',
-  },
-);
+const current=currentRouteLocation({pathname:'/finance/accounts',search:'?x=1',hash:''});
+assert.equal(current.route,'accounts');
+assert.equal(current.definition,routeDefinition('accounts'));
+assert.equal(current.pathname,'/finance/accounts');
+assert.equal(current.search,'?x=1');
+assert.equal(current.params.get('x'),'1');
+assert.equal(current.legacy,false);
+assert.equal(current.href,'/finance/accounts?x=1');
 
 for(const item of NAV_ITEMS){
   assert.ok(routeDefinition(item.route),`nav item ${item.route} must exist in registry`);
