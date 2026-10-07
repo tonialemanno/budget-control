@@ -992,6 +992,9 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  'Persönliche Einstellungen':'Impostazioni personali',
+  'Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.':'Queste impostazioni appartengono al tuo account e sono indipendenti dal ruolo nel nucleo familiare.',
+  'Die Sprache wird nur für dein Benutzerkonto gespeichert.':'La lingua viene salvata solo per il tuo account utente.',
   'Dokumenteinstellungen':'Impostazioni documenti',
   'Logo, Absender, Zahlungsdaten, Automatik und Textbausteine werden hier zentral gepflegt.':'Qui gestisci centralmente logo, mittente, dati di pagamento, automazioni e testi predefiniti.',
   'Automatik ist aktiv.':'L’automazione è attiva.',
@@ -1344,6 +1347,9 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  'Persönliche Einstellungen':'Personal settings',
+  'Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.':'These settings belong to your login and are independent of your household role.',
+  'Die Sprache wird nur für dein Benutzerkonto gespeichert.':'The language is saved only for your user account.',
   'Dokumenteinstellungen':'Document settings',
   'Logo, Absender, Zahlungsdaten, Automatik und Textbausteine werden hier zentral gepflegt.':'Manage logo, sender details, payment data, automation and text blocks here in one place.',
   'Automatik ist aktiv.':'Automation is active.',

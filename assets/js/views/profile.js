@@ -52,6 +52,21 @@ export function renderProfile({
 
     <div class="grid-main-aside">
       <article class="card card-padding">
+        <div class="card-heading"><div><h3 class="card-title">Persönliche Einstellungen</h3><p class="card-subtitle">Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.</p></div></div>
+        <label class="field">
+          <span>Sprache & Region</span>
+          <select class="select-control" id="profileLocaleSelect">
+            <option value="de-CH" ${locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option>
+            <option value="de-DE" ${locale==='de-DE'?'selected':''}>Deutsch · Deutschland</option>
+            <option value="it-CH" ${locale==='it-CH'?'selected':''}>Italiano · Svizzera</option>
+            <option value="it-IT" ${locale==='it-IT'?'selected':''}>Italiano · Italia</option>
+            <option value="en-CH" ${locale==='en-CH'?'selected':''}>English · Switzerland</option>
+            <option value="en-GB" ${locale==='en-GB'?'selected':''}>English · United Kingdom</option>
+          </select>
+          <small>Die Sprache wird nur für dein Benutzerkonto gespeichert.</small>
+        </label>
+      </article>
+      <article class="card card-padding">
         <div class="card-heading"><div><h3 class="card-title">Mein Zugriff</h3><p class="card-subtitle">Was dein Login aktuell sehen und bearbeiten darf</p></div></div>
         <div class="mini-detail-list">
           <span>Haushalt <strong>${escapeHtml(household?.name||'—')}</strong></span>

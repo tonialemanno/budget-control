@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r46';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r47';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r46';
+import { financeApi } from './app/finance-api.js?v=20261007-r47';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -47,7 +47,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r46';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r47';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -61,7 +61,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r46';
+import { renderSettings } from './views/settings.js?v=20261007-r47';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
@@ -475,6 +475,20 @@ function applyRouteIntent(route) {
 function syncMobileScrollState() {
   const compact = window.matchMedia('(max-width: 660px)').matches && window.scrollY > 46;
   document.body.classList.toggle('mobile-title-collapsed', compact);
+}
+
+async function saveCurrentUserLocale(locale) {
+  const nextLocale=String(locale||'').trim();
+  const allowed=new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
+  if(!allowed.has(nextLocale)) throw new Error('Ungültige Sprache & Region.');
+  const previousProfile=runtime.profile||{};
+  const saved=await financeApi.setMyLocale(nextLocale);
+  const returned=saved && !Array.isArray(saved) ? saved : (Array.isArray(saved) ? saved[0] : null);
+  runtime.profile=returned||{...previousProfile,user_id:runtime.user.id,locale:nextLocale};
+  setLocale(nextLocale);
+  updateProfileUI();
+  render();
+  showToast('Sprache & Region gespeichert.');
 }
 
 function updateProfileUI() {
@@ -1097,7 +1111,7 @@ function applyInformationDepth() {
 }
 
 function applyPermissionUI(route) {
-  if (!runtime.household || route === 'settings' || route === 'admin') return;
+  if (!runtime.household || route === 'settings' || route === 'profile' || route === 'admin') return;
   if (!canWriteHousehold()) {
     const notice = document.createElement('div');
     notice.className = 'inline-alert access-notice';
@@ -5191,12 +5205,8 @@ pageContent.addEventListener('change', async (event) => {
       syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
       return;
     }
-    if (target.id === 'localeSelect') {
-      runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
-      setLocale(target.value);
-      updateProfileUI();
-      render();
-      showToast('Sprache & Region gespeichert.');
+    if (target.id === 'localeSelect' || target.id === 'profileLocaleSelect') {
+      await saveCurrentUserLocale(target.value);
       return;
     }
     if (target.dataset.action === 'admin-set-locale') {
