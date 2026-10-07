@@ -990,6 +990,12 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  'Noch kein Logo hinterlegt. Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.':'Nessun logo salvato. Consigliato: PNG/SVG/WebP con sfondo trasparente.',
+  'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung.':'Grazie per il vostro incarico. Vi fatturiamo le seguenti prestazioni.',
+  'Wir bestätigen den Eingang Ihrer Zahlung.':'Confermiamo la ricezione del vostro pagamento.',
+  'Absender, Zahlungsfrist, Steuer und Standardtexte kommen automatisch aus den Dokumenteinstellungen und können pro Dokument überschrieben werden.':'Mittente, termine di pagamento, imposta e testi predefiniti vengono compilati automaticamente dalle impostazioni del documento e possono essere modificati per ogni documento.',
+  '· offen':'· aperto',
+  'Rechnungen & Dokumente':'Fatture e documenti',
   'Rechnungen, Offerten & Quittungen':'Fatture, offerte e ricevute',
   'Professionelle Ausgangsdokumente mit Branding, Textbausteinen und Verknüpfung zu echten Zahlungseingängen.':'Documenti commerciali professionali con branding, testi predefiniti e collegamento agli incassi reali.',
   'Dokumenteinstellungen · Logo, Absender & Textbausteine':'Impostazioni documenti · logo, mittente e testi predefiniti',
@@ -1329,6 +1335,12 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  'Noch kein Logo hinterlegt. Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.':'No logo saved yet. Recommended: PNG/SVG/WebP with a transparent background.',
+  'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung.':'Thank you for your order. We are invoicing the following services.',
+  'Wir bestätigen den Eingang Ihrer Zahlung.':'We confirm receipt of your payment.',
+  'Absender, Zahlungsfrist, Steuer und Standardtexte kommen automatisch aus den Dokumenteinstellungen und können pro Dokument überschrieben werden.':'Sender, payment term, tax and default texts are filled automatically from the document settings and can be overridden per document.',
+  '· offen':'· open',
+  'Rechnungen & Dokumente':'Invoices & documents',
   'Rechnungen, Offerten & Quittungen':'Invoices, quotes & receipts',
   'Professionelle Ausgangsdokumente mit Branding, Textbausteinen und Verknüpfung zu echten Zahlungseingängen.':'Professional sales documents with branding, reusable text blocks and links to real incoming payments.',
   'Dokumenteinstellungen · Logo, Absender & Textbausteine':'Document settings · logo, sender & text blocks',
