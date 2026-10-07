@@ -477,6 +477,19 @@ function syncMobileScrollState() {
   document.body.classList.toggle('mobile-title-collapsed', compact);
 }
 
+async function saveCurrentUserLocale(locale) {
+  const nextLocale=String(locale||'').trim();
+  const allowed=new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
+  if(!allowed.has(nextLocale)) throw new Error('Ungültige Sprache & Region.');
+  const saved=await financeApi.setMyLocale(nextLocale);
+  runtime.profile=saved && !Array.isArray(saved) ? saved : (Array.isArray(saved) ? saved[0] : null);
+  if(!runtime.profile) runtime.profile={...(runtime.profile||{}),user_id:runtime.user.id,locale:nextLocale};
+  setLocale(nextLocale);
+  updateProfileUI();
+  render();
+  showToast('Sprache & Region gespeichert.');
+}
+
 function updateProfileUI() {
   setLocale(runtime.profile?.locale || APP_CONFIG.defaultLocale);
   const fallbackName = runtime.user?.email?.split('@')[0] || 'Privat';
@@ -1097,7 +1110,7 @@ function applyInformationDepth() {
 }
 
 function applyPermissionUI(route) {
-  if (!runtime.household || route === 'settings' || route === 'admin') return;
+  if (!runtime.household || route === 'settings' || route === 'profile' || route === 'admin') return;
   if (!canWriteHousehold()) {
     const notice = document.createElement('div');
     notice.className = 'inline-alert access-notice';
@@ -5191,12 +5204,8 @@ pageContent.addEventListener('change', async (event) => {
       syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
       return;
     }
-    if (target.id === 'localeSelect') {
-      runtime.profile=await financeApi.updateProfile(runtime.user.id,{locale:target.value});
-      setLocale(target.value);
-      updateProfileUI();
-      render();
-      showToast('Sprache & Region gespeichert.');
+    if (target.id === 'localeSelect' || target.id === 'profileLocaleSelect') {
+      await saveCurrentUserLocale(target.value);
       return;
     }
     if (target.dataset.action === 'admin-set-locale') {
