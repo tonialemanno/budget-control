@@ -536,16 +536,12 @@ function releaseUiMeta() {
 
 function applyReleaseChannelUI() {
   const {channel,label,shortRelease}=releaseUiMeta();
-  const pill=document.querySelector('#releaseVersionPill');
   const heading=document.querySelector('#releaseChannelLabel');
   const caption=document.querySelector('#releaseChannelCaption');
-  if(pill) pill.textContent=`V${APP_CONFIG.version} · ${label.toUpperCase()} · ${shortRelease.toUpperCase()}`;
-  if(heading) heading.textContent=`${label} ${APP_CONFIG.version}`;
-  if(caption) caption.textContent=`${shortRelease.toUpperCase()} · ${channel==='beta'
-    ? t('Teststand · kann sich ändern')
-    : channel==='local'
-      ? t('Lokale Entwicklungsumgebung')
-      : t('Freigegebener Stand · Supabase')}`;
+  const status=document.querySelector('#releaseStatus');
+  if(heading) heading.textContent=label;
+  if(caption) caption.textContent=`v${APP_CONFIG.version} · ${shortRelease.toUpperCase()}`;
+  if(status) status.setAttribute('aria-label',`${label} · Version ${APP_CONFIG.version} · ${shortRelease.toUpperCase()}`);
   document.documentElement.dataset.releaseChannel=channel;
   document.documentElement.dataset.releaseId=APP_CONFIG.releaseId;
 }
