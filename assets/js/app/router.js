@@ -31,13 +31,13 @@ const DEFINITIONS = [
   { route:'pension', path:'/planning/pension', title:'Vorsorge', eyebrow:'Planung', label:'Vorsorge', icon:'piggy-bank', group:'Weitere Bereiche', module:'pension', section:'planning' },
   { route:'intelligence', path:'/planning/intelligence', title:'ALEMANNO BUCHHALTUNG Intelligence', eyebrow:'Planung', label:'ALEMANNO BUCHHALTUNG Intelligence', icon:'sparkles', group:'Weitere Bereiche', module:'intelligence', section:'planning' },
 
-  { route:'profile', path:'/selfservice/profile', aliases:['/profile'], title:'Mein Profil', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
+  { route:'profile', path:'/selfservice/profile', aliases:['/profile','/selfservice','/SelfService'], title:'Mein Profil', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
   { route:'settings', path:'/selfservice/settings', aliases:['/settings'], title:'Einstellungen', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
   { route:'categories', path:'/selfservice/categories', aliases:['/categories'], title:'Kategorien & Regeln', eyebrow:'Einstellungen', section:'settings' },
   { route:'merchants', path:'/selfservice/merchants', aliases:['/merchants'], title:'Händler', eyebrow:'Einstellungen', section:'settings' },
   { route:'setup', path:'/setup', title:'Einrichtung', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
 
-  { route:'admin', path:'/admin', aliases:['/admin/users','/admin/activity','/admin/modules'], title:'Administration', eyebrow:'System', label:'Admin', icon:'shield', group:'Administration', module:'admin', adminOnly:true, section:'settings' },
+  { route:'admin', path:'/admin', aliases:['/Admin','/admin/users','/admin/activity','/admin/modules'], title:'Administration', eyebrow:'System', label:'Admin', icon:'shield', group:'Administration', module:'admin', adminOnly:true, section:'settings' },
 ];
 
 export const ROUTE_REGISTRY = Object.freeze(DEFINITIONS.map((row)=>Object.freeze({
