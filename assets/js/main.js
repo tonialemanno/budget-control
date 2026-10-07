@@ -30,6 +30,7 @@ import {
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
+import { markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r49';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 
@@ -497,7 +498,7 @@ function syncMobileScrollState() {
   document.body.classList.toggle('mobile-title-collapsed', compact);
 }
 
-async function saveCurrentUserLocale(locale) {
+async function saveCurrentUserLocale(locale,{renderAfter=true,notify=true}={}) {
   const nextLocale=String(locale||'').trim();
   const allowed=new Set(['de-CH','de-DE','it-CH','it-IT','en-CH','en-GB']);
   if(!allowed.has(nextLocale)) throw new Error('Ungültige Sprache & Region.');
@@ -507,8 +508,8 @@ async function saveCurrentUserLocale(locale) {
   runtime.profile=returned||{...previousProfile,user_id:runtime.user.id,locale:nextLocale};
   setLocale(nextLocale);
   updateProfileUI();
-  render();
-  showToast('Sprache & Region gespeichert.');
+  if(renderAfter) render();
+  if(notify) showToast('Sprache & Region gespeichert.');
 }
 
 function updateProfileUI() {
@@ -2300,7 +2301,7 @@ async function handleForm(form) {
   const h = runtime.household?.id;
   const currency = runtime.household?.base_currency || 'CHF';
 
-  if (!['setup-create','password-change','admin-user-create','admin-demo-create'].includes(id)) {
+  if (!['setup-create','password-change','admin-user-create','admin-demo-create','personal-settings','profile-settings','admin-user-access'].includes(id)) {
     if (id === 'family-add') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder verwalten.'); }
     else if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
   }
@@ -3636,12 +3637,103 @@ async function handleForm(form) {
     uiState.taxYear=numberValue(data,'taxYear',new Date().getFullYear());
     await refresh('Steuerprofil gespeichert.'); return;
   }
+  if (id === 'personal-settings') {
+    const nextTheme=formValue(data,'theme')||'auto';
+    const nextDepth=formValue(data,'depth')||'standard';
+    const nextLocale=formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale;
+    const nextMode=formValue(data,'financeMonthMode')==='calendar'?'calendar':'day_25';
+    const nextMinutes=normalizeIdleMinutes(formValue(data,'sessionTimeout'));
+    const nextPrivacy=data.get('privacyEnabled')==='on';
+    const accountId=formValue(data,'accountId');
+    const allowedThemes=new Set(['auto','light','dark']);
+    const allowedDepths=new Set(['simple','standard','expert']);
+    if(!allowedThemes.has(nextTheme)) throw new Error('Ungültige Darstellung.');
+    if(!allowedDepths.has(nextDepth)) throw new Error('Ungültige Informationstiefe.');
+
+    const hidden=new Set(hiddenModuleKeys());
+    const selectedVisible=new Set(data.getAll('visibleModules').map(String));
+    const optionalEntitled=(runtime.productModules||[])
+      .filter((module)=>!module.is_core && module.key!=='admin' && runtime.moduleAccess[module.key]===true && !MODULES[module.key]?.locked);
+    for(const module of optionalEntitled){
+      if(selectedVisible.has(module.key)) hidden.delete(module.key);
+      else hidden.add(module.key);
+    }
+
+    let preferences={
+      ...profilePreferences(),
+      session_timeout_minutes:nextMinutes,
+      finance_month_mode:nextMode,
+      privacy_enabled:nextPrivacy,
+      hidden_modules:[...hidden],
+    };
+    if(accountId){
+      const account=runtime.accounts.find((row)=>row.account_id===accountId&&!row.is_archived);
+      if(!account) throw new Error('Bitte ein gültiges Hauptkonto auswählen.');
+      preferences=withPrimaryAccountPreference(preferences,runtime.household?.id,accountId);
+    }
+
+    const localeChanged=nextLocale!==(runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    if(localeChanged) await saveCurrentUserLocale(nextLocale,{renderAfter:false,notify:false});
+    runtime.profile=await financeApi.updateProfile(runtime.user.id,{preferences});
+    store.setState({theme:nextTheme,depth:nextDepth},{persistPreferences:true});
+    persistNumber(SESSION_KEYS.timeout,nextMinutes);
+    markInteraction(true);
+    startLiveTimers();
+    if(nextMode!==financeMonthMode({preferences:{...profilePreferences(),finance_month_mode:nextMode}})){
+      uiState.transactionPeriod='month';
+      uiState.transactionFrom='';
+      uiState.transactionTo='';
+      uiState.transactionPage=1;
+    }
+    updateProfileUI();
+    render();
+    showToast('Einstellungen gespeichert.');
+    return;
+  }
+  if (id === 'profile-settings') {
+    await saveCurrentUserLocale(formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    return;
+  }
+  if (id === 'admin-user-access') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Benutzerzugriffe ändern.');
+    const userId=String(form.dataset.userId||'').trim();
+    const user=runtime.adminUsers.find((row)=>row.id===userId);
+    if(!user) throw new Error('Benutzer wurde nicht gefunden.');
+    const nextLocale=formValue(data,'locale')||user.locale||'de-CH';
+    const enabled=new Set(data.getAll('enabledModules').map(String));
+    const moduleList=(runtime.productModules||[]).filter((m)=>!m.is_core&&m.key!=='admin');
+
+    if(nextLocale!==user.locale) await backend.adminSetLocale({userId,locale:nextLocale});
+    for(const module of moduleList){
+      const nextEnabled=enabled.has(module.key);
+      const currentEnabled=user.modules?.[module.key]===true;
+      if(nextEnabled!==currentEnabled){
+        await backend.adminSetModule({userId,moduleKey:module.key,enabled:nextEnabled});
+      }
+    }
+
+    user.locale=nextLocale;
+    user.modules={...(user.modules||{})};
+    for(const module of moduleList) user.modules[module.key]=enabled.has(module.key);
+
+    if(userId===runtime.user?.id){
+      runtime.moduleAccess={...runtime.moduleAccess};
+      for(const module of moduleList) runtime.moduleAccess[module.key]=enabled.has(module.key);
+      runtime.profile={...(runtime.profile||{}),locale:nextLocale};
+      setLocale(nextLocale);
+      updateProfileUI();
+    }
+    render();
+    showToast('Benutzerzugriff gespeichert.');
+    return;
+  }
   if (id === 'household-preferences') {
     if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen die Basiswährung ändern.');
     const baseCurrency=formValue(data,'baseCurrency');
     if (!['CHF','EUR'].includes(baseCurrency)) throw new Error('Ungültige Basiswährung.');
     runtime.household=await financeApi.updateHousehold(h,{base_currency:baseCurrency});
-    await refresh('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
+    render();
+    showToast('Basiswährung gespeichert. Konten und Originalbuchungen bleiben unverändert.');
     return;
   }
   if (id === 'primary-account-preference') {
@@ -5193,6 +5285,7 @@ pageContent.addEventListener('click', async (event) => {
 
 pageContent.addEventListener('input', (event) => {
   const target=event.target;
+  markDeferredSettingsDirty(target);
   if(target?.matches?.('[data-categorization-transfer-amount]')) {
     syncCategorizationTransferFx(target.closest('[data-categorization-detail]'));
     return;
@@ -5213,6 +5306,7 @@ pageContent.addEventListener('input', (event) => {
 
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
+  markDeferredSettingsDirty(target);
   const filePicker = target.closest?.('.file-picker');
   if (filePicker && target.matches?.('input[type="file"]')) {
     const fileName = filePicker.querySelector('[data-file-name]');
