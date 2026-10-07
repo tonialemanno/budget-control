@@ -35,9 +35,14 @@ jobs:
       - name: Build full ZIP
         shell: bash
         run: |
-          zip -r finance-v2.3.0-stable.zip . -x ".git/*" ".github/*" "payload/*" "*.zip" "runtime-config.local.js" "local-data.sql" "*.backup"
+          set -euo pipefail
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync('version.json','utf8')).version")"
+          RELEASE="$(node -p "JSON.parse(require('fs').readFileSync('version.json','utf8')).releaseId")"
+          ARCHIVE="finance-v${VERSION}-${GITHUB_REF_NAME}-${RELEASE}.zip"
+          zip -r "$ARCHIVE" . -x ".git/*" ".github/*" "payload/*" "*.zip" "runtime-config.local.js" "local-data.sql" "*.backup"
+          echo "FINANCE_ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
         with:
-          name: finance-v2.3.0-stable
-          path: finance-v2.3.0-stable.zip
+          name: ${{ env.FINANCE_ARCHIVE }}
+          path: ${{ env.FINANCE_ARCHIVE }}
           if-no-files-found: error
