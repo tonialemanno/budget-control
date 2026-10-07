@@ -2223,6 +2223,7 @@ function syncTransactionTransferEditor() {
 }
 
 function openTransactionEditor(tx, { recurring = false } = {}) {
+  const locale=runtime.profile?.locale||APP_CONFIG.defaultLocale;
   if (!tx || tx.transfer_group_id) throw new Error('Diese Buchung kann nicht einzeln bearbeitet werden.');
   if (tx.cashflow_type === 'debt_payment') throw new Error('Schuldzahlungen werden unter Schulden & Kredite verwaltet.');
   if (tx.cashflow_type === 'receivable_principal') throw new Error('Forderungsbuchungen werden unter Forderungen verwaltet.');
