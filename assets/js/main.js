@@ -5218,6 +5218,22 @@ pageContent.addEventListener('change', async (event) => {
       showToast(`Automatischer Logout nach ${minutes} Minuten gespeichert.`);
       return;
     }
+    if (target.matches?.('[data-sales-template-select]')) {
+      const template=runtime.salesDocumentTemplates.find((row)=>row.id===target.value);
+      const targetName=target.dataset.target||'';
+      const textarea=target.closest('form')?.querySelector(`[name="${targetName}"]`);
+      if(template&&textarea) textarea.value=template.content||'';
+      return;
+    }
+    if (target.id === 'salesDocumentIssueDate') {
+      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+      const base=target.value?new Date(`${target.value}T12:00:00`):new Date();
+      const due=document.querySelector('#salesDocumentDueDate');
+      const valid=document.querySelector('#salesDocumentValidUntil');
+      if(due) due.value=addDaysInput(defaults.paymentDays,base);
+      if(valid) valid.value=addDaysInput(defaults.quoteValidDays,base);
+      return;
+    }
     if (target.id === 'salesDocumentType') {
       syncSalesDocumentType(target.value,{updateNumber:true});
       return;
