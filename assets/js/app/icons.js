@@ -1,4 +1,5 @@
 const paths = {
+  spendy: '<path fill="currentColor" stroke="none" d="M4.5 4.5h10.2L21 10l-3.2 3.1-4.2-4H8.5l2.8 2.7-3 2.8L3 9.3Z"/><path fill="currentColor" stroke="none" d="M19.5 19.5H9.3L3 14l3.2-3.1 4.2 4h5.1l-2.8-2.7 3-2.8 5.3 5.3Z"/>',
   home: '<path d="M3.5 10.5 12 3.8l8.5 6.7v8.7a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8Z"/><path d="M9 21v-6h6v6"/>',
   wallet: '<path d="M4 6.5h14.5A1.5 1.5 0 0 1 20 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6.8A2.8 2.8 0 0 1 5.8 4H17"/><path d="M15 11h6v5h-6a2.5 2.5 0 0 1 0-5Z"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
