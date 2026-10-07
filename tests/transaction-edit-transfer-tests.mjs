@@ -27,6 +27,7 @@ assert.match(html,/fehlende Gegenbuchung/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/syncTransactionTransferEditor/);
+assert.match(main,/function openTransactionEditor\(tx, \{ recurring = false \} = \{\}\) \{\s*const locale=runtime\.profile\?\.locale\|\|APP_CONFIG\.defaultLocale;/);
 assert.match(main,/convertTransactionToTransferV2/);
 assert.match(main,/direction:'transfer'/);
 assert.match(main,/destination_account_id:destinationAccount\.account_id/);
