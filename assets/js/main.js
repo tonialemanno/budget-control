@@ -3700,8 +3700,22 @@ const deleteMap = {
   categories: (id)=>financeApi.deleteCategory(id), categorization_rules:(id)=>financeApi.deleteCategorizationRule(id), recurring_rules:(id)=>financeApi.deleteRecurringRule(id), budgets:(id)=>financeApi.deleteBudget(id), bills:(id)=>financeApi.deleteBill(id), contracts:(id)=>financeApi.deleteContract(id), savings_goals:(id)=>financeApi.deleteGoal(id), debts:(id)=>financeApi.deleteDebt(id), receivables:(id)=>financeApi.deleteReceivable({householdId:runtime.household.id,receivableId:id}), legal_cases:(id)=>financeApi.deleteLegalCase(id), assets:(id)=>financeApi.deleteAsset(id), properties:(id)=>financeApi.deleteProperty(id), vehicles:(id)=>financeApi.deleteVehicle(id), insurance_policies:(id)=>financeApi.deleteInsurance(id), investments:(id)=>financeApi.deleteInvestment(id), pension_accounts:(id)=>financeApi.deletePension(id),
 };
 
-function addDaysInput(days) {
-  return dateInputValue(new Date(Date.now()+Number(days||0)*86400000));
+function addDaysInput(days, baseDate = new Date()) {
+  const base=baseDate instanceof Date && !Number.isNaN(baseDate.getTime()) ? baseDate : new Date();
+  return dateInputValue(new Date(base.getTime()+Number(days||0)*86400000));
+}
+
+function syncSalesDocumentTemplateSelects(type) {
+  const normalized=['invoice','quote','receipt'].includes(type)?type:'invoice';
+  pageContent.querySelectorAll('[data-sales-template-select]').forEach((select)=>{
+    const targetName=select.dataset.target||'';
+    const section=targetName==='introText'?'intro':targetName==='paymentText'?'payment':'closing';
+    select.replaceChildren(new Option('Textbaustein wählen …',''));
+    for(const row of (runtime.salesDocumentTemplates||[])){
+      if(row.section!==section || !['all',normalized].includes(row.document_type)) continue;
+      select.appendChild(new Option(row.name,row.id));
+    }
+  });
 }
 
 function syncSalesDocumentType(type,{updateNumber=true}={}) {
@@ -3718,6 +3732,20 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
     const number=document.querySelector('#salesDocumentNumber');
     if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
   }
+  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+  const issueValue=document.querySelector('#salesDocumentIssueDate')?.value;
+  const base=issueValue?new Date(`${issueValue}T12:00:00`):new Date();
+  const dueInput=document.querySelector('#salesDocumentDueDate');
+  const validInput=document.querySelector('#salesDocumentValidUntil');
+  if(dueInput) dueInput.value=addDaysInput(defaults.paymentDays,base);
+  if(validInput) validInput.value=addDaysInput(defaults.quoteValidDays,base);
+  const intro=document.querySelector('[name="introText"]');
+  const payment=document.querySelector('[name="paymentText"]');
+  const closing=document.querySelector('[name="closingText"]');
+  if(intro) intro.value=normalized==='quote'?defaults.quoteIntro:normalized==='receipt'?defaults.receiptIntro:defaults.invoiceIntro;
+  if(payment) payment.value=normalized==='receipt'?'Zahlung erhalten am {Datum}.':defaults.paymentText;
+  if(closing) closing.value=defaults.closingText;
+  syncSalesDocumentTemplateSelects(normalized);
 }
 
 function openSalesDocumentForm(type) {
@@ -3728,11 +3756,7 @@ function openSalesDocumentForm(type) {
   const template=document.querySelector('#salesDocumentItemTemplate');
   if(items&&template) items.replaceChildren(template.content.cloneNode(true));
   const issue=document.querySelector('#salesDocumentIssueDate');
-  const due=document.querySelector('#salesDocumentDueDate');
-  const valid=document.querySelector('#salesDocumentValidUntil');
   if(issue) issue.value=dateInputValue();
-  if(due) due.value=addDaysInput(30);
-  if(valid) valid.value=addDaysInput(30);
   syncSalesDocumentType(type,{updateNumber:true});
   form.removeAttribute('hidden');
   form.scrollIntoView({behavior:'smooth',block:'start'});
@@ -3742,35 +3766,81 @@ function salesDocumentStatusLabel(status) {
   return ({draft:'Entwurf',sent:'Versendet',accepted:'Angenommen',paid:'Bezahlt',cancelled:'Storniert',expired:'Abgelaufen'})[status]||status;
 }
 
-function printSalesDocument(row) {
+function blobToDataUrl(blob) {
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error||new Error('Logo konnte nicht gelesen werden.'));
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function printSalesDocument(row) {
   const popup=window.open('','_blank');
   if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Finance und versuche es erneut.');
+  const settings=runtime.salesDocumentSettings||{};
+  let logoData='';
+  if(settings.logo_storage_path){
+    try { logoData=await blobToDataUrl(await financeApi.downloadDocument(settings.logo_storage_path)); }
+    catch { logoData=''; }
+  }
   const locale=runtime.profile?.locale||'de-CH';
   const type=salesDocumentTypeLabel(row.document_type);
   const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
   const fmt=(value)=>new Intl.NumberFormat(locale,{style:'currency',currency:row.currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
+  const fmtDate=(value)=>{
+    if(!value) return '—';
+    const date=new Date(`${String(value).slice(0,10)}T12:00:00`);
+    return Number.isNaN(date.getTime())?escapeHtml(String(value)):escapeHtml(new Intl.DateTimeFormat(locale,{day:'2-digit',month:'2-digit',year:'numeric'}).format(date));
+  };
   const items=Array.isArray(row.items)?row.items:[];
   const itemRows=items.map((item)=>{
     const qty=Number(item.quantity||0),unit=Number(item.unit_price||0),tax=Number(item.tax_rate||0);
     const gross=qty*unit*(1+tax/100);
-    return `<tr><td>${escapeHtml(item.description||'')}</td><td class="num">${qty.toLocaleString(locale)}</td><td class="num">${escapeHtml(fmt(unit))}</td><td class="num">${tax.toLocaleString(locale)} %</td><td class="num">${escapeHtml(fmt(gross))}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(item.description||'')}</strong></td><td class="num">${escapeHtml(qty.toLocaleString(locale))}</td><td class="num">${escapeHtml(fmt(unit))}</td><td class="num">${escapeHtml(tax.toLocaleString(locale))} %</td><td class="num"><strong>${escapeHtml(fmt(gross))}</strong></td></tr>`;
   }).join('');
   const meta=row.document_type==='invoice'&&row.due_date
-    ? `<div><strong>Fällig:</strong> ${escapeHtml(row.due_date)}</div>`
+    ? `<div><span>Fällig</span><strong>${fmtDate(row.due_date)}</strong></div>`
     : row.document_type==='quote'&&row.valid_until
-      ? `<div><strong>Gültig bis:</strong> ${escapeHtml(row.valid_until)}</div>`
-      : '';
+      ? `<div><span>Gültig bis</span><strong>${fmtDate(row.valid_until)}</strong></div>`
+      : row.document_type==='receipt'
+        ? `<div><span>Bezahlt am</span><strong>${fmtDate(row.paid_at||row.issue_date)}</strong></div>`
+        : '';
+  const contact=[settings.company_email,settings.company_phone,settings.company_website].filter(Boolean).map(escapeHtml).join(' · ');
+  const bank=[settings.bank_name,settings.iban].filter(Boolean).map(escapeHtml).join(' · ');
+  const footer=[settings.footer_text,contact].filter(Boolean).map(nl).join('<br>');
+  const logo=logoData?`<img class="logo" src="${logoData}" alt="">`:'';
   popup.document.open();
   popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(type)} ${escapeHtml(row.document_number)}</title><style>
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:40px;color:#111;line-height:1.45}.top{display:flex;justify-content:space-between;gap:30px;margin-bottom:40px}.muted{color:#666}.recipient{margin:30px 0}.intro,.closing,.payment{margin:24px 0}table{width:100%;border-collapse:collapse;margin:24px 0}th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}.num{text-align:right;white-space:nowrap}.totals{margin-left:auto;max-width:340px}.totals div{display:flex;justify-content:space-between;padding:5px 0}.grand{font-size:1.2em;font-weight:700;border-top:2px solid #111;margin-top:5px!important;padding-top:10px!important}.print{margin-bottom:24px;padding:9px 14px}@media print{.print{display:none}body{margin:18mm}}</style></head><body>
-  <button class="print" onclick="window.print()">Drucken / als PDF sichern</button>
-  <div class="top"><div><strong>${nl(row.sender_name||'')}</strong><div class="muted">${nl(row.sender_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div><div><h1>${escapeHtml(type)}</h1><div><strong>Nr.:</strong> ${escapeHtml(row.document_number)}</div><div><strong>Datum:</strong> ${escapeHtml(row.issue_date||'')}</div>${meta}</div></div>
-  <div class="recipient"><strong>Empfänger</strong><div>${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></div>
-  ${row.intro_text?`<div class="intro">${nl(row.intro_text)}</div>`:''}
-  <table><thead><tr><th>Position</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
-  <div class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(fmt(row.subtotal))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(fmt(row.tax_total))}</strong></div><div class="grand"><span>Total</span><strong>${escapeHtml(fmt(row.total))}</strong></div></div>
-  ${row.payment_text?`<div class="payment"><strong>Zahlung</strong><br>${nl(row.payment_text)}</div>`:''}
-  ${row.closing_text?`<div class="closing">${nl(row.closing_text)}</div>`:''}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#151515;background:#e9eaed;font-size:10.5pt;line-height:1.45}
+    .toolbar{position:sticky;top:0;z-index:3;padding:10px;text-align:center;background:#252525}.toolbar button{border:0;border-radius:8px;padding:9px 16px;background:#fff;font-weight:650;cursor:pointer}
+    .sheet{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:17mm 18mm 14mm;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.14)}
+    .doc-body{flex:1}.header{display:grid;grid-template-columns:1fr 62mm;gap:16mm;align-items:start}.brand{min-height:28mm}.logo{max-width:58mm;max-height:24mm;object-fit:contain;object-position:left top;margin-bottom:4mm}
+    .sender-name{font-size:12pt;font-weight:750;margin-bottom:1.5mm}.muted{color:#666}.doc-title{text-align:right}.doc-title h1{font-size:24pt;line-height:1;margin:0 0 6mm;font-weight:760;letter-spacing:-.02em}.meta{display:grid;gap:1.5mm}.meta div{display:grid;grid-template-columns:24mm 1fr;gap:4mm}.meta span{color:#666}.meta strong{text-align:right}
+    .recipient{margin-top:17mm;width:90mm}.recipient-label{text-transform:uppercase;letter-spacing:.08em;font-size:8pt;color:#777;font-weight:700;margin-bottom:2mm}.recipient-name{font-weight:700}
+    .intro{margin:13mm 0 8mm;max-width:155mm}.items{width:100%;border-collapse:collapse;margin:6mm 0 7mm}.items th{font-size:8.5pt;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:1.5px solid #222;padding:0 2mm 2.5mm;text-align:left}.items td{padding:3.4mm 2mm;border-bottom:1px solid #ddd;vertical-align:top}.items th:first-child,.items td:first-child{padding-left:0}.items th:last-child,.items td:last-child{padding-right:0}.num{text-align:right!important;white-space:nowrap}
+    .totals{width:72mm;margin-left:auto;margin-top:4mm}.totals div{display:grid;grid-template-columns:1fr auto;gap:8mm;padding:1.5mm 0}.totals span{color:#666}.totals .grand{border-top:1.5px solid #222;margin-top:2mm;padding-top:3mm;font-size:12pt}.totals .grand span{color:#111;font-weight:700}
+    .payment,.closing{margin-top:10mm;max-width:145mm}.payment-box{border-left:3px solid #222;padding-left:4mm}.payment-title{font-weight:750;margin-bottom:1mm}.bank{margin-top:2mm;color:#555}.closing{margin-top:8mm}
+    .footer{border-top:1px solid #ddd;padding-top:4mm;margin-top:14mm;color:#666;font-size:8.5pt;display:grid;grid-template-columns:1fr auto;gap:8mm}.footer-right{text-align:right}
+    @page{size:A4;margin:0}@media print{html,body{background:#fff}.toolbar{display:none}.sheet{margin:0;box-shadow:none;width:210mm;min-height:297mm;page-break-after:always}}
+    @media screen and (max-width:850px){.sheet{width:calc(100% - 20px);min-height:auto;margin:10px;padding:18px}.header{grid-template-columns:1fr}.doc-title{text-align:left}.meta strong{text-align:left}.meta div{grid-template-columns:90px 1fr}.recipient{width:auto;margin-top:30px}}
+  </style></head><body>
+  <div class="toolbar"><button onclick="window.print()">Drucken / als PDF sichern</button></div>
+  <main class="sheet">
+    <div class="doc-body">
+      <header class="header">
+        <div class="brand">${logo}<div class="sender-name">${nl(row.sender_name||settings.company_name||'')}</div><div class="muted">${nl(row.sender_address||settings.company_address||'')}</div>${row.sender_tax_id?`<div class="muted">${escapeHtml(row.sender_tax_id)}</div>`:''}</div>
+        <div class="doc-title"><h1>${escapeHtml(type)}</h1><div class="meta"><div><span>Nr.</span><strong>${escapeHtml(row.document_number)}</strong></div><div><span>Datum</span><strong>${fmtDate(row.issue_date)}</strong></div>${meta}</div></div>
+      </header>
+      <section class="recipient"><div class="recipient-label">Empfänger</div><div class="recipient-name">${nl(row.recipient_name)}</div><div class="muted">${nl(row.recipient_address||'')}</div></section>
+      ${row.intro_text?`<section class="intro">${nl(row.intro_text)}</section>`:''}
+      <table class="items"><thead><tr><th>Position / Leistung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Steuer</th><th class="num">Total</th></tr></thead><tbody>${itemRows}</tbody></table>
+      <section class="totals"><div><span>Zwischensumme</span><strong>${escapeHtml(fmt(row.subtotal))}</strong></div><div><span>Steuer</span><strong>${escapeHtml(fmt(row.tax_total))}</strong></div><div class="grand"><span>Total</span><strong>${escapeHtml(fmt(row.total))}</strong></div></section>
+      ${row.payment_text||bank?`<section class="payment payment-box"><div class="payment-title">Zahlung</div>${row.payment_text?`<div>${nl(row.payment_text)}</div>`:''}${bank?`<div class="bank">${bank}</div>`:''}</section>`:''}
+      ${row.closing_text?`<section class="closing">${nl(row.closing_text)}</section>`:''}
+    </div>
+    <footer class="footer"><div>${footer}</div><div class="footer-right">${escapeHtml(row.sender_name||settings.company_name||'')}</div></footer>
+  </main>
   </body></html>`);
   popup.document.close();
   popup.focus();
