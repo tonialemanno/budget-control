@@ -206,6 +206,24 @@
   opacity: .45;
 }
 
+.settings-save-actions {
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.settings-save-state {
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.settings-form--dirty .settings-save-state {
+  color: var(--accent);
+}
+
+
 .inline-alert {
   display: grid;
   gap: 2px;
