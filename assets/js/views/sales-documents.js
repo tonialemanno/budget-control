@@ -118,7 +118,7 @@ function templateOptions(templates,section,type) {
 
 function paymentOptions(invoice,transactions,payments,locale) {
   const candidates=salesPaymentCandidates(invoice,transactions,payments);
-  if(!candidates.length) return '';
+  if(!candidates.length) return '<div class="list-row-meta" style="margin-top:6px">Noch kein passender Zahlungseingang erkannt. ALEMANNO BUCHHALTUNG prüft neue positive Buchungen automatisch.</div>';
   return `<div class="settings-inline-control" style="margin-top:8px">
     <select class="select-control" data-sales-payment-select data-document-id="${escapeHtml(invoice.id)}">
       ${candidates.map((tx,index)=>`<option value="${escapeHtml(tx.id)}" ${index===0?'selected':''}>${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.counterparty||tx.description||'Eingang')} · ${escapeHtml(money(tx.amount,{currency:tx.currency,locale}))}${tx._difference<0.005?' · exakter Betrag':''}</option>`).join('')}
@@ -133,9 +133,19 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
   const logoNote=settings?.logo_storage_path?'Logo ist hinterlegt. Ein neues Bild ersetzt es beim Speichern.':'Noch kein Logo hinterlegt.';
   const templateRows=(templates||[]).map((row)=>`<div class="list-row"><div class="list-row-main"><div><div class="list-row-title">${escapeHtml(row.name)}</div><div class="list-row-meta">${escapeHtml(row.document_type==='all'?'Alle':salesDocumentTypeLabel(row.document_type))} · ${escapeHtml(({intro:'Einleitung',payment:'Zahlung',closing:'Schluss'})[row.section]||row.section)}</div></div></div><div class="list-row-trailing"><button class="table-action table-action--danger" type="button" data-action="sales-template-delete" data-id="${escapeHtml(row.id)}">Löschen</button></div></div>`).join('');
   return `
-    <details class="card card-padding" style="margin:16px 0" id="salesDocumentSettingsCard">
-      <summary><strong>Dokumenteinstellungen · Logo, Absender & Textbausteine</strong></summary>
-      <form id="sales-document-settings" data-form="sales-document-settings" style="margin-top:18px">
+    <section class="card card-padding" style="margin:16px 0" id="salesDocumentSettingsCard">
+      <div class="card-heading">
+        <div>
+          <h2 class="card-title">Dokumenteinstellungen</h2>
+          <p class="card-subtitle">Logo, Absender, Zahlungsdaten, Automatik und Textbausteine werden hier zentral gepflegt.</p>
+        </div>
+        <span class="list-row-leading">${icon('settings')}</span>
+      </div>
+      <div class="inline-alert" style="margin:12px 0 18px">
+        <strong>Automatik ist aktiv.</strong>
+        <span>Offerten können in Rechnungen übernommen werden. Passende Zahlungseingänge werden vorgeschlagen. Vollständig bezahlte Rechnungen werden auf „Bezahlt“ gesetzt und können automatisch eine Quittung erzeugen.</span>
+      </div>
+      <form id="sales-document-settings" data-form="sales-document-settings">
         <div class="card-heading"><div><h3 class="card-title">Absender & Branding</h3><p class="card-subtitle">Einmal pflegen. Diese Angaben werden für neue Offerten, Rechnungen und Quittungen automatisch übernommen.</p></div></div>
         <div class="form-grid form-grid--2">
           <label class="field"><span>Firma / Absender</span><input class="text-control" name="companyName" value="${escapeHtml(defaults.senderName)}"></label>
@@ -164,7 +174,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
         <div class="form-actions"><button class="action-button action-button--primary" type="submit">Dokumenteinstellungen speichern</button></div>
       </form>
 
-      <div class="card-heading" style="margin-top:26px"><div><h3 class="card-title">Eigene Textbausteine</h3><p class="card-subtitle">Wiederverwendbare Texte, die beim Schreiben mit einem Klick eingesetzt werden.</p></div></div>
+      <div class="card-heading" style="margin-top:26px"><div><h3 class="card-title">Textbausteine</h3><p class="card-subtitle">Wiederverwendbare Texte, die beim Schreiben mit einem Klick eingesetzt werden. Du musst Standardformulierungen nicht jedes Mal neu schreiben.</p></div></div>
       <form id="sales-template-create" data-form="sales-template-create" class="form-grid form-grid--2">
         <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Projektabschluss"></label>
         <label class="field"><span>Dokument</span><select class="text-control" name="documentType"><option value="all">Alle</option><option value="quote">Offerte</option><option value="invoice">Rechnung</option><option value="receipt">Quittung</option></select></label>
@@ -173,7 +183,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
         <div class="form-actions form-grid-span"><button class="action-button action-button--secondary" type="submit">Textbaustein speichern</button></div>
       </form>
       <div class="list" style="margin-top:14px">${templateRows||'<div class="table-empty">Noch keine eigenen Textbausteine.</div>'}</div>
-    </details>`;
+    </section>`;
 }
 
 export function renderSalesDocuments({
