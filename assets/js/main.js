@@ -1044,7 +1044,11 @@ function renderSetup() {
 
 function render() {
   if (!runtime.user) return;
-  if (!runtime.household) { renderSetup(); return; }
+  if (!runtime.household) {
+    if(currentRouteLocation().route!=='setup') navigateToRoute('setup',null,{replace:true});
+    renderSetup();
+    return;
+  }
   renderNavigation();
   const routeLocation=currentRouteLocation();
   const route = resolveRoute();
