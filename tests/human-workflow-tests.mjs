@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 
 const config=read('assets/js/app/config.js');
+const router=read('assets/js/app/router.js');
 const main=read('assets/js/main.js');
 const index=read('index.html');
 const accounts=read('assets/js/views/accounts.js');
@@ -14,9 +15,9 @@ const settings=read('assets/js/views/settings.js');
 const ch=read('assets/js/country/ch.js');
 const api=read('assets/js/app/finance-api.js');
 
-assert.match(config,/route: 'review'/);
-assert.match(config,/route: 'projects'/);
-assert.match(config,/review: \{ title: 'Zu prüfen'/);
+assert.match(router,/route:'review'/);
+assert.match(router,/route:'projects'/);
+assert.match(router,/route:'review'.*title:'Zu prüfen'/s);
 assert.match(index,/id="searchButton"/);
 assert.match(main,/renderReview/);
 assert.match(main,/renderSearch/);
