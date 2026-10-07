@@ -13,7 +13,7 @@ assert.match(transactions, /transactionCreateVehicleTypeField" hidden/);
 assert.match(main, /admin-finance-reset/);
 assert.match(main, /admin_reset_user_finance/);
 assert.match(main, /transactionEditVehicleName/);
-assert.match(admin, /Spendy-Daten zurücksetzen/);
+assert.match(admin, /ALEMANNO BUCHHALTUNG-Daten zurücksetzen/);
 assert.match(migration, /paid_transaction_id=null/);
 assert.match(migration, /delete from public\.debt_payments/);
 assert.match(migration, /delete from public\.receivable_payments/);
