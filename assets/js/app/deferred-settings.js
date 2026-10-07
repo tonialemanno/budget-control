@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 export function deferredSettingsForm(target) {
   if (!target) return null;
   if (target.matches?.('form[data-deferred-settings]')) return target;
@@ -10,7 +12,7 @@ export function markDeferredSettingsDirty(target) {
   form.dataset.dirty='true';
   form.classList.add('settings-form--dirty');
   for(const button of form.querySelectorAll('[data-deferred-save]')) button.disabled=false;
-  for(const status of form.querySelectorAll('[data-deferred-status]')) status.textContent='Änderungen noch nicht gespeichert';
+  for(const status of form.querySelectorAll('[data-deferred-status]')) status.textContent=t('Änderungen noch nicht gespeichert');
   return true;
 }
 
@@ -20,7 +22,7 @@ export function markDeferredSettingsSaved(form) {
   target.dataset.dirty='false';
   target.classList.remove('settings-form--dirty');
   for(const button of target.querySelectorAll('[data-deferred-save]')) button.disabled=true;
-  for(const status of target.querySelectorAll('[data-deferred-status]')) status.textContent='Keine offenen Änderungen';
+  for(const status of target.querySelectorAll('[data-deferred-status]')) status.textContent=t('Keine offenen Änderungen');
   return true;
 }
 
