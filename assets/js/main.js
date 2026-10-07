@@ -367,6 +367,21 @@ function goToRoute(route,params=null,{replace=false}={}) {
   }
 }
 
+function handleAppRouteLink(event) {
+  if(event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const anchor=event.target.closest?.('a[href]');
+  if(!anchor || anchor.hasAttribute('download') || anchor.target==='_blank') return;
+  let url;
+  try { url=new URL(anchor.href,location.href); } catch { return; }
+  if(url.origin!==location.origin || !isKnownRouteUrl(url)) return;
+  event.preventDefault();
+  history.pushState(null,'',`${url.pathname}${url.search}`);
+  if(runtime.user){
+    render();
+    void pulsePresence();
+  }
+}
+
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#000000' : '#f5f5f7');
@@ -1031,7 +1046,9 @@ function render() {
   if (!runtime.user) return;
   if (!runtime.household) { renderSetup(); return; }
   renderNavigation();
+  const routeLocation=currentRouteLocation();
   const route = resolveRoute();
+  if(routeLocation.route!==route) navigateToRoute(route,null,{replace:true});
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
   pageEyebrow.textContent = t(meta.eyebrow);
@@ -5690,6 +5707,7 @@ quickAddSheet?.addEventListener('click',(event)=>{
   if (event.target.closest('[data-quick-add-close]')) { closeQuickAdd(); return; }
   if (event.target.closest('a.quick-add-option')) closeQuickAdd();
 });
+document.addEventListener('click',handleAppRouteLink);
 document.addEventListener('keydown',(event)=>{ markInteraction(); if (event.key === 'Escape') { closeQuickAdd(); closeMobileNav(); } });
 for(const eventName of ['pointerdown','touchstart','wheel']){
   document.addEventListener(eventName,()=>markInteraction(),{passive:true});
@@ -5699,6 +5717,7 @@ profileButton?.addEventListener('click',(event)=>{ event.stopPropagation(); togg
 document.addEventListener('click',(event)=>{ if (!event.target.closest('#profilePopover') && !event.target.closest('#profileButton')) closeProfileMenu(); });
 document.addEventListener('click',async(event)=>{ const target=event.target.closest('#profilePopover [data-action]'); if (!target) return; try { await handleAction(target); } catch (error) { showToast(humanError(error),'error'); } });
 
+migrateLegacyHash();
 hydrateStaticIcons();
 applyReleaseChannelUI();
 setTheme(store.getState().theme);
