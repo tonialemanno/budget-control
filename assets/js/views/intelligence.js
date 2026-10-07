@@ -36,7 +36,7 @@ export function renderIntelligence({
 
   return `
     ${pageHeader({
-      title:'Spendy Intelligence',
+      title:'ALEMANNO BUCHHALTUNG Intelligence',
       subtitle:`Eine gemeinsame Sicht aus Konten, Buchungen, Fixkosten, Budgets, Rechnungen, Forderungen, Vermögen und Schulden · ${fxLabel(fxRates,currency)}.`
     })}
 
@@ -90,7 +90,7 @@ export function renderIntelligence({
     <article class="card card-padding" style="margin-top:16px">
       <div class="card-heading">
         <div>
-          <h3 class="card-title">Was Spendy Intelligence jetzt verbindet</h3>
+          <h3 class="card-title">Was ALEMANNO BUCHHALTUNG Intelligence jetzt verbindet</h3>
           <p class="card-subtitle">Eine Eingabe wird dort berücksichtigt, wo sie finanziell hingehört.</p>
         </div>
       </div>
