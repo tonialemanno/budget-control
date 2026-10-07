@@ -8,9 +8,9 @@ function releaseChannel() {
 }
 
 export const APP_CONFIG = Object.freeze({
-  appName: 'Spendy',
+  appName: 'ALEMANNO BUCHHALTUNG',
   version: '2.4.6',
-  releaseId: '2026.10.07-r43',
+  releaseId: '2026.10.07-r44',
   schemaVersion: 2026100701,
   releaseChannel: releaseChannel(),
   defaultCountry: 'CH',
@@ -19,7 +19,7 @@ export const APP_CONFIG = Object.freeze({
 });
 
 export const MODULES = Object.freeze({
-  core: { label: 'Spendy Core', locked: true },
+  core: { label: 'ALEMANNO BUCHHALTUNG', locked: true },
   money: { label: 'Mein Geld', locked: true },
   budget: { label: 'Budget & Planung' },
   bills: { label: 'Rechnungen & Verträge' },
@@ -34,7 +34,7 @@ export const MODULES = Object.freeze({
   insurance: { label: 'Versicherungen' },
   investments: { label: 'Investments' },
   pension: { label: 'Vorsorge' },
-  intelligence: { label: 'Spendy Intelligence' },
+  intelligence: { label: 'ALEMANNO BUCHHALTUNG Intelligence' },
   admin: { label: 'Administration' },
 });
 
@@ -67,20 +67,20 @@ export const NAV_ITEMS = Object.freeze([
   { route: 'insurance', label: 'Versicherungen', icon: 'shield', group: 'Weitere Bereiche', module: 'insurance', section: 'planning' },
   { route: 'investments', label: 'Investments', icon: 'chart', group: 'Weitere Bereiche', module: 'investments', section: 'planning' },
   { route: 'pension', label: 'Vorsorge', icon: 'piggy-bank', group: 'Weitere Bereiche', module: 'pension', section: 'planning' },
-  { route: 'intelligence', label: 'Spendy Intelligence', icon: 'sparkles', group: 'Weitere Bereiche', module: 'intelligence', section: 'planning' },
+  { route: 'intelligence', label: 'ALEMANNO BUCHHALTUNG Intelligence', icon: 'sparkles', group: 'Weitere Bereiche', module: 'intelligence', section: 'planning' },
 
   { route: 'admin', label: 'Admin', icon: 'shield', group: 'Administration', module: 'admin', adminOnly: true, section: 'settings' },
 ]);
 
 export const PAGE_META = Object.freeze({
-  overview: { title: 'Übersicht', eyebrow: 'Spendy' },
-  review: { title: 'Zu prüfen', eyebrow: 'Spendy' },
-  search: { title: 'Suchen', eyebrow: 'Spendy' },
+  overview: { title: 'Übersicht', eyebrow: 'ALEMANNO BUCHHALTUNG' },
+  review: { title: 'Zu prüfen', eyebrow: 'ALEMANNO BUCHHALTUNG' },
+  search: { title: 'Suchen', eyebrow: 'ALEMANNO BUCHHALTUNG' },
   projects: { title: 'Anlässe & Projekte', eyebrow: 'Geld' },
-  money: { title: 'Geld', eyebrow: 'Spendy' },
-  planning: { title: 'Planung', eyebrow: 'Spendy' },
-  setup: { title: 'Einrichtung', eyebrow: 'Spendy' },
-  profile: { title: 'Mein Profil', eyebrow: 'Spendy' },
+  money: { title: 'Geld', eyebrow: 'ALEMANNO BUCHHALTUNG' },
+  planning: { title: 'Planung', eyebrow: 'ALEMANNO BUCHHALTUNG' },
+  setup: { title: 'Einrichtung', eyebrow: 'ALEMANNO BUCHHALTUNG' },
+  profile: { title: 'Mein Profil', eyebrow: 'ALEMANNO BUCHHALTUNG' },
   accounts: { title: 'Konten', eyebrow: 'Geld' },
   transactions: { title: 'Transaktionen', eyebrow: 'Geld' },
   categories: { title: 'Kategorien & Regeln', eyebrow: 'Einstellungen' },
@@ -105,7 +105,7 @@ export const PAGE_META = Object.freeze({
   insurance: { title: 'Versicherungen', eyebrow: 'Planung' },
   investments: { title: 'Investments', eyebrow: 'Planung' },
   pension: { title: 'Vorsorge', eyebrow: 'Planung' },
-  intelligence: { title: 'Spendy Intelligence', eyebrow: 'Planung' },
-  settings: { title: 'Einstellungen', eyebrow: 'Spendy' },
+  intelligence: { title: 'ALEMANNO BUCHHALTUNG Intelligence', eyebrow: 'Planung' },
+  settings: { title: 'Einstellungen', eyebrow: 'ALEMANNO BUCHHALTUNG' },
   admin: { title: 'Administration', eyebrow: 'System' },
 });

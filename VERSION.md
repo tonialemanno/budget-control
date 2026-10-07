@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R44 – ALEMANNO BUCHHALTUNG Branding
+
+- Der versehentlich in R43 eingeführte Name `Spendy` wurde vollständig aus der sichtbaren Anwendung entfernt.
+- Produktname ist in Deutsch, Englisch und Italienisch einheitlich **ALEMANNO BUCHHALTUNG**.
+- Neues reduziertes ALEMANNO-Monogramm in Graphit/Gold für Sidebar, Login und Browser-Favicon.
+- Untertitel: DE `Ihre Finanzen im Griff`, EN `Your finances under control`, IT `Le tue finanze sotto controllo`.
+- Technische interne Namen, Datenbanktabellen und API-Bezeichner bleiben unverändert.
+- Keine Datenbankänderung gegenüber R43.
+- Release 2026.10.07-r44.
+
+# Finance 2.4.6
+
 ## R43 – Geschäftsdokumente mit Branding und Zahlungsautomatik
 
 - Produktname und sichtbares Branding wurden appweit von `Finance` auf **Spendy** umgestellt; Deutsch, Englisch und Italienisch verwenden denselben Markennamen.

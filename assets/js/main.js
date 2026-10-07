@@ -1,7 +1,7 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r43';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261007-r44';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
-import { financeApi } from './app/finance-api.js?v=20261007-r43';
+import { financeApi } from './app/finance-api.js?v=20261007-r44';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
@@ -47,7 +47,7 @@ import { renderFixedCosts } from './views/fixed-costs.js';
 import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
-import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r43';
+import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261007-r44';
 import { renderGoals } from './views/goals.js';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
@@ -61,7 +61,7 @@ import { renderInsurance } from './views/insurance.js';
 import { renderInvestments } from './views/investments.js';
 import { renderPension } from './views/pension.js';
 import { renderIntelligence } from './views/intelligence.js';
-import { renderSettings } from './views/settings.js?v=20261007-r43';
+import { renderSettings } from './views/settings.js?v=20261007-r44';
 import { renderProfile } from './views/profile.js';
 import { renderAdmin } from './views/admin.js';
 import { renderReview } from './views/review.js';
@@ -324,7 +324,7 @@ function renderNavigation() {
   ].filter(Boolean).join('');
 
   desktopNav.innerHTML = `
-    <div class="nav-group-label">${escapeHtml(t('Spendy'))}</div>
+    <div class="nav-group-label">${escapeHtml(t('ALEMANNO BUCHHALTUNG'))}</div>
     ${primary.map((item) => `<a class="nav-item" href="#/${item.route}" data-route="${item.route}" data-section="${item.section || item.route}">${icon(item.icon)}<span>${escapeHtml(t(item.label))}</span></a>`).join('')}
     <div class="nav-group-label nav-group-label--management">${escapeHtml(t('Mehr'))}</div>
     ${management}
@@ -496,7 +496,7 @@ function profileMenuHtml() {
   const available = (runtime.productModules || []).filter((m)=>!m.is_core && runtime.moduleAccess[m.key] !== true);
   const visible = entitled.filter((m)=>!hidden.has(m.key));
   return `<div class="profile-popover-card">
-    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'Spendy Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
+    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'ALEMANNO BUCHHALTUNG Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
@@ -646,7 +646,7 @@ function currentSessionStatus(){
   });
 }
 
-function showReleaseUpdating(message='Neue Spendy-Version wird geladen …'){
+function showReleaseUpdating(message='Neue ALEMANNO BUCHHALTUNG-Version wird geladen …'){
   let overlay=document.querySelector(`#${RELEASE_OVERLAY_ID}`);
   if(!overlay){
     overlay=document.createElement('div');
@@ -658,7 +658,7 @@ function showReleaseUpdating(message='Neue Spendy-Version wird geladen …'){
   overlay.innerHTML=`<div class="release-update-card"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t(message))}</strong><span>${escapeHtml(t('Deine Finanzdaten bleiben unverändert.'))}</span></div>`;
 }
 
-async function reloadForRelease(releaseId,message='Neue Spendy-Version wird geladen …'){
+async function reloadForRelease(releaseId,message='Neue ALEMANNO BUCHHALTUNG-Version wird geladen …'){
   if(releaseReloading) return false;
   releaseReloading=true;
   showReleaseUpdating(message);
@@ -676,7 +676,7 @@ async function ensureCurrentRelease(){
     try {
       const manifest=await fetchReleaseManifest(`./version.json?check=${Date.now()}`);
       if(releaseMismatch(APP_CONFIG.releaseId,manifest)){
-        return reloadForRelease(manifest.releaseId,'Neue Spendy-Version verfügbar. Spendy wird aktualisiert …');
+        return reloadForRelease(manifest.releaseId,'Neue ALEMANNO BUCHHALTUNG-Version verfügbar. ALEMANNO BUCHHALTUNG wird aktualisiert …');
       }
       return true;
     } catch {
@@ -703,11 +703,11 @@ async function ensureRuntimeCompatibility(){
   const compatibility=schemaCompatibility(APP_CONFIG.schemaVersion,state);
   if(!compatibility.ok){
     if(compatibility.reason==='server_too_old'){
-      showReleaseUpdating('Spendy-Datenbank wird aktualisiert. Bitte kurz warten …');
+      showReleaseUpdating('ALEMANNO BUCHHALTUNG-Datenbank wird aktualisiert. Bitte kurz warten …');
       return false;
     }
     const manifest=await fetchReleaseManifest(`./version.json?schema=${Date.now()}`).catch(()=>({releaseId:APP_CONFIG.releaseId}));
-    return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'Spendy-Version und Datenbank werden synchronisiert …');
+    return reloadForRelease(manifest.releaseId||APP_CONFIG.releaseId,'ALEMANNO BUCHHALTUNG-Version und Datenbank werden synchronisiert …');
   }
   return true;
 }
@@ -862,8 +862,8 @@ function showAuth(notice='') {
   const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('spendy')}</span><div><strong>Spendy</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
-      <div class="auth-copy"><span class="eyebrow">Spendy Core</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
+      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('alemanno')}</span><div><strong>ALEMANNO BUCHHALTUNG</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
+      <div class="auth-copy"><span class="eyebrow">Ihre Finanzen im Griff</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
         <label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" autocomplete="email" required></label>
@@ -986,11 +986,11 @@ async function loadContext() {
 function renderSetup() {
   renderNavigation();
   pageTitle.textContent = t('Einrichtung');
-  pageEyebrow.textContent = t('Spendy Core');
-  document.title = `${t('Einrichtung')} · Spendy`;
+  pageEyebrow.textContent = t('ALEMANNO BUCHHALTUNG Core');
+  document.title = `${t('Einrichtung')} · ALEMANNO BUCHHALTUNG`;
   const displayName = runtime.profile?.display_name || '';
   pageContent.innerHTML = `
-    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein Spendy Core</h2><p class="page-subtitle">Lege zuerst Sprache, Land, Basiswährung und Haushalt fest. Danach führt dich Spendy durch Konten, Kategorien und Händler.</p></header>
+    <header class="page-header"><p class="page-kicker">Einmalige Grundeinrichtung</p><h2 class="page-heading">Dein ALEMANNO BUCHHALTUNG Core</h2><p class="page-subtitle">Lege zuerst Sprache, Land, Basiswährung und Haushalt fest. Danach führt dich ALEMANNO BUCHHALTUNG durch Konten, Kategorien und Händler.</p></header>
     <form class="card card-padding setup-card" id="setup-create" data-form="setup-create">
       <div class="form-grid form-grid--2">
         <label class="field"><span>Anzeigename</span><input class="text-control" name="displayName" value="${escapeHtml(displayName)}" required></label>
@@ -1020,7 +1020,7 @@ function render() {
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
   pageEyebrow.textContent = t(meta.eyebrow);
-  document.title = `${t(meta.title)} · Spendy`;
+  document.title = `${t(meta.title)} · ALEMANNO BUCHHALTUNG`;
   const renderer = views[route] || views.overview;
   pageContent.innerHTML = renderer({
     ...runtime,
@@ -1258,7 +1258,7 @@ function syncCategorizationTransferFx(container) {
       const format=(value)=>value.toLocaleString(locale,{minimumFractionDigits:4,maximumFractionDigits:6});
       rateLabel.textContent=`Effektiver Kurs: 1 ${currentAccount.currency} = ${format(direct)} ${otherAccount.currency} · 1 ${otherAccount.currency} = ${format(inverse)} ${currentAccount.currency}`;
     } else {
-      rateLabel.textContent=`Gib den Betrag ein, der tatsächlich in ${otherAccount.currency} angekommen ist. Spendy berechnet daraus den effektiven Wechselkurs.`;
+      rateLabel.textContent=`Gib den Betrag ein, der tatsächlich in ${otherAccount.currency} angekommen ist. ALEMANNO BUCHHALTUNG berechnet daraus den effektiven Wechselkurs.`;
     }
   }
   return {tx,currentAccount,otherAccount,sourceAmount,targetAmount};
@@ -1862,10 +1862,10 @@ function syncSmartCategoryForForm(form,{allowSuggestion=true,selectedId=null}={}
     const merchant=runtime.merchants.find((row)=>row.id===merchantId);
     const source=merchant?.default_category_id===suggestion
       ? `${t('Händler erkannt')}: ${merchant.name}`
-      : t('Spendy-Vorschlag aus Händler/Beschreibung');
+      : t('ALEMANNO BUCHHALTUNG-Vorschlag aus Händler/Beschreibung');
     if(hint&&suggestedCategory) hint.textContent=`${source} → ${suggestedCategory.name}. ${t('Du kannst die Kategorie jederzeit ändern.')}`;
   } else if(hint && !category.value) {
-    hint.textContent=t('Häufig verwendete Kategorien stehen oben. Spendy versucht Händler und Beschreibung direkt zu erkennen.');
+    hint.textContent=t('Häufig verwendete Kategorien stehen oben. ALEMANNO BUCHHALTUNG versucht Händler und Beschreibung direkt zu erkennen.');
   }
   if(form.id==='transaction-create') syncTransactionBudgetCoach(form);
   return category.value||null;
@@ -2248,7 +2248,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (fields) fields.hidden=!recurringWanted||Boolean(linkedRule);
   const recurringHint=document.querySelector('#transactionRecurringMatchHint');
   if(recurringHint) recurringHint.textContent=linkedRule
-    ? `Bereits erkannt: ${linkedRule.description} · ${moneyText(Number(linkedRule.amount),{currency:linkedRule.currency,locale})} · ${linkedRule.cadence}. Spendy verknüpft die Buchung und erstellt keine zweite Regel.`
+    ? `Bereits erkannt: ${linkedRule.description} · ${moneyText(Number(linkedRule.amount),{currency:linkedRule.currency,locale})} · ${linkedRule.cadence}. ALEMANNO BUCHHALTUNG verknüpft die Buchung und erstellt keine zweite Regel.`
     : 'Keine bestehende Wiederholung erkannt. Nur wenn aktiviert, wird eine neue Regel angelegt.';
   const next=document.querySelector('#transactionRecurringNextDate');
   if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
@@ -2401,7 +2401,7 @@ async function handleForm(form) {
       onboarding_completed_at:new Date().toISOString(),
       preferences:{...profilePreferences(),setup_completed_version:2},
     });
-    await refresh('Einrichtung abgeschlossen. Spendy ist bereit.');
+    await refresh('Einrichtung abgeschlossen. ALEMANNO BUCHHALTUNG ist bereit.');
     location.hash = '#/overview';
     return;
   }
@@ -2465,7 +2465,7 @@ async function handleForm(form) {
     if(!left||!right||left.id===right.id) throw new Error('Bitte zwei unterschiedliche Buchungen auswählen.');
     const keep=preferredTransactionToKeep(left,right,runtime.documents);
     const duplicate=keep.id===left.id?right:left;
-    if(!confirm('Diese Doppelbuchung zusammenführen? Spendy behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
+    if(!confirm('Diese Doppelbuchung zusammenführen? ALEMANNO BUCHHALTUNG behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
     await financeApi.mergeDuplicateTransactions({householdId:h,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
     await refresh('Doppelbuchung zusammengeführt. Der Beleg bleibt mit der verbleibenden Buchung verknüpft.');
     return;
@@ -3541,7 +3541,7 @@ async function handleForm(form) {
     let sourceType=null,sourceId=null;
     if(sourceRef){
       const splitAt=sourceRef.indexOf(':');
-      if(splitAt<=0) throw new Error('Ungültige Spendy-Quelle.');
+      if(splitAt<=0) throw new Error('Ungültige ALEMANNO BUCHHALTUNG-Quelle.');
       sourceType=sourceRef.slice(0,splitAt); sourceId=sourceRef.slice(splitAt+1);
     }
     await financeApi.createTaxItem({
@@ -3848,7 +3848,7 @@ function blobToDataUrl(blob) {
 
 async function printSalesDocument(row) {
   const popup=window.open('','_blank');
-  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für Spendy und versuche es erneut.');
+  if(!popup) throw new Error('Das Druckfenster wurde blockiert. Erlaube Pop-ups für ALEMANNO BUCHHALTUNG und versuche es erneut.');
   const settings=runtime.salesDocumentSettings||{};
   let logoData='';
   if(settings.logo_storage_path){
@@ -4523,7 +4523,7 @@ async function handleAction(target) {
     await financeApi.deleteTaxObligation(target.dataset.id); await refresh('Steuerforderung gelöscht.'); return;
   }
   if (action === 'tax-payment-delete') {
-    if(!confirm(t('Steuerzahlung wirklich stornieren? Eine von Spendy erstellte Kontobuchung wird ebenfalls zurückgenommen.'))) return;
+    if(!confirm(t('Steuerzahlung wirklich stornieren? Eine von ALEMANNO BUCHHALTUNG erstellte Kontobuchung wird ebenfalls zurückgenommen.'))) return;
     await financeApi.reverseTaxPayment({householdId:runtime.household.id,paymentId:target.dataset.id});
     await refresh('Steuerzahlung storniert und verknüpfte Kontobewegung korrekt zurückgenommen.'); return;
   }
@@ -4683,7 +4683,7 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
     const candidates=transactionMergeCandidates(tx,runtime.transactions,{documents:runtime.documents});
-    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Dublette gefunden. Spendy prüft Betrag, Datum, Währung sowie bei unterschiedlichen Konten eindeutig Beleg gegen Bankbuchung.');
+    if(!candidates.length) throw new Error('Für diese Buchung wurde keine sicher zusammenführbare Dublette gefunden. ALEMANNO BUCHHALTUNG prüft Betrag, Datum, Währung sowie bei unterschiedlichen Konten eindeutig Beleg gegen Bankbuchung.');
     const form=document.querySelector('#transaction-merge');
     const input=document.querySelector('#transactionMergeId');
     const source=document.querySelector('#transactionMergeSource');
@@ -4705,7 +4705,7 @@ async function handleAction(target) {
     const merchantHint=left.merchant_id&&right.merchant_id&&left.merchant_id!==right.merchant_id&&merchantSimilarity(left,right)>=0.85
       ? ' Die Händlernamen sehen ebenfalls ähnlich aus und können danach unter Händler vereinheitlicht werden.'
       : '';
-    if(!confirm(`Diese zwei Buchungen zusammenführen? Spendy behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
+    if(!confirm(`Diese zwei Buchungen zusammenführen? ALEMANNO BUCHHALTUNG behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
     await financeApi.mergeDuplicateTransactions({householdId:runtime.household.id,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
     await refresh('Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
     return;
@@ -4722,7 +4722,7 @@ async function handleAction(target) {
       transactionAId:left.id,
       transactionBId:right.id,
     });
-    await refresh('Spendy merkt sich: Diese beiden Buchungen sind verschieden.');
+    await refresh('ALEMANNO BUCHHALTUNG merkt sich: Diese beiden Buchungen sind verschieden.');
     return;
   }
   if (action === 'transaction-delete') {
@@ -4834,7 +4834,7 @@ async function handleAction(target) {
     const form=document.querySelector('#bill-payment'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'bill-payment-reverse') {
-    if(!confirm(t('Rechnungszahlung wirklich zurücknehmen? Eine von Spendy erzeugte Kontobuchung wird dabei ebenfalls entfernt.'))) return;
+    if(!confirm(t('Rechnungszahlung wirklich zurücknehmen? Eine von ALEMANNO BUCHHALTUNG erzeugte Kontobuchung wird dabei ebenfalls entfernt.'))) return;
     await financeApi.unpayBill({householdId:runtime.household.id,billId:target.dataset.id});
     await refresh('Rechnungszahlung zurückgenommen.'); return;
   }
@@ -4890,7 +4890,7 @@ async function handleAction(target) {
   if (action === 'receivable-history') { uiState.receivableExpandedId=target.dataset.id; render(); return; }
   if (action === 'receivable-history-close') { uiState.receivableExpandedId=null; render(); return; }
   if (action === 'receivable-payment-reverse') {
-    if(!confirm(t('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von Spendy erstellte Kontobuchung wird ebenfalls entfernt.'))) return;
+    if(!confirm(t('Die zuletzt erfasste Rückzahlung wirklich stornieren? Eine von ALEMANNO BUCHHALTUNG erstellte Kontobuchung wird ebenfalls entfernt.'))) return;
     const payment=runtime.receivablePayments.find((row)=>row.id===target.dataset.id);
     if(!payment) throw new Error('Rückzahlung wurde nicht gefunden.');
     await financeApi.reverseReceivablePayment(payment.id);
@@ -5100,11 +5100,11 @@ async function handleAction(target) {
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
   }
   if (action === 'admin-finance-reset') {
-    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Spendy-Daten zurücksetzen.');
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen ALEMANNO BUCHHALTUNG-Daten zurücksetzen.');
     const userId=target.dataset.userId||'';
     const email=String(target.dataset.userEmail||'').trim();
     if(!userId||!email) throw new Error('Benutzer konnte nicht eindeutig bestimmt werden.');
-    const accepted=confirm(`Spendy-Daten von ${email} wirklich unwiderruflich zurücksetzen?\n\nKonten, Transaktionen, Importe, Budgets, Planung, Händler, Steuer- und Vermögensdaten werden entfernt. Login und Modulfreigaben bleiben bestehen.`);
+    const accepted=confirm(`ALEMANNO BUCHHALTUNG-Daten von ${email} wirklich unwiderruflich zurücksetzen?\n\nKonten, Transaktionen, Importe, Budgets, Planung, Händler, Steuer- und Vermögensdaten werden entfernt. Login und Modulfreigaben bleiben bestehen.`);
     if(!accepted) return;
     const confirmation=prompt(`Zur Bestätigung die E-Mail-Adresse exakt eingeben:\n${email}`);
     if(confirmation===null) return;
@@ -5114,13 +5114,13 @@ async function handleAction(target) {
       await loadContext();
       location.hash='#/setup';
       render();
-      showToast('Deine Spendy-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
+      showToast('Deine ALEMANNO BUCHHALTUNG-Daten wurden zurückgesetzt. Der Login bleibt bestehen.');
       return;
     }
     runtime.adminUsers=(await backend.adminListUsers())?.users||[];
     uiState.adminExpandedUserId=null;
     render();
-    showToast(`Spendy-Daten von ${email} wurden zurückgesetzt.`);
+    showToast(`ALEMANNO BUCHHALTUNG-Daten von ${email} wurden zurückgesetzt.`);
     return;
   }
   if (action === 'admin-demo-copy') {

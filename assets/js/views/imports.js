@@ -67,14 +67,14 @@ export function renderImports({
   }).join('');
 
   return `
-    ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen. Spendy fasst gleiche Händler und Zahler trotz Filiale, Datum, SBB-/TWINT-Zusätzen oder Schreibvarianten zusammen.'})}
+    ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen. ALEMANNO BUCHHALTUNG fasst gleiche Händler und Zahler trotz Filiale, Datum, SBB-/TWINT-Zusätzen oder Schreibvarianten zusammen.'})}
     <div class="grid-main-aside">
       <form class="card card-padding" id="bank-import" data-form="bank-import">
         <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">Eine oder mehrere CSV-/PDF-Dateien desselben Kontos gemeinsam einlesen</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
           <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select></label>
-          <label class="field"><span>Importdateien</span>${filePicker({id:'importFile',name:'files',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length,multiple:true,label:'Dateien auswählen'})}<small>Du kannst z. B. alle 5 ZAK-Auszüge gleichzeitig markieren. Spendy prüft sie gemeinsam und legt pro Datei einen nachvollziehbaren Importlauf an.</small></label>
+          <label class="field"><span>Importdateien</span>${filePicker({id:'importFile',name:'files',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length,multiple:true,label:'Dateien auswählen'})}<small>Du kannst z. B. alle 5 ZAK-Auszüge gleichzeitig markieren. ALEMANNO BUCHHALTUNG prüft sie gemeinsam und legt pro Datei einen nachvollziehbaren Importlauf an.</small></label>
         </div>
         <div id="importMapping" hidden style="margin-top:18px">
           <div class="card-heading"><div><h3 class="card-title">Spalten zuordnen</h3><p class="card-subtitle" id="importPreviewMeta"></p></div></div>
@@ -82,7 +82,7 @@ export function renderImports({
             <label class="field"><span>Datum</span><select class="text-control" name="mapDate" id="mapDate"></select></label>
             <label class="field"><span>Beschreibung</span><select class="text-control" name="mapDescription" id="mapDescription"></select></label>
             <label class="field"><span>Gegenpartei</span><select class="text-control" name="mapCounterparty" id="mapCounterparty"></select></label>
-            <label class="field"><span>Gegenkonto / IBAN</span><select class="text-control" name="mapCounterpartyAccount" id="mapCounterpartyAccount"></select><small>Optional. Damit erkennt Spendy eigene Konten bei Umbuchungen.</small></label>
+            <label class="field"><span>Gegenkonto / IBAN</span><select class="text-control" name="mapCounterpartyAccount" id="mapCounterpartyAccount"></select><small>Optional. Damit erkennt ALEMANNO BUCHHALTUNG eigene Konten bei Umbuchungen.</small></label>
             <label class="field"><span>Bankreferenz / Zweck</span><select class="text-control" name="mapBankReference" id="mapBankReference"></select><small>Optional. Wird für spätere Nachvollziehbarkeit gespeichert.</small></label>
             <label class="field"><span>Betrag (eine Spalte)</span><select class="text-control" name="mapAmount" id="mapAmount"></select></label>
             <label class="field"><span>Belastung</span><select class="text-control" name="mapDebit" id="mapDebit"></select></label>
@@ -93,7 +93,7 @@ export function renderImports({
           <div class="form-actions"><button class="action-button action-button--primary" type="submit">Alle ausgewählten Dateien importieren</button></div>
         </div>
       </form>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• Mehrere CSV- und textbasierte PDF-Kontoauszüge können in einem Durchgang ausgewählt werden.</p><p>• Spendy bewahrt den Originalkontext der Importzeile. Bei PDFs werden auch Folgezeilen, Gegenkonto/IBAN, Referenzen und Quellseite übernommen, soweit der Auszug sie enthält.</p><p>• Jede Datei erhält einen eigenen Importlauf; Dubletten werden trotzdem kontoübergreifend innerhalb der Auswahl erkannt.</p><p>• Händler und Zahler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert; Zahlungsweg, Datum, Filiale und bekannte Markenvarianten verändern die Identität nicht.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Importlogik</h3><p class="card-subtitle">Was beim Einlesen passiert</p></div></div><div class="stack compact-copy"><p>• Mehrere CSV- und textbasierte PDF-Kontoauszüge können in einem Durchgang ausgewählt werden.</p><p>• ALEMANNO BUCHHALTUNG bewahrt den Originalkontext der Importzeile. Bei PDFs werden auch Folgezeilen, Gegenkonto/IBAN, Referenzen und Quellseite übernommen, soweit der Auszug sie enthält.</p><p>• Jede Datei erhält einen eigenen Importlauf; Dubletten werden trotzdem kontoübergreifend innerhalb der Auswahl erkannt.</p><p>• Händler und Zahler werden aus Gegenpartei bzw. Buchungstext normalisiert und gruppiert; Zahlungsweg, Datum, Filiale und bekannte Markenvarianten verändern die Identität nicht.</p><p>• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch.</p><p>• Bestehende Kategorisierungsregeln bleiben zusätzlich aktiv.</p><p>• Dubletten werden über den stabilen Fingerprint des Kontos erkannt.</p><p>• Der Kontostand-jetzt-Anker wird durch historische Importe nicht verändert.</p></div></article>
     </div>
 
     ${latest ? `<article class="card card-padding import-latest" style="margin-top:16px">

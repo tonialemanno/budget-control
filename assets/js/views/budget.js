@@ -89,7 +89,7 @@ export function renderBudget({
     const alreadyBudgeted=existingScopes.has(scopeKey);
     const detail=expanded?`
       <div class="budget-pattern-details">
-        <div class="inline-alert"><strong>So rechnet Spendy</strong><span>
+        <div class="inline-alert"><strong>So rechnet ALEMANNO BUCHHALTUNG</strong><span>
           ${fixed
             ? `Bekannte Verpflichtung: ${money(pattern.monthly,{currency,locale})} pro Monat. Historische Durchschnittswerte überschreiben diesen Betrag nicht.`
             : pattern.source==='detected_cadence'
@@ -131,7 +131,7 @@ export function renderBudget({
       subtitle:'Variable Budgets, Fixkosten, Rücklagen und Steuern werden getrennt geplant.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="budget-create" ${(expenseCategories.length||merchants.length)?'':'disabled'}>${icon('plus')} Variables Budget</button>`:''
     })}
-    ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt Spendy den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
+    ${formShell('budget-create','Variables Budget festlegen','Einmal festlegen, danach übernimmt ALEMANNO BUCHHALTUNG den Wert automatisch in den nächsten Finanzmonat.',fields,{hidden:true,submitLabel:'Budget speichern'})}
 
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Variables Budget',money(summary.total,{currency,locale}),`${summary.count} echte Budgetposition${summary.count===1?'':'en'}`)}
@@ -158,7 +158,7 @@ export function renderBudget({
     </article>`:''}
 
     ${patterns.length?`<article class="card card-padding">
-      <div class="card-heading"><div><h3 class="card-title">Ausgabenmuster</h3><p class="card-subtitle">Spendy verwendet die gesamte verfügbare Historie und bekannte Verpflichtungen. Keine starre 3-Monats-Regel.</p></div></div>
+      <div class="card-heading"><div><h3 class="card-title">Ausgabenmuster</h3><p class="card-subtitle">ALEMANNO BUCHHALTUNG verwendet die gesamte verfügbare Historie und bekannte Verpflichtungen. Keine starre 3-Monats-Regel.</p></div></div>
       <div class="suggestion-grid">${patternCards}</div>
     </article>`:''}
   `;

@@ -14,7 +14,7 @@ export function renderProfile({
 }={}) {
   const locale=profile?.locale||'de-CH';
   const currency=household?.base_currency||'CHF';
-  const name=profile?.display_name||user?.email?.split('@')[0]||'Spendy Benutzer';
+  const name=profile?.display_name||user?.email?.split('@')[0]||'ALEMANNO BUCHHALTUNG Benutzer';
   const initial=name.trim().charAt(0).toUpperCase()||'F';
   const selectedFinanceMonthMode=financeMonthMode(profile);
   const monthCycle=resolveFinanceCycle({now:new Date(),fallbackDay:25,mode:selectedFinanceMonthMode});
@@ -28,7 +28,7 @@ export function renderProfile({
   const since=profile?.created_at||user?.created_at||null;
 
   return `
-    ${pageHeader({title:'Mein Profil',subtitle:'Login, Rolle und persönlicher Spendy-Zugriff auf einen Blick.'})}
+    ${pageHeader({title:'Mein Profil',subtitle:'Login, Rolle und persönlicher ALEMANNO BUCHHALTUNG-Zugriff auf einen Blick.'})}
 
     <article class="card profile-hero-card">
       <div class="profile-hero-avatar">${escapeHtml(initial)}</div>

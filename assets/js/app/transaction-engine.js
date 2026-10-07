@@ -53,7 +53,7 @@ export async function createEconomicTransaction({
   excludeFromReports = false,
   tax = null,
 }) {
-  required(api, 'Spendy API fehlt.');
+  required(api, 'ALEMANNO BUCHHALTUNG API fehlt.');
   required(householdId, 'Haushalt fehlt.');
   required(account?.account_id, 'Bitte ein Konto auswählen.');
   const resolvedCategoryId = merchantDefaultCategory(merchantId, categoryId, merchants);
