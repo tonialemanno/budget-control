@@ -8,14 +8,14 @@ const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const i18n=fs.readFileSync(new URL('../assets/js/app/i18n.js',import.meta.url),'utf8');
 const icons=fs.readFileSync(new URL('../assets/js/app/icons.js',import.meta.url),'utf8');
 
-assert.match(config,/appName:\s*'Spendy'/);
-assert.match(index,/<title>Spendy<\/title>/);
-assert.match(index,/>Spendy<\/span>/);
-assert.match(index,/spendy-mark\.svg/);
-assert.match(icons,/spendy:/);
-assert.match(i18n,/'Spendy durchsuchen':'Cerca in Spendy'/);
-assert.match(i18n,/'Spendy durchsuchen':'Search Spendy'/);
-assert.match(i18n,/'Spendy Intelligence':'Spendy Intelligence'/);
+assert.match(config,/appName:\s*'ALEMANNO BUCHHALTUNG'/);
+assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
+assert.match(index,/>ALEMANNO BUCHHALTUNG<\/span>/);
+assert.match(index,/alemanno-mark\.svg/);
+assert.match(icons,/alemanno:/);
+assert.match(i18n,/'ALEMANNO BUCHHALTUNG durchsuchen':'Cerca in ALEMANNO BUCHHALTUNG'/);
+assert.match(i18n,/'ALEMANNO BUCHHALTUNG durchsuchen':'Search ALEMANNO BUCHHALTUNG'/);
+assert.match(i18n,/'ALEMANNO BUCHHALTUNG Intelligence':'ALEMANNO BUCHHALTUNG Intelligence'/);
 
 function walk(dir){
   return fs.readdirSync(dir,{withFileTypes:true}).flatMap((entry)=>{
@@ -31,4 +31,4 @@ for(const file of runtimeFiles){
 }
 assert.deepEqual(leftovers,[],`Standalone legacy brand name remains in runtime files: ${leftovers.join(', ')}`);
 
-console.log('Spendy branding assertions OK');
+console.log('ALEMANNO BUCHHALTUNG branding assertions OK');
