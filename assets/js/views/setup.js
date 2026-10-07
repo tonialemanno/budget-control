@@ -66,7 +66,7 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
       <details class="setup-inline-panel">
         <summary>Fixkosten hinzufügen</summary>
         <form class="form-grid form-grid--2 setup-inline-form" id="setup-expense-create" data-form="setup-expense-create">
-          <label class="field"><span>Typische Position</span><select class="text-control" id="setupExpensePreset"><option value="">Frei erfassen</option>${fixedCostPresets}</select><small>Spendy füllt Bezeichnung und Kategorie vor. Du kannst beides danach ändern.</small></label>
+          <label class="field"><span>Typische Position</span><select class="text-control" id="setupExpensePreset"><option value="">Frei erfassen</option>${fixedCostPresets}</select><small>ALEMANNO BUCHHALTUNG füllt Bezeichnung und Kategorie vor. Du kannst beides danach ändern.</small></label>
           <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" id="setupExpenseDescription" name="description" required placeholder="z. B. Miete"></label>
           <label class="field"><span>Empfänger</span><input class="text-control" name="counterparty" placeholder="z. B. UZON"><small>Optional. Neue Empfänger werden bei Bedarf automatisch als Händler angelegt.</small></label>
           <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
@@ -125,7 +125,7 @@ export function renderSetupGuide({
   const steps=[
     stepCard({
       number:1,key:'basis',title:'Sprache, Land & Basiswährung',
-      text:'Lege fest, wie Spendy Zahlen, Währungen und regionale Regeln interpretiert.',
+      text:'Lege fest, wie ALEMANNO BUCHHALTUNG Zahlen, Währungen und regionale Regeln interpretiert.',
       done:s.basis,current:firstOpen==='basis',iconName:'settings',
       meta:`${localeLabel(profile?.locale)} · ${household?.country_code||'Land'} · ${household?.base_currency||'Währung'}`,
       actions:actionLink('#/settings','Basis prüfen',!s.basis),
@@ -162,27 +162,27 @@ export function renderSetupGuide({
     }),
     stepCard({
       number:6,key:'automation',title:'Händler & automatische Zuordnung',
-      text:'Händler bleiben Händler. Spendy merkt sich ihre Standardkategorie und kann Importe und Belege automatisch einordnen.',
+      text:'Händler bleiben Händler. ALEMANNO BUCHHALTUNG merkt sich ihre Standardkategorie und kann Importe und Belege automatisch einordnen.',
       done:s.automation,current:firstOpen==='automation',iconName:'basket',
       meta:`${status.linkedMerchants} Händler mit Standardkategorie · ${categorizationRules.length} zusätzliche Regeln`,
       actions:actionLink('#/merchants',s.automation?'Händler prüfen':'Händler zuordnen',!s.automation),
     }),
     stepCard({
       number:7,key:'recurring',title:'Monatseinnahmen & Fixkosten',
-      text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt Spendy deinen echten Monatsrahmen vor dem ersten Import.',
+      text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt ALEMANNO BUCHHALTUNG deinen echten Monatsrahmen vor dem ersten Import.',
       done:s.recurring,current:firstOpen==='recurring',optional:true,iconName:'repeat',
       meta:`${status.recurringIncome} / ${status.recurringExpenses}`,
       actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
     }),
     stepCard({
       number:8,key:'modules',title:'Budget, Ziele, Schulden, Forderungen & Steuern',
-      text:'Aktiviere und richte nur die Bereiche ein, die du tatsächlich brauchst. Diese Module lesen denselben Spendy-Kern.',
+      text:'Aktiviere und richte nur die Bereiche ein, die du tatsächlich brauchst. Diese Module lesen denselben ALEMANNO BUCHHALTUNG-Kern.',
       done:s.modules,current:firstOpen==='modules',optional:true,iconName:'sparkles',
       meta:visibleModules.length?`${visibleModules.length} optionale Bereiche für deinen Zugriff verfügbar`:'Optionale Module können später durch den Admin freigeschaltet werden.',
       actions:`<div class="setup-module-links">${visibleModules.map(([href,label,iconName])=>`<a href="${href}">${icon(iconName)}<span>${escapeHtml(label)}</span></a>`).join('')}${actionLink('#/settings','Module verwalten',false)}</div>${!s.modules&&canWrite?reviewButton('modules','Später entscheiden'):''}`,
     }),
     stepCard({
-      number:9,key:'finish',title:status.completed?'Spendy ist eingerichtet':'Bereit für deine Übersicht',
+      number:9,key:'finish',title:status.completed?'ALEMANNO BUCHHALTUNG ist eingerichtet':'Bereit für deine Übersicht',
       text:status.completed
         ? 'Deine Einrichtung bleibt jederzeit anpassbar. Änderungen an Konten, Kategorien oder Modulen wirken auf denselben Finanzkern.'
         : financeReady
@@ -198,8 +198,8 @@ export function renderSetupGuide({
 
   return `
     ${pageHeader({
-      title:'Spendy einrichten',
-      subtitle:'Richte Spendy einmal auf dein tatsächliches Finanzleben ein. Danach arbeiten Konten, Transaktionen, Kategorien, Planung und Module auf derselben Datenbasis.'
+      title:'ALEMANNO BUCHHALTUNG einrichten',
+      subtitle:'Richte ALEMANNO BUCHHALTUNG einmal auf dein tatsächliches Finanzleben ein. Danach arbeiten Konten, Transaktionen, Kategorien, Planung und Module auf derselben Datenbasis.'
     })}
 
     <article class="card card-padding setup-progress-card setup-progress-card--wizard">
@@ -213,7 +213,7 @@ export function renderSetupGuide({
         <span><strong>${status.recurring?'✓':'–'}</strong> Wiederkehrend</span>
         <span><strong>${status.modules?'✓':'–'}</strong> Module geprüft</span>
       </div>
-      <p>Bestehende Kontostände, Buchungen und historische Daten werden nicht zurückgesetzt. Der Wizard prüft und ergänzt nur die Struktur, die Spendy für Automatik und Auswertungen benötigt.</p>
+      <p>Bestehende Kontostände, Buchungen und historische Daten werden nicht zurückgesetzt. Der Wizard prüft und ergänzt nur die Struktur, die ALEMANNO BUCHHALTUNG für Automatik und Auswertungen benötigt.</p>
     </article>
 
     <div class="setup-wizard">${steps.join('')}</div>
