@@ -152,10 +152,10 @@ function refreshMatches({ chooseBest = false } = {}) {
   if (alert) {
     if (high.length === 1) {
       alert.hidden = false;
-      alert.innerHTML = `<strong>${t('Passende Bankbuchung gefunden.')}</strong><span>${t('Finance kann den Beleg verknüpfen, statt eine zweite Ausgabe anzulegen.')}</span>`;
+      alert.innerHTML = `<strong>${t('Passende Bankbuchung gefunden.')}</strong><span>${t('Spendy kann den Beleg verknüpfen, statt eine zweite Ausgabe anzulegen.')}</span>`;
     } else if (state.matches.length) {
       alert.hidden = false;
-      alert.innerHTML = `<strong>${t('Mögliche Bankbuchung gefunden.')}</strong><span>${t('Bitte prüfen. Finance verknüpft unklare Treffer nicht automatisch.')}</span>`;
+      alert.innerHTML = `<strong>${t('Mögliche Bankbuchung gefunden.')}</strong><span>${t('Bitte prüfen. Spendy verknüpft unklare Treffer nicht automatisch.')}</span>`;
     } else {
       alert.hidden = true;
       alert.textContent = '';
