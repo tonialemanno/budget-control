@@ -95,7 +95,7 @@ assert.match(read('assets/js/app/finance-model.js'), /merchantMatch/);
 assert.match(read('assets/js/app/budget-engine.js'), /rule\.merchant_id/);
 
 assert.equal(exists('assets/js/views/merchants.js'), true);
-assert.match(read('assets/js/app/router.js'), /route:'merchants'.*title:'Händler'.*path:'\/selfservice\/merchants'/s);
+assert.match(read('assets/js/app/router.js'), /route:'merchants'.*path:'\/selfservice\/merchants'.*title:'Händler'/s);
 assert.match(read('assets/js/main.js'), /renderMerchants/);
 assert.match(read('assets/js/main.js'), /merchant-create/);
 assert.match(read('assets/js/main.js'), /merchant-edit/);
