@@ -201,7 +201,7 @@ export const backend = Object.freeze({
     } catch (error) {
       // Only a definitive auth rejection invalidates the local session.
       // Network errors, transient 5xx responses or an interrupted release reload
-      // must not throw the user out of Finance.
+      // must not throw the user out of Spendy.
       const status = Number(error?.status || 0);
       if (status === 401 || status === 403) return saveSession(null);
       return { ...active, user: active.user || null, restoreWarning: String(error?.message || error) };
