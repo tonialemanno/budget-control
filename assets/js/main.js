@@ -5702,7 +5702,7 @@ async function enterApp(session,{freshLogin=false}={}) {
 
 window.addEventListener('popstate',()=>{
   if(!runtime.user) return;
-  if(hasDeferredSettingsChanges(pageContent) && !confirm('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?')){
+  if(hasDeferredSettingsChanges(pageContent) && !confirm(t('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?'))){
     history.pushState(null,'',lastRenderedHref);
     return;
   }
