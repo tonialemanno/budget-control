@@ -47,8 +47,10 @@ assert.match(main,/if \(action === 'recurring-edit'\)/);
 assert.match(read('assets/js/app/budget-engine.js'), /const fixed=budget\.merchant_id \?/,'category budgets must remain variable unless the budget itself is merchant-scoped');
 
 assert.match(read('assets/js/app/config.js'), /releaseChannel/);
-assert.match(index,/releaseVersionPill/);
+assert.doesNotMatch(index,/releaseVersionPill/);
+assert.match(index,/releaseStatus/);
 assert.match(index,/releaseChannelLabel/);
+assert.match(index,/releaseChannelCaption/);
 assert.match(main,/applyReleaseChannelUI/);
 assert.match(main,/APP_CONFIG\.releaseChannel/);
 assert.match(main,/releaseUiMeta/);
