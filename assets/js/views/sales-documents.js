@@ -131,7 +131,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
   if(!canWrite) return '';
   const defaults=salesDocumentDefaults(settings,profile?.display_name||household?.name||'');
   const logoNote=settings?.logo_storage_path?'Logo ist hinterlegt. Ein neues Bild ersetzt es beim Speichern.':'Noch kein Logo hinterlegt.';
-  const templateRows=(templates||[]).map((row)=>`<div class="list-row"><div class="list-row-main"><div><div class="list-row-title">${escapeHtml(row.name)}</div><div class="list-row-meta">${escapeHtml(salesDocumentTypeLabel(row.document_type==='all'?'':row.document_type)||'Alle')} · ${escapeHtml(({intro:'Einleitung',payment:'Zahlung',closing:'Schluss'})[row.section]||row.section)}</div></div></div><div class="list-row-trailing"><button class="table-action table-action--danger" type="button" data-action="sales-template-delete" data-id="${escapeHtml(row.id)}">Löschen</button></div></div>`).join('');
+  const templateRows=(templates||[]).map((row)=>`<div class="list-row"><div class="list-row-main"><div><div class="list-row-title">${escapeHtml(row.name)}</div><div class="list-row-meta">${escapeHtml(row.document_type==='all'?'Alle':salesDocumentTypeLabel(row.document_type))} · ${escapeHtml(({intro:'Einleitung',payment:'Zahlung',closing:'Schluss'})[row.section]||row.section)}</div></div></div><div class="list-row-trailing"><button class="table-action table-action--danger" type="button" data-action="sales-template-delete" data-id="${escapeHtml(row.id)}">Löschen</button></div></div>`).join('');
   return `
     <details class="card card-padding" style="margin:16px 0" id="salesDocumentSettingsCard">
       <summary><strong>Dokumenteinstellungen · Logo, Absender & Textbausteine</strong></summary>
