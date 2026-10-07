@@ -168,7 +168,7 @@ export function buildFinanceCoach({
   now=new Date(),
   financeMonthMode='day_25',
 }={}){
-  if(!snapshot) throw new Error('Spendy snapshot is required.');
+  if(!snapshot) throw new Error('ALEMANNO BUCHHALTUNG snapshot is required.');
   const baseCurrency=snapshot.currency||household?.base_currency||'CHF';
   const cycle=snapshot.financeCycle;
   const cycleEnd=cycle?.endExclusive||now;
