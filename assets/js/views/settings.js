@@ -59,6 +59,7 @@ export function renderSettings({
       ${settingsLink({href:'#/accounts',iconName:'wallet',title:'Konten & Währungen',text:`Basis ${household?.base_currency||'CHF'} · Konten dürfen eigene Währungen führen`,badge:`${accounts.length} Konten`})}
       ${settingsLink({href:'#/categories',iconName:'layout-grid',title:'Kategorien & Unterkategorien',text:'Deine persönliche Finanzstruktur',badge:`${categories.length} Kategorien`})}
       ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}
+      ${settingsLink({href:'#/sales-documents',iconName:'receipt',title:'Rechnungen & Dokumente',text:'Logo, Absender, Zahlungsdaten und Textbausteine'})}
       ${adminRole?settingsLink({href:'#/admin',iconName:'shield',title:'Administration',text:'Benutzer, Module und Systemstatus'}):''}
     </div>
 
