@@ -136,6 +136,7 @@ declare
   v_tx public.transactions%rowtype;
   v_amount numeric(18,2);
   v_paid numeric(18,2);
+  v_allocated_other numeric(18,2);
   v_status text;
 begin
   select * into v_doc from public.sales_documents where id=p_sales_document_id;
@@ -151,6 +152,13 @@ begin
   v_amount := round(coalesce(p_amount, v_tx.amount),2);
   if v_amount <= 0 or v_amount > v_tx.amount then raise exception 'Invalid payment amount'; end if;
 
+  select coalesce(sum(amount),0) into v_allocated_other
+  from public.sales_document_payments
+  where transaction_id=v_tx.id and sales_document_id<>v_doc.id;
+  if v_allocated_other + v_amount > v_tx.amount + 0.005 then
+    raise exception 'Payment allocation exceeds transaction amount';
+  end if;
+
   insert into public.sales_document_payments(household_id,sales_document_id,transaction_id,amount)
   values(v_doc.household_id,v_doc.id,v_tx.id,v_amount)
   on conflict (sales_document_id,transaction_id)
@@ -160,7 +168,11 @@ begin
   from public.sales_document_payments
   where sales_document_id=v_doc.id;
 
-  v_status := case when v_paid + 0.005 >= v_doc.total then 'paid' else v_doc.status end;
+  v_status := case
+    when v_paid + 0.005 >= v_doc.total then 'paid'
+    when v_doc.status='draft' then 'sent'
+    else v_doc.status
+  end;
   update public.sales_documents
   set status=v_status,
       paid_at=case when v_status='paid' then coalesce(paid_at,v_tx.occurred_at::date) else paid_at end,
