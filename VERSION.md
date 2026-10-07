@@ -2,6 +2,8 @@
 
 ## R43 – Geschäftsdokumente mit Branding und Zahlungsautomatik
 
+- Produktname und sichtbares Branding wurden appweit von `Finance` auf **Spendy** umgestellt; Deutsch, Englisch und Italienisch verwenden denselben Markennamen.
+- Neues Spendy-Monogramm für Sidebar, Login und Browser-Favicon; technische interne Namen bleiben unverändert.
 - Offerten, Rechnungen und Quittungen werden als echtes A4-Dokument (210 × 297 mm) dargestellt und drucken/PDF-unabhängig von der Monitorbreite.
 - Dokumenteinstellungen speichern Firma, Adresse, Kontakt, MWST-/UID, IBAN, Bank, Logo, Standard-Steuer, Zahlungsfrist, Offertgültigkeit und Fusszeile pro Haushalt.
 - Eigene Textbausteine für Einleitung, Zahlung und Schluss können pro Dokumenttyp gespeichert und beim Schreiben eingesetzt werden.
