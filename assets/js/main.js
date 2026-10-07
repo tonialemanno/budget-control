@@ -3061,6 +3061,62 @@ async function handleForm(form) {
     await financeApi.createBill({ household_id:h, account_id:accountId, category_id:nullValue(data,'categoryId'), name:formValue(data,'name'), provider:nullValue(data,'provider'), amount:numberValue(data,'amount'), currency:account?.currency||currency, due_date:formValue(data,'dueDate'), status:'open', reference:nullValue(data,'reference') });
     await refresh('Rechnung gespeichert.'); return;
   }
+  if (id === 'sales-document-settings') {
+    const previousLogo=runtime.salesDocumentSettings?.logo_storage_path||null;
+    const logoFile=form.querySelector('[name="logoFile"]')?.files?.[0]||null;
+    let nextLogo=previousLogo;
+    let uploadedLogo=null;
+    if(logoFile){
+      if(!/^image\/(png|jpeg|webp|svg\+xml)$/i.test(String(logoFile.type||''))) throw new Error('Logo bitte als PNG, JPG, WebP oder SVG hochladen.');
+      if(Number(logoFile.size||0)>2*1024*1024) throw new Error('Das Logo darf maximal 2 MB gross sein.');
+      uploadedLogo=await financeApi.uploadSalesDocumentLogo(h,logoFile);
+      nextLogo=uploadedLogo;
+    }
+    try {
+      await financeApi.upsertSalesDocumentSettings({
+        household_id:h,
+        company_name:nullValue(data,'companyName'),
+        company_address:nullValue(data,'companyAddress'),
+        company_email:nullValue(data,'companyEmail'),
+        company_phone:nullValue(data,'companyPhone'),
+        company_website:nullValue(data,'companyWebsite'),
+        tax_id:nullValue(data,'taxId'),
+        iban:nullValue(data,'iban'),
+        bank_name:nullValue(data,'bankName'),
+        logo_storage_path:nextLogo,
+        default_payment_days:Math.max(0,Math.min(365,numberValue(data,'defaultPaymentDays',30))),
+        default_quote_valid_days:Math.max(0,Math.min(365,numberValue(data,'defaultQuoteValidDays',30))),
+        default_tax_rate:Math.max(0,Math.min(100,numberValue(data,'defaultTaxRate',0))),
+        footer_text:nullValue(data,'footerText'),
+        auto_receipt_on_payment:Boolean(form.querySelector('[name="autoReceiptOnPayment"]')?.checked),
+        default_quote_intro:nullValue(data,'defaultQuoteIntro'),
+        default_invoice_intro:nullValue(data,'defaultInvoiceIntro'),
+        default_receipt_intro:nullValue(data,'defaultReceiptIntro'),
+        default_payment_text:nullValue(data,'defaultPaymentText'),
+        default_closing_text:nullValue(data,'defaultClosingText'),
+      });
+    } catch(error) {
+      if(uploadedLogo) await financeApi.deleteSalesDocumentLogo(uploadedLogo).catch(()=>null);
+      throw error;
+    }
+    if(uploadedLogo && previousLogo && previousLogo!==uploadedLogo) await financeApi.deleteSalesDocumentLogo(previousLogo).catch(()=>null);
+    await refresh('Logo, Absender, Zahlungsdaten und Standardtexte gespeichert.');
+    return;
+  }
+  if (id === 'sales-template-create') {
+    const documentType=formValue(data,'documentType')||'all';
+    const section=formValue(data,'section');
+    const name=formValue(data,'name');
+    const contentText=formValue(data,'content');
+    if(!['all','invoice','quote','receipt'].includes(documentType)) throw new Error('Ungültiger Dokumenttyp.');
+    if(!['intro','payment','closing'].includes(section)) throw new Error('Ungültiger Textbereich.');
+    if(!name||!contentText) throw new Error('Name und Text des Bausteins sind erforderlich.');
+    await financeApi.createSalesDocumentTemplate({
+      household_id:h,document_type:documentType,section,name,content:contentText,is_default:false,sort_order:100,
+    });
+    await refresh('Textbaustein gespeichert.');
+    return;
+  }
   if (id === 'sales-document-create') {
     const type=formValue(data,'documentType');
     if(!['invoice','quote','receipt'].includes(type)) throw new Error('Ungültiger Dokumenttyp.');
@@ -3077,23 +3133,38 @@ async function handleForm(form) {
     const recipientName=formValue(data,'recipientName').trim();
     if(!documentNumber) throw new Error('Bitte eine Dokumentnummer angeben.');
     if(!recipientName) throw new Error('Bitte einen Empfänger angeben.');
+    const issueDate=formValue(data,'issueDate')||dateInputValue();
+    const dueDate=type==='invoice'?nullValue(data,'dueDate'):null;
+    const validUntil=type==='quote'?nullValue(data,'validUntil'):null;
+    const documentCurrency=formValue(data,'currency')||currency;
+    const total=items.reduce((sum,item)=>{
+      const net=Number(item.quantity)*Number(item.unit_price);
+      return sum+net+(net*Number(item.tax_rate)/100);
+    },0);
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const context={
+      recipientName,documentNumber,issueDate,dueDate:dueDate||validUntil||'',
+      total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:documentCurrency}).format(total),
+      paymentDays:defaults.paymentDays,
+    };
     await financeApi.createSalesDocument({
       household_id:h,
       document_type:type,
       document_number:documentNumber,
       status:type==='receipt'?'paid':'draft',
-      issue_date:formValue(data,'issueDate')||dateInputValue(),
-      due_date:type==='invoice'?nullValue(data,'dueDate'):null,
-      valid_until:type==='quote'?nullValue(data,'validUntil'):null,
-      currency:formValue(data,'currency')||currency,
+      issue_date:issueDate,
+      paid_at:type==='receipt'?issueDate:null,
+      due_date:dueDate,
+      valid_until:validUntil,
+      currency:documentCurrency,
       sender_name:nullValue(data,'senderName'),
       sender_address:nullValue(data,'senderAddress'),
       sender_tax_id:nullValue(data,'senderTaxId'),
       recipient_name:recipientName,
       recipient_address:nullValue(data,'recipientAddress'),
-      intro_text:nullValue(data,'introText'),
-      closing_text:nullValue(data,'closingText'),
-      payment_text:nullValue(data,'paymentText'),
+      intro_text:expandSalesDocumentText(nullValue(data,'introText'),context)||null,
+      closing_text:expandSalesDocumentText(nullValue(data,'closingText'),context)||null,
+      payment_text:expandSalesDocumentText(nullValue(data,'paymentText'),context)||null,
       notes:nullValue(data,'notes'),
       items,
     });
