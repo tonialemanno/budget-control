@@ -3,11 +3,11 @@ import { dateLabel, escapeHtml, money, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r55';
+import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r56';
 import {
   accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
   financeCycleSeries, primaryOperatingAccount,
-} from '../app/finance-insights.js';
+} from '../app/finance-insights.js?v=20261008-r56';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r56';
