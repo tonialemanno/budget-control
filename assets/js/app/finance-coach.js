@@ -29,6 +29,57 @@ function dayDistance(left,right){
   return Math.abs(a-b)/DAY;
 }
 
+function localDayKey(value){
+  const date=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function noSpendStats({transactions=[],categories=[],recurringRules=[],cycle,now=new Date()}={}){
+  const start=new Date(cycle?.start||now);
+  start.setHours(0,0,0,0);
+  const today=new Date(now);
+  today.setHours(0,0,0,0);
+  if(today<start) return {noSpendDays:0,noSpendStreak:0,elapsedDays:0};
+
+  const spentDays=new Set();
+  for(const tx of transactions){
+    const occurred=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||Number.isNaN(occurred.getTime())||occurred<start||occurred>now) continue;
+    if(semanticType(tx,{categories,recurringRules})!=='variable_expense') continue;
+    spentDays.add(localDayKey(occurred));
+  }
+
+  let noSpendDays=0;
+  let elapsedDays=0;
+  for(let day=new Date(start);day<=today;day.setDate(day.getDate()+1)){
+    elapsedDays+=1;
+    if(!spentDays.has(localDayKey(day))) noSpendDays+=1;
+  }
+
+  let noSpendStreak=0;
+  for(let day=new Date(today);day>=start;day.setDate(day.getDate()-1)){
+    if(spentDays.has(localDayKey(day))) break;
+    noSpendStreak+=1;
+  }
+  return {noSpendDays,noSpendStreak,elapsedDays};
+}
+
+function primaryAccountCycleProgress({primaryAccount,primaryBalance,transactions=[],cycle,now=new Date(),baseCurrency='CHF',fxRates=null}={}){
+  if(!primaryAccount||!cycle?.start) return {startBalance:primaryBalance,change:0,recoveredFromMinus:0,recoveryPercent:null};
+  const accountId=primaryAccount.account_id||primaryAccount.id;
+  const net=transactions.reduce((sum,tx)=>{
+    const occurred=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||tx.account_id!==accountId||Number.isNaN(occurred.getTime())||occurred<cycle.start||occurred>now) return sum;
+    return sum+base(Number(tx.amount||0),tx.currency||primaryAccount.currency,baseCurrency,fxRates);
+  },0);
+  const startBalance=primaryBalance-net;
+  const change=primaryBalance-startBalance;
+  const recoveredFromMinus=startBalance<0?Math.max(0,Math.min(-startBalance,change)):0;
+  const recoveryPercent=startBalance<0?Math.max(0,Math.min(100,recoveredFromMinus/Math.abs(startBalance)*100)):null;
+  return {startBalance,change,recoveredFromMinus,recoveryPercent};
+}
+
 function base(value,currency,target,fxRates){
   return convertAmount(Number(value||0),currency||target,target,fxRates)??0;
 }
@@ -253,6 +304,10 @@ export function buildFinanceCoach({
   const allowanceDays=Math.max(1,daysRemaining);
   const dailyAllowance=Math.max(0,freeUntilIncome)/allowanceDays;
   const weeklyAllowance=dailyAllowance*7;
+  const noSpend=noSpendStats({transactions,categories,recurringRules,cycle,now});
+  const accountProgress=primaryAccountCycleProgress({
+    primaryAccount,primaryBalance,transactions,cycle,now,baseCurrency,fxRates,
+  });
 
   const budgetState=calculateBudgetSummary({
     budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
@@ -358,6 +413,13 @@ export function buildFinanceCoach({
     zeroSpendEndBalance,
     additionalSavingsPotential,
     recoveryToZero,
+    noSpendDays:noSpend.noSpendDays,
+    noSpendStreak:noSpend.noSpendStreak,
+    elapsedDays:noSpend.elapsedDays,
+    primaryStartBalance:accountProgress.startBalance,
+    primaryBalanceChange:accountProgress.change,
+    recoveredFromMinus:accountProgress.recoveredFromMinus,
+    recoveryPercent:accountProgress.recoveryPercent,
     dailyAllowance,
     weeklyAllowance,
     status:freeUntilIncome<0?'negative':dailyAllowance<=10?'warning':'positive',
