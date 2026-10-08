@@ -145,6 +145,13 @@ assert.equal(series.length,2);
 assert.equal(series.at(-1).key,'2026-09');
 assert.equal(series.at(-1).income,6400);
 assert.equal(series.at(-1).expenses,127.5);
+assert.equal(series[0].coverage,'partial');
+assert.equal(series.at(-1).coverage,'full');
+
+const noHistorySeries=financeCycleSeries({
+  transactions:[],debtPayments:[],recurringRules,baseCurrency:'CHF',fxRates:null,now,cycles:2,fallbackDay:25,
+});
+assert.ok(noHistorySeries.every((row)=>row.coverage==='none'));
 
 const calendar=resolveFinanceCycle({now,mode:'calendar'});
 assert.equal(calendar.source,'calendar');
