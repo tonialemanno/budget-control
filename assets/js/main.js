@@ -1,10 +1,10 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261008-r54';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261008-r55';
 import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261008-r52';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js?v=20261008-r52';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
-import { setLocale, t, translateElement } from './app/i18n.js?v=20261008-r54';
+import { setLocale, t, translateElement } from './app/i18n.js?v=20261008-r55';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
@@ -35,7 +35,7 @@ import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js?v=20261008-r52';
 
-import { renderOverview } from './views/overview.js?v=20261008-r54';
+import { renderOverview } from './views/overview.js?v=20261008-r55';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js?v=20261006-r41';
 import { renderSetupGuide } from './views/setup.js';
