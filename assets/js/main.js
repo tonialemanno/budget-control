@@ -1169,6 +1169,42 @@ async function refresh(message = '') {
   if (message) showToast(message);
 }
 
+async function finishDuplicateMerge(keep,duplicate,message){
+  runtime.transactions=(runtime.transactions||[]).filter((row)=>row.id!==duplicate.id);
+  runtime.documents=(runtime.documents||[]).map((doc)=>
+    doc?.object_type==='transaction'&&doc?.object_id===duplicate.id
+      ? {...doc,object_id:keep.id}
+      : doc
+  );
+  render();
+  if(message) showToast(message);
+  try {
+    await loadFinanceData();
+    render();
+  } catch {
+    // Die Servermutation ist bereits erfolgreich. Der lokale Zustand bleibt
+    // bewusst ohne die erledigte Dublette sichtbar; ein späterer Datenabruf
+    // synchronisiert den Rest.
+  }
+}
+
+function finishDuplicateIgnore(left,right,ignoredRow,message){
+  const ordered=[String(left.id||''),String(right.id||'')].sort();
+  const exists=(runtime.transactionDuplicateIgnores||[]).some((row)=>{
+    const pair=[String(row.transaction_a_id||''),String(row.transaction_b_id||'')].sort();
+    return pair[0]===ordered[0]&&pair[1]===ordered[1];
+  });
+  if(!exists){
+    runtime.transactionDuplicateIgnores.push(ignoredRow||{
+      transaction_a_id:ordered[0],
+      transaction_b_id:ordered[1],
+      created_at:new Date().toISOString(),
+    });
+  }
+  render();
+  if(message) showToast(message);
+}
+
 function formValue(data, key) { return String(data.get(key) ?? '').trim(); }
 function numberValue(data, key, fallback = 0) { const n = Number(data.get(key)); return Number.isFinite(n) ? n : fallback; }
 function nullValue(data, key) { const v = formValue(data,key); return v || null; }
@@ -2589,7 +2625,7 @@ async function handleForm(form) {
     const duplicate=keep.id===left.id?right:left;
     if(!confirm('Diese Doppelbuchung zusammenführen? ALEMANNO BUCHHALTUNG behält bevorzugt die Bankbuchung und übernimmt Belege sowie Zuordnungen.')) return;
     await financeApi.mergeDuplicateTransactions({householdId:h,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
-    await refresh('Doppelbuchung zusammengeführt. Der Beleg bleibt mit der verbleibenden Buchung verknüpft.');
+    await finishDuplicateMerge(keep,duplicate,'Doppelbuchung zusammengeführt. Der Beleg bleibt mit der verbleibenden Buchung verknüpft.');
     return;
   }
   if (id === 'transaction-create') {
@@ -4978,7 +5014,7 @@ async function handleAction(target) {
       : '';
     if(!confirm(`Diese zwei Buchungen zusammenführen? ALEMANNO BUCHHALTUNG behält bevorzugt die Bankbuchung und hängt vorhandene Belege daran.${merchantHint}`)) return;
     await financeApi.mergeDuplicateTransactions({householdId:runtime.household.id,keepTransactionId:keep.id,duplicateTransactionId:duplicate.id});
-    await refresh('Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
+    await finishDuplicateMerge(keep,duplicate,'Doppelbuchung zusammengeführt. Belege und Zuordnungen wurden erhalten.');
     return;
   }
   if (action === 'transaction-duplicate-ignore') {
@@ -4988,12 +5024,12 @@ async function handleAction(target) {
     const right=runtime.transactions.find((row)=>row.id===rightId);
     if(!left||!right) throw new Error('Eine der Buchungen wurde nicht gefunden.');
     if(!confirm('Diese zwei Buchungen künftig nicht mehr als mögliche Dublette vorschlagen? Die Buchungen selbst bleiben unverändert.')) return;
-    await financeApi.ignoreTransactionDuplicate({
+    const ignored=await financeApi.ignoreTransactionDuplicate({
       householdId:runtime.household.id,
       transactionAId:left.id,
       transactionBId:right.id,
     });
-    await refresh('ALEMANNO BUCHHALTUNG merkt sich: Diese beiden Buchungen sind verschieden.');
+    finishDuplicateIgnore(left,right,ignored,'ALEMANNO BUCHHALTUNG merkt sich: Diese beiden Buchungen sind verschieden.');
     return;
   }
   if (action === 'transaction-delete') {
