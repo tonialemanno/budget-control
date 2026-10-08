@@ -112,6 +112,10 @@ Deno.serve(async (req: Request) => {
       if (String(body.confirmation || "") !== "DELETE") {
         return json({ error: "Bestätigung für die endgültige Löschung fehlt." }, 400, origin);
       }
+      const confirmationEmail = String(body.confirmationEmail || "").trim().toLowerCase();
+      if (!confirmationEmail || confirmationEmail !== String(caller.email || "").trim().toLowerCase()) {
+        return json({ error: "Die eingegebene E-Mail-Adresse stimmt nicht überein." }, 400, origin);
+      }
       try {
         const result = await permanentlyDeleteUser(admin, caller.id);
         return json(result, 200, origin);
