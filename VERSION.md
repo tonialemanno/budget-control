@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R52 – Sparziele mit Start und Laufzeit
+
+- Sparziele können ein geplantes Startdatum erhalten; vor diesem Datum werden sie nicht fälschlich als verspätet bewertet.
+- Die Laufzeit kann direkt in ganzen Monaten geplant werden, statt nur über einen starren Zieltermin.
+- Aus Startdatum + Laufzeit wird der Zieltermin automatisch berechnet und weiterhin gespeichert.
+- Die erforderliche Monatsrate verwendet bei neuen Monatsplänen exakt die gewählte Laufzeit.
+- Bestehende Ziele ohne Start/Laufzeit bleiben kompatibel und verwenden weiter ihren bisherigen Zieltermin.
+- Datenbankschema um `start_date` und `duration_months` erweitert; Laufzeit ist auf 1–600 Monate begrenzt.
+- Schema 2026100801, Release 2026.10.08-r52.
+
+# Finance 2.4.6
+
 ## R51 – ALDI SUISSE MOBILE getrennt von ALDI Supermarkt
 
 - `ALDI SUISSE MOBILE` wird als eigener Händler `aldi suisse mobile` erkannt und nicht mehr auf `Aldi Suisse` normalisiert.
