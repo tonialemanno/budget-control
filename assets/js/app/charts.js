@@ -111,8 +111,8 @@ export function renderCashflowChart({
     </svg>
     ${incomplete?`<p class="cashflow-data-note">${escapeHtml(t('Unvollständige Historie wird nicht als CHF 0 dargestellt.',locale))}</p>`:''}
     <div class="cashflow-summary">
-      <span>${escapeHtml(t('Aktueller Finanzmonat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
-      <span>${escapeHtml(t('Aktueller Finanzmonat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Finanzmonat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale})}</strong></span>
+      <span>${escapeHtml(t('Aktueller Finanzmonat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale})}</strong></span>
     </div>
   </div>`;
 }
@@ -151,7 +151,7 @@ export function renderExpenseDonut({
     return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}">
       <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
       <strong>${escapeHtml(displayLabel)}</strong>
-      <span>${privacy?'•••':money(row.value,{currency,locale,decimals:0})}</span>
+      <span>${privacy?'•••':money(row.value,{currency,locale})}</span>
       <small>${Math.round(row.share)}%</small>
     </button>`;
   }).join('');
@@ -186,7 +186,7 @@ export function renderIncomePlan({
   const gap=Math.max(0,committed-income);
   if(!(income>0)&&!(committed>0)) return `<div class="chart-empty">${escapeHtml(t('Noch nicht genug Planungsdaten für den Monatsplan.',locale))}</div>`;
 
-  const amount=(value)=>privacy?'•••':moneyText(value,{currency,locale,decimals:0});
+  const amount=(value)=>privacy?'•••':moneyText(value,{currency,locale});
   const percent=(value)=>income>0?Math.round(value/income*100):0;
   const rows=[
     {label:'Fixkosten',value:fixed},
@@ -265,7 +265,7 @@ export function renderMoneyFlow({
       `C ${c2} ${ty2}, ${c1} ${sy2}, ${sourceX+sourceW} ${sy2}`,
       'Z',
     ].join(' ');
-    const amount=privacy?'•••':moneyText(row.value,{currency,locale,decimals:0});
+    const amount=privacy?'•••':moneyText(row.value,{currency,locale});
     return `<g class="money-flow-branch money-flow-branch--${row.key}">
       <path d="${d}"></path>
       <rect x="${targetX}" y="${targetCursor-targetH-gapY}" width="${targetW}" height="${targetH}" rx="8"></rect>
@@ -274,7 +274,7 @@ export function renderMoneyFlow({
     </g>`;
   }).join('');
 
-  const incomeText=privacy?'•••':moneyText(income,{currency,locale,decimals:0});
+  const incomeText=privacy?'•••':moneyText(income,{currency,locale});
   const note=gap>0
     ? `<div class="money-flow-note money-flow-note--warning">${escapeHtml(t('Geplante Verpflichtungen liegen über dem geplanten Einkommen.',locale))}</div>`
     : '';
