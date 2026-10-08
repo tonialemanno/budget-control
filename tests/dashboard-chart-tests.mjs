@@ -74,7 +74,7 @@ const incomePlan=renderIncomePlan({
 });
 assert.match(incomePlan,/Geplantes Einkommen/);
 assert.match(incomePlan,/Fixkosten/);
-assert.match(incomePlan,/Sparen & Rücklagen/);
+assert.match(incomePlan,/Sparen &amp; Rücklagen/);
 assert.match(incomePlan,/Variable Ausgaben geplant/);
 assert.match(incomePlan,/Voraussichtlich frei/);
 assert.doesNotMatch(incomePlan,/money-flow-svg/);
