@@ -42,7 +42,7 @@ assert.deepEqual(cashWithdrawalInfo({...foreign,currency:'CHF'}),{
 const profile=analyzeImportRows([
   domesticRow,
   foreignRow,
-  {...domesticRow,Buchungsdatum:'2025-03-25',Beschreibung1:'Migros',Beschreibung2:'19052875-0 05/27; Zahlung Debitkarte',Belastung:'-12.00'},
+  {...domesticRow,Buchungsdatum:'2025-03-25',Beschreibung1:'Migros',Beschreibung2:'19052875-0 05/27; Zahlung Debitkarte',Beschreibung3:'Transaktions-Nr. 789',Belastung:'-12.00'},
 ],mapping);
 assert.equal(profile.valid,3);
 assert.equal(profile.bankLike,3);
