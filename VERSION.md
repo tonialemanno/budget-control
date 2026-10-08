@@ -1,5 +1,20 @@
 # Finance 2.4.6
 
+## R58 – Intelligenter Import statt manueller Nacharbeit
+
+- CSV-/PDF-Import prüft das gewählte Zielkonto auf Plausibilität. Ein klarer Bankkontoauszug kann nicht mehr versehentlich auf ein Bargeldkonto importiert werden.
+- Die Importvorschau zeigt den tatsächlich erkannten Zeitraum der ausgewählten Dateien.
+- Zusätzlich zum exakten Fingerprint gibt es einen semantischen Dublettenschutz über Konto, Datum, Betrag und Händleridentität. Derselbe Umsatz aus PDF und CSV wird dadurch nicht erneut angelegt, nur weil sich der Beschreibungstext leicht unterscheidet.
+- Gleich hohe echte Mehrfachbuchungen bleiben durch ein 1:1-Matching erhalten.
+- UBS-/Bank-Bargeldbezüge werden aus den Rohdaten erkannt. CHF-Bezüge werden automatisch auf ein passendes CHF-Bargeldkonto, Fremdwährungsbezüge mit eindeutigem Originalbetrag auf das passende Bargeldkonto der Originalwährung umgebucht.
+- Fehlt bei einem Fremdwährungsbezug der Originalbetrag, wird nichts erfunden; der Fall bleibt sichtbar zur Prüfung.
+- Die Händlererkennung wurde um häufige Tankstellen, Supermärkte, Drogerien, Mode-/Shopping-Händler, Restaurants, Parkhäuser, ÖV, Apotheken und Zahnarztmuster erweitert.
+- Rohfelder wie Beschreibung2/Beschreibung3 werden für die Erkennung mitverwendet, nicht nur die verkürzte Hauptbeschreibung.
+- Die aktuell neu importierten Daten wurden zusätzlich live bereinigt: falsches Zielkonto korrigiert, 487 PDF/CSV-Dubletten entfernt, Bargeldbezüge verbunden und sichere Händler automatisch kategorisiert.
+- Keine Datenbankstrukturänderung gegenüber R57. Schema 2026100802, Release 2026.10.08-r58.
+
+# Finance 2.4.6
+
 ## R57 – Stabilität, echte Lohnzyklen & Datenhoheit
 
 - „Deine Entwicklung“ verwendet bei einem monatlichen Lohn neu die tatsächlich gebuchten Hauptlohn-Termine als Finanzzyklusgrenzen. Schwankende Auszahlungstage rund um den 25. erzeugen dadurch keine künstlichen Null- oder Doppel-Lohn-Monate mehr.
