@@ -69,6 +69,48 @@ function remainingRuleValue(rule,{
   return total;
 }
 
+function samePlannedPayment(left,right){
+  const leftAmount=Math.abs(Number(left?.amount||0));
+  const rightAmount=Math.abs(Number(right?.amount||0));
+  if(Math.abs(leftAmount-rightAmount)>0.01) return false;
+  if((left?.currency||'')!==(right?.currency||'')) return false;
+  if(left?.account_id&&right?.account_id&&left.account_id!==right.account_id) return false;
+  return dayDistance(left?.occurred_at,right?.occurred_at)<=3;
+}
+
+function committedOneOffUntilCycleEnd({
+  transactions=[],bills=[],categories=[],recurringRules=[],baseCurrency='CHF',fxRates=null,now=new Date(),endExclusive,
+}={}){
+  const end=new Date(endExclusive||now);
+  const futureTransactions=transactions.filter((tx)=>{
+    const occurred=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||Number(tx.amount)>=0||tx.transfer_group_id||Number.isNaN(occurred.getTime())) return false;
+    if(occurred<=now||occurred>=end) return false;
+    return semanticType(tx,{categories,recurringRules})!=='fixed_expense';
+  });
+  let total=futureTransactions.reduce((sum,tx)=>sum+base(Math.abs(Number(tx.amount||0)),tx.currency,baseCurrency,fxRates),0);
+
+  for(const bill of bills){
+    if(!['open','overdue'].includes(bill?.status)) continue;
+    const due=atNoon(bill?.due_date);
+    if(!due||due>=end) continue;
+    const pseudo={
+      account_id:bill.account_id||null,
+      category_id:bill.category_id||null,
+      merchant_id:null,
+      occurred_at:bill.due_date,
+      amount:-Math.abs(Number(bill.amount||0)),
+      currency:bill.currency||baseCurrency,
+      description:bill.name||'',
+      counterparty:bill.provider||'',
+    };
+    if(matchingRecurringRule(pseudo,recurringRules,categories,'expense')) continue;
+    if(futureTransactions.some((tx)=>samePlannedPayment(tx,pseudo))) continue;
+    total+=base(Math.abs(Number(bill.amount||0)),bill.currency,baseCurrency,fxRates);
+  }
+  return total;
+}
+
 function parentCategory(tx,categories=[]){
   const lineage=categoryLineage(tx,categories);
   return lineage.at(-1)||lineage[0]||tx.categories||null;
@@ -163,6 +205,7 @@ export function buildFinanceCoach({
   budgets=[],
   categories=[],
   merchants=[],
+  bills=[],
   household,
   fxRates=null,
   now=new Date(),
@@ -200,6 +243,13 @@ export function buildFinanceCoach({
   const variableRemaining=Math.max(0,Number(snapshot.remainingPlannedExpensesMonth||0));
   const commitmentsRemaining=Math.max(0,fixedRemaining)+Math.max(0,transferRemaining)+Math.max(0,reserveRemaining)+variableRemaining;
   const freeUntilIncome=primaryBalance-commitmentsRemaining;
+  const committedOneOffRemaining=committedOneOffUntilCycleEnd({
+    transactions,bills,categories,recurringRules,baseCurrency,fxRates,now,endExclusive:cycleEnd,
+  });
+  const protectedUntilCycleEnd=Math.max(0,fixedRemaining)+Math.max(0,transferRemaining)+Math.max(0,reserveRemaining)+Math.max(0,committedOneOffRemaining);
+  const zeroSpendEndBalance=primaryBalance-protectedUntilCycleEnd;
+  const additionalSavingsPotential=Math.max(0,zeroSpendEndBalance);
+  const recoveryToZero=Math.max(0,-zeroSpendEndBalance);
   const allowanceDays=Math.max(1,daysRemaining);
   const dailyAllowance=Math.max(0,freeUntilIncome)/allowanceDays;
   const weeklyAllowance=dailyAllowance*7;
@@ -303,6 +353,11 @@ export function buildFinanceCoach({
     variableRemaining,
     commitmentsRemaining,
     freeUntilIncome,
+    committedOneOffRemaining,
+    protectedUntilCycleEnd,
+    zeroSpendEndBalance,
+    additionalSavingsPotential,
+    recoveryToZero,
     dailyAllowance,
     weeklyAllowance,
     status:freeUntilIncome<0?'negative':dailyAllowance<=10?'warning':'positive',
