@@ -29,7 +29,7 @@ function visibleStrings(html='') {
   return values;
 }
 
-const germanUi=/\b(?:Suchen|Zeitraum|Konto|Konten|Beschreibung|Betrag|Einnahme|Einnahmen|Ausgabe|Ausgaben|Umbuchung|Nächster|Plantermin|Unbefristet|Liquidität|Kreditkarten|Fremdwährungen|Währung|Bearbeiten|Löschen|Speichern|Abbrechen|Zurück|Weiter|Kategorie|Kategorien|Händler|Fällig|Schuld|Schulden|Forderung|Forderungen|Versicherung|Versicherungen|Vorsorge|Immobilie|Fahrzeug|Fahrzeuge|Haushalt|Privat|Planung|Zahlung|Zahlungen|Rechnung|Rechnungen|Vertrag|Verträge|Dokument|Dokumente|Steuer|Steuerjahr|Monat|Monate|Jahr|Stand|Offen|Aktuell|Keine|Noch|Bitte|Wöchentlich|Halbjährlich|Jährlich|Quartalsweise|Rhythmus|Restschuld|Bisher|getilgt|Positionen|Überfällig|Personen|erledigte|Restlaufzeit|Fixkosten|Aktive|Dokumentdatum|Bezug|Allgemein|Dokumentenablage|Variables|verbraucht|Ausserhalb|Sondertopf|Zielbetrag|Zieltermin|Mitglied|Mitglieder|Rolle|Anbieter|Policennummer|Kaufpreis|Kaufdatum|Kilometerstand|Kennzeichen|Jahresbeitrag|Einstandswert|Marktdaten|unbekannt|Von|Bis)\b/i;
+const germanUi=/\b(?:Suchen|Zeitraum|Konto|Konten|Beschreibung|Betrag|Einnahme|Einnahmen|Ausgabe|Ausgaben|Umbuchung|Nächster|Plantermin|Unbefristet|Liquidität|Kreditkarten|Fremdwährungen|Währung|Bearbeiten|Löschen|Speichern|Abbrechen|Zurück|Weiter|Kategorie|Kategorien|Händler|Fällig|Schuld|Schulden|Forderung|Forderungen|Versicherung|Versicherungen|Vorsorge|Immobilie|Fahrzeug|Fahrzeuge|Haushalt|Privat|Planung|Zahlung|Zahlungen|Rechnung|Rechnungen|Vertrag|Verträge|Dokument|Dokumente|Steuer|Steuerjahr|Monat|Monate|Jahr|Stand|Offen|Aktuell|Keine|Noch|Bitte|Wöchentlich|Halbjährlich|Jährlich|Quartalsweise|Rhythmus|Restschuld|Bisher|getilgt|Positionen|Überfällig|Personen|erledigte|Restlaufzeit|Fixkosten|Aktive|Dokumentdatum|Bezug|Allgemein|Dokumentenablage|Variables|verbraucht|Ausserhalb|Sondertopf|Zielbetrag|Zieltermin|Mitglied|Mitglieder|Rolle|Anbieter|Policennummer|Kaufpreis|Kaufdatum|Kilometerstand|Kennzeichen|Jahresbeitrag|Einstandswert|Marktdaten|unbekannt|Von|Bis|Budget|frei|verplant|reserviert|Mehrere|Wochenrahmen|Hauptkonto|Entwicklung|Geldtöpfe|Rahmen|prüfen|öffnen|Motivation|No-Spend|Rekord|Tage|Tag|Überschuss|Startminus|aufgeholt)\b/i;
 
 const fixtureData = new Set([
   'Privat','Lohnkonto','Sparkonto','Euro Kasse','Lebensmittel','Abacus Umantis AG;9000 St. Gallen',
@@ -101,6 +101,11 @@ assert.equal(t('Fremdwährungen'),'Valute estere');
 assert.equal(t('8 Konten gesamt · SNB Monatsmittel · Stand 2026-09'),'8 conti totali · Media mensile BNS · aggiornamento 2026-09');
 assert.equal(t('SNB Monatsmittel · Stand 2026-09. Originalwährungen bleiben auf den Konten sichtbar.'),'Media mensile BNS · aggiornamento 2026-09. Le valute originali restano visibili sui conti.');
 assert.equal(t('z. B. Migros, MediaMarkt, TWINT'),'es. Migros, MediaMarkt, TWINT');
+assert.equal(t('Mehrere Währungen aktiv.'),'Più valute attive.');
+assert.equal(t('Budget prüfen'),'Controlla budget');
+assert.equal(t('Frei pro Tag'),'Disponibile al giorno');
+assert.equal(t('17 Tage'),'17 giorni');
+assert.equal(t('No-Spend-Tage'),'Giorni senza spese');
 
 assert.equal(t('Restschuld gesamt'),'Debito residuo totale');
 assert.equal(t('Bisher getilgt'),'Rimborsato finora');
@@ -118,6 +123,11 @@ assert.equal(t('Beschreibung'),'Description');
 assert.equal(t('Unbefristet'),'No end date');
 assert.equal(t('Liquidität CHF'),'Liquidity CHF');
 assert.equal(t('Kreditkarten CHF'),'Credit cards CHF');
+assert.equal(t('Mehrere Währungen aktiv.'),'Multiple currencies active.');
+assert.equal(t('Budget prüfen'),'Review budget');
+assert.equal(t('Frei pro Tag'),'Available per day');
+assert.equal(t('17 Tage'),'17 days');
+assert.equal(t('No-Spend-Tage'),'No-spend days');
 
 const fs=await import('node:fs');
 const documentsSource=fs.readFileSync(new URL('../assets/js/views/documents.js',import.meta.url),'utf8');
