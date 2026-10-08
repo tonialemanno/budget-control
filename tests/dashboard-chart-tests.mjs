@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { categorySpending, monthSeries, primaryOperatingAccount } from '../assets/js/app/finance-insights.js';
+import { annualIncomeBreakdown, categorySpending, monthSeries, primaryOperatingAccount } from '../assets/js/app/finance-insights.js';
 import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../assets/js/app/charts.js';
 
 const now=new Date('2026-10-03T12:00:00Z');
@@ -46,6 +46,19 @@ const series=monthSeries({transactions:tx,debtPayments:[],baseCurrency:'CHF',now
 assert.equal(series.length,6);
 assert.equal(series.at(-1).income,200);
 assert.equal(series.at(-1).expenses,100);
+
+const incomeBreakdown=annualIncomeBreakdown({
+  transactions:[
+    ...tx,
+    {id:'side-a',status:'booked',occurred_at:'2026-06-01T10:00:00Z',amount:50,currency:'CHF',semantic_type:'other_income',counterparty:'Nebenverdienst A',transfer_group_id:null},
+    {id:'side-b',status:'booked',occurred_at:'2026-07-01T10:00:00Z',amount:75,currency:'CHF',semantic_type:'other_income',counterparty:'Nebenverdienst B',transfer_group_id:null},
+  ],
+  categories,recurringRules,baseCurrency:'CHF',now,year:2026,limit:1,
+});
+const otherEarned=incomeBreakdown.sources.find((row)=>row.other);
+assert.ok(otherEarned);
+assert.deepEqual(new Set(otherEarned.transactionIds),new Set(['side-a','side-b']));
+assert.equal(otherEarned.value,125);
 
 const cashflow=renderCashflowChart({series,currency:'CHF',locale:'de-CH'});
 assert.match(cashflow,/<svg[^>]+cashflow-svg/);
