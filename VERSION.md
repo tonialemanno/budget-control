@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R54 – Monatliches zusätzliches Sparpotenzial
+
+- Die Übersicht zeigt neu, wie viel am Ende des laufenden Finanzmonats zusätzlich zurückgelegt werden könnte, wenn ab jetzt keine weiteren variablen Ausgaben mehr entstehen.
+- Die Prognose schützt bekannte Fixkosten, Rücklagen, geplante Umbuchungen, konkret geplante Einzelzahlungen und offene Rechnungen bis zum Ende des Finanzmonats.
+- Noch nicht verbrauchtes variables Budget wird für diese Motivationszahl bewusst nicht als künftige Ausgabe behandelt.
+- Bei positivem Ergebnis erscheint das zusätzliche Sparpotenzial; bei negativem Ergebnis zeigt ALEMANNO BUCHHALTUNG den noch fehlenden Betrag bis zum Nullpunkt.
+- Der Wert wird mit Kontostand, neuen Buchungen und Verpflichtungen laufend neu berechnet.
+- Keine Datenbankstrukturänderung gegenüber R53.
+- Release 2026.10.08-r54.
+
+# Finance 2.4.6
+
 ## R53 – Prognose des tatsächlichen Zielstands
 
 - Sparzielkarten zeigen neu, welcher Kontostand bei unverändertem Plan am Zieltermin voraussichtlich erreicht wird.
