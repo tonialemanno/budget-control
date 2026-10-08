@@ -3,7 +3,7 @@ import { convertAmount } from './fx.js';
 import { buildDebtPaymentTransactionMap } from './financial-effects.js';
 import { financeCycles, inFinanceCycle, resolveFinanceCycle } from './finance-cycle.js';
 import { calculateBudgetSummary, effectiveBudgetSet } from './budget-engine.js';
-import { semanticExpenseBase, semanticIncomeBase, semanticType } from './finance-semantics.js';
+import { matchingRecurringRule, semanticExpenseBase, semanticIncomeBase, semanticType } from './finance-semantics.js';
 
 function base(value, currency, target, fxRates) {
   return convertAmount(value, currency || target, target, fxRates) ?? 0;
@@ -34,6 +34,72 @@ export function monthSeries({
   return result;
 }
 
+
+function startOfDay(value){
+  const d=value instanceof Date?new Date(value):new Date(value);
+  return new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0,0);
+}
+
+function fallbackNextStart(start,fallbackDay=25){
+  const base=new Date(start.getFullYear(),start.getMonth()+1,1,0,0,0,0);
+  const last=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();
+  base.setDate(Math.min(fallbackDay,last));
+  return base;
+}
+
+function salaryAnchors({transactions=[],recurringRules=[],categories=[],now=new Date()}={}){
+  const monthlyIncomeRules=recurringRules.filter((rule)=>
+    rule.active!==false && rule.direction==='income' && rule.cadence==='monthly'
+  );
+  if(!monthlyIncomeRules.length) return [];
+  const rows=[];
+  for(const tx of transactions){
+    const occurred=new Date(tx.occurred_at);
+    if(tx.status!=='booked'||Number(tx.amount)<=0||tx.transfer_group_id||Number.isNaN(occurred.getTime())||occurred>now) continue;
+    const rule=matchingRecurringRule(tx,monthlyIncomeRules,categories,'income');
+    if(!rule||rule.cadence!=='monthly') continue;
+    rows.push({date:startOfDay(occurred),amount:Number(tx.amount||0),txId:tx.id,ruleId:rule.id});
+  }
+  rows.sort((a,b)=>a.date-b.date);
+  const byMonth=new Map();
+  for(const row of rows){
+    const key=localMonthKey(row.date);
+    const current=byMonth.get(key);
+    if(!current||row.amount>current.amount) byMonth.set(key,row);
+  }
+  return [...byMonth.values()].sort((a,b)=>a.date-b.date);
+}
+
+function anchoredFinanceCycles({
+  transactions=[],recurringRules=[],categories=[],now=new Date(),count=6,fallbackDay=25,
+}={}){
+  const anchors=salaryAnchors({transactions,recurringRules,categories,now});
+  if(anchors.length<2) return [];
+  const incomeRuleDates=recurringRules
+    .filter((rule)=>rule.active!==false&&rule.direction==='income'&&rule.cadence==='monthly'&&rule.next_date)
+    .map((rule)=>startOfDay(rule.next_date))
+    .filter((date)=>!Number.isNaN(date.getTime()));
+  const periods=anchors.map((anchor,index)=>{
+    let endExclusive=anchors[index+1]?.date||null;
+    if(!endExclusive){
+      const futureRuleDate=incomeRuleDates.filter((date)=>date>anchor.date).sort((a,b)=>a-b)[0]||null;
+      endExclusive=futureRuleDate||fallbackNextStart(anchor.date,fallbackDay);
+      if(endExclusive<=anchor.date) endExclusive=fallbackNextStart(anchor.date,fallbackDay);
+    }
+    return {
+      start:anchor.date,
+      endExclusive,
+      budgetMonth:localMonthKey(anchor.date),
+      source:'income_anchor',
+      sourceTransactionId:anchor.txId,
+      primaryIncomeRuleId:anchor.ruleId,
+      fallbackDay,
+      mode:'day_25',
+    };
+  });
+  return periods.slice(-Math.max(1,count));
+}
+
 export function financeCycleSeries({
   transactions=[],
   debtPayments=[],
@@ -47,7 +113,10 @@ export function financeCycleSeries({
   financeMonthMode='day_25',
 }={}) {
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
-  const periods=financeCycles({now,fallbackDay,mode:financeMonthMode,count:cycles});
+  const anchored=financeMonthMode==='day_25'
+    ? anchoredFinanceCycles({transactions,recurringRules,categories,now,count:cycles,fallbackDay})
+    : [];
+  const periods=anchored.length?anchored:financeCycles({now,fallbackDay,mode:financeMonthMode,count:cycles});
   const bookedDates=transactions
     .filter((tx)=>tx.status==='booked')
     .map((tx)=>new Date(tx.occurred_at))
