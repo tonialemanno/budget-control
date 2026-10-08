@@ -55,6 +55,9 @@ assert.equal(coach.transferRemaining,100);
 assert.equal(coach.variableRemaining,300);
 assert.equal(coach.commitmentsRemaining,600);
 assert.equal(coach.freeUntilIncome,400);
+assert.equal(coach.protectedUntilCycleEnd,300);
+assert.equal(coach.additionalSavingsPotential,700);
+assert.equal(coach.recoveryToZero,0);
 assert.equal(coach.daysRemaining,20);
 assert.equal(coach.dailyAllowance,20);
 assert.equal(coach.weeklyAllowance,140);
@@ -106,6 +109,50 @@ const coachWithFutureFixedTransaction=buildFinanceCoach({
 });
 assert.equal(coachWithFutureFixedTransaction.fixedRemaining,200,'A future-dated planned transaction must not make the upcoming commitment disappear.');
 
+const coachWithCommittedOneOff=buildFinanceCoach({
+  snapshot,
+  primaryAccount,
+  accounts:[primaryAccount],
+  transactions:[{
+    id:'future-one-off',status:'booked',account_id:'main',category_id:null,merchant_id:null,
+    amount:-120,currency:'CHF',occurred_at:'2026-10-12T12:00:00Z',
+    description:'Planned one-off',transfer_group_id:null,
+  }],
+  bills:[
+    {id:'bill-in-cycle',status:'open',account_id:'main',category_id:null,amount:80,currency:'CHF',due_date:'2026-10-20',name:'Open bill'},
+    {id:'bill-after-cycle',status:'open',account_id:'main',category_id:null,amount:500,currency:'CHF',due_date:'2026-10-26',name:'Next cycle bill'},
+  ],
+  debtPayments:[],
+  recurringRules,
+  budgets:[],
+  categories:[],
+  merchants:[],
+  household:{base_currency:'CHF'},
+  fxRates:null,
+  now,
+});
+assert.equal(coachWithCommittedOneOff.committedOneOffRemaining,200);
+assert.equal(coachWithCommittedOneOff.protectedUntilCycleEnd,500);
+assert.equal(coachWithCommittedOneOff.additionalSavingsPotential,500);
+
+const coachRecovering=buildFinanceCoach({
+  snapshot:{...snapshot,cash:-150},
+  primaryAccount:{...primaryAccount,current_balance:-150},
+  accounts:[{...primaryAccount,current_balance:-150}],
+  transactions:[],
+  bills:[],
+  debtPayments:[],
+  recurringRules:[],
+  budgets:[],
+  categories:[],
+  merchants:[],
+  household:{base_currency:'CHF'},
+  fxRates:null,
+  now,
+});
+assert.equal(coachRecovering.additionalSavingsPotential,0);
+assert.equal(coachRecovering.recoveryToZero,150);
+
 const categories=[{id:'food',name:'Lebensmittel',kind:'expense',parent_id:null}];
 const budgets=[{
   id:'budget-food',household_id:'h',category_id:'food',merchant_id:null,
@@ -142,6 +189,9 @@ assert.match(overview,/Bis zum nächsten Lohn frei/);
 assert.match(overview,/ALEMANNO BUCHHALTUNG hat bemerkt/);
 assert.match(overview,/renderMoneyFlow/);
 assert.match(overview,/Frei pro Tag/);
+assert.match(overview,/Zusätzliches Sparpotenzial/);
+assert.match(overview,/Auf dem Weg zum Monatsüberschuss/);
+assert.match(overview,/Sobald dieser Wert bei null ist/);
 
 const transactionView=fs.readFileSync(new URL('../assets/js/views/transactions.js',import.meta.url),'utf8');
 assert.match(transactionView,/transactionCreateBudgetCoach/);
