@@ -182,7 +182,7 @@ assert.equal(anchoredSeries.length,6);
 assert.deepEqual(anchoredSeries.map((row)=>row.start.getDate()),[24,22,25,24,25,25]);
 assert.ok(anchoredSeries.every((row)=>row.source==='income_anchor'));
 assert.ok(anchoredSeries.every((row)=>row.income>=6400&&row.income<7000),'Each real salary cycle should contain one salary, not zero or two.');
-assert.equal(anchoredSeries[0].income,6412.05);
+assert.equal(anchoredSeries[0].income,6626.25,'Secondary income inside the salary cycle must still count as real income.');
 assert.equal(anchoredSeries[1].income,6407.55);
 assert.equal(anchoredSeries[0].endExclusive.getDate(),22);
 assert.equal(anchoredSeries[1].endExclusive.getDate(),25);
