@@ -166,6 +166,72 @@ export function financeCycleSeries({
   });
 }
 
+
+function surplusAccountMatch(account){
+  const name=String(account?.name||'')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+  return /(?:^| )(?:uberschuss|surplus|avanzo|eccedenza)(?: |$)/.test(name);
+}
+
+export function historicalSurplusTransferRecord({
+  transactions=[],
+  accounts=[],
+  baseCurrency='CHF',
+  fxRates=null,
+  now=new Date(),
+  fallbackDay=25,
+  financeMonthMode='day_25',
+}={}) {
+  const surplusAccountIds=new Set(
+    accounts
+      .filter((account)=>account?.is_archived!==true&&surplusAccountMatch(account))
+      .map((account)=>account.account_id||account.id)
+      .filter(Boolean)
+  );
+  if(!surplusAccountIds.size) return null;
+
+  const currentCycle=resolveFinanceCycle({now,fallbackDay,mode:financeMonthMode});
+  const totals=new Map();
+
+  for(const tx of transactions){
+    const occurred=new Date(tx?.occurred_at);
+    if(
+      tx?.status!=='booked'
+      || !tx?.transfer_group_id
+      || Number(tx?.amount)<=0
+      || !surplusAccountIds.has(tx?.account_id)
+      || Number.isNaN(occurred.getTime())
+      || occurred>=currentCycle.start
+    ) continue;
+
+    const cycle=resolveFinanceCycle({now:occurred,fallbackDay,mode:financeMonthMode});
+    if(cycle.endExclusive>currentCycle.start) continue;
+
+    const value=Math.max(0,base(tx.amount,tx.currency,baseCurrency,fxRates));
+    if(!(value>0)) continue;
+    const key=cycle.budgetMonth;
+    const row=totals.get(key)||{
+      key,
+      amount:0,
+      start:cycle.start,
+      endExclusive:cycle.endExclusive,
+      occurredAt:occurred,
+      transferCount:0,
+    };
+    row.amount+=value;
+    row.transferCount+=1;
+    if(occurred>row.occurredAt) row.occurredAt=occurred;
+    totals.set(key,row);
+  }
+
+  const rows=[...totals.values()].sort((a,b)=>b.amount-a.amount||b.occurredAt-a.occurredAt);
+  return rows[0]||null;
+}
+
 export function currentFinanceCycleTotals({
   transactions=[],
   debtPayments=[],
