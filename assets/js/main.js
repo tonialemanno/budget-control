@@ -1836,9 +1836,16 @@ function renderImportReview() {
   const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
   let validRows=0;
   let unmappedFiles=0;
+  let earliest=null;
+  let latest=null;
+  let bankLike=0;
   for (const item of importState.items) {
     const mapping=importMappingForParsed(item.parsed,preferredMapping);
     if(!validImportMapping(mapping)){ unmappedFiles+=1; continue; }
+    const profile=analyzeImportRows(item.parsed.rows,mapping);
+    bankLike+=profile.bankLike;
+    if(profile.earliest&&(!earliest||profile.earliest<earliest)) earliest=profile.earliest;
+    if(profile.latest&&(!latest||profile.latest>latest)) latest=profile.latest;
     for (const row of item.parsed.rows) {
       const tx = rowToTransaction(row,mapping);
       if (!tx) continue;
@@ -1888,7 +1895,12 @@ function renderImportReview() {
     return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':''}</span></div>${group.isTransfer?'<span class="status-pill status-pill--active">Umbuchung</span>':group.needsReview?'<span class="status-pill status-pill--warning">Prüfen</span>':`<select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select>`}</div>`;
   }).join('');
   const warning=unmappedFiles?` · ${unmappedFiles} Datei${unmappedFiles===1?'':'en'} mit abweichenden Spalten bitte prüfen`:'';
-  host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
+  const range=earliest&&latest?` · Zeitraum ${earliest}–${latest}`:'';
+  const wrongAccount=importAccount?.account_type==='cash'&&validRows>=20&&bankLike/Math.max(1,validRows)>=0.25;
+  const accountWarning=wrongAccount
+    ? `<div class="inline-alert"><strong>Zielkonto wirkt unlogisch.</strong><span>Diese Daten sehen nach einem Bankkontoauszug aus, ausgewählt ist aber „${escapeHtml(importAccount.name)}“ (Bargeld). Der Import wird so blockiert.</span></div>`
+    : '';
+  host.innerHTML = `${accountWarning}<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen${range} · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
 }
 
 function suggestedCategoryIdForTransaction({
@@ -5749,6 +5761,7 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'importCategoryFilter') { uiState.importCategory=target.value||'all'; render(); return; }
+    if (target.name==='accountId'&&target.closest('#bank-import')) { renderImportReview(); return; }
     if (target.closest('#importMapping') && ['mapDate','mapDescription','mapCounterparty','mapCounterpartyAccount','mapBankReference','mapAmount','mapDebit','mapCredit'].includes(target.name)) { renderImportReview(); return; }
     if (target.name === 'kind' && target.closest('#category-create')) {
       const parent = target.closest('form')?.querySelector('[name="parentId"]');
