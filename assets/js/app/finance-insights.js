@@ -58,6 +58,15 @@ function salaryAnchors({transactions=[],recurringRules=[],categories=[],now=new 
     if(tx.status!=='booked'||Number(tx.amount)<=0||tx.transfer_group_id||Number.isNaN(occurred.getTime())||occurred>now) continue;
     const rule=matchingRecurringRule(tx,monthlyIncomeRules,categories,'income');
     if(!rule||rule.cadence!=='monthly') continue;
+    const expected=Math.abs(Number(rule.amount||0));
+    const actual=Math.abs(Number(tx.amount||0));
+    const linked=Boolean(tx.recurring_rule_id&&tx.recurring_rule_id===rule.id);
+    const amountClose=expected>0&&Math.abs(actual-expected)<=Math.max(10,expected*.20);
+    const normalize=(value)=>String(value||'').toLowerCase().replace(/[^a-z0-9äöüß]+/g,' ').trim();
+    const txText=normalize([tx.description,tx.counterparty,tx.merchants?.name].filter(Boolean).join(' '));
+    const ruleTexts=[rule.description,rule.counterparty,rule.merchants?.name].map(normalize).filter((value)=>value.length>=4);
+    const textMatch=ruleTexts.some((value)=>txText.includes(value)||value.includes(txText));
+    if(!linked&&!amountClose&&!textMatch) continue;
     rows.push({date:startOfDay(occurred),amount:Number(tx.amount||0),txId:tx.id,ruleId:rule.id});
   }
   rows.sort((a,b)=>a.date-b.date);
