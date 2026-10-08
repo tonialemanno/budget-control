@@ -1,4 +1,4 @@
-import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261008-r52';
+import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261008-r53';
 import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261008-r52';
 import { store } from './app/store.js';
 import { backend } from './app/backend.js';
@@ -51,7 +51,7 @@ import { renderDocuments } from './views/documents.js';
 import { renderBudget } from './views/budget.js';
 import { renderBills } from './views/bills.js';
 import { renderSalesDocuments, nextSalesDocumentNumber, salesDocumentTypeLabel, salesDocumentDefaults, expandSalesDocumentText } from './views/sales-documents.js?v=20261008-r52';
-import { renderGoals } from './views/goals.js?v=20261008-r52';
+import { renderGoals } from './views/goals.js?v=20261008-r53';
 import { renderTaxAdvisor } from './views/tax-advisor.js';
 import { renderDebts } from './views/debts.js';
 import { renderReceivables } from './views/receivables.js';
