@@ -5,7 +5,7 @@ import { moneyText } from '../assets/js/app/format.js';
 assert.equal(moneyText(3.8,{currency:'CHF',locale:'de-CH'}),'CHF 3.80');
 assert.equal(moneyText(9,{currency:'CHF',locale:'de-CH'}),'CHF 9.00');
 assert.equal(moneyText(-9,{currency:'CHF',locale:'de-CH'}),'CHF -9.00');
-assert.equal(moneyText(3.8,{currency:'EUR',locale:'de-DE'}),'3,80 €');
+assert.equal(moneyText(3.8,{currency:'EUR',locale:'de-DE'}),'3,80 €');
 
 for(const path of [
   '../assets/js/views/overview.js',
