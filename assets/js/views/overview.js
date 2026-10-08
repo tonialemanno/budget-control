@@ -3,7 +3,7 @@ import { dateLabel, escapeHtml, money, shortDate } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r54';
+import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r55';
 import {
   accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
   financeCycleSeries, primaryOperatingAccount,
