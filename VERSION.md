@@ -1,5 +1,16 @@
 # Finance 2.4.6
 
+## R53 – Prognose des tatsächlichen Zielstands
+
+- Sparzielkarten zeigen neu, welcher Kontostand bei unverändertem Plan am Zieltermin voraussichtlich erreicht wird.
+- Zusätzlich wird die absolute Differenz zum Ziel angezeigt: `Fehlen zum Ziel` oder `Über Ziel`.
+- Die Prognose verwendet den aktuellen Kontostand, alle erkannten monatlichen Finanzierungsquellen und die geplante Laufzeit.
+- Der bestehende Vorschlag für den nötigen Monatsbetrag bleibt erhalten; Soll und realistische Prognose stehen damit direkt nebeneinander.
+- Keine Datenbankstrukturänderung gegenüber R52.
+- Release 2026.10.08-r53.
+
+# Finance 2.4.6
+
 ## R52 – Sparziele mit Start und Laufzeit
 
 - Sparziele können ein geplantes Startdatum erhalten; vor diesem Datum werden sie nicht fälschlich als verspätet bewertet.
