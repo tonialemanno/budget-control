@@ -2,7 +2,7 @@ import { formShell, goalProgress, pageHeader, deleteButton } from '../app/compon
 import { dateLabel, escapeHtml, money, moneyText } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
 import { icon } from '../app/icons.js';
-import { goalPlanningMonths, goalStartsInFuture } from '../app/goal-planning.js?v=20261008-r52';
+import { goalPlanningMonths, goalStartsInFuture, projectedGoalAmount, projectedGoalGap } from '../app/goal-planning.js?v=20261008-r53';
 
 function cadenceMonthly(amount,cadence){
   const n=Number(amount||0);
@@ -100,12 +100,14 @@ function feasibility(goal,plannedMonthly,currentAmount,currency='CHF',locale='de
   const tone=futureStart?'neutral':ratio>=1?'green':ratio>=0.8?'yellow':'red';
   const label=futureStart?'Geplant':tone==='green'?'Auf Kurs':tone==='yellow'?'Knapp':'Nicht auf Kurs';
   const forecast=monthly>0?Math.ceil(remaining/monthly):null;
+  const projected=projectedGoalAmount({currentAmount,plannedMonthly:monthly,months});
+  const projectedGap=projectedGoalGap({targetAmount:goal.target_amount,currentAmount,plannedMonthly:monthly,months});
   const note=futureStart
     ? `Die Sparphase startet später. Ab Start sind rund ${moneyText(required,{currency,locale})} pro Monat nötig.`
     : monthly>=required
       ? 'Der geplante Monatsbetrag reicht voraussichtlich.'
       : `Es fehlen rund ${moneyText(Math.max(0,required-monthly),{currency,locale})} pro Monat.`;
-  return { tone,label,required,forecast,note,months };
+  return { tone,label,required,forecast,note,months,projected,projectedGap };
 }
 
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], accounts = [], household, profile, fxRates, canWrite=false } = {}) {
@@ -169,7 +171,7 @@ export function renderGoals({ goals = [], goalSources = [], recurringRules = [],
         g.target_date?`Ziel ${dateLabel(g.target_date,locale)}`:'',
       ].filter(Boolean).join(' · ')||'Ohne Zeitplan';
       return `<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">${escapeHtml(g.name)}</h3><p class="card-subtitle">${scheduleMeta}${linkedAccount?` · ${escapeHtml(linkedAccount.name)}`:''}</p></div><span class="goal-bubble goal-bubble--${f.tone}">${escapeHtml(f.label)}</span></div>${goalProgress(displayGoal,locale)}
-        <div class="mini-detail-list">${accountMeta}${g.start_date?`<span>Start <strong>${dateLabel(g.start_date,locale)}</strong></span>`:''}${g.duration_months?`<span>Laufzeit <strong>${Number(g.duration_months)} Monate</strong></span>`:''}<span>Eigener Zusatz / Monat <strong>${money(g.monthly_amount,{currency:goalCurrency,locale})}</strong></span><span>Gesamt geplant / Monat <strong>${money(plan.total,{currency:goalCurrency,locale})}</strong></span>${g.target_date?`<span>Erforderlich / Monat <strong>${money(f.required,{currency:goalCurrency,locale})}</strong></span>`:''}${f.forecast!==null?`<span>Restlaufzeit bei Plan <strong>ca. ${f.forecast} Monate</strong></span>`:''}</div>
+        <div class="mini-detail-list">${accountMeta}${g.start_date?`<span>Start <strong>${dateLabel(g.start_date,locale)}</strong></span>`:''}${g.duration_months?`<span>Laufzeit <strong>${Number(g.duration_months)} Monate</strong></span>`:''}<span>Eigener Zusatz / Monat <strong>${money(g.monthly_amount,{currency:goalCurrency,locale})}</strong></span><span>Gesamt geplant / Monat <strong>${money(plan.total,{currency:goalCurrency,locale})}</strong></span>${g.target_date?`<span>Erforderlich / Monat <strong>${money(f.required,{currency:goalCurrency,locale})}</strong></span>`:''}${f.projected!==null?`<span>Bei unverändertem Plan am Zieltermin <strong>${money(f.projected,{currency:goalCurrency,locale})}</strong></span>`:''}${f.projectedGap!==null&&Math.abs(f.projectedGap)>=0.01?`<span>${f.projectedGap>0?'Fehlen zum Ziel':'Über Ziel'} <strong>${money(Math.abs(f.projectedGap),{currency:goalCurrency,locale})}</strong></span>`:''}${f.forecast!==null?`<span>Restlaufzeit bei Plan <strong>ca. ${f.forecast} Monate</strong></span>`:''}</div>
         ${plan.components.length?`<div class="goal-source-list">${plan.components.map((component)=>`<div class="goal-source-row"><div><strong>${escapeHtml(component.label)}</strong><span>${component.amount<0?'−':''}${money(Math.abs(component.amount),{currency:goalCurrency,locale})} / Monat</span></div>${component.id&&canWrite?`<button class="table-action table-action--danger" type="button" data-action="goal-source-delete" data-id="${component.id}">Entfernen</button>`:''}</div>`).join('')}</div>`:''}
         <p class="goal-feasibility-note">${escapeHtml(f.note)}</p>
         <div class="card-footer-actions">${canWrite?`${g.target_date&&f.required>0?`<button class="table-action" type="button" data-action="goal-apply-suggestion" data-id="${g.id}" data-amount="${suggestedBase.toFixed(2)}">Vorschlag übernehmen</button>`:''}<button class="table-action" type="button" data-action="goal-edit" data-id="${g.id}">Bearbeiten</button><button class="table-action" type="button" data-action="goal-source-open" data-id="${g.id}">Finanzierung koppeln</button>${linkedAccount?'':`<button class="table-action" type="button" data-action="goal-progress" data-id="${g.id}" data-current="${effectiveCurrent}">Stand ändern</button>`}${deleteButton('savings_goals',g.id)}`:''}</div></article>`;
