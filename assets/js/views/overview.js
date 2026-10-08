@@ -1,18 +1,18 @@
 import { pageHeader, sectionHeading, transactionRow } from '../app/components.js';
-import { dateLabel, escapeHtml, money, shortDate } from '../app/format.js';
+import { dateLabel, escapeHtml, money, shortDate } from '../app/format.js?v=20261008-r57';
 import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
-import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r56';
+import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r57';
 import {
   accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
   financeCycleSeries, primaryOperatingAccount,
-} from '../app/finance-insights.js?v=20261008-r56';
+} from '../app/finance-insights.js?v=20261008-r57';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
-import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r56';
+import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r57';
 
-function privacyMoney(value,{currency,locale,privacyEnabled=false,decimals=0}={}){
+function privacyMoney(value,{currency,locale,privacyEnabled=false,decimals=2}={}){
   return privacyEnabled?'•••':money(value,{currency,locale,decimals});
 }
 
