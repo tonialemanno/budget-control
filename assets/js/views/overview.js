@@ -97,7 +97,7 @@ export function renderOverview({
   const preferredPrimaryAccountId=primaryAccountPreferenceId(profile,household?.id,accounts);
   const primaryAccount=primaryOperatingAccount(accounts,recurringRules,currency,preferredPrimaryAccountId);
   const coach=buildFinanceCoach({
-    snapshot,primaryAccount,accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,
+    snapshot,primaryAccount,accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,bills,
     household,fxRates,now,
   });
   const cycleTotals=currentFinanceCycleTotals({
@@ -124,6 +124,8 @@ export function renderOverview({
   const budget=coach.budget;
   const daysLabel=coach.daysRemaining===1?'1 Tag':`${coach.daysRemaining} Tage`;
   const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
+  const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
+  const savingsPotentialTone=coach.additionalSavingsPotential>0?'positive':'warning';
 
   if(!accounts.length){
     return `
@@ -195,6 +197,31 @@ export function renderOverview({
         </article>
       </div>
     </section>
+
+    <article class="card card-padding coach-hero coach-hero--${savingsPotentialTone}">
+      <div class="coach-hero-head">
+        <div>
+          <span class="coach-eyebrow">${coach.additionalSavingsPotential>0?'Zusätzliches Sparpotenzial':'Auf dem Weg zum Monatsüberschuss'}</span>
+          <h3 class="card-title">${coach.additionalSavingsPotential>0?'Wenn du ab jetzt nichts mehr zusätzlich ausgibst':'Erst zurück auf null, dann wird jeder freie Franken Sparpotenzial'}</h3>
+          <div class="coach-free-value">${privacyMoney(coach.additionalSavingsPotential>0?coach.additionalSavingsPotential:coach.recoveryToZero,{currency,locale,privacyEnabled,decimals:0})}</div>
+          <p class="coach-status-copy">${coach.additionalSavingsPotential>0
+            ? `könntest du am ${dateLabel(cycleLastDay,locale)} zusätzlich zurücklegen.`
+            : `fehlen nach allen bekannten Verpflichtungen bis ${dateLabel(cycleLastDay,locale)} noch bis zum Nullpunkt.`}</p>
+        </div>
+        <span class="coach-hero-icon">${icon(coach.additionalSavingsPotential>0?'piggy-bank':'target')}</span>
+      </div>
+      <div class="coach-commitment-row">
+        <div><span>Hauptkonto heute</span><strong>${privacyMoney(coach.primaryBalance,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+        <div><span>Noch geschützt / verplant</span><strong>${privacyMoney(coach.protectedUntilCycleEnd,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+      </div>
+      <p class="card-subtitle">${coach.additionalSavingsPotential>0
+        ? 'Jede weitere variable Ausgabe reduziert diesen Betrag direkt. Wenn du nichts mehr ausgibst, bleibt genau dieses Potenzial für dein Sparen.'
+        : 'Sobald dieser Wert bei null ist, wird jeder weitere freie Franken zu zusätzlichem Sparpotenzial.'}</p>
+      <div class="card-footer-actions">
+        <a class="table-action" href="/planning/goals">Sparziele öffnen</a>
+        <a class="table-action" href="/planning">Planung prüfen</a>
+      </div>
+    </article>
 
     <section class="coach-notice-section">
       <div class="coach-section-head">
