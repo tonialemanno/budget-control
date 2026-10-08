@@ -186,7 +186,7 @@ export function renderIncomePlan({
   const gap=Math.max(0,committed-income);
   if(!(income>0)&&!(committed>0)) return `<div class="chart-empty">${escapeHtml(t('Noch nicht genug Planungsdaten für den Monatsplan.',locale))}</div>`;
 
-  const amount=(value)=>privacy?'•••':money(value,{currency,locale,decimals:0});
+  const amount=(value)=>privacy?'•••':moneyText(value,{currency,locale,decimals:0});
   const percent=(value)=>income>0?Math.round(value/income*100):0;
   const rows=[
     {label:'Fixkosten',value:fixed},
