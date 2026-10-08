@@ -3396,12 +3396,18 @@ async function handleForm(form) {
     const outstandingAmount=numberValue(data,'outstandingAmount');
     const requestedStatus=formValue(data,'status')||'active';
     if (requestedStatus==='paid' && outstandingAmount>0) throw new Error('Status „Bezahlt“ ist nur bei Restschuld 0 möglich.');
+    const startDate=nullValue(data,'startDate');
+    const termMonthsRaw=nullValue(data,'termMonths');
+    const termMonths=termMonthsRaw===null?null:Number(termMonthsRaw);
+    if(termMonths!==null&&(!Number.isInteger(termMonths)||termMonths<1||termMonths>600)) throw new Error('Die Laufzeit muss zwischen 1 und 600 Monaten liegen.');
+    if(termMonths!==null&&!startDate) throw new Error('Für eine Laufzeit in Monaten braucht es ein Beginndatum.');
+    const calculatedEndDate=termMonths!==null?calculateGoalTargetDate(startDate,termMonths):nullValue(data,'endDate');
     const payload={
       debt_type:formValue(data,'debtType'), creditor:formValue(data,'creditor'), name:formValue(data,'name'),
       original_amount:originalAmount, outstanding_amount:outstandingAmount, currency:formValue(data,'currency')||currency,
       interest_rate:numberValue(data,'interestRate'), installment_amount:numberValue(data,'installmentAmount'),
       payment_cadence:formValue(data,'paymentCadence')||'manual', payment_account_id:nullValue(data,'paymentAccountId'),
-      next_payment_date:nullValue(data,'nextPaymentDate'), start_date:nullValue(data,'startDate'), end_date:nullValue(data,'endDate'),
+      next_payment_date:nullValue(data,'nextPaymentDate'), start_date:startDate, term_months:termMonths, end_date:calculatedEndDate,
       status:outstandingAmount===0?'paid':requestedStatus, notes:nullValue(data,'notes'),
     };
     const shouldPlanRate=payload.status==='active'
@@ -5151,7 +5157,9 @@ async function handleAction(target) {
     document.querySelector('#debtEditAccount').value=debt.payment_account_id||'';
     document.querySelector('#debtEditNext').value=debt.next_payment_date||'';
     document.querySelector('#debtEditStart').value=debt.start_date||'';
+    document.querySelector('#debtEditTerm').value=debt.term_months||'';
     document.querySelector('#debtEditEnd').value=debt.end_date||'';
+    document.querySelector('#debtEditEnd').readOnly=Boolean(debt.start_date&&debt.term_months);
     document.querySelector('#debtEditStatus').value=debt.status||'active';
     document.querySelector('#debtEditNotes').value=debt.notes||'';
     const form=document.querySelector('#debt-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
@@ -5325,6 +5333,21 @@ pageContent.addEventListener('input', (event) => {
   }
   if(target?.id==='receiptMerchant' || target?.id==='receiptAmount') {
     syncReceiptSmartCategory();
+    return;
+  }
+  if(['debtCreateStart','debtCreateTerm','debtEditStart','debtEditTerm'].includes(target?.id)) {
+    const create=target.id.startsWith('debtCreate');
+    const start=document.querySelector(create?'#debtCreateStart':'#debtEditStart');
+    const term=document.querySelector(create?'#debtCreateTerm':'#debtEditTerm');
+    const end=document.querySelector(create?'#debtCreateEnd':'#debtEditEnd');
+    const hasSchedule=Boolean(start?.value&&term?.value);
+    if(end) end.readOnly=hasSchedule;
+    if(hasSchedule&&end){
+      try {
+        const calculated=calculateGoalTargetDate(start.value,term.value);
+        if(calculated) end.value=calculated;
+      } catch {}
+    }
     return;
   }
   if(['goalCreateStart','goalCreateDuration','goalEditStart','goalEditDuration'].includes(target?.id)) {
