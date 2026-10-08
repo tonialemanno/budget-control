@@ -220,6 +220,8 @@ export const backend = Object.freeze({
   adminSetModule(payload) { return invokeFunction('admin-users', { body: { action: 'set_module', ...payload } }); },
   adminSetLocale(payload) { return invokeFunction('admin-users', { body: { action: 'set_locale', ...payload } }); },
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },
+  adminDeleteUser(payload) { return invokeFunction('admin-users', { body: { action: 'delete_user', ...payload } }); },
+  deleteOwnAccount(payload) { return invokeFunction('admin-users', { body: { action: 'delete_self', confirmation: 'DELETE', ...payload } }); },
   householdMembers(payload) { return invokeFunction('household-members', { body: payload }); },
   fxRates() { return invokeFunction('fx-rates', { method: 'GET' }); },
 
