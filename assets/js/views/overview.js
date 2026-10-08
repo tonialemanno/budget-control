@@ -6,7 +6,7 @@ import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r57';
 import {
   accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
-  financeCycleSeries, primaryOperatingAccount,
+  financeCycleSeries, historicalSurplusTransferRecord, primaryOperatingAccount,
 } from '../app/finance-insights.js?v=20261008-r57';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
@@ -126,10 +126,15 @@ export function renderOverview({
   const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
   const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
   const savingsPotentialTone=coach.additionalSavingsPotential>0?'positive':'warning';
-  const completedCycles=months.filter((row)=>new Date(row.endExclusive)<=now);
-  const bestCompletedSurplus=completedCycles.length?Math.max(...completedCycles.map((row)=>Number(row.net||0))):null;
-  const currentCycleSurplus=Number(cycleTotals.savings||0);
-  const recordGap=bestCompletedSurplus!==null&&bestCompletedSurplus>0?Math.max(0,bestCompletedSurplus-currentCycleSurplus):null;
+  const surplusRecord=historicalSurplusTransferRecord({
+    transactions,accounts,baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
+  });
+  const bestCompletedSurplus=surplusRecord?.amount??null;
+  const currentRecordCandidate=Math.max(0,Number(coach.additionalSavingsPotential||0));
+  const recordGap=bestCompletedSurplus!==null&&bestCompletedSurplus>0
+    ? Math.max(0,bestCompletedSurplus-currentRecordCandidate)
+    : null;
+  const recordDate=surplusRecord?.occurredAt?shortDate(new Date(surplusRecord.occurredAt),locale):null;
   const halfBudgetSpend=Math.max(0,Number(coach.variableRemaining||0))/2;
   const halfBudgetPotential=Math.max(0,Number(coach.zeroSpendEndBalance||0)-halfBudgetSpend);
 
@@ -250,7 +255,11 @@ export function renderOverview({
           <span class="coach-mini-icon">${icon('sparkles')}</span>
           <span class="coach-mini-label">Persönlicher Überschuss-Rekord</span>
           <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled}):'–'}</strong>
-          <small>${recordGap===null?'Noch kein positiver Vergleichsmonat':recordGap<=0?'Rekord aktuell erreicht':'Noch '+privacyMoney(recordGap,{currency,locale,privacyEnabled})+' bis zum Rekord'}</small>
+          <small>${recordGap===null
+            ? 'Noch kein Monatsüberschuss auf „Überschuss“ gebucht'
+            : recordGap<=0
+              ? `Tatsächlich verschoben · ${recordDate||''} · Rekord wäre aktuell wieder drin`
+              : `Tatsächlich verschoben · ${recordDate||''} · Noch ${privacyMoney(recordGap,{currency,locale,privacyEnabled})} bis zum Rekord`}</small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('piggy-bank')}</span>
