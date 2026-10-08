@@ -126,6 +126,12 @@ export function renderOverview({
   const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
   const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
   const savingsPotentialTone=coach.additionalSavingsPotential>0?'positive':'warning';
+  const completedCycles=months.filter((row)=>new Date(row.endExclusive)<=now);
+  const bestCompletedSurplus=completedCycles.length?Math.max(...completedCycles.map((row)=>Number(row.net||0))):null;
+  const currentCycleSurplus=Number(cycleTotals.savings||0);
+  const recordGap=bestCompletedSurplus!==null&&bestCompletedSurplus>0?Math.max(0,bestCompletedSurplus-currentCycleSurplus):null;
+  const halfBudgetSpend=Math.max(0,Number(coach.variableRemaining||0))/2;
+  const halfBudgetPotential=Math.max(0,Number(coach.zeroSpendEndBalance||0)-halfBudgetSpend);
 
   if(!accounts.length){
     return `
@@ -220,6 +226,40 @@ export function renderOverview({
         <a class="table-action" href="/planning">Planung prüfen</a>
       </div>
     </article>
+
+    <section class="coach-notice-section">
+      <div class="coach-section-head">
+        <div><span class="coach-eyebrow">Deine Motivation</span><h3>Kleine Fortschritte, die man sonst leicht übersieht</h3></div>
+      </div>
+      <div class="coach-mini-grid">
+        <article class="card coach-mini-card">
+          <span class="coach-mini-icon">${icon('check-circle')}</span>
+          <span class="coach-mini-label">No-Spend-Tage</span>
+          <strong>${coach.noSpendDays}</strong>
+          <small>Aktuelle Serie <b>${coach.noSpendStreak} Tage</b></small>
+        </article>
+        <article class="card coach-mini-card">
+          <span class="coach-mini-icon">${icon('target')}</span>
+          <span class="coach-mini-label">${coach.primaryStartBalance<0?'Minus abgebaut':'Hauptkonto seit Finanzmonat'}</span>
+          <strong>${privacyMoney(coach.primaryStartBalance<0?coach.recoveredFromMinus:Math.abs(coach.primaryBalanceChange),{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <small>${coach.primaryStartBalance<0
+            ? `${Math.round(coach.recoveryPercent||0)} % des Startminus aufgeholt`
+            : `${coach.primaryBalanceChange>=0?'Plus':'Minus'} seit Start`}</small>
+        </article>
+        <article class="card coach-mini-card">
+          <span class="coach-mini-icon">${icon('sparkles')}</span>
+          <span class="coach-mini-label">Persönlicher Überschuss-Rekord</span>
+          <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled,decimals:0}):'–'}</strong>
+          <small>${recordGap===null?'Noch kein positiver Vergleichsmonat':recordGap<=0?'Rekord aktuell erreicht':'Noch '+privacyMoney(recordGap,{currency,locale,privacyEnabled,decimals:0})+' bis zum Rekord'}</small>
+        </article>
+        <article class="card coach-mini-card">
+          <span class="coach-mini-icon">${icon('piggy-bank')}</span>
+          <span class="coach-mini-label">Was wäre wenn?</span>
+          <strong>${privacyMoney(halfBudgetPotential,{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <small>${coach.variableRemaining>0?'wenn du nur die Hälfte des offenen variablen Budgets noch nutzt':'ohne weiteres variables Budget bleibt dein aktuelles Sparpotenzial'}</small>
+        </article>
+      </div>
+    </section>
 
     <section class="coach-notice-section">
       <div class="coach-section-head">
