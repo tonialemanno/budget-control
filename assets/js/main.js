@@ -4532,6 +4532,18 @@ async function handleAction(target) {
     return;
   }
   if (action === 'logout') { await logoutCurrentUser(); return; }
+  if (action === 'account-delete-self') {
+    const email=String(target.dataset.userEmail||runtime.user?.email||'').trim();
+    if(!email) throw new Error('Dein Benutzerkonto konnte nicht eindeutig bestimmt werden.');
+    const accepted=confirm(`Konto ${email} wirklich endgültig löschen?\n\nLogin und persönliche ALEMANNO BUCHHALTUNG-Daten werden unwiderruflich entfernt. Diese Aktion kann nicht rückgängig gemacht werden.`);
+    if(!accepted) return;
+    const confirmation=prompt(`Zur endgültigen Bestätigung deine E-Mail-Adresse exakt eingeben:\n${email}`);
+    if(confirmation===null) return;
+    if(confirmation.trim().toLowerCase()!==email.toLowerCase()) throw new Error('Die Bestätigung stimmt nicht mit deiner E-Mail-Adresse überein.');
+    await backend.deleteOwnAccount({confirmationEmail:confirmation.trim()});
+    await logoutCurrentUser({notice:'Dein Konto und deine Daten wurden endgültig gelöscht.'});
+    return;
+  }
   if (action === 'account-set-primary') {
     const account=await savePrimaryAccountPreference(target.dataset.id);
     render();
@@ -5260,6 +5272,24 @@ async function handleAction(target) {
   if (action === 'admin-password') {
     const password=prompt(t('Neues temporäres Passwort (mind. 8 Zeichen):')); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
+  }
+  if (action === 'admin-user-delete') {
+    if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen Benutzer endgültig löschen.');
+    const userId=target.dataset.userId||'';
+    const email=String(target.dataset.userEmail||'').trim();
+    if(!userId||!email) throw new Error('Benutzer konnte nicht eindeutig bestimmt werden.');
+    if(userId===runtime.user?.id) throw new Error('Das eigene Konto bitte über „Mein Profil“ löschen.');
+    const accepted=confirm(`Benutzer ${email} wirklich ENDGÜLTIG löschen?\n\nLogin und persönliche ALEMANNO BUCHHALTUNG-Daten werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.`);
+    if(!accepted) return;
+    const confirmation=prompt(`Zur endgültigen Bestätigung die E-Mail-Adresse exakt eingeben:\n${email}`);
+    if(confirmation===null) return;
+    if(confirmation.trim().toLowerCase()!==email.toLowerCase()) throw new Error('Die Bestätigung stimmt nicht mit der E-Mail-Adresse überein.');
+    await backend.adminDeleteUser({userId,confirmationEmail:confirmation.trim()});
+    runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+    uiState.adminExpandedUserId=null;
+    render();
+    showToast(`Benutzer ${email} wurde endgültig gelöscht.`);
+    return;
   }
   if (action === 'admin-finance-reset') {
     if(!runtime.adminRole) throw new Error('Nur App-Admins dürfen ALEMANNO BUCHHALTUNG-Daten zurücksetzen.');
