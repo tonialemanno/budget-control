@@ -163,6 +163,118 @@ export function applyCategoryRules(tx, rules) {
   return null;
 }
 
+function importRowValue(tx,...keys){
+  const row=tx?.import_raw_data?.row;
+  if(!row||typeof row!=='object') return '';
+  for(const key of keys){
+    const match=Object.keys(row).find((name)=>name.toLowerCase()===String(key).toLowerCase());
+    if(match&&String(row[match]??'').trim()) return String(row[match]).trim();
+  }
+  return '';
+}
+
+export function importContextText(tx){
+  return [
+    tx?.description,
+    tx?.counterparty,
+    importRowValue(tx,'Beschreibung1'),
+    importRowValue(tx,'Beschreibung2'),
+    importRowValue(tx,'Beschreibung3'),
+    tx?.import_raw_data?.raw_text,
+  ].filter(Boolean).join(' · ');
+}
+
+export function cashWithdrawalInfo(tx){
+  const raw=importContextText(tx);
+  if(!/(?:bezug\s+(?:ubs\s+)?bancomat|bargeldbezug\s+am\s+bancomat)/i.test(raw)) return null;
+  const original=raw.match(/kartentransaktionsbetrag\s*:\s*-?\s*([\d'’.,]+)\s*(CHF|EUR|USD|GBP)/i);
+  const foreign=/bargeldbezug\s+am\s+bancomat\s+im\s+ausland/i.test(raw)||Boolean(original&&original[2].toUpperCase()!==(tx?.currency||'CHF'));
+  const originalAmount=original?Math.abs(parseAmount(original[1])||0):null;
+  const originalCurrency=original?.[2]?.toUpperCase()||null;
+  return {
+    foreign,
+    originalAmount:originalAmount||null,
+    originalCurrency,
+    targetCurrency:originalCurrency||(foreign?null:(tx?.currency||'CHF')),
+    sourceAmount:Math.abs(Number(tx?.amount||0)),
+  };
+}
+
+function importDay(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function duplicateDescription(value){
+  return String(value||'')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/\b\d{1,2}[.\-/]\d{1,2}[.\-/]\d{2,4}\b/g,' ')
+    .replace(/\b\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}\b/g,' ')
+    .replace(/\b(?:zahlung|belastung|gutschrift|eingang|ausgang)\s+(?:ubs\s+)?twint\b/g,' ')
+    .replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+}
+
+function duplicateMerchantKey(tx){
+  if(tx?.merchants?.normalized_key) return normalizeMerchantKey(tx.merchants.normalized_key);
+  if(tx?.merchant_key) return normalizeMerchantKey(tx.merchant_key);
+  return merchantFromTransaction(tx)?.key||'';
+}
+
+function strongImportDuplicate(incoming,existing){
+  if(!incoming||!existing||existing.status!=='booked') return false;
+  if(existing.source!=='import'&&!existing.import_batch_id&&!existing.external_reference&&!existing.bank_reference) return false;
+  if(incoming.account_id!==existing.account_id||incoming.currency!==existing.currency) return false;
+  if(importDay(incoming.occurred_at)!==importDay(existing.occurred_at)) return false;
+  if(Math.abs(Number(incoming.amount||0)-Number(existing.amount||0))>=0.005) return false;
+  if(incoming.bank_reference&&existing.bank_reference&&incoming.bank_reference===existing.bank_reference) return true;
+  if(incoming.merchant_id&&existing.merchant_id&&incoming.merchant_id===existing.merchant_id) return true;
+  const leftKey=duplicateMerchantKey(incoming), rightKey=duplicateMerchantKey(existing);
+  if(leftKey&&rightKey&&leftKey===rightKey) return true;
+  const left=duplicateDescription(incoming.description),right=duplicateDescription(existing.description);
+  return left.length>=5&&left===right;
+}
+
+export function filterImportDuplicates(incomingRows=[],existingRows=[]){
+  const used=new Set();
+  const accepted=[];
+  const duplicates=[];
+  for(const incoming of incomingRows){
+    const match=existingRows.find((existing)=>!used.has(existing.id)&&strongImportDuplicate(incoming,existing));
+    if(match){
+      used.add(match.id);
+      duplicates.push({incoming,existing:match});
+    }else accepted.push(incoming);
+  }
+  return {accepted,duplicates};
+}
+
+export function analyzeImportRows(rows=[],mapping={}){
+  const parsed=(rows||[]).map((row)=>rowToTransaction(row,mapping)).filter(Boolean);
+  let bankLike=0,atm=0,salary=0;
+  let minDate=null,maxDate=null;
+  for(const tx of parsed){
+    const raw=importContextText(tx);
+    if(/(?:zahlung|belastung)\s+ubs\s+twint|zahlung\s+debitkarte|bezug\s+(?:ubs\s+)?bancomat|transaktions-nr\.|bargeldbezug\s+am\s+bancomat/i.test(raw)) bankLike+=1;
+    if(cashWithdrawalInfo(tx)) atm+=1;
+    if(/\b(?:lohn|sal[aä]r|gehalt)\b|abacus\s+umantis/i.test(raw)&&Number(tx.amount)>0) salary+=1;
+    const time=new Date(tx.occurred_at).getTime();
+    if(Number.isFinite(time)){
+      minDate=minDate===null?time:Math.min(minDate,time);
+      maxDate=maxDate===null?time:Math.max(maxDate,time);
+    }
+  }
+  return {
+    valid:parsed.length,
+    bankLike,
+    bankRatio:parsed.length?bankLike/parsed.length:0,
+    atm,
+    salary,
+    earliest:minDate===null?null:new Date(minDate).toISOString().slice(0,10),
+    latest:maxDate===null?null:new Date(maxDate).toISOString().slice(0,10),
+  };
+}
+
 export async function transactionFingerprint(accountId, tx) {
   const raw = `${accountId}|${tx.occurred_at}|${Number(tx.amount).toFixed(2)}|${tx.description}|${tx.counterparty || ''}`;
   const bytes = new TextEncoder().encode(raw);
@@ -334,7 +446,14 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Lebensmittel' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
-  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner|take\s*away|burger\s*king|autogrill|pret\s+a\s+manger|irish\s+pub|braceria|pizza)\b/i, name:null, key:null, category:'Restaurant & Café' },
+  { pattern:/\b(?:agrola|socar|avia|bp\s+tankstelle|tankstelle|stazione\s+servizio)\b/i, name:null, key:null, category:'Tanken' },
+  { pattern:/\b(?:penny|alnatura|spar\s+dankt|optima\s+supermarkt|metzgerei|feinkost)\b/i, name:null, key:null, category:'Lebensmittel' },
+  { pattern:/\b(?:rossmann|dm[- ]drogerie|zara|zalando|dosenbach|decathlon|new\s+yorker|chicor[eé]e|h\s*&\s*m|manor|temu|jumbo|wmf)\b/i, name:null, key:null, category:'Shopping' },
+  { pattern:/\b(?:cityparking|parkhaus|parkplatz|parking)\b/i, name:null, key:null, category:'Parken' },
+  { pattern:/\b(?:postauto|\bsob\b)\b/i, name:null, key:null, category:'ÖV' },
+  { pattern:/\b(?:farmacia|apotheke)\b/i, name:null, key:null, category:'Apotheke' },
+  { pattern:/\b(?:zahnarzt|dentist|med\.?\s*dent)\b/i, name:null, key:null, category:'Arzt & Zahnarzt' },
   { pattern:/\b(?:garage|officina|werkstatt|reparatur|riparazione|pneu|reifen)\b/i, name:null, key:null, category:'Wartung & Reparatur' },
   { pattern:/\b(?:noleggio|mietroller|rollermiete|scooter\s*rental|rent\s*a\s*scooter|mietfahrzeug)\b/i, name:null, key:null, category:'Mietfahrzeug' },
   { pattern:/\b(?:blumen|florist|fiori|grabpflege|gedenken)\b/i, name:null, key:null, category:'Geschenke & Gedenken' },
@@ -363,7 +482,7 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
 ]);
 
 export function knownMerchantSuggestion(tx) {
-  const raw=`${tx?.counterparty||''} ${tx?.description||''}`.trim();
+  const raw=importContextText(tx)||`${tx?.counterparty||''} ${tx?.description||''}`.trim();
   const match=KNOWN_MERCHANT_LIBRARY.find((entry)=>entry.pattern.test(raw)) || null;
   if(!match) return null;
   if(match.name&&match.key) return match;
