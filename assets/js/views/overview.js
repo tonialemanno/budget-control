@@ -17,7 +17,7 @@ function privacyMoney(value,{currency,locale,privacyEnabled=false,decimals=0}={}
 }
 
 function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
-  const amount=(value)=>privacyMoney(value,{currency,locale,privacyEnabled,decimals:0});
+  const amount=(value)=>privacyMoney(value,{currency,locale,privacyEnabled});
   if(insight.type==='cash_shortfall'){
     return `<a class="coach-insight coach-insight--negative" href="${insight.href}">
       <span class="coach-insight-icon">${icon('info')}</span>
@@ -157,7 +157,7 @@ export function renderOverview({
         <div class="coach-hero-head">
           <div>
             <span class="coach-eyebrow">Bis zum nächsten Lohn frei</span>
-            <div class="coach-free-value">${privacyMoney(coach.freeUntilIncome,{currency,locale,privacyEnabled,decimals:0})}</div>
+            <div class="coach-free-value">${privacyMoney(coach.freeUntilIncome,{currency,locale,privacyEnabled})}</div>
             <p class="coach-status-copy">
               <span>Hauptkonto</span> <strong>${escapeHtml(primaryAccount?.name||'Operatives Konto')}</strong>
               <span>· Finanzmonat</span> <strong>${escapeHtml(cycleLabel)}</strong>
@@ -166,8 +166,8 @@ export function renderOverview({
           <span class="coach-hero-icon">${icon('sparkles')}</span>
         </div>
         <div class="coach-commitment-row">
-          <div><span>Aktueller Kontostand</span><strong>${privacyEnabled?'•••':money(primaryAccount?.current_balance||0,{currency:primaryAccount?.currency||currency,locale,decimals:0})}</strong></div>
-          <div><span>Noch verplant</span><strong>${privacyMoney(coach.commitmentsRemaining,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+          <div><span>Aktueller Kontostand</span><strong>${privacyEnabled?'•••':money(primaryAccount?.current_balance||0,{currency:primaryAccount?.currency||currency,locale})}</strong></div>
+          <div><span>Noch verplant</span><strong>${privacyMoney(coach.commitmentsRemaining,{currency,locale,privacyEnabled})}</strong></div>
         </div>
         <div class="coach-primary-actions">
           <a class="action-button action-button--primary" href="#/transactions?create=expense">${icon('plus')} Ausgabe</a>
@@ -186,19 +186,19 @@ export function renderOverview({
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('wallet')}</span>
           <span class="coach-mini-label">Frei pro Tag</span>
-          <strong>${privacyMoney(coach.dailyAllowance,{currency,locale,privacyEnabled,decimals:0})}</strong>
-          <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled,decimals:0})}</small>
+          <strong>${privacyMoney(coach.dailyAllowance,{currency,locale,privacyEnabled})}</strong>
+          <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled})}</small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('shield')}</span>
           <span class="coach-mini-label">Fix & reserviert</span>
-          <strong>${privacyMoney(coach.fixedRemaining+coach.reserveRemaining+coach.transferRemaining,{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <strong>${privacyMoney(coach.fixedRemaining+coach.reserveRemaining+coach.transferRemaining,{currency,locale,privacyEnabled})}</strong>
           <small>bis zum nächsten Finanzmonat</small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('target')}</span>
           <span class="coach-mini-label">Variables Budget offen</span>
-          <strong>${privacyMoney(coach.variableRemaining,{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <strong>${privacyMoney(coach.variableRemaining,{currency,locale,privacyEnabled})}</strong>
           <small><b>${budget.count}</b> <span>aktive Budgetrahmen</span></small>
         </article>
       </div>
@@ -209,14 +209,14 @@ export function renderOverview({
         <div>
           <span class="coach-eyebrow">${coach.additionalSavingsPotential>0?'Zusätzliches Sparpotenzial':'Auf dem Weg zum Monatsüberschuss'}</span>
           <h3 class="card-title">${coach.additionalSavingsPotential>0?'Wenn du ab jetzt nichts mehr zusätzlich ausgibst':'Erst zurück auf null, dann wird jeder freie Franken Sparpotenzial'}</h3>
-          <div class="coach-free-value">${privacyMoney(coach.additionalSavingsPotential>0?coach.additionalSavingsPotential:coach.recoveryToZero,{currency,locale,privacyEnabled,decimals:0})}</div>
+          <div class="coach-free-value">${privacyMoney(coach.additionalSavingsPotential>0?coach.additionalSavingsPotential:coach.recoveryToZero,{currency,locale,privacyEnabled})}</div>
           <p class="coach-status-copy"><span>${coach.additionalSavingsPotential>0?'Zusätzlich zurücklegbar am':'Noch bis zum Nullpunkt am'}</span> <strong>${dateLabel(cycleLastDay,locale)}</strong></p>
         </div>
         <span class="coach-hero-icon">${icon(coach.additionalSavingsPotential>0?'piggy-bank':'target')}</span>
       </div>
       <div class="coach-commitment-row">
-        <div><span>Hauptkonto heute</span><strong>${privacyMoney(coach.primaryBalance,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
-        <div><span>Noch geschützt / verplant</span><strong>${privacyMoney(coach.protectedUntilCycleEnd,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+        <div><span>Hauptkonto heute</span><strong>${privacyMoney(coach.primaryBalance,{currency,locale,privacyEnabled})}</strong></div>
+        <div><span>Noch geschützt / verplant</span><strong>${privacyMoney(coach.protectedUntilCycleEnd,{currency,locale,privacyEnabled})}</strong></div>
       </div>
       <p class="card-subtitle">${coach.additionalSavingsPotential>0
         ? 'Jede weitere variable Ausgabe reduziert diesen Betrag direkt. Wenn du nichts mehr ausgibst, bleibt genau dieses Potenzial für dein Sparen.'
@@ -241,7 +241,7 @@ export function renderOverview({
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('target')}</span>
           <span class="coach-mini-label">${coach.primaryStartBalance<0?'Minus abgebaut':'Hauptkonto seit Finanzmonat'}</span>
-          <strong>${privacyMoney(coach.primaryStartBalance<0?coach.recoveredFromMinus:Math.abs(coach.primaryBalanceChange),{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <strong>${privacyMoney(coach.primaryStartBalance<0?coach.recoveredFromMinus:Math.abs(coach.primaryBalanceChange),{currency,locale,privacyEnabled})}</strong>
           <small>${coach.primaryStartBalance<0
             ? `${Math.round(coach.recoveryPercent||0)} % des Startminus aufgeholt`
             : `${coach.primaryBalanceChange>=0?'Plus':'Minus'} seit Start`}</small>
@@ -249,13 +249,13 @@ export function renderOverview({
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('sparkles')}</span>
           <span class="coach-mini-label">Persönlicher Überschuss-Rekord</span>
-          <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled,decimals:0}):'–'}</strong>
-          <small>${recordGap===null?'Noch kein positiver Vergleichsmonat':recordGap<=0?'Rekord aktuell erreicht':'Noch '+privacyMoney(recordGap,{currency,locale,privacyEnabled,decimals:0})+' bis zum Rekord'}</small>
+          <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled}):'–'}</strong>
+          <small>${recordGap===null?'Noch kein positiver Vergleichsmonat':recordGap<=0?'Rekord aktuell erreicht':'Noch '+privacyMoney(recordGap,{currency,locale,privacyEnabled})+' bis zum Rekord'}</small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('piggy-bank')}</span>
           <span class="coach-mini-label">Was wäre wenn?</span>
-          <strong>${privacyMoney(halfBudgetPotential,{currency,locale,privacyEnabled,decimals:0})}</strong>
+          <strong>${privacyMoney(halfBudgetPotential,{currency,locale,privacyEnabled})}</strong>
           <small>${coach.variableRemaining>0?'wenn du nur die Hälfte des offenen variablen Budgets noch nutzt':'ohne weiteres variables Budget bleibt dein aktuelles Sparpotenzial'}</small>
         </article>
       </div>
@@ -289,9 +289,9 @@ export function renderOverview({
           <div class="budget-coach-value"><strong>${Math.round(budget.rawPercent||0)}%</strong><span>verbraucht</span></div>
           <div class="budget-coach-track"><span style="--budget-coach-progress:${Math.min(100,Math.max(0,budget.rawPercent||0))}%"></span></div>
           <div class="budget-coach-stats">
-            <div><span>Rahmen</span><strong>${privacyMoney(budget.total,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
-            <div><span>Ausgegeben</span><strong>${privacyMoney(budget.spent,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
-            <div><span>Noch verfügbar</span><strong>${privacyMoney(budget.remaining,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+            <div><span>Rahmen</span><strong>${privacyMoney(budget.total,{currency,locale,privacyEnabled})}</strong></div>
+            <div><span>Ausgegeben</span><strong>${privacyMoney(budget.spent,{currency,locale,privacyEnabled})}</strong></div>
+            <div><span>Noch verfügbar</span><strong>${privacyMoney(budget.remaining,{currency,locale,privacyEnabled})}</strong></div>
           </div>
         </div>
         ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budgetrahmen festlegen</a>':''}
@@ -322,15 +322,15 @@ export function renderOverview({
         <button class="card-link card-link--button" type="button" data-action="overview-drilldown-income" data-kind="earned">Alle Verdienste</button>
       </div>
       <div class="income-summary-grid">
-        <div class="income-summary-total"><span>Verdient</span><strong>${privacyMoney(annualIncome.earnedTotal,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
+        <div class="income-summary-total"><span>Verdient</span><strong>${privacyMoney(annualIncome.earnedTotal,{currency,locale,privacyEnabled})}</strong></div>
         <div class="income-source-list">
           ${annualIncome.sources.length?annualIncome.sources.map((row)=>`<button class="income-source-row" type="button" data-action="overview-drilldown-income" data-source="${escapeHtml(row.label)}" data-sources="${escapeHtml((row.sourceNames||[row.label]).join('||'))}" data-transaction-ids="${escapeHtml((row.transactionIds||[]).join(','))}"><span>${escapeHtml(row.label)}</span><strong>${privacyMoney(row.value,{currency,locale,privacyEnabled})}</strong></button>`).join(''):'<div class="table-empty">Noch keine als Verdienst klassifizierten Einnahmen.</div>'}
         </div>
       </div>
       <div class="income-classification-strip">
-        <button type="button" data-action="overview-drilldown-income" data-kind="refund"><span>Rückerstattungen</span><strong>${privacyMoney(annualIncome.refunds,{currency,locale,privacyEnabled,decimals:0})}</strong></button>
-        <button type="button" data-action="overview-drilldown-income" data-kind="repayment"><span>Rückzahlungen</span><strong>${privacyMoney(annualIncome.repayments,{currency,locale,privacyEnabled,decimals:0})}</strong></button>
-        <button type="button" data-action="overview-drilldown-income" data-kind="unclassified" class="${annualIncome.unclassified>0?'needs-review':''}"><span>Ungeklärt</span><strong>${privacyMoney(annualIncome.unclassified,{currency,locale,privacyEnabled,decimals:0})}</strong></button>
+        <button type="button" data-action="overview-drilldown-income" data-kind="refund"><span>Rückerstattungen</span><strong>${privacyMoney(annualIncome.refunds,{currency,locale,privacyEnabled})}</strong></button>
+        <button type="button" data-action="overview-drilldown-income" data-kind="repayment"><span>Rückzahlungen</span><strong>${privacyMoney(annualIncome.repayments,{currency,locale,privacyEnabled})}</strong></button>
+        <button type="button" data-action="overview-drilldown-income" data-kind="unclassified" class="${annualIncome.unclassified>0?'needs-review':''}"><span>Ungeklärt</span><strong>${privacyMoney(annualIncome.unclassified,{currency,locale,privacyEnabled})}</strong></button>
       </div>
     </article>
 
@@ -338,12 +338,12 @@ export function renderOverview({
       <div class="card-heading"><div><h3 class="card-title">Deine Geldtöpfe</h3><p class="card-subtitle">Hauptkonto, Sparkonten und Bargeld bleiben getrennt. Nur das Hauptkonto bestimmt den täglichen freien Rahmen.</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
       <div class="insight-list insight-list--accounts">
         ${accountRows.length
-          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale,decimals:0}),row.share,row.account.currency)).join('')
+          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale}),row.share,row.account.currency)).join('')
           : '<div class="table-empty">Noch keine liquiden Konten.</div>'}
       </div>
       <div class="coach-account-summary">
-        <span>Andere liquide Konten <strong>${privacyMoney(otherLiquid,{currency,locale,privacyEnabled,decimals:0})}</strong></span>
-        <span>Nettovermögen <strong>${privacyMoney(snapshot.netWorth,{currency,locale,privacyEnabled,decimals:0})}</strong></span>
+        <span>Andere liquide Konten <strong>${privacyMoney(otherLiquid,{currency,locale,privacyEnabled})}</strong></span>
+        <span>Nettovermögen <strong>${privacyMoney(snapshot.netWorth,{currency,locale,privacyEnabled})}</strong></span>
         <span>Sparquote Finanzmonat <strong>${Math.round(cycleTotals.savingsRate)}%</strong></span>
       </div>
     </article>
