@@ -1,5 +1,18 @@
 # Finance 2.4.6
 
+## R56 – Ehrliche Entwicklung & klarer Monatsplan
+
+- „Deine Entwicklung“ unterscheidet neu zwischen vollständiger Historie, teilweiser Historie und fehlenden Daten.
+- Fehlende historische Daten werden nicht mehr fälschlich als CHF 0 Einkommen dargestellt.
+- Finanzmonate werden auf der Achse als Zeitraum wie „Jul/Aug“ gezeigt, passend zum 25.–24.-Zyklus.
+- Die bisherige Sankey-Grafik „Wo dein Einkommen hingeht“ wurde aus der Übersicht entfernt.
+- Neu zeigt „Was von deinem Einkommen bleibt“ eine einfache Rechnung: geplantes Einkommen minus Fixkosten, Sparen/Rücklagen und variable Planung ergibt den voraussichtlich freien Betrag.
+- Italienische und englische Übersetzungen für die neuen Dashboard-Texte ergänzt.
+- Keine Datenbankänderung gegenüber R55.
+- Release 2026.10.08-r56.
+
+# Finance 2.4.6
+
 ## R55 – Motivation & konsistente Übersetzungen
 
 - Übersicht um einen eigenen Motivationsbereich erweitert.
