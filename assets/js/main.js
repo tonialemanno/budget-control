@@ -6,7 +6,7 @@ import { financeApi } from './app/finance-api.js?v=20261008-r52';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js?v=20261008-r57';
 import { setLocale, t, translateElement } from './app/i18n.js?v=20261008-r57';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
+import { analyzeImportRows, cashWithdrawalInfo, filterImportDuplicates, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js?v=20261008-r58';
 import { parseImportFile } from './app/import-file.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
@@ -1751,6 +1751,50 @@ function importedTransferCounterpart(tx,otherAccountId,allTransactions=[]) {
   return matches.length===1?matches[0]:null;
 }
 
+function cashAccountForWithdrawal(tx,info=cashWithdrawalInfo(tx)){
+  if(!tx||!info) return null;
+  const targetCurrency=info.targetCurrency||(info.foreign?null:tx.currency);
+  if(!targetCurrency) return null;
+  const candidates=runtime.accounts.filter((account)=>
+    account.account_id!==tx.account_id
+    && account.account_type==='cash'
+    && account.currency===targetCurrency
+    && account.is_archived!==true
+  );
+  if(!candidates.length) return null;
+  return candidates.find((account)=>/bargeld|kasse|cash/i.test(account.name||''))||candidates[0];
+}
+
+async function reconcileImportedCashWithdrawals(insertedRows=[]){
+  let linked=0;
+  let review=0;
+  for(const tx of insertedRows){
+    if(!tx||tx.transfer_group_id) continue;
+    const info=cashWithdrawalInfo(tx);
+    if(!info) continue;
+    const otherAccount=cashAccountForWithdrawal(tx,info);
+    if(!otherAccount){ review+=1; continue; }
+    const crossCurrency=otherAccount.currency!==tx.currency;
+    const otherAmount=crossCurrency?info.originalAmount:null;
+    if(crossCurrency&&(!otherAmount||otherAmount<=0)){ review+=1; continue; }
+    await financeApi.convertTransactionToTransferV2({
+      householdId:runtime.household.id,
+      transactionId:tx.id,
+      otherAccountId:otherAccount.account_id,
+      amount:Math.abs(Number(tx.amount)),
+      otherAmount,
+      otherTransactionId:null,
+      occurredAt:tx.occurred_at,
+      description:info.foreign
+        ? `Bargeldbezug ${otherAccount.currency} · ${tx.description||'Bancomat'}`
+        : `Bargeldbezug · ${tx.description||'Bancomat'}`,
+      note:crossCurrency?'Automatisch aus Bankimport erkannt. Originalbetrag aus dem Kontoauszug übernommen.':'Automatisch aus Bankimport erkannt.',
+    });
+    linked+=1;
+  }
+  return {linked,review};
+}
+
 async function reconcileImportedOwnTransfers(insertedRows=[]) {
   let linked=0;
   const known=[...runtime.transactions,...insertedRows];
@@ -1800,18 +1844,38 @@ function renderImportReview() {
       if (!tx) continue;
       validRows+=1;
       const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId);
+      const cashInfo=cashWithdrawalInfo(tx);
+      const cashAccount=cashAccountForWithdrawal({...tx,account_id:importAccountId,currency:importAccount?.currency||currency},cashInfo);
+      const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
+      const cashNeedsAmount=Boolean(cashInfo&&cashInfo.foreign&&!cashInfo.originalAmount);
       const merchant = merchantFromTransaction(tx);
-      const existing = ownCounterAccount?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-      const knownCategoryNames=ownCounterAccount?[]:suggestKnownCategoryCandidates(tx);
+      const existing = (ownCounterAccount||autoCash)?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const knownCategoryNames=(ownCounterAccount||autoCash)?[]:suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
       const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,tx);
-      const categoryId = ownCounterAccount?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
+      const categoryId = (ownCounterAccount||autoCash)?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
       const fromName=Number(tx.amount)<0?(importAccount?.name||'Importkonto'):(ownCounterAccount?.name||'eigenes Konto');
       const toName=Number(tx.amount)<0?(ownCounterAccount?.name||'eigenes Konto'):(importAccount?.name||'Importkonto');
-      const groupKey=ownCounterAccount?`own-transfer:${ownCounterAccount.account_id}`:(existing?.normalized_key||merchant.key);
+      const groupKey=ownCounterAccount
+        ? `own-transfer:${ownCounterAccount.account_id}`
+        : autoCash
+          ? `cash-transfer:${cashAccount.account_id}`
+          : cashNeedsAmount
+            ? 'cash-transfer:foreign-review'
+            : (existing?.normalized_key||merchant.key);
       const group = groups.get(groupKey) || {
-        merchant:{...merchant,name:ownCounterAccount?`Eigene Umbuchung: ${fromName} → ${toName}`:(existing?.name||merchant.name),key:groupKey},
-        rows:[], total:0, categoryId, isTransfer:Boolean(ownCounterAccount)
+        merchant:{
+          ...merchant,
+          name:ownCounterAccount
+            ? `Eigene Umbuchung: ${fromName} → ${toName}`
+            : autoCash
+              ? `Bargeldbezug: ${importAccount?.name||'Importkonto'} → ${cashAccount.name}`
+              : cashNeedsAmount
+                ? 'Bargeldbezug Ausland · Originalbetrag prüfen'
+                : (existing?.name||merchant.name),
+          key:groupKey
+        },
+        rows:[], total:0, categoryId, isTransfer:Boolean(ownCounterAccount||autoCash), needsReview:cashNeedsAmount
       };
       group.rows.push(tx); group.total += Number(tx.amount);
       if (!group.categoryId && categoryId) group.categoryId = categoryId;
@@ -1821,7 +1885,7 @@ function renderImportReview() {
   const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
     const options = runtime.categories.filter((c)=>c.kind===kind).map((c)=>`<option value="${c.id}" ${c.id===group.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
-    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':''}</span></div>${group.isTransfer?'<span class="status-pill status-pill--active">Eigene Umbuchung</span>':`<select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select>`}</div>`;
+    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':''}</span></div>${group.isTransfer?'<span class="status-pill status-pill--active">Umbuchung</span>':group.needsReview?'<span class="status-pill status-pill--warning">Prüfen</span>':`<select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select>`}</div>`;
   }).join('');
   const warning=unmappedFiles?` · ${unmappedFiles} Datei${unmappedFiles===1?'':'en'} mit abweichenden Spalten bitte prüfen`:'';
   host.innerHTML = `<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
@@ -3797,6 +3861,16 @@ async function handleForm(form) {
     if (!account) throw new Error('Zielkonto wurde nicht gefunden.');
     const preferredMapping = importMappingFromForm(form);
     if (!validImportMapping(preferredMapping)) throw new Error('Datum, Beschreibung und Betragsspalten müssen zugeordnet sein.');
+    const profiles=importState.items.map((item)=>{
+      const mapping=importMappingForParsed(item.parsed,preferredMapping);
+      return validImportMapping(mapping)?{file:item.file.name,...analyzeImportRows(item.parsed.rows,mapping)}:null;
+    }).filter(Boolean);
+    if(account.account_type==='cash'){
+      const suspicious=profiles.find((profile)=>profile.valid>=20&&profile.bankRatio>=0.25);
+      if(suspicious){
+        throw new Error(`${suspicious.file} sieht wie ein Bankkontoauszug aus (${suspicious.bankLike} von ${suspicious.valid} Buchungen mit Bankmerkmalen, ${suspicious.earliest||'?'}–${suspicious.latest||'?'}). Als Ziel ist aber „${account.name}“ (Bargeld) gewählt. Bitte das richtige Bankkonto wählen.`);
+      }
+    }
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
     const remember = data.get('rememberMerchants') === 'on';
     const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
@@ -3806,6 +3880,10 @@ async function handleForm(form) {
     let skippedTotal=0;
     let completedFiles=0;
     let linkedTransfers=0;
+    let linkedCashWithdrawals=0;
+    let cashWithdrawalsToReview=0;
+    let semanticDuplicates=0;
+    const importDuplicatePool=[...runtime.transactions];
     const failedFiles=[];
 
     for (const item of importState.items) {
@@ -3829,23 +3907,26 @@ async function handleForm(form) {
           const tx = rowToTransaction(row,mapping);
           if (!tx) continue;
           const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId);
+          const cashInfo=cashWithdrawalInfo({...tx,account_id:accountId,currency:account.currency||currency});
+          const cashAccount=cashAccountForWithdrawal({...tx,account_id:accountId,currency:account.currency||currency},cashInfo);
+          const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
           const merchantInfo = merchantFromTransaction(tx);
-          let merchant = ownCounterAccount ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          let merchant = (ownCounterAccount||autoCash) ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
           const groupKey=merchant?.normalized_key||merchantInfo.key;
-          const selectedCategory = ownCounterAccount ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
-          const knownCategoryNames=ownCounterAccount?[]:suggestKnownCategoryCandidates(tx);
+          const selectedCategory = (ownCounterAccount||autoCash) ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
+          const knownCategoryNames=(ownCounterAccount||autoCash)?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
           const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
           const fallbackCategory = ownCounterAccount ? null : (merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
           const categoryId = selectedCategory || fallbackCategory;
-          if (!ownCounterAccount && !merchant) {
+          if (!ownCounterAccount && !autoCash && !merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-          } else if (!ownCounterAccount && remember && categoryId && merchant?.default_category_id !== categoryId) {
+          } else if (!ownCounterAccount && !autoCash && remember && categoryId && merchant?.default_category_id !== categoryId) {
             merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
           }
-          if(!ownCounterAccount && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+          if(!ownCounterAccount && !autoCash && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
             const alias=await financeApi.upsertMerchantAlias({
               household_id:h,
               merchant_id:merchant.id,
@@ -3885,9 +3966,15 @@ async function handleForm(form) {
             external_reference:externalReference
           });
         }
-        const inserted = prepared.length ? await financeApi.importTransactions(prepared) : [];
+        const duplicateResult=filterImportDuplicates(prepared,importDuplicatePool);
+        semanticDuplicates+=duplicateResult.duplicates.length;
+        const inserted = duplicateResult.accepted.length ? await financeApi.importTransactions(duplicateResult.accepted) : [];
         if (inserted.some((row)=>row.import_batch_id!==batch.id)) throw new Error('Import-Zuordnung konnte nicht vollständig gespeichert werden.');
         linkedTransfers+=await reconcileImportedOwnTransfers(inserted);
+        const cashResult=await reconcileImportedCashWithdrawals(inserted);
+        linkedCashWithdrawals+=cashResult.linked;
+        cashWithdrawalsToReview+=cashResult.review;
+        importDuplicatePool.push(...inserted);
         const skippedCount=Math.max(0,item.parsed.rows.length-inserted.length);
         await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
         importedTotal+=inserted.length;
@@ -3902,7 +3989,7 @@ async function handleForm(form) {
     importState.items=[];
     uiState.importQuery=''; uiState.importCategory='all';
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
-    await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}`);
+    await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${semanticDuplicates?` Davon ${semanticDuplicates} bereits vorhandene Bankbuchung${semanticDuplicates===1?'':'en'} aus einem anderen Importformat erkannt.`:''}${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}${linkedCashWithdrawals?` ${linkedCashWithdrawals} Bargeldbezug${linkedCashWithdrawals===1?'':'e'} automatisch als Umbuchung verbunden.`:''}${cashWithdrawalsToReview?` ${cashWithdrawalsToReview} Auslands-Bargeldbezug${cashWithdrawalsToReview===1?'':'e'} ohne eindeutigen Originalbetrag bitte prüfen.`:''}`);
     if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
     return;
   }
