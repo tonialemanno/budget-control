@@ -61,6 +61,10 @@ assert.equal(coach.recoveryToZero,0);
 assert.equal(coach.daysRemaining,20);
 assert.equal(coach.dailyAllowance,20);
 assert.equal(coach.weeklyAllowance,140);
+assert.equal(coach.noSpendDays,11);
+assert.equal(coach.noSpendStreak,11);
+assert.equal(coach.primaryStartBalance,1000);
+assert.equal(coach.primaryBalanceChange,0);
 assert.equal(coach.flow.income,2000);
 assert.equal(coach.flow.fixed,200);
 assert.equal(coach.flow.reserves,100);
@@ -152,6 +156,30 @@ const coachRecovering=buildFinanceCoach({
 });
 assert.equal(coachRecovering.additionalSavingsPotential,0);
 assert.equal(coachRecovering.recoveryToZero,150);
+assert.equal(coachRecovering.recoveredFromMinus,0);
+
+const coachWithRecoveryProgress=buildFinanceCoach({
+  snapshot:{...snapshot,cash:-150},
+  primaryAccount:{...primaryAccount,current_balance:-150},
+  accounts:[{...primaryAccount,current_balance:-150}],
+  transactions:[{
+    id:'recovery-income',status:'booked',account_id:'main',category_id:null,merchant_id:null,
+    amount:100,currency:'CHF',occurred_at:'2026-10-02T12:00:00Z',
+    description:'Recovery',transfer_group_id:null,
+  }],
+  bills:[],
+  debtPayments:[],
+  recurringRules:[],
+  budgets:[],
+  categories:[],
+  merchants:[],
+  household:{base_currency:'CHF'},
+  fxRates:null,
+  now,
+});
+assert.equal(coachWithRecoveryProgress.primaryStartBalance,-250);
+assert.equal(coachWithRecoveryProgress.recoveredFromMinus,100);
+assert.equal(Math.round(coachWithRecoveryProgress.recoveryPercent),40);
 
 const categories=[{id:'food',name:'Lebensmittel',kind:'expense',parent_id:null}];
 const budgets=[{
@@ -192,6 +220,10 @@ assert.match(overview,/Frei pro Tag/);
 assert.match(overview,/Zusätzliches Sparpotenzial/);
 assert.match(overview,/Auf dem Weg zum Monatsüberschuss/);
 assert.match(overview,/Sobald dieser Wert bei null ist/);
+assert.match(overview,/Deine Motivation/);
+assert.match(overview,/No-Spend-Tage/);
+assert.match(overview,/Persönlicher Überschuss-Rekord/);
+assert.match(overview,/Was wäre wenn\?/);
 
 const transactionView=fs.readFileSync(new URL('../assets/js/views/transactions.js',import.meta.url),'utf8');
 assert.match(transactionView,/transactionCreateBudgetCoach/);
