@@ -1,5 +1,21 @@
 # Finance 2.4.6
 
+## R57 – Stabilität, echte Lohnzyklen & Datenhoheit
+
+- „Deine Entwicklung“ verwendet bei einem monatlichen Lohn neu die tatsächlich gebuchten Hauptlohn-Termine als Finanzzyklusgrenzen. Schwankende Auszahlungstage rund um den 25. erzeugen dadurch keine künstlichen Null- oder Doppel-Lohn-Monate mehr.
+- Zusätzliche echte Einnahmen innerhalb eines Lohnzyklus bleiben vollständig enthalten.
+- Geldbeträge in Dashboard, Planung und Budget verwenden konsequent mindestens zwei Dezimalstellen; signierte CHF-Beträge erhalten einen ruhigen Abstand, z. B. `CHF -9.00`.
+- Einkommens-Drilldowns arbeiten mit den exakten zugrunde liegenden Transaktions-IDs. Auch aggregierte „Sonstige Verdienste“ öffnen dadurch die tatsächlich bearbeitbaren Buchungen.
+- Schulden & Kredite unterstützen wie Sparziele eine Laufzeit in Monaten. Start + Laufzeit berechnet das Enddatum automatisch.
+- App-Admins können Benutzer nach E-Mail-Bestätigung endgültig löschen. Benutzer können ihr eigenes Konto samt persönlichen Finanzdaten unter „Mein Profil“ endgültig löschen.
+- Gemeinsame Haushalte sind gegen versehentliche Komplettlöschung geschützt; Eigentum und Mitgliedschaften müssen zuerst geklärt werden.
+- Der Demo-Datensatz enthält zusätzliche Historie, drei geplante Sparziele, eine 36-Monats-Kreditlaufzeit und ausschließlich nicht-negative Kontostände.
+- Demo-Reset stellt diesen erweiterten Zustand automatisch wieder her.
+- Lösch-/Demo-RPCs sind ausschließlich für den serverseitigen Service-Zugriff freigegeben.
+- Schema 2026100802, Release 2026.10.08-r57.
+
+# Finance 2.4.6
+
 ## R56 – Ehrliche Entwicklung & klarer Monatsplan
 
 - „Deine Entwicklung“ unterscheidet neu zwischen vollständiger Historie, teilweiser Historie und fehlenden Daten.
