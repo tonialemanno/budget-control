@@ -1849,11 +1849,11 @@ function renderImportReview() {
       const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
       const cashNeedsAmount=Boolean(cashInfo&&cashInfo.foreign&&!cashInfo.originalAmount);
       const merchant = merchantFromTransaction(tx);
-      const existing = (ownCounterAccount||autoCash)?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
-      const knownCategoryNames=(ownCounterAccount||autoCash)?[]:suggestKnownCategoryCandidates(tx);
+      const existing = (ownCounterAccount||cashInfo)?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-      const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,tx);
-      const categoryId = (ownCounterAccount||autoCash)?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
+      const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,tx);
+      const categoryId = (ownCounterAccount||cashInfo)?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
       const fromName=Number(tx.amount)<0?(importAccount?.name||'Importkonto'):(ownCounterAccount?.name||'eigenes Konto');
       const toName=Number(tx.amount)<0?(ownCounterAccount?.name||'eigenes Konto'):(importAccount?.name||'Importkonto');
       const groupKey=ownCounterAccount
@@ -3911,22 +3911,22 @@ async function handleForm(form) {
           const cashAccount=cashAccountForWithdrawal({...tx,account_id:accountId,currency:account.currency||currency},cashInfo);
           const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
           const merchantInfo = merchantFromTransaction(tx);
-          let merchant = (ownCounterAccount||autoCash) ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          let merchant = (ownCounterAccount||cashInfo) ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
           const groupKey=merchant?.normalized_key||merchantInfo.key;
-          const selectedCategory = (ownCounterAccount||autoCash) ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
-          const knownCategoryNames=(ownCounterAccount||autoCash)?[]:suggestKnownCategoryCandidates(tx);
+          const selectedCategory = (ownCounterAccount||cashInfo) ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
+          const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
-          const mlPrediction=ownCounterAccount?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
-          const fallbackCategory = ownCounterAccount ? null : (merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
+          const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
+          const fallbackCategory = (ownCounterAccount||cashInfo) ? null : (merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
           const categoryId = selectedCategory || fallbackCategory;
-          if (!ownCounterAccount && !autoCash && !merchant) {
+          if (!ownCounterAccount && !cashInfo && !merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
-          } else if (!ownCounterAccount && !autoCash && remember && categoryId && merchant?.default_category_id !== categoryId) {
+          } else if (!ownCounterAccount && !cashInfo && remember && categoryId && merchant?.default_category_id !== categoryId) {
             merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
             if (merchant) merchantCache.set(merchant.normalized_key,merchant);
           }
-          if(!ownCounterAccount && !autoCash && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
+          if(!ownCounterAccount && !cashInfo && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
             const alias=await financeApi.upsertMerchantAlias({
               household_id:h,
               merchant_id:merchant.id,
@@ -3936,7 +3936,7 @@ async function handleForm(form) {
             });
             if(alias && !aliasCache.some((row)=>row.id===alias.id)) aliasCache.push(alias);
           }
-          const recurringRule=findMatchingRecurringRule({
+          const recurringRule=(ownCounterAccount||cashInfo)?null:findMatchingRecurringRule({
             ...tx,
             account_id:accountId,
             category_id:categoryId,
