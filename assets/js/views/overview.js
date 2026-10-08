@@ -10,7 +10,7 @@ import {
 } from '../app/finance-insights.js';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
-import { renderCashflowChart, renderExpenseDonut, renderMoneyFlow } from '../app/charts.js';
+import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r56';
 
 function privacyMoney(value,{currency,locale,privacyEnabled=false,decimals=0}={}){
   return privacyEnabled?'•••':money(value,{currency,locale,decimals});
@@ -272,12 +272,12 @@ export function renderOverview({
     </section>
 
     <div class="coach-analysis-grid">
-      <article class="card card-padding money-flow-card">
+      <article class="card card-padding income-plan-card">
         <div class="card-heading">
-          <div><h3 class="card-title">Wo dein Einkommen hingeht</h3><p class="card-subtitle">Geplanter Geldfluss eines Finanzmonats. Umbuchungen und Rücklagen werden nicht als Konsumausgaben gezählt.</p></div>
+          <div><h3 class="card-title">Was von deinem Einkommen bleibt</h3><p class="card-subtitle">Eine klare Rechnung aus deinem aktuellen Monatsplan – ohne Flussdiagramm.</p></div>
           <a class="card-link" href="#/planning">Planung</a>
         </div>
-        ${renderMoneyFlow({flow:coach.flow,currency,locale,privacy:privacyEnabled})}
+        ${renderIncomePlan({flow:coach.flow,currency,locale,privacy:privacyEnabled})}
       </article>
 
       <article class="card card-padding budget-coach-card">
