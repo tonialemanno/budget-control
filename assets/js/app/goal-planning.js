@@ -79,3 +79,19 @@ export function goalStartsInFuture(goal,{now=new Date()}={}) {
   const today=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
   return start>today;
 }
+
+
+export function projectedGoalAmount({currentAmount=0,plannedMonthly=0,months=0}={}) {
+  const current=Number(currentAmount||0);
+  const monthly=Number(plannedMonthly||0);
+  const duration=Number(months||0);
+  if(!Number.isFinite(current)||!Number.isFinite(monthly)||!Number.isFinite(duration)||duration<0) return null;
+  return current+(monthly*duration);
+}
+
+export function projectedGoalGap({targetAmount=0,currentAmount=0,plannedMonthly=0,months=0}={}) {
+  const projected=projectedGoalAmount({currentAmount,plannedMonthly,months});
+  const target=Number(targetAmount||0);
+  if(projected===null||!Number.isFinite(target)) return null;
+  return target-projected;
+}
