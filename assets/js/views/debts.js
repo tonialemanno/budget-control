@@ -48,6 +48,7 @@ function debtFields(accounts, currency, { edit = false } = {}) {
     <label class="field"><span>Standard-Zahlungskonto</span><select class="text-control" name="paymentAccountId" id="${prefix}Account">${accountOptions(accounts)}</select></label>
     <label class="field"><span>Nächste Zahlung</span><input class="text-control" name="nextPaymentDate" id="${prefix}Next" type="date"></label>
     <label class="field"><span>Beginn</span><input class="text-control" name="startDate" id="${prefix}Start" type="date"></label>
+    <label class="field"><span>Laufzeit in Monaten</span><input class="text-control" name="termMonths" id="${prefix}Term" type="number" min="1" max="600" step="1" placeholder="z. B. 12, 24 oder 36"><small>Mit Beginn + Laufzeit wird das Enddatum automatisch berechnet.</small></label>
     <label class="field"><span>Ende / vereinbart bis</span><input class="text-control" name="endDate" id="${prefix}End" type="date"></label>
     <label class="field"><span>Status</span><select class="text-control" name="status" id="${prefix}Status">${optionList(STATUSES,'active')}</select></label>
     <label class="field form-grid-span"><span>Notiz</span><textarea class="text-control" name="notes" id="${prefix}Notes" rows="3" placeholder="optional"></textarea></label>`;
