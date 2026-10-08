@@ -109,6 +109,26 @@ function mergeEligible(tx){
   return Boolean(tx&&tx.status==='booked'&&!tx.transfer_group_id&&tx.cashflow_type==='standard');
 }
 
+function sameCalendarDay(left,right){
+  const a=new Date(left?.occurred_at), b=new Date(right?.occurred_at);
+  if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())) return false;
+  return a.getFullYear()===b.getFullYear()
+    && a.getMonth()===b.getMonth()
+    && a.getDate()===b.getDate();
+}
+
+function distinctBankRowsAcrossDays(left,right){
+  if(sameCalendarDay(left,right)) return false;
+  if(left?.account_id!==right?.account_id) return false;
+  if(left?.source!=='import'||right?.source!=='import') return false;
+  const leftExternal=String(left?.external_reference||'').trim();
+  const rightExternal=String(right?.external_reference||'').trim();
+  if(leftExternal&&rightExternal&&leftExternal!==rightExternal) return true;
+  const leftBank=String(left?.bank_reference||'').trim();
+  const rightBank=String(right?.bank_reference||'').trim();
+  return Boolean(leftBank&&rightBank&&leftBank!==rightBank);
+}
+
 export function transactionMergeCandidates(base,transactions=[],{documents=[]}={}){
   if(!mergeEligible(base)) return [];
   const amount=Math.abs(Number(base.amount)||0);
@@ -162,6 +182,11 @@ export function likelyTransactionDuplicates(transactions=[],{documents=[],limit=
       if(delta>tolerance) continue;
       const days=Math.abs(new Date(left.occurred_at)-new Date(right.occurred_at))/86400000;
       if(!Number.isFinite(days)||days>5) continue;
+      // Zwei eigenständige Bankbuchungen an unterschiedlichen Kalendertagen sind
+      // keine offene Dubletten-Aufgabe, wenn die Bank-/Importreferenzen verschieden
+      // sind. Das verhindert Endlosschleifen bei wiederkehrenden Kleinbeträgen wie
+      // SBB-Tickets, Kaffee oder Supermarktzahlungen.
+      if(distinctBankRowsAcrossDays(left,right)) continue;
       let score=40;
       if(delta<=0.01) score+=20;
       score+=days<=1?15:days<=3?8:3;
