@@ -693,9 +693,11 @@
   .coach-insight-grid { grid-template-columns:1fr; gap:8px; }
   .coach-insight { min-height:0; padding:14px; border-radius:17px; }
   .coach-analysis-grid { grid-template-columns:1fr; gap:10px; margin:10px 0; }
-  .money-flow-card,.budget-coach-card { min-height:0; padding:16px; }
+  .money-flow-card,.income-plan-card,.budget-coach-card { min-height:0; padding:16px; }
   .money-flow-svg { height:240px; }
   .budget-coach-value strong { font-size:36px; }
+  .income-plan-income strong { font-size:26px; }
+  .income-plan-result strong { font-size:21px; }
   .coach-account-summary { gap:6px; }
   .budget-decision-hint { align-items:flex-start; flex-direction:column; gap:8px; padding:13px; }
   .budget-decision-hint a { min-height:36px; display:inline-flex; align-items:center; }
