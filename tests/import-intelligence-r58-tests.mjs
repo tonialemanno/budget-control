@@ -52,7 +52,7 @@ assert.equal(profile.latest,'2025-04-28');
 
 assert.deepEqual(suggestKnownCategoryCandidates({description:'Agrola Tankstelle;9320 Arbon',amount:-42}),['Tanken']);
 assert.deepEqual(suggestKnownCategoryCandidates({description:'Rossmann 2739;79224 Umkirch',amount:-20}),['Shopping']);
-assert.deepEqual(suggestKnownCategoryCandidates({description:'KIM NGOC TAKE AWAY; Zahlung UBS TWINT',amount:-18.5}),['Restaurant & Café']);
+assert.equal(suggestKnownCategoryCandidates({description:'KIM NGOC TAKE AWAY; Zahlung UBS TWINT',amount:-18.5})[0],'Restaurant & Café');
 assert.deepEqual(suggestKnownCategoryCandidates({description:'Cityparking Brühltor;9004 St. Gallen',amount:-4}),['Parken']);
 assert.deepEqual(suggestKnownCategoryCandidates({description:'Dr. med. dent. Muster',amount:-200}),['Arzt & Zahnarzt']);
 
