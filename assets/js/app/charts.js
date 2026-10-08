@@ -11,6 +11,15 @@ function monthLabel(date, locale) {
   catch { return String(new Date(date).getMonth()+1); }
 }
 
+function financePeriodLabel(row,locale){
+  const start=row?.start?new Date(row.start):null;
+  const end=row?.endExclusive?new Date(new Date(row.endExclusive).getTime()-1):null;
+  if(!start||Number.isNaN(start.getTime())||!end||Number.isNaN(end.getTime())) return monthLabel(row?.date,locale);
+  const startMonth=monthLabel(start,locale);
+  const endMonth=monthLabel(end,locale);
+  return startMonth===endMonth?startMonth:`${startMonth}/${endMonth}`;
+}
+
 function compactNumber(value, locale) {
   const n=Math.abs(finite(value));
   try {
@@ -34,7 +43,7 @@ export function renderCashflowChart({
   locale='de-CH',
   privacy=false,
 }={}) {
-  if (!series.length) return '<div class="chart-empty">Keine Daten für die Entwicklung vorhanden.</div>';
+  if (!series.length) return `<div class="chart-empty">${escapeHtml(t('Keine Daten für die Entwicklung vorhanden.',locale))}</div>`;
 
   const width=760;
   const height=280;
@@ -44,7 +53,9 @@ export function renderCashflowChart({
   const bottom=42;
   const plotWidth=width-left-right;
   const plotHeight=height-top-bottom;
-  const maxValue=niceMax(Math.max(...series.flatMap((row)=>[finite(row.income),finite(row.expenses)]),1));
+  const reliable=series.filter((row)=>!row.coverage||row.coverage==='full');
+  const scaleRows=reliable.length?reliable:series;
+  const maxValue=niceMax(Math.max(...scaleRows.flatMap((row)=>[finite(row.income),finite(row.expenses)]),1));
   const groupWidth=plotWidth/series.length;
   const barWidth=Math.min(24,Math.max(11,groupWidth*.22));
   const gap=Math.max(4,barWidth*.28);
@@ -59,27 +70,36 @@ export function renderCashflowChart({
 
   const groups=series.map((row,index)=>{
     const center=left+groupWidth*(index+.5);
+    const period=financePeriodLabel(row,locale);
+    const coverage=row.coverage||'full';
+    if(coverage!=='full'){
+      const status=coverage==='partial'?t('Teilweise Daten',locale):t('Keine Daten',locale);
+      return `<g class="cashflow-month cashflow-month--incomplete">
+        <text class="cashflow-data-gap" x="${center}" y="${top+plotHeight*.53}" text-anchor="middle">${escapeHtml(status)}</text>
+        <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(period)}</text>
+      </g>`;
+    }
     const incomeX=center-gap/2-barWidth;
     const expenseX=center+gap/2;
     const incomeY=y(row.income);
     const expenseY=y(row.expenses);
     const incomeH=h(row.income);
     const expenseH=h(row.expenses);
-    const month=monthLabel(row.date,locale);
     const incomeTitle=privacy
-      ? `${t('Einnahmen',locale)} · ${month}`
-      : `${t('Einnahmen',locale)} · ${month}: ${moneyText(row.income,{currency,locale})}`;
+      ? `${t('Einnahmen',locale)} · ${period}`
+      : `${t('Einnahmen',locale)} · ${period}: ${moneyText(row.income,{currency,locale})}`;
     const expenseTitle=privacy
-      ? `${t('Ausgaben',locale)} · ${month}`
-      : `${t('Ausgaben',locale)} · ${month}: ${moneyText(row.expenses,{currency,locale})}`;
+      ? `${t('Ausgaben',locale)} · ${period}`
+      : `${t('Ausgaben',locale)} · ${period}: ${moneyText(row.expenses,{currency,locale})}`;
     return `<g class="cashflow-month">
       <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
       <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
-      <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(month)}</text>
+      <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(period)}</text>
     </g>`;
   }).join('');
 
   const latest=series[series.length-1]||{};
+  const incomplete=series.some((row)=>row.coverage&&row.coverage!=='full');
   return `<div class="cashflow-chart">
     <div class="chart-legend" aria-hidden="true">
       <span><i class="legend-dot legend-dot--income"></i>${escapeHtml(t('Einnahmen',locale))}</span>
@@ -89,6 +109,7 @@ export function renderCashflowChart({
       ${grid}
       ${groups}
     </svg>
+    ${incomplete?`<p class="cashflow-data-note">${escapeHtml(t('Unvollständige Historie wird nicht als CHF 0 dargestellt.',locale))}</p>`:''}
     <div class="cashflow-summary">
       <span>${escapeHtml(t('Aktueller Finanzmonat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale,decimals:0})}</strong></span>
       <span>${escapeHtml(t('Aktueller Finanzmonat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale,decimals:0})}</strong></span>
@@ -148,6 +169,47 @@ export function renderExpenseDonut({
   </div>`;
 }
 
+
+
+export function renderIncomePlan({
+  flow={},
+  currency='CHF',
+  locale='de-CH',
+  privacy=false,
+}={}) {
+  const income=Math.max(0,finite(flow.income));
+  const fixed=Math.max(0,finite(flow.fixed));
+  const reserves=Math.max(0,finite(flow.reserves));
+  const variable=Math.max(0,finite(flow.variable));
+  const committed=fixed+reserves+variable;
+  const free=Math.max(0,income-committed);
+  const gap=Math.max(0,committed-income);
+  if(!(income>0)&&!(committed>0)) return `<div class="chart-empty">${escapeHtml(t('Noch nicht genug Planungsdaten für den Monatsplan.',locale))}</div>`;
+
+  const amount=(value)=>privacy?'•••':money(value,{currency,locale,decimals:0});
+  const percent=(value)=>income>0?Math.round(value/income*100):0;
+  const rows=[
+    {label:'Fixkosten',value:fixed},
+    {label:'Sparen & Rücklagen',value:reserves},
+    {label:'Variable Ausgaben geplant',value:variable},
+  ];
+  return `<div class="income-plan">
+    <div class="income-plan-income">
+      <span>${escapeHtml(t('Geplantes Einkommen',locale))}</span>
+      <strong>${escapeHtml(amount(income))}</strong>
+    </div>
+    <div class="income-plan-rows">
+      ${rows.map((row)=>`<div class="income-plan-row">
+        <div><span>${escapeHtml(t(row.label,locale))}</span><small>${income>0?`${percent(row.value)}%`:''}</small></div>
+        <strong>− ${escapeHtml(amount(row.value))}</strong>
+      </div>`).join('')}
+    </div>
+    <div class="income-plan-result ${gap>0?'income-plan-result--negative':''}">
+      <div><span>${escapeHtml(t(gap>0?'Über Plan':'Voraussichtlich frei',locale))}</span><small>${escapeHtml(t(gap>0?'Verpflichtungen übersteigen das geplante Einkommen.':'Nach deinem aktuellen Monatsplan.',locale))}</small></div>
+      <strong>${escapeHtml(amount(gap>0?gap:free))}</strong>
+    </div>
+  </div>`;
+}
 
 export function renderMoneyFlow({
   flow={},
