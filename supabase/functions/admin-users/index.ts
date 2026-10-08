@@ -42,7 +42,42 @@ async function listAllUsers(admin: any) {
   return users;
 }
 
+async function assertUserDeletionSafe(admin: any, userId: string) {
+  const { data: owned, error: ownedError } = await admin
+    .from("households")
+    .select("id")
+    .eq("owner_user_id", userId);
+  if (ownedError) throw ownedError;
+  const ownedIds=(owned || []).map((row: any)=>row.id);
+
+  const { data: memberships, error: membershipError } = await admin
+    .from("household_members")
+    .select("household_id")
+    .eq("user_id", userId);
+  if (membershipError) throw membershipError;
+  const membershipIds=(memberships || []).map((row: any)=>row.household_id);
+  const foreignIds=membershipIds.filter((id: string)=>!ownedIds.includes(id));
+  if (foreignIds.length) {
+    throw new Error("Der Benutzer ist Mitglied eines gemeinsam genutzten Haushalts. Mitgliedschaft bzw. Eigentum muss zuerst sauber übertragen oder gelöst werden.");
+  }
+
+  if (ownedIds.length) {
+    const { data: others, error: otherError } = await admin
+      .from("household_members")
+      .select("user_id")
+      .in("household_id", ownedIds)
+      .neq("user_id", userId)
+      .limit(1);
+    if (otherError) throw otherError;
+    if ((others || []).length) {
+      throw new Error("Mindestens ein eigener Haushalt hat weitere Mitglieder. Vor der endgültigen Löschung muss der Haushalt übertragen oder die Mitglieder entfernt werden.");
+    }
+  }
+}
+
 async function permanentlyDeleteUser(admin: any, userId: string) {
+  await assertUserDeletionSafe(admin,userId);
+
   const { data: objects, error: objectError } = await admin.rpc("list_owned_storage_objects_v1", {
     p_user_id: userId,
   });
