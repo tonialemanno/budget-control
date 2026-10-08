@@ -98,10 +98,10 @@ export function renderPlanning({
         <div class="budget-ring-wrap">
           <div class="budget-ring budget-ring--large" style="--ring-progress:${budget.percent}"><div><strong>${Math.round(budget.rawPercent)}%</strong><span>verbraucht</span></div></div>
           <div class="budget-ring-copy">
-            <span>Variables Budget <strong>${money(budget.total,{currency,locale,decimals:0})}</strong></span>
-            <span>Variabel ausgegeben <strong>${money(budget.spent,{currency,locale,decimals:0})}</strong></span>
-            <span>${budget.overBy>0?'Darüber':'Noch verfügbar'} <strong>${money(budget.overBy>0?budget.overBy:budget.remaining,{currency,locale,decimals:0})}</strong></span>
-            <span>Fixkosten separat <strong>${money(budget.fixedPlanned,{currency,locale,decimals:0})}</strong></span>
+            <span>Variables Budget <strong>${money(budget.total,{currency,locale})}</strong></span>
+            <span>Variabel ausgegeben <strong>${money(budget.spent,{currency,locale})}</strong></span>
+            <span>${budget.overBy>0?'Darüber':'Noch verfügbar'} <strong>${money(budget.overBy>0?budget.overBy:budget.remaining,{currency,locale})}</strong></span>
+            <span>Fixkosten separat <strong>${money(budget.fixedPlanned,{currency,locale})}</strong></span>
           </div>
         </div>
         ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budget einrichten</a>':''}
@@ -113,7 +113,7 @@ export function renderPlanning({
           ${goalRows.length ? goalRows.map((goal)=>`<a class="goal-preview" href="#/goals">
             <div class="goal-preview-head"><strong>${escapeHtml(goal.name)}</strong><span>${Math.round(goal.progressPercent)}%</span></div>
             <div class="insight-track"><span style="--insight-progress:${goal.progressPercent}%"></span></div>
-            <small>${money(goal.current_amount,{currency:goal.currency||currency,locale,decimals:0})} von ${money(goal.target_amount,{currency:goal.currency||currency,locale,decimals:0})}</small>
+            <small>${money(goal.current_amount,{currency:goal.currency||currency,locale})} von ${money(goal.target_amount,{currency:goal.currency||currency,locale})}</small>
           </a>`).join('') : enabled('goals',moduleAccess,hiddenModules)
             ? '<div class="plan-empty"><p>Lege einen Notgroschen, Ferien- oder Sparplan an.</p><a class="action-button action-button--secondary" href="#/goals">Ziel anlegen</a></div>'
             : '<div class="table-empty">Sparziele sind nicht freigeschaltet.</div>'}
