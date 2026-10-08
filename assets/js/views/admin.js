@@ -85,7 +85,7 @@ export function presenceState(user,now=Date.now()){
   };
 }
 
-export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',adminPage=1,adminExpandedUserId=null,demoCredentials=null}={}){
+export function renderAdmin({user:currentUser=null,adminUsers=[],productModules=[],adminQuery='',adminPage=1,adminExpandedUserId=null,demoCredentials=null}={}){
   const moduleList=productModules.filter((m)=>!m.is_core&&!['admin'].includes(m.key));
   const filtered=adminUsers.filter((user)=>matchesUser(user,adminQuery));
   const pageCount=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
@@ -135,7 +135,7 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
           <div class="admin-module-grid">${moduleList.map((m)=>`<label class="module-toggle"><input type="checkbox" name="enabledModules" value="${m.key}" data-module-key="${m.key}" ${user.modules?.[m.key]===true?'checked':''}><span><strong>${escapeHtml(m.label)}</strong><small>${escapeHtml(m.group_name||'')}</small></span></label>`).join('')}</div>
           <div class="form-actions"><span class="settings-save-state" data-deferred-status>Keine offenen Änderungen</span><button class="action-button action-button--primary" type="submit" data-deferred-save disabled>Zugriff speichern</button></div>
         </form>
-        <div class="card-footer-actions"><button class="table-action" type="button" data-action="admin-password" data-user-id="${user.id}">Passwort setzen</button><button class="table-action" type="button" data-action="admin-finance-reset" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email||'')}">ALEMANNO BUCHHALTUNG-Daten zurücksetzen</button></div><p class="admin-search-hint">Der Reset entfernt die ALEMANNO BUCHHALTUNG-Daten unwiderruflich und führt den Benutzer zurück ins Onboarding. Login, Admin-Rolle und Modulfreigaben bleiben bestehen.</p></div>`:''}
+        <div class="card-footer-actions"><button class="table-action" type="button" data-action="admin-password" data-user-id="${user.id}">Passwort setzen</button><button class="table-action" type="button" data-action="admin-finance-reset" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email||'')}">ALEMANNO BUCHHALTUNG-Daten zurücksetzen</button>${currentUser?.id===user.id?'':`<button class="table-action table-action--danger" type="button" data-action="admin-user-delete" data-user-id="${user.id}" data-user-email="${escapeHtml(user.email||'')}">Benutzer endgültig löschen</button>`}</div><p class="admin-search-hint">„Daten zurücksetzen“ behält den Login. „Benutzer endgültig löschen“ entfernt Login und persönliche Finanzdaten vollständig. Gemeinsame Haushalte werden aus Sicherheitsgründen nicht automatisch gelöscht.</p></div>`:''}
     </article>`;
   }).join('');
 
