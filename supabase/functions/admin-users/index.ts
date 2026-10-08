@@ -42,6 +42,45 @@ async function listAllUsers(admin: any) {
   return users;
 }
 
+async function permanentlyDeleteUser(admin: any, userId: string) {
+  const { data: objects, error: objectError } = await admin.rpc("list_owned_storage_objects_v1", {
+    p_user_id: userId,
+  });
+  if (objectError) throw objectError;
+
+  const byBucket = new Map<string, string[]>();
+  for (const row of objects || []) {
+    const bucket = String(row.bucket_id || "");
+    const name = String(row.name || "");
+    if (!bucket || !name) continue;
+    const current = byBucket.get(bucket) || [];
+    current.push(name);
+    byBucket.set(bucket, current);
+  }
+
+  for (const [bucket, paths] of byBucket.entries()) {
+    for (let offset = 0; offset < paths.length; offset += 500) {
+      const { error } = await admin.storage.from(bucket).remove(paths.slice(offset, offset + 500));
+      if (error) throw error;
+    }
+  }
+
+  const { data: purge, error: purgeError } = await admin.rpc("purge_user_finance_v1", {
+    p_user_id: userId,
+  });
+  if (purgeError) throw purgeError;
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(userId, false);
+  if (deleteError) throw deleteError;
+
+  return {
+    ok: true,
+    deleted_user_id: userId,
+    deleted_storage_objects: (objects || []).length,
+    purge,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
@@ -58,6 +97,29 @@ Deno.serve(async (req: Request) => {
   const { data: userData, error: userError } = await admin.auth.getUser(jwt);
   const caller = userData?.user;
   if (userError || !caller) return json({ error: "Unauthorized" }, 401, origin);
+
+  let body: Record<string, unknown> = {};
+  let action = "";
+  if (req.method === "POST") {
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: "Ungültige Anfrage." }, 400, origin);
+    }
+    action = String(body.action || "create_user");
+
+    if (action === "delete_self") {
+      if (String(body.confirmation || "") !== "DELETE") {
+        return json({ error: "Bestätigung für die endgültige Löschung fehlt." }, 400, origin);
+      }
+      try {
+        const result = await permanentlyDeleteUser(admin, caller.id);
+        return json(result, 200, origin);
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : "Konto konnte nicht gelöscht werden." }, 400, origin);
+      }
+    }
+  }
 
   const { data: adminRow, error: adminError } = await admin
     .from("app_admins")
@@ -172,14 +234,26 @@ Deno.serve(async (req: Request) => {
     }, 200, origin);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Ungültige Anfrage." }, 400, origin);
-  }
+  if (action === "delete_user") {
+    const userId = String(body.userId || "");
+    const confirmationEmail = String(body.confirmationEmail || "").trim().toLowerCase();
+    if (!userId || !confirmationEmail) return json({ error: "Benutzer und Bestätigungs-E-Mail sind erforderlich." }, 400, origin);
+    if (userId === caller.id) return json({ error: "Das eigene Konto bitte über „Mein Profil“ löschen." }, 400, origin);
 
-  const action = String(body.action || "create_user");
+    const { data: target, error: targetError } = await admin.auth.admin.getUserById(userId);
+    const targetUser = target?.user;
+    if (targetError || !targetUser) return json({ error: "Benutzer wurde nicht gefunden." }, 404, origin);
+    if (String(targetUser.email || "").trim().toLowerCase() !== confirmationEmail) {
+      return json({ error: "Die eingegebene E-Mail-Adresse stimmt nicht überein." }, 400, origin);
+    }
+
+    try {
+      const result = await permanentlyDeleteUser(admin, userId);
+      return json(result, 200, origin);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "Benutzer konnte nicht endgültig gelöscht werden." }, 400, origin);
+    }
+  }
 
   if (action === "create_demo") {
     const email = String(body.email || "demo@example.com").trim().toLowerCase();
@@ -221,6 +295,11 @@ Deno.serve(async (req: Request) => {
     });
     if (seedError) return json({ error: seedError.message }, 400, origin);
 
+    const { data: enriched, error: enrichError } = await admin.rpc("enrich_demo_instance_v1", {
+      p_user_id: demoUser.id,
+    });
+    if (enrichError) return json({ error: enrichError.message }, 400, origin);
+
     return json({
       ok: true,
       created,
@@ -229,6 +308,7 @@ Deno.serve(async (req: Request) => {
       password,
       user_id: demoUser.id,
       household_id: seeded?.household_id || null,
+      enriched,
       locale,
     }, 200, origin);
   }
