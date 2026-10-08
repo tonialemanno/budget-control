@@ -82,6 +82,11 @@ export function renderProfile({
         <div class="card-heading"><div><h3 class="card-title">Freigeschaltete Module</h3><p class="card-subtitle">Persönlich ausgeblendete Module bleiben freigeschaltet</p></div><span>${statusPill('active',`${visible.length} sichtbar`)}</span></div>
         <div class="chip-row">${entitled.map((module)=>`<span class="chip ${hidden.has(module.key)?'':'chip--active'}">${escapeHtml(module.label||module.key)}${hidden.has(module.key)?' · ausgeblendet':''}</span>`).join('')}</div>
       </article>
+      <article class="card card-padding danger-zone-card">
+        <div class="card-heading"><div><h3 class="card-title">Konto & Daten löschen</h3><p class="card-subtitle">Endgültig: Login und persönliche ALEMANNO BUCHHALTUNG-Daten werden gelöscht.</p></div></div>
+        <p class="admin-search-hint">Bei gemeinsam genutzten Haushalten wird die Löschung blockiert, bis Eigentum und Mitgliedschaften sauber geklärt sind.</p>
+        <div class="card-footer-actions"><button class="table-action table-action--danger" type="button" data-action="account-delete-self" data-user-email="${escapeHtml(user?.email||'')}">Mein Konto endgültig löschen</button></div>
+      </article>
     </div>
   `;
 }
