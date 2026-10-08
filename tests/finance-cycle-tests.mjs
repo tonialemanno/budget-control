@@ -153,6 +153,40 @@ const noHistorySeries=financeCycleSeries({
 });
 assert.ok(noHistorySeries.every((row)=>row.coverage==='none'));
 
+const salaryAnchorCategories=[
+  {id:'salary',name:'Lohn',kind:'income',parent_id:null},
+  {id:'food',name:'Lebensmittel',kind:'expense',parent_id:null},
+];
+const salaryAnchorRule={
+  id:'salary-rule',active:true,direction:'income',cadence:'monthly',amount:6412.05,
+  category_id:'salary',account_id:'main',description:'Abacus Umantis AG',counterparty:'Abacus Umantis AG',
+  next_date:'2026-10-25',
+};
+const salaryAnchorTransactions=[
+  {id:'s-apr',status:'booked',occurred_at:'2026-04-24T08:00:00',amount:6412.05,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 24.04.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null,recurring_rule_id:'salary-rule'},
+  {id:'s-may',status:'booked',occurred_at:'2026-05-22T08:00:00',amount:6407.55,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 22.05.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null},
+  {id:'bonus-may',status:'booked',occurred_at:'2026-05-04T08:00:00',amount:214.20,currency:'CHF',account_id:'main',category_id:'salary',description:'Egidas AG 04.05.2026',counterparty:'Egidas AG',transfer_group_id:null},
+  {id:'s-jun',status:'booked',occurred_at:'2026-06-25T08:00:00',amount:6412.05,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 25.06.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null},
+  {id:'s-jul',status:'booked',occurred_at:'2026-07-24T08:00:00',amount:6412.05,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 24.07.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null},
+  {id:'s-aug',status:'booked',occurred_at:'2026-08-25T08:00:00',amount:6412.05,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 25.08.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null},
+  {id:'s-sep',status:'booked',occurred_at:'2026-09-25T08:00:00',amount:6412.05,currency:'CHF',account_id:'main',category_id:'salary',description:'Abacus Umantis AG 25.09.2026',counterparty:'Abacus Umantis AG',transfer_group_id:null},
+  {id:'e-may',status:'booked',occurred_at:'2026-05-10T18:00:00',amount:-1000,currency:'CHF',account_id:'main',category_id:'food',description:'Ausgaben',transfer_group_id:null},
+  {id:'e-jun',status:'booked',occurred_at:'2026-06-10T18:00:00',amount:-1000,currency:'CHF',account_id:'main',category_id:'food',description:'Ausgaben',transfer_group_id:null},
+  {id:'e-jul',status:'booked',occurred_at:'2026-07-10T18:00:00',amount:-1000,currency:'CHF',account_id:'main',category_id:'food',description:'Ausgaben',transfer_group_id:null},
+];
+const anchoredSeries=financeCycleSeries({
+  transactions:salaryAnchorTransactions,debtPayments:[],recurringRules:[salaryAnchorRule],categories:salaryAnchorCategories,
+  baseCurrency:'CHF',fxRates:null,now:new Date('2026-10-08T12:00:00'),cycles:6,fallbackDay:25,financeMonthMode:'day_25',
+});
+assert.equal(anchoredSeries.length,6);
+assert.deepEqual(anchoredSeries.map((row)=>row.start.getDate()),[24,22,25,24,25,25]);
+assert.ok(anchoredSeries.every((row)=>row.source==='income_anchor'));
+assert.ok(anchoredSeries.every((row)=>row.income>=6400&&row.income<7000),'Each real salary cycle should contain one salary, not zero or two.');
+assert.equal(anchoredSeries[0].income,6412.05);
+assert.equal(anchoredSeries[1].income,6407.55);
+assert.equal(anchoredSeries[0].endExclusive.getDate(),22);
+assert.equal(anchoredSeries[1].endExclusive.getDate(),25);
+
 const calendar=resolveFinanceCycle({now,mode:'calendar'});
 assert.equal(calendar.source,'calendar');
 assert.equal(calendar.start.getDate(),1);
