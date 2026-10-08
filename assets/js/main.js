@@ -33,6 +33,7 @@ import { financeMonthMode, withPrimaryAccountPreference } from './app/user-prefe
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261007-r50';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
+import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js';
 
 import { renderOverview } from './views/overview.js';
 import { renderMoney } from './views/money.js';
@@ -3294,6 +3295,11 @@ async function handleForm(form) {
     const account=runtime.accounts.find((row)=>row.account_id===accountId);
     const targetAmount=numberValue(data,'targetAmount');
     const currentAmount=account ? Number(account.current_balance||0) : numberValue(data,'currentAmount');
+    const schedule=resolveGoalSchedule({
+      startDate:nullValue(data,'startDate'),
+      durationMonths:nullValue(data,'durationMonths'),
+      targetDate:nullValue(data,'targetDate'),
+    });
     await financeApi.createGoal({
       household_id:h,
       account_id:account?.account_id||null,
@@ -3302,7 +3308,9 @@ async function handleForm(form) {
       current_amount:currentAmount,
       monthly_amount:numberValue(data,'monthlyAmount'),
       currency:account?.currency||currency,
-      target_date:nullValue(data,'targetDate'),
+      start_date:schedule.startDate,
+      duration_months:schedule.durationMonths,
+      target_date:schedule.targetDate,
       goal_type:formValue(data,'goalType'),
       status:currentAmount>=targetAmount?'completed':'active'
     });
@@ -3314,6 +3322,11 @@ async function handleForm(form) {
     const account=runtime.accounts.find((row)=>row.account_id===accountId);
     const targetAmount=numberValue(data,'targetAmount');
     const currentAmount=account ? Number(account.current_balance||0) : numberValue(data,'currentAmount');
+    const schedule=resolveGoalSchedule({
+      startDate:nullValue(data,'startDate'),
+      durationMonths:nullValue(data,'durationMonths'),
+      targetDate:nullValue(data,'targetDate'),
+    });
     await financeApi.updateGoal(goalId,{
       account_id:account?.account_id||null,
       name:formValue(data,'name'),
@@ -3322,7 +3335,9 @@ async function handleForm(form) {
       current_amount:currentAmount,
       monthly_amount:numberValue(data,'monthlyAmount'),
       currency:account?.currency||currency,
-      target_date:nullValue(data,'targetDate'),
+      start_date:schedule.startDate,
+      duration_months:schedule.durationMonths,
+      target_date:schedule.targetDate,
       status:currentAmount>=targetAmount?'completed':'active'
     });
     await refresh(account?'Sparziel und Topf-Verknüpfung aktualisiert.':'Sparziel aktualisiert.'); return;
@@ -4710,7 +4725,12 @@ async function handleAction(target) {
     const help=document.querySelector('#goalEditCurrentHelp');
     if(help) help.textContent=account?`Automatisch aus ${account.name}; hier nicht manuell änderbar.`:'Nur für Ziele ohne verknüpftes Konto.';
     document.querySelector('#goalEditMonthly').value=g.monthly_amount||0;
-    document.querySelector('#goalEditDate').value=g.target_date||'';
+    const start=document.querySelector('#goalEditStart');
+    const duration=document.querySelector('#goalEditDuration');
+    const date=document.querySelector('#goalEditDate');
+    if(start) start.value=g.start_date||'';
+    if(duration) duration.value=g.duration_months||'';
+    if(date){ date.value=g.target_date||''; date.readOnly=Boolean(g.start_date&&g.duration_months); }
     const form=document.querySelector('#goal-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
   if (action === 'goal-source-open') {
@@ -5301,6 +5321,21 @@ pageContent.addEventListener('input', (event) => {
   }
   if(target?.id==='receiptMerchant' || target?.id==='receiptAmount') {
     syncReceiptSmartCategory();
+    return;
+  }
+  if(['goalCreateStart','goalCreateDuration','goalEditStart','goalEditDuration'].includes(target?.id)) {
+    const create=target.id.startsWith('goalCreate');
+    const start=document.querySelector(create?'#goalCreateStart':'#goalEditStart');
+    const duration=document.querySelector(create?'#goalCreateDuration':'#goalEditDuration');
+    const date=document.querySelector(create?'#goalCreateDate':'#goalEditDate');
+    const hasSchedule=Boolean(start?.value&&duration?.value);
+    if(date) date.readOnly=hasSchedule;
+    if(hasSchedule&&date){
+      try {
+        const calculated=calculateGoalTargetDate(start.value,duration.value);
+        if(calculated) date.value=calculated;
+      } catch {}
+    }
     return;
   }
 });
