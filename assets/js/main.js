@@ -32,7 +32,7 @@ import {
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js?v=20261008-r52';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
-import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261006-r35';
+import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js?v=20261008-r59';
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js?v=20261008-r52';
 
 import { renderOverview } from './views/overview.js?v=20261008-r58';
@@ -4988,12 +4988,25 @@ async function handleAction(target) {
     const right=runtime.transactions.find((row)=>row.id===rightId);
     if(!left||!right) throw new Error('Eine der Buchungen wurde nicht gefunden.');
     if(!confirm('Diese zwei Buchungen künftig nicht mehr als mögliche Dublette vorschlagen? Die Buchungen selbst bleiben unverändert.')) return;
-    await financeApi.ignoreTransactionDuplicate({
+    const ignored=await financeApi.ignoreTransactionDuplicate({
       householdId:runtime.household.id,
       transactionAId:left.id,
       transactionBId:right.id,
     });
-    await refresh('ALEMANNO BUCHHALTUNG merkt sich: Diese beiden Buchungen sind verschieden.');
+    const ordered=[left.id,right.id].sort();
+    const alreadyKnown=(runtime.transactionDuplicateIgnores||[]).some((row)=>{
+      const pair=[String(row.transaction_a_id||''),String(row.transaction_b_id||'')].sort();
+      return pair[0]===ordered[0]&&pair[1]===ordered[1];
+    });
+    if(!alreadyKnown){
+      runtime.transactionDuplicateIgnores.push(ignored||{
+        transaction_a_id:ordered[0],
+        transaction_b_id:ordered[1],
+        created_at:new Date().toISOString(),
+      });
+    }
+    render();
+    showToast('Vergleich erledigt. Diese beiden Buchungen werden nicht mehr als offene Dublette angezeigt.');
     return;
   }
   if (action === 'transaction-delete') {
