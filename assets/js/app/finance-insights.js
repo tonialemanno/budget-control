@@ -48,6 +48,11 @@ export function financeCycleSeries({
 }={}) {
   const paymentMap=buildDebtPaymentTransactionMap(debtPayments);
   const periods=financeCycles({now,fallbackDay,mode:financeMonthMode,count:cycles});
+  const bookedDates=transactions
+    .filter((tx)=>tx.status==='booked')
+    .map((tx)=>new Date(tx.occurred_at))
+    .filter((date)=>!Number.isNaN(date.getTime())&&date<=now);
+  const dataStart=bookedDates.length?new Date(Math.min(...bookedDates.map((date)=>date.getTime()))):null;
   return periods.map((cycle)=>{
     const rows=transactions.filter((tx)=>{
       const occurred=new Date(tx.occurred_at);
@@ -61,12 +66,21 @@ export function financeCycleSeries({
       (sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments:paymentMap,baseCurrency,fxRates}),
       0
     );
+    const coverage=!dataStart
+      ? 'none'
+      : dataStart>=cycle.endExclusive
+        ? 'none'
+        : dataStart>cycle.start
+          ? 'partial'
+          : 'full';
     return {
       key:cycle.budgetMonth,
       date:cycle.start,
       start:cycle.start,
       endExclusive:cycle.endExclusive,
       source:cycle.source,
+      coverage,
+      dataStart,
       income,
       expenses,
       net:income-expenses,
