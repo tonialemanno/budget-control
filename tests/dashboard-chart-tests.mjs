@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { categorySpending, monthSeries, primaryOperatingAccount } from '../assets/js/app/finance-insights.js';
-import { renderCashflowChart, renderExpenseDonut } from '../assets/js/app/charts.js';
+import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../assets/js/app/charts.js';
 
 const now=new Date('2026-10-03T12:00:00Z');
 const categories=[
@@ -54,6 +54,30 @@ assert.match(cashflow,/cashflow-bar--expense/);
 assert.match(cashflow,/Aktueller Finanzmonat · Einnahmen/);
 assert.doesNotMatch(cashflow,/--bar-height/);
 assert.doesNotMatch(cashflow,/NaN|undefined|\$\{/);
+
+const historyAware=renderCashflowChart({
+  series:[
+    {date:new Date('2026-05-25'),start:new Date('2026-05-25'),endExclusive:new Date('2026-06-25'),income:0,expenses:0,coverage:'none'},
+    {date:new Date('2026-06-25'),start:new Date('2026-06-25'),endExclusive:new Date('2026-07-25'),income:0,expenses:300,coverage:'partial'},
+    {date:new Date('2026-07-25'),start:new Date('2026-07-25'),endExclusive:new Date('2026-08-25'),income:6500,expenses:3000,coverage:'full'},
+  ],
+  currency:'CHF',locale:'de-CH',
+});
+assert.match(historyAware,/Keine Daten/);
+assert.match(historyAware,/Teilweise Daten/);
+assert.match(historyAware,/Unvollständige Historie wird nicht als CHF 0 dargestellt/);
+assert.match(historyAware,/Jul\/Aug/);
+
+const incomePlan=renderIncomePlan({
+  flow:{income:6500,fixed:2500,reserves:500,variable:1000,free:2500,gap:0},
+  currency:'CHF',locale:'de-CH',
+});
+assert.match(incomePlan,/Geplantes Einkommen/);
+assert.match(incomePlan,/Fixkosten/);
+assert.match(incomePlan,/Sparen & Rücklagen/);
+assert.match(incomePlan,/Variable Ausgaben geplant/);
+assert.match(incomePlan,/Voraussichtlich frei/);
+assert.doesNotMatch(incomePlan,/money-flow-svg/);
 
 const donut=renderExpenseDonut({rows:breakdown,total:100,currency:'CHF',locale:'de-CH'});
 assert.match(donut,/<svg[^>]+donut-svg/);
