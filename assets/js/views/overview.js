@@ -324,7 +324,7 @@ export function renderOverview({
       <div class="income-summary-grid">
         <div class="income-summary-total"><span>Verdient</span><strong>${privacyMoney(annualIncome.earnedTotal,{currency,locale,privacyEnabled,decimals:0})}</strong></div>
         <div class="income-source-list">
-          ${annualIncome.sources.length?annualIncome.sources.map((row)=>`<button class="income-source-row" type="button" data-action="overview-drilldown-income" data-source="${escapeHtml(row.label)}" data-sources="${escapeHtml((row.sourceNames||[row.label]).join('||'))}"><span>${escapeHtml(row.label)}</span><strong>${privacyMoney(row.value,{currency,locale,privacyEnabled,decimals:0})}</strong></button>`).join(''):'<div class="table-empty">Noch keine als Verdienst klassifizierten Einnahmen.</div>'}
+          ${annualIncome.sources.length?annualIncome.sources.map((row)=>`<button class="income-source-row" type="button" data-action="overview-drilldown-income" data-source="${escapeHtml(row.label)}" data-sources="${escapeHtml((row.sourceNames||[row.label]).join('||'))}" data-transaction-ids="${escapeHtml((row.transactionIds||[]).join(','))}"><span>${escapeHtml(row.label)}</span><strong>${privacyMoney(row.value,{currency,locale,privacyEnabled})}</strong></button>`).join(''):'<div class="table-empty">Noch keine als Verdienst klassifizierten Einnahmen.</div>'}
         </div>
       </div>
       <div class="income-classification-strip">
