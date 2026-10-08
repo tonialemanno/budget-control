@@ -5,6 +5,7 @@ import {
   currentFinanceCycleTotals,
   effectiveBudgetSet,
   financeCycleSeries,
+  historicalSurplusTransferRecord,
 } from '../assets/js/app/finance-insights.js';
 
 const now=new Date('2026-10-03T12:00:00');
@@ -186,6 +187,29 @@ assert.equal(anchoredSeries[0].income,6626.25,'Secondary income inside the salar
 assert.equal(anchoredSeries[1].income,6407.55);
 assert.equal(anchoredSeries[0].endExclusive.getDate(),22);
 assert.equal(anchoredSeries[1].endExclusive.getDate(),25);
+
+const surplusRecord=historicalSurplusTransferRecord({
+  accounts:[
+    {account_id:'main',name:'LohnKonto',account_type:'checking',currency:'CHF',is_archived:false},
+    {account_id:'surplus',name:'Überschuss',account_type:'savings',currency:'CHF',is_archived:false},
+  ],
+  transactions:[
+    {id:'surplus-a',status:'booked',account_id:'surplus',amount:600,currency:'CHF',occurred_at:'2026-04-22T12:00:00',transfer_group_id:'g1',semantic_type:'internal_transfer'},
+    {id:'surplus-b',status:'booked',account_id:'surplus',amount:391.64,currency:'CHF',occurred_at:'2026-04-23T12:00:00',transfer_group_id:'g2',semantic_type:'internal_transfer'},
+    {id:'surplus-old',status:'booked',account_id:'surplus',amount:560.67,currency:'CHF',occurred_at:'2026-06-24T12:00:00',transfer_group_id:'g3',semantic_type:'internal_transfer'},
+    {id:'surplus-out',status:'booked',account_id:'surplus',amount:-1000,currency:'CHF',occurred_at:'2026-08-16T12:00:00',transfer_group_id:'g4',semantic_type:'internal_transfer'},
+    {id:'surplus-current',status:'booked',account_id:'surplus',amount:1500,currency:'CHF',occurred_at:'2026-10-01T12:00:00',transfer_group_id:'g5',semantic_type:'internal_transfer'},
+  ],
+  baseCurrency:'CHF',
+  now:new Date('2026-10-08T12:00:00'),
+  fallbackDay:25,
+  financeMonthMode:'day_25',
+});
+assert.ok(surplusRecord);
+assert.equal(surplusRecord.amount,991.64);
+assert.equal(surplusRecord.transferCount,2);
+assert.equal(surplusRecord.key,'2026-03');
+assert.equal(surplusRecord.occurredAt.getDate(),23);
 
 const calendar=resolveFinanceCycle({now,mode:'calendar'});
 assert.equal(calendar.source,'calendar');
