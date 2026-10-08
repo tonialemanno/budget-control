@@ -1,5 +1,19 @@
 # Finance 2.4.6
 
+## R55 – Motivation & konsistente Übersetzungen
+
+- Übersicht um einen eigenen Motivationsbereich erweitert.
+- No-Spend-Tage und aktuelle No-Spend-Serie werden im laufenden Finanzmonat automatisch berechnet.
+- Bei einem Start im Minus zeigt die Übersicht, wie viel davon bereits aufgeholt wurde; sonst die Veränderung des Hauptkontos seit Beginn des Finanzmonats.
+- Persönlicher Überschuss-Rekord und Abstand zum Rekord werden aus abgeschlossenen Finanzmonaten abgeleitet.
+- „Was wäre wenn?“ zeigt, was voraussichtlich übrig bleibt, wenn nur die Hälfte des noch offenen variablen Budgets verbraucht wird.
+- Dashboard-, Import- und Planungsübersetzungen für Italienisch und Englisch vervollständigt.
+- Der Übersetzungstest wurde verschärft, damit echte deutsche Resttexte in nicht-deutschen Oberflächen künftig den Build stoppen.
+- Keine Datenbankstrukturänderung gegenüber R54.
+- Release 2026.10.08-r55.
+
+# Finance 2.4.6
+
 ## R54 – Monatliches zusätzliches Sparpotenzial
 
 - Die Übersicht zeigt neu, wie viel am Ende des laufenden Finanzmonats zusätzlich zurückgelegt werden könnte, wenn ab jetzt keine weiteren variablen Ausgaben mehr entstehen.
