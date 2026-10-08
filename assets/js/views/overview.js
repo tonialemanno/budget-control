@@ -256,10 +256,10 @@ export function renderOverview({
           <span class="coach-mini-label">Persönlicher Überschuss-Rekord</span>
           <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled}):'–'}</strong>
           <small>${recordGap===null
-            ? 'Noch kein Monatsüberschuss auf „Überschuss“ gebucht'
-            : recordGap<=0
-              ? `Tatsächlich verschoben · ${recordDate||''} · Rekord wäre aktuell wieder drin`
-              : `Tatsächlich verschoben · ${recordDate||''} · Noch ${privacyMoney(recordGap,{currency,locale,privacyEnabled})} bis zum Rekord`}</small>
+            ? '<span>Noch kein Monatsüberschuss auf „Überschuss“ gebucht</span>'
+            : `<span>Tatsächlich verschoben</span> · ${recordDate||''}${recordGap<=0
+              ? ' · <span>Rekord wäre aktuell wieder drin</span>'
+              : ` · <span>Noch</span> ${privacyMoney(recordGap,{currency,locale,privacyEnabled})} <span>bis zum Rekord</span>`}`}</small>
         </article>
         <article class="card coach-mini-card">
           <span class="coach-mini-icon">${icon('piggy-bank')}</span>
