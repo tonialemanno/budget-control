@@ -204,9 +204,7 @@ export function renderOverview({
           <span class="coach-eyebrow">${coach.additionalSavingsPotential>0?'Zusätzliches Sparpotenzial':'Auf dem Weg zum Monatsüberschuss'}</span>
           <h3 class="card-title">${coach.additionalSavingsPotential>0?'Wenn du ab jetzt nichts mehr zusätzlich ausgibst':'Erst zurück auf null, dann wird jeder freie Franken Sparpotenzial'}</h3>
           <div class="coach-free-value">${privacyMoney(coach.additionalSavingsPotential>0?coach.additionalSavingsPotential:coach.recoveryToZero,{currency,locale,privacyEnabled,decimals:0})}</div>
-          <p class="coach-status-copy">${coach.additionalSavingsPotential>0
-            ? `könntest du am ${dateLabel(cycleLastDay,locale)} zusätzlich zurücklegen.`
-            : `fehlen nach allen bekannten Verpflichtungen bis ${dateLabel(cycleLastDay,locale)} noch bis zum Nullpunkt.`}</p>
+          <p class="coach-status-copy"><span>${coach.additionalSavingsPotential>0?'Zusätzlich zurücklegbar am':'Noch bis zum Nullpunkt am'}</span> <strong>${dateLabel(cycleLastDay,locale)}</strong></p>
         </div>
         <span class="coach-hero-icon">${icon(coach.additionalSavingsPotential>0?'piggy-bank':'target')}</span>
       </div>
