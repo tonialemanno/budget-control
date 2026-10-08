@@ -8,7 +8,7 @@ const i18n=fs.readFileSync(new URL('../assets/js/app/i18n.js',import.meta.url),'
 const icons=fs.readFileSync(new URL('../assets/js/app/icons.js',import.meta.url),'utf8');
 
 assert.match(config,/appName:\s*'ALEMANNO BUCHHALTUNG'/);
-assert.match(config,/releaseId:\s*'2026\.10\.07-r51'/);
+assert.match(config,/releaseId:\s*'2026\.10\.08-r52'/);
 assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
 assert.match(index,/>ALEMANNO BUCHHALTUNG<\/span>/);
 assert.match(index,/alemanno-mark\.svg/);
