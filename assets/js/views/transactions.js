@@ -8,7 +8,7 @@ import { semanticDebtPrincipalBase, semanticExpenseBase, semanticIncomeBase, sem
 import { primaryOperatingAccount } from '../app/finance-insights.js';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { rankCategoriesByUsage } from '../app/category-ranking.js';
-import { likelyTransactionDuplicates } from '../app/duplicate-intelligence.js?v=20261006-r35';
+import { likelyTransactionDuplicates } from '../app/duplicate-intelligence.js?v=20261008-r59';
 import { financeCycleLabel, previousFinanceCycle, resolveFinanceCycle } from '../app/finance-cycle.js';
 
 const TAX_YEAR_OPTIONS=[2025,2026,2027];
