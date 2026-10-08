@@ -1,5 +1,17 @@
 # Finance 2.4.6
 
+## R60 – Echter persönlicher Überschuss-Rekord
+
+- Der persönliche Überschuss-Rekord wird nicht mehr aus dem 6-Monats-Diagramm abgeleitet.
+- Stattdessen wertet ALEMANNO BUCHHALTUNG die gesamte Historie der tatsächlich auf ein Überschuss-/Surplus-Konto verschobenen internen Umbuchungen aus.
+- Mehrere Überschuss-Umbuchungen innerhalb desselben Finanzmonats werden für den Monatsrekord zusammengezählt.
+- Der laufende, noch nicht abgeschlossene Finanzmonat kann einen historischen Rekord nicht vorzeitig überschreiben.
+- Die Rekordkarte zeigt zusätzlich, dass der Wert tatsächlich verschoben wurde, statt nur einen theoretischen Einnahmen-minus-Ausgaben-Wert zu verwenden.
+- Der vom Benutzer bestätigte Monatsüberschuss vom 23.04.2026 über CHF 991.64 wurde in den Live-Daten korrekt als interne Umbuchung LohnKonto → Überschuss verknüpft.
+- Keine Datenbankstrukturänderung gegenüber R59. Schema 2026100802, Release 2026.10.08-r60.
+
+# Finance 2.4.6
+
 ## R59 – Erledigte Doppelbuchungen verschwinden sofort
 
 - Nach „Zusammenführen“ wird die erledigte Doppelbuchung sofort aus dem lokalen Transaktionsbestand entfernt und die Vergleichskarte verschwindet ohne Seiten-Neuladen.
