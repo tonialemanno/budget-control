@@ -15,7 +15,9 @@ export function moneyText(value, {
     maximumFractionDigits: moneyDecimals,
     signDisplay: sign ? 'exceptZero' : 'auto',
   });
-  return formatter.format(Number(value || 0)).replace(/\u00a0/g, ' ');
+  return formatter.format(Number(value || 0))
+    .replace(/\u00a0/g, ' ')
+    .replace(/^([A-Z]{3}|\p{Sc})([+-])/u,'$1 $2');
 }
 
 export function money(value, options = {}) {
