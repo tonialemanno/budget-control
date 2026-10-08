@@ -262,14 +262,22 @@ export function annualIncomeBreakdown({
     if(type==='earned_income'||type==='other_income'){
       const source=tx.merchants?.name||tx.counterparty||tx.description||'Sonstige Einnahmen';
       const key=String(source).trim()||'Sonstige Einnahmen';
-      earned.set(key,(earned.get(key)||0)+value);
+      const current=earned.get(key)||{value:0,transactionIds:[]};
+      current.value+=value;
+      current.transactionIds.push(tx.id);
+      earned.set(key,current);
       if(type==='other_income') otherIncome+=value;
     } else if(type==='refund'||type==='tax_refund') refunds+=value;
     else if(type==='receivable_repayment') repayments+=value;
     else if(type==='unclassified_inflow') unclassified+=value;
   }
 
-  const allSources=[...earned.entries()].map(([label,value])=>({label,value,sourceNames:[label]})).sort((a,b)=>b.value-a.value);
+  const allSources=[...earned.entries()].map(([label,row])=>({
+    label,
+    value:row.value,
+    sourceNames:[label],
+    transactionIds:row.transactionIds,
+  })).sort((a,b)=>b.value-a.value);
   const top=allSources.slice(0,Math.max(1,limit));
   const hidden=allSources.slice(top.length);
   if(hidden.length) top.push({
@@ -277,6 +285,7 @@ export function annualIncomeBreakdown({
     value:hidden.reduce((sum,row)=>sum+row.value,0),
     other:true,
     sourceNames:hidden.map((row)=>row.label),
+    transactionIds:hidden.flatMap((row)=>row.transactionIds||[]),
   });
   const earnedTotal=allSources.reduce((sum,row)=>sum+row.value,0);
   return {
