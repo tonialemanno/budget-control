@@ -1,5 +1,15 @@
 # Finance 2.4.6
 
+## R59 – Erledigte Doppelbuchungen verschwinden sofort
+
+- Nach „Zusammenführen“ wird die erledigte Doppelbuchung sofort aus dem lokalen Transaktionsbestand entfernt und die Vergleichskarte verschwindet ohne Seiten-Neuladen.
+- Verknüpfte Belege werden lokal direkt auf die verbleibende Buchung umgehängt; anschließend werden die Finanzdaten still vom Server synchronisiert.
+- Nach „Sind verschieden“ wird die Entscheidung sofort lokal gespeichert und der Vergleich verschwindet ebenfalls ohne vollständigen Reload.
+- Der konkrete EDEKA/CHF-44.97-Fall wurde geprüft: In der Datenbank existiert nur noch eine echte Buchung; die Doppelbuchung selbst ist bereits entfernt.
+- Keine Datenbankstrukturänderung gegenüber R58. Schema 2026100802, Release 2026.10.08-r59.
+
+# Finance 2.4.6
+
 ## R58 – Intelligenter Import statt manueller Nacharbeit
 
 - CSV-/PDF-Import prüft das gewählte Zielkonto auf Plausibilität. Ein klarer Bankkontoauszug kann nicht mehr versehentlich auf ein Bargeldkonto importiert werden.
