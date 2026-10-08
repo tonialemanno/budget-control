@@ -117,7 +117,7 @@ export function renderBudget({
         </div>
         <div class="row-actions">
           <button class="table-action" type="button" data-action="budget-suggestion-toggle" data-merchant-id="${escapeHtml(pattern.key)}">${expanded?'Buchungen schliessen':'Warum?'}</button>
-          ${canAdopt?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${pattern.merchant?.id||''}" data-category-id="${pattern.category.id||''}" data-month="${currentMonth}" data-amount="${pattern.suggested}">Als Budget ${money(pattern.suggested,{currency,locale,decimals:0})}</button>`:''}
+          ${canAdopt?`<button class="table-action" type="button" data-action="budget-suggestion" data-merchant-id="${pattern.merchant?.id||''}" data-category-id="${pattern.category.id||''}" data-month="${currentMonth}" data-amount="${pattern.suggested}">Als Budget ${money(pattern.suggested,{currency,locale})}</button>`:''}
           ${fixed?'<a class="table-action" href="#/fixed-costs">Fixkosten öffnen</a>':''}
         </div>
       </div>
