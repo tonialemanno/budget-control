@@ -4,7 +4,7 @@ import { store } from './app/store.js';
 import { backend } from './app/backend.js';
 import { financeApi } from './app/finance-api.js?v=20261008-r52';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
-import { setLocale, t, translateElement } from './app/i18n.js';
+import { setLocale, t, translateElement } from './app/i18n.js?v=20261008-r53';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
