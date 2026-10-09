@@ -14,7 +14,7 @@ assert.match(config,/version:\s*'2\.4\.11'/);
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
 assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
 assert.match(index,/releaseChannelLabel">Stable</);
-assert.match(index,/releaseChannelCaption">v2\.4\.11 · R66</);
+assert.match(index,/releaseChannelCaption">v2\.4\.11 · R67</);
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);
 assert.match(ci,/SAFE_REF=/);
