@@ -82,6 +82,20 @@ export function merchantSimilarity(left,right){
   return union?intersection/union:0;
 }
 
+export function similarMerchantCandidates(detected,merchants=[],{minimum=0.58,limit=5}={}){
+  if(!detected?.name) return [];
+  const detectedKey=norm(detected?.key||detected?.normalized_key||detected?.name);
+  return (merchants||[])
+    .filter((merchant)=>merchant?.id&&merchant?.name)
+    .map((merchant)=>({merchant,similarity:merchantSimilarity(detected,merchant)}))
+    .filter((row)=>{
+      const merchantKey=norm(row.merchant.normalized_key||row.merchant.name);
+      return merchantKey!==detectedKey && row.similarity>=minimum;
+    })
+    .sort((a,b)=>b.similarity-a.similarity||String(a.merchant.name||'').localeCompare(String(b.merchant.name||''),'de'))
+    .slice(0,Math.max(1,Number(limit)||5));
+}
+
 function receiptTransactionIds(documents){
   return new Set((documents||[])
     .filter((doc)=>doc?.object_type==='transaction'&&doc?.object_id&&(/fotoerfassung|kassenbeleg|receipt/i.test(String(doc.notes||''))||String(doc.mime_type||'').startsWith('image/')))
