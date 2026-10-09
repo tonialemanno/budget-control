@@ -11,6 +11,8 @@ import {
 
 assert.equal(merchantDefaultCategory('m1',null,[{id:'m1',default_category_id:'c2'}]),'c2');
 assert.equal(merchantDefaultCategory('m1','c9',[{id:'m1',default_category_id:'c2'}]),'c9');
+assert.equal(merchantDefaultCategory('m1',null,[{id:'m1',default_category_id:'c2'}],[{id:'c2',kind:'expense'}],'expense'),'c2');
+assert.equal(merchantDefaultCategory('m1',null,[{id:'m1',default_category_id:'c2'}],[{id:'c2',kind:'expense'}],'income'),null,'expense merchant default must never classify an incoming payment');
 assert.equal(signedAmount('expense',12.5),-12.5);
 assert.equal(signedAmount('income',12.5),12.5);
 assert.throws(()=>signedAmount('expense',0),/grösser als 0/);
@@ -26,7 +28,7 @@ const api={
 const account={account_id:'a1',currency:'CHF'};
 await createEconomicTransaction({
   api,householdId:'h1',account,direction:'expense',amount:40,
-  merchantId:'m1',merchants:[{id:'m1',default_category_id:'c2'}],
+  merchantId:'m1',merchants:[{id:'m1',default_category_id:'c2'}],categories:[{id:'c2',kind:'expense'}],
   occurredAt:'2026-10-03T12:00:00Z',description:'Coop',
   tax:{enabled:true,year:2026,treatment:'deduction',sectionKey:'work_expenses',category:'Berufskosten'},
 });
@@ -35,6 +37,14 @@ assert.equal(captured.category_id,'c2');
 assert.equal(captured.tax_relevant,true);
 assert.equal(captured.tax_year,2026);
 assert.equal(captured.tax_section_key,'work_expenses');
+
+await createEconomicTransaction({
+  api,householdId:'h1',account,direction:'income',amount:40,
+  merchantId:'m1',merchants:[{id:'m1',default_category_id:'c2'}],categories:[{id:'c2',kind:'expense'}],
+  occurredAt:'2026-10-03T12:00:00Z',description:'Rückzahlung',
+});
+assert.equal(captured.amount,40);
+assert.equal(captured.category_id,null,'opposite-direction merchant default must not leak into an income transaction');
 
 await createEconomicTransfer({
   api,householdId:'h1',

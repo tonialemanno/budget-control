@@ -6,13 +6,14 @@ const accounts=[
   {account_id:'a',name:'Lohnkonto',currency:'CHF'},
   {account_id:'b',name:'Sparkonto',currency:'CHF'},
 ];
-const categories=[{id:'food',name:'Lebensmittel',kind:'expense'}];
+const categories=[{id:'food',name:'Lebensmittel',kind:'expense'},{id:'salary',name:'Lohn',kind:'income'}];
 const transactions=[
   {id:'t1',account_id:'a',status:'booked',cashflow_type:'standard',category_id:null,transfer_group_id:null,occurred_at:'2026-10-03T10:00:00Z',created_at:'2026-10-03T10:00:00Z',amount:-100,currency:'CHF',description:'Umbuchung Sparen'},
   {id:'t2',account_id:'b',status:'booked',cashflow_type:'standard',category_id:null,transfer_group_id:null,occurred_at:'2026-10-03T10:03:00Z',created_at:'2026-10-03T10:03:00Z',amount:100,currency:'CHF',description:'Gutschrift'},
   {id:'t3',account_id:'a',status:'booked',cashflow_type:'standard',category_id:null,transfer_group_id:null,occurred_at:'2026-10-04T10:00:00Z',created_at:'2026-10-04T10:00:00Z',amount:-50,currency:'CHF',description:'Unbekannte Ausgabe'},
   {id:'t4',account_id:'a',status:'booked',cashflow_type:'standard',category_id:null,transfer_group_id:null,occurred_at:'2026-10-04T11:00:00Z',created_at:'2026-10-04T11:00:00Z',amount:80,currency:'CHF',description:'Unbekannter Eingang'},
   {id:'t5',account_id:'a',status:'booked',cashflow_type:'standard',category_id:'food',transfer_group_id:null,occurred_at:'2026-10-04T12:00:00Z',created_at:'2026-10-04T12:00:00Z',amount:-30,currency:'CHF',description:'Bereits erledigt'},
+  {id:'t6',account_id:'a',status:'booked',cashflow_type:'standard',category_id:'food',transfer_group_id:null,occurred_at:'2026-10-04T13:00:00Z',created_at:'2026-10-04T13:00:00Z',amount:25,currency:'CHF',description:'Falsche Richtung'},
 ];
 const bills=[{id:'b1',name:'Rechnung',amount:20,currency:'CHF',due_date:'2026-10-10',status:'open'}];
 
@@ -24,11 +25,11 @@ const queue=buildReviewQueue({
 });
 assert.equal(queue.possibleTransfers.length,1);
 assert.equal(queue.uncategorizedExpenses.length,1);
-assert.equal(queue.unknownIncoming.length,1);
+assert.equal(queue.unknownIncoming.length,2,'income carrying an expense category must return to review');
 assert.equal(queue.dueBills.length,1);
-assert.equal(queue.openCount,4);
+assert.equal(queue.openCount,5);
 assert.equal(queue.openTransactions.some((row)=>row.id==='t5'),false);
-assert.equal(queue.sinceLastVisit.length,5);
+assert.equal(queue.sinceLastVisit.length,6);
 
 const html=renderReview({
   transactions,accounts,categories,bills,merchants:[],household:{base_currency:'CHF'},profile:{locale:'de-CH'},
@@ -41,5 +42,6 @@ assert.match(html,/Lohnkonto → Sparkonto/);
 assert.match(html,/Als Umbuchung verbinden/);
 assert.match(html,/Rückgängig/);
 assert.doesNotMatch(html,/Bereits erledigt/);
+assert.match(html,/Falsche Richtung/);
 
 console.log('review inbox assertions OK');

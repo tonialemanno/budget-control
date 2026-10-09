@@ -1,3 +1,20 @@
+# Finance 2.4.16
+
+## R72 – Vollständiger Stabilitäts- und Konsistenzaudit
+
+- Gesamter Router, Renderer, Formulare, Aktionen, API-Aufrufe, Übersetzungen, Mobile-UX und Release-Cache werden erneut durch den vollständigen CI-Lauf geprüft.
+- Veraltete interne ES-Modul-URLs aus R31/R35/R53/R60 wurden entfernt. Interne Module haben wieder genau eine kanonische URL; das verhindert getrennte Modulzustände und alte Browserstände.
+- Händler-Standardkategorien dürfen eine Buchung nur noch übernehmen, wenn Einnahme/Ausgabe zur Kategorieart passt. Das gilt für manuelle Buchungen, Belegerfassung und Bankimport.
+- Historische Buchungen mit einer Kategorie der falschen Richtung werden nicht still umgeschrieben, sondern wieder in „Zu prüfen“ aufgenommen.
+- Die beim Admin→Privat-Umzug verbliebene Hauptkonto-/Finanzmonat-/Setup-Präferenz wurde auf den privaten Account übertragen; die Admin-Präferenz zeigt nicht mehr auf den privaten Haushalt.
+- iPhone-Home-Screen erhält ein echtes 180×180-PNG als Apple-Touch-Icon; die Markenbezeichnung lautet überall „ALEMANNO“, nicht „ALEMANN0“.
+- Die Datenbank wurde auf Referenzintegrität, Kontowährungen, Umbuchungsgruppen, Schuld-/Forderungssalden, wiederkehrende Regeln, Zielquellen, Händler/Aliase und RLS geprüft.
+- Keine automatische destruktive Bereinigung historisch mehrdeutiger Buchungen oder Händler.
+
+### Wichtige Ablösung
+
+Die in R60 dokumentierte Berechnung des „Persönlichen Überschuss-Rekords“ über Überweisungen auf ein Überschusskonto ist seit R67 abgelöst. Der Rekord wird aus vollständig abgedeckten, abgeschlossenen Finanzmonaten als echter Monatsüberschuss berechnet.
+
 # Finance 2.4.6
 
 ## R60 – Echter persönlicher Überschuss-Rekord

@@ -1,5 +1,5 @@
 {
-  "name": "FinanceApp by ALEMANN0",
+  "name": "FinanceApp by ALEMANNO",
   "short_name": "FinanceApp",
   "description": "ALEMANNO BUCHHALTUNG – Ihre Finanzen im Griff.",
   "start_url": "/",
@@ -12,7 +12,13 @@
       "src": "/assets/brand/financeapp-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

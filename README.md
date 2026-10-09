@@ -1,4 +1,4 @@
-# Finance 2.4.0
+# FinanceApp / ALEMANNO BUCHHALTUNG · 2.4.16
 
 ## Neu in 2.4.0: Alltag zuerst
 
@@ -11,7 +11,9 @@ Finance ergänzt die bestehende Händler-, Regel- und Kategorienlogik um ein lok
 
 ## Aktueller Stand
 
-Finance 2.3.0 ist der konsolidierte Stable-Stand für den manuellen Familien-/Testbetrieb. Konten, Transaktionen, Imports, Händler, Fixkosten, Budgets, Rechnungen, Verträge, Sparziele, Schulden, Forderungen und Finance Intelligence verwenden einen gemeinsamen Finanzkern und klar getrennte Planungs-/Ist-Logik.
+R72 / 2.4.16 ist der aktuelle Beta-Audit-Stand. Die Kernbereiche Übersicht, Prüfen, Geld, Planung, Konten, Transaktionen, Import, Händler, Kategorien, Fixkosten, Budget, Rechnungen/Verträge, Sparziele, Schulden, Forderungen, Steuern, Dokumente, Vermögen und Administration sind im zentralen Router registriert und werden im CI als Renderer, Route, Aktionen, Formulare, API-Aufrufe und Übersetzungen geprüft.
+
+Der Bankimport bleibt bewusst dateibasiert; eine direkte Bank-API ist noch kein produktiver Bestandteil. Händler werden vor einer Neuanlage auf Ähnlichkeit geprüft, Kategorien werden beim Import nicht automatisch neu erzeugt, und Händler-Standardkategorien werden nur noch verwendet, wenn ihre Einnahme-/Ausgabeart zur Buchungsrichtung passt.
 
 Wichtige Grundsätze:
 

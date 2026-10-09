@@ -1273,7 +1273,8 @@ const EN = Object.freeze({
 
 const IT_EXTRA = Object.freeze({
   'Erste offene Entscheidung öffnen':'Apri la prima decisione aperta',
-  'Ausgaben ohne Kategorie öffnen':'Apri le spese senza categoria',
+  'Ausgaben zu prüfen öffnen':'Apri le spese da verificare',
+  'Ausgaben zu prüfen':'Spese da verificare',
   'Ungeklärte Eingänge öffnen':'Apri le entrate da chiarire',
   'Mögliche Umbuchungen öffnen':'Apri i possibili trasferimenti',
   'Bald fällige Rechnungen öffnen':'Apri le fatture in scadenza',
@@ -1667,7 +1668,8 @@ const IT_EXTRA = Object.freeze({
 
 const EN_EXTRA = Object.freeze({
   'Erste offene Entscheidung öffnen':'Open the first unresolved decision',
-  'Ausgaben ohne Kategorie öffnen':'Open expenses without a category',
+  'Ausgaben zu prüfen öffnen':'Open expenses to review',
+  'Ausgaben zu prüfen':'Expenses to review',
   'Ungeklärte Eingänge öffnen':'Open unexplained incoming payments',
   'Mögliche Umbuchungen öffnen':'Open possible transfers',
   'Bald fällige Rechnungen öffnen':'Open bills due soon',

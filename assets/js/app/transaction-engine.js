@@ -9,10 +9,15 @@ function positive(value, message) {
   return amount;
 }
 
-export function merchantDefaultCategory(merchantId, explicitCategoryId, merchants = []) {
+export function merchantDefaultCategory(merchantId, explicitCategoryId, merchants = [], categories = [], direction = '') {
   if (explicitCategoryId) return explicitCategoryId;
   if (!merchantId) return null;
-  return merchants.find((merchant)=>merchant.id===merchantId)?.default_category_id || null;
+  const categoryId=merchants.find((merchant)=>merchant.id===merchantId)?.default_category_id || null;
+  if(!categoryId) return null;
+  const expectedKind=direction==='expense'?'expense':direction==='income'?'income':'';
+  if(!expectedKind || !Array.isArray(categories) || !categories.length) return categoryId;
+  const category=categories.find((row)=>row.id===categoryId);
+  return category?.kind===expectedKind ? categoryId : null;
 }
 
 export function signedAmount(direction, amount) {
@@ -39,6 +44,7 @@ export async function createEconomicTransaction({
   categoryId = null,
   merchantId = null,
   merchants = [],
+  categories = [],
   occurredAt,
   description,
   counterparty = null,
@@ -56,7 +62,7 @@ export async function createEconomicTransaction({
   required(api, 'ALEMANNO BUCHHALTUNG API fehlt.');
   required(householdId, 'Haushalt fehlt.');
   required(account?.account_id, 'Bitte ein Konto auswählen.');
-  const resolvedCategoryId = merchantDefaultCategory(merchantId, categoryId, merchants);
+  const resolvedCategoryId = merchantDefaultCategory(merchantId, categoryId, merchants, categories, direction);
   const payload = {
     household_id: householdId,
     account_id: account.account_id,

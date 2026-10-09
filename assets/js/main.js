@@ -28,7 +28,6 @@ import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from './app/fi
 import {
   createEconomicTransaction, createEconomicTransfer, recordDebtMovement,
   createReceivableMovement, recordReceivableMovement, recordBillMovement, recordTaxMovement,
-  merchantDefaultCategory,
 } from './app/transaction-engine.js';
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js';
@@ -943,7 +942,7 @@ function showAuth(notice='') {
   const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand auth-brand--financeapp"><img class="auth-brand-logo" src="/assets/brand/financeapp-mark.svg?v=20261009-r69" alt="FinanceApp"><div class="auth-brand-lockup"><strong><span>Finance</span><em>App</em></strong><small>by ALEMANN0</small><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
+      <div class="auth-brand auth-brand--financeapp"><img class="auth-brand-logo" src="/assets/brand/financeapp-mark.svg" alt="FinanceApp"><div class="auth-brand-lockup"><strong><span>Finance</span><em>App</em></strong><small>by ALEMANNO</small><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Ihre Finanzen im Griff</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
@@ -1961,19 +1960,21 @@ function renderImportReview() {
         : [];
 
       const ruleCategoryId=(ownCounterAccount||cashInfo)?null:applyCategoryRules(tx,runtime.categorizationRules);
+      const txKind=Number(tx.amount)<0?'expense':'income';
       const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
-      const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+      const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===txKind)).find(Boolean)||null;
+      const rememberedCategoryId=(ownCounterAccount||cashInfo)?null:(runtime.categories.find((category)=>category.id===existing?.default_category_id&&category.kind===txKind)?.id||null);
       const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,tx);
       const semanticSuggestion=(ownCounterAccount||cashInfo)?null:suggestImportSemantic(tx);
       const autoCategoryId=(ownCounterAccount||cashInfo)?'':(
-        existing?.default_category_id
+        rememberedCategoryId
         || ruleCategoryId
         || knownCategory?.id
         || (mlPrediction?.safe?mlPrediction.categoryId:null)
         || ''
       );
       const suggestedCategoryId=autoCategoryId||mlPrediction?.categoryId||'';
-      const categorySource=existing?.default_category_id
+      const categorySource=rememberedCategoryId
         ? {type:'remembered',label:'Gemerkte Händlerkategorie',safe:true}
         : ruleCategoryId
           ? {type:'rule',label:'Kategorisierungsregel',safe:true}
@@ -2087,10 +2088,14 @@ function suggestedCategoryIdForTransaction({
   contextName='',
 }={}) {
   if(explicitCategoryId) return explicitCategoryId;
+  const expectedKind=Number(amount)<0?'expense':Number(amount)>0?'income':'';
   const merchantDefault=merchantId
     ? runtime.merchants.find((row)=>row.id===merchantId)?.default_category_id||null
     : null;
-  if(merchantDefault) return merchantDefault;
+  const merchantDefaultCategory=merchantDefault
+    ? runtime.categories.find((row)=>row.id===merchantDefault&&(!expectedKind||row.kind===expectedKind))
+    : null;
+  if(merchantDefaultCategory) return merchantDefaultCategory.id;
 
   const candidates=[];
   if(semanticType==='asset_acquisition') candidates.push('Fahrzeugkauf','Mobilität');
@@ -2809,7 +2814,7 @@ async function handleForm(form) {
     }
     await createEconomicTransaction({
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
-      categoryId, merchantId, merchants:runtime.merchants, occurredAt,
+      categoryId, merchantId, merchants:runtime.merchants, categories:runtime.categories, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
       counterpartyId:counterpartyEntity?.id||null,
       contextId,
@@ -3117,11 +3122,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const recurringCategoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const recurringCategory=runtime.categories.find((row)=>row.id===recurringCategoryId)||null;
+    if(direction==='expense'&&recurringCategory&&recurringCategory.kind!=='expense') throw new Error('Kategorie passt nicht zur Ausgabe.');
+    if(direction==='income'&&recurringCategory&&recurringCategory.kind!=='income') throw new Error('Kategorie passt nicht zur Einnahme.');
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      category_id:recurringCategoryId,
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
@@ -3160,6 +3169,9 @@ async function handleForm(form) {
     }
 
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const recurringEditCategory=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='expense'&&recurringEditCategory&&recurringEditCategory.kind!=='expense') throw new Error('Kategorie passt nicht zur Ausgabe.');
+    if(direction==='income'&&recurringEditCategory&&recurringEditCategory.kind!=='income') throw new Error('Kategorie passt nicht zur Einnahme.');
     await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
@@ -4136,10 +4148,12 @@ async function handleForm(form) {
               ? semanticSelections.get(merchantInfo.key)
               : (semanticSelections.has(groupKey)?semanticSelections.get(groupKey):null)
           );
+          const txKind=Number(tx.amount)<0?'expense':'income';
           const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
-          const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+          const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===txKind)).find(Boolean)||null;
+          const rememberedCategoryId=(ownCounterAccount||cashInfo)?null:(runtime.categories.find((category)=>category.id===merchant?.default_category_id&&category.kind===txKind)?.id||null);
           const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
-          const fallbackCategory = (ownCounterAccount||cashInfo) ? null : (merchant?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
+          const fallbackCategory = (ownCounterAccount||cashInfo) ? null : (rememberedCategoryId || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || (mlPrediction?.safe?mlPrediction.categoryId:null));
           const categoryId = selectedCategory || fallbackCategory;
           if (!ownCounterAccount && !cashInfo && !merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
