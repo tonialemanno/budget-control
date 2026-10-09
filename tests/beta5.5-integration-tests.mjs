@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.10'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.11'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /ALEMANNO BUCHHALTUNG wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
@@ -160,3 +160,13 @@ assert.match(read('assets/js/views/admin.js'), /name="displayName"/);
 assert.match(read('assets/js/app/backend.js'), /adminSetDisplayName/);
 assert.match(read('supabase/functions/admin-users/index.ts'), /set_display_name/);
 assert.match(read('assets/js/main.js'), /Profil gespeichert/);
+
+assert.match(read('assets/js/app/duplicate-intelligence.js'), /similarMerchantCandidates/);
+assert.match(read('assets/js/main.js'), /data-csv-merchant-match-key/);
+assert.match(read('assets/js/main.js'), /Bitte zuerst .*Händlervergleich/);
+assert.match(read('assets/js/main.js'), /Machine Learning ·/);
+assert.match(read('assets/js/views/imports.js'), /keine neuen Kategorien automatisch erzeugt/);
+assert.match(read('assets/js/app/finance-insights.js'), /historicalFinanceSurplusRecord/);
+assert.match(read('assets/js/views/overview.js'), /historicalFinanceSurplusRecord/);
+assert.match(read('assets/js/views/overview.js'), /Abgeschlossener Finanzmonat/);
+assert.match(read('assets/js/main.js'), /profileInitials/);
