@@ -4056,8 +4056,12 @@ async function handleForm(form) {
       }
     }
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
+    const merchantMatchSelections = new Map([...form.querySelectorAll('[data-csv-merchant-match-key]')].map((select)=>[select.dataset.csvMerchantMatchKey, select.value || '']));
+    const unresolvedMerchantMatches=[...merchantMatchSelections.entries()].filter(([,value])=>!value);
+    if(unresolvedMerchantMatches.length) throw new Error(`Bitte zuerst ${unresolvedMerchantMatches.length} Händlervergleich${unresolvedMerchantMatches.length===1?'':'e'} beantworten. So wird kein ähnlicher Händler versehentlich doppelt angelegt.`);
     const remember = data.get('rememberMerchants') === 'on';
     const merchantCache = new Map(runtime.merchants.map((merchant)=>[merchant.normalized_key,merchant]));
+    const merchantById = new Map(runtime.merchants.map((merchant)=>[merchant.id,merchant]));
     const aliasCache = [...runtime.merchantAliases];
     const mlModel=buildCategoryMlModel({transactions:runtime.transactions,categories:runtime.categories});
     let importedTotal=0;
@@ -4096,8 +4100,14 @@ async function handleForm(form) {
           const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
           const merchantInfo = merchantFromTransaction(tx);
           let merchant = (ownCounterAccount||cashInfo) ? null : resolveCanonicalMerchant(merchantInfo,{merchants:[...merchantCache.values()],aliases:aliasCache});
+          const matchDecision=(ownCounterAccount||cashInfo||merchant)?'':(merchantMatchSelections.get(merchantInfo.key)||'');
+          if(!merchant && matchDecision && matchDecision!=='__new__') merchant=merchantById.get(matchDecision)||null;
           const groupKey=merchant?.normalized_key||merchantInfo.key;
-          const selectedCategory = (ownCounterAccount||cashInfo) ? null : (categorySelections.has(groupKey) ? categorySelections.get(groupKey) : (categorySelections.has(merchantInfo.key)?categorySelections.get(merchantInfo.key):null));
+          const selectedCategory = (ownCounterAccount||cashInfo) ? null : (
+            categorySelections.has(merchantInfo.key)
+              ? categorySelections.get(merchantInfo.key)
+              : (categorySelections.has(groupKey)?categorySelections.get(groupKey):null)
+          );
           const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
           const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,{...tx,account_id:accountId,currency:account.currency||currency,source:'import'});
@@ -4105,10 +4115,16 @@ async function handleForm(form) {
           const categoryId = selectedCategory || fallbackCategory;
           if (!ownCounterAccount && !cashInfo && !merchant) {
             merchant = await financeApi.upsertMerchant({ household_id:h, name:merchantInfo.name, normalized_key:merchantInfo.key, default_category_id:remember?categoryId:null });
-            if (merchant) merchantCache.set(merchant.normalized_key,merchant);
+            if (merchant) {
+              merchantCache.set(merchant.normalized_key,merchant);
+              merchantById.set(merchant.id,merchant);
+            }
           } else if (!ownCounterAccount && !cashInfo && remember && categoryId && merchant?.default_category_id !== categoryId) {
             merchant = await financeApi.updateMerchant(merchant.id,{ default_category_id:categoryId });
-            if (merchant) merchantCache.set(merchant.normalized_key,merchant);
+            if (merchant) {
+              merchantCache.set(merchant.normalized_key,merchant);
+              merchantById.set(merchant.id,merchant);
+            }
           }
           if(!ownCounterAccount && !cashInfo && merchant && merchantInfo.aliasKey && merchantInfo.aliasKey!==merchant.normalized_key){
             const alias=await financeApi.upsertMerchantAlias({
