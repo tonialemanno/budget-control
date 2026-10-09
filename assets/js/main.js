@@ -3122,11 +3122,15 @@ async function handleForm(form) {
       if(destination.currency!==account.currency) throw new Error('Wiederkehrende Umbuchungen werden aktuell nur zwischen Konten derselben Währung unterstützt.');
       destinationAccountId=destination.account_id;
     }
+    const recurringCategoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const recurringCategory=runtime.categories.find((row)=>row.id===recurringCategoryId)||null;
+    if(direction==='expense'&&recurringCategory&&recurringCategory.kind!=='expense') throw new Error('Kategorie passt nicht zur Ausgabe.');
+    if(direction==='income'&&recurringCategory&&recurringCategory.kind!=='income') throw new Error('Kategorie passt nicht zur Einnahme.');
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      category_id:recurringCategoryId,
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
@@ -3165,6 +3169,9 @@ async function handleForm(form) {
     }
 
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const recurringEditCategory=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='expense'&&recurringEditCategory&&recurringEditCategory.kind!=='expense') throw new Error('Kategorie passt nicht zur Ausgabe.');
+    if(direction==='income'&&recurringEditCategory&&recurringEditCategory.kind!=='income') throw new Error('Kategorie passt nicht zur Einnahme.');
     await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
