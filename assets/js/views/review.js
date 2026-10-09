@@ -65,27 +65,29 @@ export function renderReview({
     ${pageHeader({title:'Zu prüfen',subtitle:'Eine Arbeitsliste statt Modulsuche. Was gespeichert oder eindeutig verbunden ist, verschwindet hier.',actions:'<a class="action-button action-button--secondary" href="#/search">'+icon('search')+' Suchen</a>'})}
 
     <article class="card card--accent review-summary-card">
-      <div><span class="hero-label">Seit deinem letzten Besuch · ${escapeHtml(lastVisitLabel)}</span><div class="hero-value">${queue.openCount}</div><span class="hero-caption">offene Entscheidungen · ${queue.sinceLastVisit.length} neue Buchungen erkannt</span></div>
+      <button class="review-summary-main review-summary-main--interactive" type="button" data-action="review-jump-section" data-target="${queue.uncategorizedExpenses.length?'review-expenses':queue.unknownIncoming.length?'review-income':(queue.possibleTransfers.length+queue.ambiguousTransfers.length)?'review-transfers':queue.dueBills.length?'review-bills':'review-history'}" aria-label="Erste offene Entscheidung öffnen">
+        <span class="hero-label">Seit deinem letzten Besuch · ${escapeHtml(lastVisitLabel)}</span><div class="hero-value">${queue.openCount}</div><span class="hero-caption">offene Entscheidungen · ${queue.sinceLastVisit.length} neue Buchungen erkannt</span>
+      </button>
       <div class="review-summary-grid">
-        <div><span>Ausgaben ohne Kategorie</span><strong>${queue.uncategorizedExpenses.length}</strong></div>
-        <div><span>Ungeklärte Eingänge</span><strong>${queue.unknownIncoming.length}</strong></div>
-        <div><span>Mögliche Umbuchungen</span><strong>${queue.possibleTransfers.length+queue.ambiguousTransfers.length}</strong></div>
-        <div><span>Rechnungen bald fällig</span><strong>${queue.dueBills.length}</strong></div>
+        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-expenses" aria-label="Ausgaben ohne Kategorie öffnen"><span>Ausgaben ohne Kategorie</span><strong>${queue.uncategorizedExpenses.length}</strong></button>
+        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-income" aria-label="Ungeklärte Eingänge öffnen"><span>Ungeklärte Eingänge</span><strong>${queue.unknownIncoming.length}</strong></button>
+        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-transfers" aria-label="Mögliche Umbuchungen öffnen"><span>Mögliche Umbuchungen</span><strong>${queue.possibleTransfers.length+queue.ambiguousTransfers.length}</strong></button>
+        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-bills" aria-label="Bald fällige Rechnungen öffnen"><span>Rechnungen bald fällig</span><strong>${queue.dueBills.length}</strong></button>
       </div>
     </article>
 
     ${queue.openCount===0?`<article class="card onboarding-empty review-done-card"><span class="onboarding-empty-icon">${icon('shield')}</span><div><h3>Alles geprüft.</h3><p>ALEMANNO BUCHHALTUNG sieht aktuell keine offenen Buchungen, Umbuchungen oder bald fälligen Rechnungen, die deine Entscheidung brauchen.</p></div></article>`:''}
 
     <div class="review-section-grid">
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Ausgaben zuordnen</h3><p class="card-subtitle">Speichern = erledigt. Die Buchung verschwindet danach aus dieser Liste.</p></div><span>${statusPill(queue.uncategorizedExpenses.length?'pending':'active',String(queue.uncategorizedExpenses.length))}</span></div><div class="review-work-list">${expenseRows||empty('Keine offenen Ausgaben.')}</div></article>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Eingänge klären</h3><p class="card-subtitle">Verdienst, Rückerstattung, Forderungsrückzahlung oder eigene Umbuchung unterscheiden.</p></div><span>${statusPill(queue.unknownIncoming.length?'pending':'active',String(queue.unknownIncoming.length))}</span></div><div class="review-work-list">${incomeRows||empty('Keine ungeklärten Eingänge.')}</div></article>
+      <article class="card card-padding" id="review-expenses"><div class="card-heading"><div><h3 class="card-title">Ausgaben zuordnen</h3><p class="card-subtitle">Speichern = erledigt. Die Buchung verschwindet danach aus dieser Liste.</p></div><span>${statusPill(queue.uncategorizedExpenses.length?'pending':'active',String(queue.uncategorizedExpenses.length))}</span></div><div class="review-work-list">${expenseRows||empty('Keine offenen Ausgaben.')}</div></article>
+      <article class="card card-padding" id="review-income"><div class="card-heading"><div><h3 class="card-title">Eingänge klären</h3><p class="card-subtitle">Verdienst, Rückerstattung, Forderungsrückzahlung oder eigene Umbuchung unterscheiden.</p></div><span>${statusPill(queue.unknownIncoming.length?'pending':'active',String(queue.unknownIncoming.length))}</span></div><div class="review-work-list">${incomeRows||empty('Keine ungeklärten Eingänge.')}</div></article>
     </div>
 
-    <article class="card card-padding review-transfer-card"><div class="card-heading"><div><h3 class="card-title">Eigene Umbuchungen erkennen</h3><p class="card-subtitle">Gleicher Betrag, Gegenrichtung, andere eigene Konten und maximal sieben Tage Abstand. ALEMANNO BUCHHALTUNG verbindet nur auf deinen Klick.</p></div><span>${statusPill(queue.possibleTransfers.length?'active':'neutral',`${queue.possibleTransfers.length} eindeutig`)}</span></div><div class="review-work-list">${transferRows||empty('Keine eindeutigen Gegenbuchungen gefunden.')}${ambiguousRows}</div></article>
+    <article class="card card-padding review-transfer-card" id="review-transfers"><div class="card-heading"><div><h3 class="card-title">Eigene Umbuchungen erkennen</h3><p class="card-subtitle">Gleicher Betrag, Gegenrichtung, andere eigene Konten und maximal sieben Tage Abstand. ALEMANNO BUCHHALTUNG verbindet nur auf deinen Klick.</p></div><span>${statusPill(queue.possibleTransfers.length?'active':'neutral',`${queue.possibleTransfers.length} eindeutig`)}</span></div><div class="review-work-list">${transferRows||empty('Keine eindeutigen Gegenbuchungen gefunden.')}${ambiguousRows}</div></article>
 
     <div class="review-section-grid">
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Fälligkeiten</h3><p class="card-subtitle">Offene und überfällige Rechnungen der nächsten 14 Tage.</p></div></div><div class="review-work-list">${billRows||empty('Keine bald fälligen Rechnungen.')}</div></article>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Änderungsverlauf</h3><p class="card-subtitle">Sammel-Kategorisierungen können hier rückgängig gemacht werden.</p></div></div><div class="review-history-list">${history||empty('In dieser Sitzung noch keine Änderungen.')}</div></article>
+      <article class="card card-padding" id="review-bills"><div class="card-heading"><div><h3 class="card-title">Fälligkeiten</h3><p class="card-subtitle">Offene und überfällige Rechnungen der nächsten 14 Tage.</p></div></div><div class="review-work-list">${billRows||empty('Keine bald fälligen Rechnungen.')}</div></article>
+      <article class="card card-padding" id="review-history"><div class="card-heading"><div><h3 class="card-title">Änderungsverlauf</h3><p class="card-subtitle">Sammel-Kategorisierungen können hier rückgängig gemacht werden.</p></div></div><div class="review-history-list">${history||empty('In dieser Sitzung noch keine Änderungen.')}</div></article>
     </div>
 
     ${queue.merchantDuplicates.length?`<article class="inline-alert"><strong>${queue.merchantDuplicates.length} mögliche Händler-Dubletten.</strong><span>Das ist Stammdatenpflege und blockiert deine Buchungen nicht. <a href="#/merchants">Händler prüfen</a></span></article>`:''}
