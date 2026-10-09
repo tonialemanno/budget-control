@@ -20,6 +20,9 @@
 /sw.js
   Cache-Control: no-store, max-age=0, must-revalidate
 
+/manifest.webmanifest
+  Cache-Control: no-store, max-age=0, must-revalidate
+
 /assets/js/main.js
   Cache-Control: no-store, max-age=0, must-revalidate
 
