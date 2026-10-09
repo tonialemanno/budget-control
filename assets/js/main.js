@@ -3891,7 +3891,16 @@ async function handleForm(form) {
     return;
   }
   if (id === 'profile-settings') {
-    await saveCurrentUserLocale(formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    const displayName=String(formValue(data,'displayName')||'').trim().replace(/\s+/g,' ');
+    if(displayName.length<2||displayName.length>80) throw new Error('Der Anzeigename muss zwischen 2 und 80 Zeichen lang sein.');
+    const nextLocale=formValue(data,'locale')||runtime.profile?.locale||APP_CONFIG.defaultLocale;
+    const localeChanged=nextLocale!==(runtime.profile?.locale||APP_CONFIG.defaultLocale);
+    const nameChanged=displayName!==(runtime.profile?.display_name||'');
+    if(nameChanged) runtime.profile=await financeApi.updateProfile(runtime.user.id,{display_name:displayName});
+    if(localeChanged) await saveCurrentUserLocale(nextLocale,{renderAfter:false,notify:false});
+    updateProfileUI();
+    render();
+    showToast('Profil gespeichert.');
     return;
   }
   if (id === 'admin-user-access') {
@@ -3899,10 +3908,13 @@ async function handleForm(form) {
     const userId=String(form.dataset.userId||'').trim();
     const user=runtime.adminUsers.find((row)=>row.id===userId);
     if(!user) throw new Error('Benutzer wurde nicht gefunden.');
+    const nextDisplayName=String(formValue(data,'displayName')||'').trim().replace(/\s+/g,' ');
+    if(nextDisplayName.length<2||nextDisplayName.length>80) throw new Error('Der Anzeigename muss zwischen 2 und 80 Zeichen lang sein.');
     const nextLocale=formValue(data,'locale')||user.locale||'de-CH';
     const enabled=new Set(data.getAll('enabledModules').map(String));
     const moduleList=(runtime.productModules||[]).filter((m)=>!m.is_core&&m.key!=='admin');
 
+    if(nextDisplayName!==String(user.display_name||'')) await backend.adminSetDisplayName({userId,displayName:nextDisplayName});
     if(nextLocale!==user.locale) await backend.adminSetLocale({userId,locale:nextLocale});
     for(const module of moduleList){
       const nextEnabled=enabled.has(module.key);
@@ -3912,6 +3924,7 @@ async function handleForm(form) {
       }
     }
 
+    user.display_name=nextDisplayName;
     user.locale=nextLocale;
     user.modules={...(user.modules||{})};
     for(const module of moduleList) user.modules[module.key]=enabled.has(module.key);
@@ -3919,7 +3932,7 @@ async function handleForm(form) {
     if(userId===runtime.user?.id){
       runtime.moduleAccess={...runtime.moduleAccess};
       for(const module of moduleList) runtime.moduleAccess[module.key]=enabled.has(module.key);
-      runtime.profile={...(runtime.profile||{}),locale:nextLocale};
+      runtime.profile={...(runtime.profile||{}),display_name:nextDisplayName,locale:nextLocale};
       setLocale(nextLocale);
       updateProfileUI();
     }
