@@ -50,11 +50,17 @@ export function buildReviewQueue({
 }={}){
   const accountById=new Map(accounts.map((row)=>[row.account_id||row.id,row]));
   const categoryById=new Map(categories.map((row)=>[row.id,row]));
+  const hasUsableCategory=(tx)=>{
+    if(!tx.category_id) return false;
+    const category=categoryById.get(tx.category_id);
+    const expectedKind=Number(tx.amount)<0?'expense':Number(tx.amount)>0?'income':'';
+    return Boolean(category && !category.is_archived && (!expectedKind || category.kind===expectedKind));
+  };
   const openTransactions=transactions.filter((tx)=>
     tx.status==='booked'
     && !tx.transfer_group_id
     && !['debt_payment','receivable_principal'].includes(tx.cashflow_type)
-    && !tx.category_id
+    && !hasUsableCategory(tx)
   );
 
   const pairSeen=new Set();
