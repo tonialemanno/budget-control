@@ -943,7 +943,7 @@ function showAuth(notice='') {
   const {label,shortRelease}=releaseUiMeta();
   authGate.innerHTML = `
     <div class="auth-card">
-      <div class="auth-brand"><span class="brand-mark" aria-hidden="true">${icon('alemanno')}</span><div><strong>ALEMANNO BUCHHALTUNG</strong><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
+      <div class="auth-brand auth-brand--financeapp"><img class="auth-brand-logo" src="/assets/brand/financeapp-mark.svg?v=20261009-r69" alt="FinanceApp"><div class="auth-brand-lockup"><strong><span>Finance</span><em>App</em></strong><small>by ALEMANN0</small><span>V${escapeHtml(APP_CONFIG.version)} · ${escapeHtml(label.toUpperCase())} · ${escapeHtml(shortRelease.toUpperCase())}</span></div></div>
       <div class="auth-copy"><span class="eyebrow">Ihre Finanzen im Griff</span><h1>Willkommen zurück</h1><p>Benutzer werden durch einen Administrator angelegt.</p></div>
       ${notice?`<div class="inline-alert"><strong>${escapeHtml(t('Sitzung beendet'))}</strong><span>${escapeHtml(t(notice))}</span></div>`:''}
       <form class="auth-form" id="authForm">
