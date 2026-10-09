@@ -2076,8 +2076,8 @@ const PATTERNS = {
   ],
   en: [
     ...UI_PATTERNS.en,
-    [/^von (\\d+) Händlern mit Standardkategorie$/, '$1 merchants with a default category'],
-    [/^(\\d+) sichere Vorschläge · (\\d+) zur Prüfung$/, '$1 safe suggestions · $2 to review'],
+    [/^von (\d+) Händlern mit Standardkategorie$/, '$1 merchants with a default category'],
+    [/^(\d+) sichere Vorschläge · (\d+) zur Prüfung$/, '$1 safe suggestions · $2 to review'],
     [/^(\d+) ausgewählt$/, '$1 selected'],
     [/^Diese Auswahl wird Trainingswissen für Machine Learning, ohne alle Buchungen von (.+) gleichzusetzen\.$/, 'This selection becomes training knowledge for machine learning without treating every transaction from $1 the same way.'],
     [/^Speichert nur die markierten Buchungen\. Es wird keine feste Regel für (.+) angelegt\. Machine Learning verwendet die Entscheidung als Trainingsbeispiel\.$/, 'Saves only the selected transactions. No fixed rule is created for $1. Machine learning uses the decision as a training example.'],
