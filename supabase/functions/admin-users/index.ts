@@ -405,6 +405,24 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, display_name: displayName }, 200, origin);
   }
 
+  if (action === "reset_demo_password") {
+    // This action changes only the authentication credential, never demo finance data.
+    if (adminRow.role !== "owner") return json({ error: "Nur der System-Owner darf das Demo-Passwort erneuern." }, 403, origin);
+    const { data: rows, error: demoError } = await admin.from("demo_instances").select("user_id").limit(20);
+    if (demoError) return json({ error: "Demo-Zugang konnte nicht geprüft werden." }, 400, origin);
+    const matches = new Set((rows || []).map((row: { user_id: string }) => row.user_id));
+    const users = await listAllUsers(admin);
+    const demoUser = users.find((user) => matches.has(user.id) && String(user.email || "").toLowerCase() === "demo@example.com");
+    if (!demoUser) return json({ error: "Der bestätigte Demo-Account wurde nicht gefunden." }, 404, origin);
+    const password = demoPassword();
+    const { error: changeError } = await admin.auth.admin.updateUserById(demoUser.id, { password });
+    if (changeError) return json({ error: "Das Demo-Passwort konnte nicht geändert werden." }, 400, origin);
+    return new Response(JSON.stringify({ ok: true, email: demoUser.email, password }), {
+      status: 200,
+      headers: { ...cors(origin), "Cache-Control": "no-store, no-cache, must-revalidate, private", "Pragma": "no-cache" },
+    });
+  }
+
   if (action === "set_password") {
     const userId = String(body.userId || "");
     const password = String(body.password || "");
