@@ -54,6 +54,11 @@ export function renderProfile({
       <form class="card card-padding" id="profile-settings" data-form="profile-settings" data-deferred-settings>
         <div class="card-heading"><div><h3 class="card-title">Persönliche Einstellungen</h3><p class="card-subtitle">Änderungen werden erst mit „Speichern“ übernommen.</p></div></div>
         <label class="field">
+          <span>Anzeigename</span>
+          <input class="text-control" name="displayName" value="${escapeHtml(name)}" maxlength="80" autocomplete="name" required>
+          <small>Kann bei Tippfehlern, Namensänderungen oder nach einer Heirat jederzeit angepasst werden.</small>
+        </label>
+        <label class="field">
           <span>Sprache & Region</span>
           <select class="select-control" id="profileLocaleSelect" name="locale">
             <option value="de-CH" ${locale==='de-CH'?'selected':''}>Deutsch · Schweiz</option>
