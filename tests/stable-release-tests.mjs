@@ -10,11 +10,11 @@ const main=read('assets/js/main.js');
 const bills=read('assets/js/views/bills.js');
 const settings=read('assets/js/views/settings.js');
 
-assert.match(config,/version:\s*'2\.4\.11'/);
+assert.match(config,/version:\s*'2\.4\.12'/);
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
 assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
 assert.match(index,/releaseChannelLabel">Stable</);
-assert.match(index,/releaseChannelCaption">v2\.4\.11 · R67</);
+assert.match(index,/releaseChannelCaption">v2\.4\.12 · R68</);
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);
 assert.match(ci,/SAFE_REF=/);
