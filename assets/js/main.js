@@ -4048,13 +4048,7 @@ async function handleForm(form) {
     await backend.updatePassword(p1); form.reset(); showToast('Passwort geändert.'); return;
   }
   if (id === 'admin-demo-create') {
-    if (!runtime.adminRole) throw new Error('Nur App-Admins dürfen Demo-Instanzen erstellen.');
-    const result=await backend.adminCreateDemo({ email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH' });
-    uiState.demoCredentials={ email:result?.email||formValue(data,'email'), password:result?.password||'' };
-    runtime.adminUsers=(await backend.adminListUsers())?.users||[];
-    render();
-    showToast(result?.reset?'Demo-Instanz zurückgesetzt.':'Demo-Instanz erstellt.');
-    return;
+    throw new Error('Verwende die getrennten Aktionen «Referenzstand wiederherstellen» oder «Nur Demo-Passwort erneuern».');
   }
   if (id === 'admin-user-create') {
     await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH', password:formValue(data,'password') });
@@ -5717,6 +5711,23 @@ async function handleAction(target) {
   if (action === 'family-remove') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder entfernen.'); if (!confirm(t('Mitglied aus dem Haushalt entfernen?'))) return; await financeApi.removeHouseholdMember(runtime.household.id,target.dataset.userId); await refresh('Mitglied entfernt.'); return; }
   if (action === 'document-download') {
     const blob=await financeApi.downloadDocument(target.dataset.path); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=target.dataset.name||'dokument'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); return;
+  }
+  if (action === 'admin-demo-restore') {
+    if (!runtime.adminRole) throw new Error('Nur Systemadministratoren dürfen die Demo zurücksetzen.');
+    const approved=confirm('Demo «Familie Müller» auf den gesicherten Stand vom 9. Oktober 2026 zurücksetzen?\\n\\nAlle seither vorgenommenen Änderungen in der Demo werden verworfen. Das Demo-Passwort bleibt gleich.');
+    if (!approved) return;
+    target.disabled=true;
+    try {
+      const result=await backend.adminRestoreDemoBaseline();
+      if (!result?.ok || !result?.restored?.ok || result?.restored?.restored_transactions!==399)
+        throw new Error('Wiederherstellung konnte nicht vollständig bestätigt werden.');
+      runtime.adminUsers=(await backend.adminListUsers())?.users||[];
+      render();
+      showToast('Demo-Referenzstand wiederhergestellt: 399 Buchungen, 14 Monate. Passwort unverändert.');
+    } finally {
+      target.disabled=false;
+    }
+    return;
   }
   if (action === 'admin-demo-password-reset') {
     if (!runtime.adminRole) throw new Error('Nur App-Admins dürfen das Demo-Passwort ändern.');
