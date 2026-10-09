@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.9'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.10'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /ALEMANNO BUCHHALTUNG wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
@@ -154,3 +154,9 @@ assert.match(read('assets/js/views/settings.js'), /Mein Profil/);
 assert.match(read('assets/js/views/settings.js'), /Basiswährung/);
 assert.match(read('assets/js/main.js'), /onboarding_completed_at/);
 assert.match(read('assets/js/main.js'), /routeSection/);
+
+assert.match(read('assets/js/views/profile.js'), /name="displayName"/);
+assert.match(read('assets/js/views/admin.js'), /name="displayName"/);
+assert.match(read('assets/js/app/backend.js'), /adminSetDisplayName/);
+assert.match(read('supabase/functions/admin-users/index.ts'), /set_display_name/);
+assert.match(read('assets/js/main.js'), /Profil gespeichert/);
