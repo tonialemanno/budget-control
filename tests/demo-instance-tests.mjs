@@ -34,6 +34,14 @@ assert.match(html,/Demo-Instanz/);
 assert.match(html,/demo@example\.com/);
 assert.match(html,/Demo-AbCd2345!7/);
 assert.match(html,/admin-demo-copy/);
-assert.match(html,/Demo erstellen \/ zurücksetzen/);
+assert.match(html,/Nur Demo-Passwort erneuern/);
+assert.match(html,/Demo-Daten vollständig zurücksetzen/);
+assert.match(html,/admin-demo-password-reset/);
+assert.match(backend,/adminResetDemoPassword/);
+assert.match(main,/admin-demo-password-reset/);
+assert.match(edge,/action === "reset_demo_password"/);
+const passwordOnlyBranch=edge.split('if (action === "reset_demo_password") {')[1]?.split('if (action === "set_password") {')[0]||'';
+assert.match(passwordOnlyBranch,/updateUserById/);
+assert.doesNotMatch(passwordOnlyBranch,/provision_demo_instance|enrich_demo_instance_v1|deleteUser|delete\(/);
 
 console.log('demo instance tests passed');
