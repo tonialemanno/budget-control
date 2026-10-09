@@ -146,6 +146,29 @@ drop trigger if exists demo_golden_protect_header on private.demo_golden_v1;
 create trigger demo_golden_protect_header before update or delete on private.demo_golden_v1 for each row execute function private.prevent_golden_change_v1();
 drop trigger if exists demo_golden_protect_rows on private.demo_golden_rows_v1;
 create trigger demo_golden_protect_rows before update or delete on private.demo_golden_rows_v1 for each row execute function private.prevent_golden_change_v1();
+do $patch$
+declare f regprocedure; d text; marker text;
+begin
+ foreach f in array array[
+   'public.provision_demo_instance(uuid,text)'::regprocedure,
+   'public.enrich_demo_instance_v1(uuid)'::regprocedure
+ ] loop
+   d:=pg_get_functiondef(f);
+   if position('return public.restore_demo_golden_v1(p_user_id)' in d)=0 then
+     marker:=case
+       when f::text like 'provision_demo_instance%'
+         then 'begin'||chr(10)||'  if not exists (select 1 from auth.users'
+       else 'begin'||chr(10)||'  select di.household_id into v_household'
+     end;
+     if position(marker in d)=0 then raise exception 'Unsupported demo reset entrypoint %',f;end if;
+     d:=replace(d,marker,'begin'||chr(10)||
+       '  if exists (select 1 from private.demo_golden_v1 where user_id=p_user_id and sealed and baseline_key=''familie-mueller-golden-2026-10-09-v2'') then'||chr(10)||
+       '    return public.restore_demo_golden_v1(p_user_id);'||chr(10)||
+       '  end if;'||chr(10)||substring(marker from length('begin')+2));
+     execute d;
+   end if;
+ end loop;
+end $patch$;
 commit;
 -- Current protected snapshot is familie-mueller-golden-2026-10-09-v2.
 -- Restore through owner-authorized admin-users Edge Function only.
