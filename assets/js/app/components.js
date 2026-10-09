@@ -124,7 +124,7 @@ export function transactionRow(tx, { locale = 'de-CH', canWrite = false, interac
   const transfer = Boolean(tx.transfer_group_id);
   const tag=interactive?'button':'div';
   const attrs=interactive
-    ? ` type="button" data-action="overview-transaction-edit" data-id="${escapeHtml(tx.id)}" aria-label="${escapeHtml(tx.description||'Buchung')} öffnen und bearbeiten"`
+    ? ` type="button" data-action="overview-transaction-edit" data-id="${escapeHtml(tx.id)}" aria-label="Buchung öffnen und bearbeiten"`
     : '';
   return `
     <${tag} class="list-row transaction-row${interactive?' transaction-row--interactive':''}"${attrs}>
