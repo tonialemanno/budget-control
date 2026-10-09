@@ -1,7 +1,7 @@
 import { dataTable, formShell, pageHeader } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { merchantFamilyKey } from '../app/duplicate-intelligence.js';
+import { merchantFamilyKey, merchantSimilarity } from '../app/duplicate-intelligence.js';
 
 function usageLabel(merchant, transactions, recurringRules, budgets) {
   const txCount=transactions.filter((tx)=>tx.merchant_id===merchant.id).length;
@@ -24,27 +24,43 @@ function duplicateFamily(merchant){
   return merchantFamilyKey(merchant);
 }
 
-function duplicateSuggestions(merchants,transactions,recurringRules,budgets){
-  const groups=new Map();
-  for(const merchant of merchants){
-    const family=duplicateFamily(merchant);
-    if(!family) continue;
-    const rows=groups.get(family)||[];
-    rows.push(merchant);
-    groups.set(family,rows);
-  }
-  return [...groups.entries()]
-    .filter(([,rows])=>rows.length>1)
-    .map(([family,rows])=>{
-      const ranked=rows.slice().sort((a,b)=>{
-        const ua=usageLabel(a,transactions,recurringRules,budgets);
-        const ub=usageLabel(b,transactions,recurringRules,budgets);
-        const scoreA=ua.txCount*10+ua.fixedCount*5+ua.budgetCount*3+(a.default_category_id?2:0);
-        const scoreB=ub.txCount*10+ub.fixedCount*5+ub.budgetCount*3+(b.default_category_id?2:0);
-        return scoreB-scoreA||String(a.name).length-String(b.name).length;
+function merchantUsageScore(merchant,transactions,recurringRules,budgets){
+  const usage=usageLabel(merchant,transactions,recurringRules,budgets);
+  return usage.txCount*10+usage.fixedCount*5+usage.budgetCount*3+(merchant.default_category_id?2:0);
+}
+
+function duplicatePairKey(leftId,rightId){
+  return [String(leftId||''),String(rightId||'')].sort().join(':');
+}
+
+function duplicateSuggestions(merchants,transactions,recurringRules,budgets,ignoredPairs=[]){
+  const ignored=new Set((ignoredPairs||[]).map(String));
+  const pairs=[];
+  for(let i=0;i<merchants.length;i++){
+    const left=merchants[i];
+    for(let j=i+1;j<merchants.length;j++){
+      const right=merchants[j];
+      const pairKey=duplicatePairKey(left.id,right.id);
+      if(ignored.has(pairKey)) continue;
+      const sameFamily=Boolean(duplicateFamily(left)&&duplicateFamily(left)===duplicateFamily(right));
+      const similarity=merchantSimilarity(left,right);
+      if(!sameFamily && similarity<0.72) continue;
+      const leftScore=merchantUsageScore(left,transactions,recurringRules,budgets);
+      const rightScore=merchantUsageScore(right,transactions,recurringRules,budgets);
+      const canonical=rightScore>leftScore?right:left;
+      const duplicate=canonical.id===left.id?right:left;
+      pairs.push({
+        pairKey,
+        canonical,
+        duplicate,
+        similarity:sameFamily?Math.max(similarity,0.96):similarity,
+        sameFamily,
       });
-      return {family,canonical:ranked[0],duplicates:ranked.slice(1)};
-    });
+    }
+  }
+  return pairs
+    .sort((a,b)=>b.similarity-a.similarity || merchantUsageScore(b.canonical,transactions,recurringRules,budgets)-merchantUsageScore(a.canonical,transactions,recurringRules,budgets))
+    .slice(0,40);
 }
 
 export function renderMerchants({
@@ -59,6 +75,7 @@ export function renderMerchants({
   adminRole = null,
   household = null,
   countryMasterMerchants = [],
+  merchantDuplicateIgnores = [],
 } = {}) {
   const expenseCategories=categories.filter((category)=>category.kind==='expense');
   const categoryOptions=expenseCategories.map((category)=>`<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('');
@@ -69,7 +86,7 @@ export function renderMerchants({
     rows.push(alias);
     aliasesByMerchant.set(alias.merchant_id,rows);
   }
-  const duplicateGroups=duplicateSuggestions(merchants,transactions,recurringRules,budgets);
+  const duplicateGroups=duplicateSuggestions(merchants,transactions,recurringRules,budgets,merchantDuplicateIgnores);
 
   const createFields=`
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Uzon Immobilien AG"></label>
@@ -123,13 +140,17 @@ export function renderMerchants({
   const duplicateHtml=duplicateGroups.length?`
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
-        <div><h3 class="card-title">Mögliche Händler-Dubletten</h3><p class="card-subtitle">Nur sehr sichere Namensfamilien werden vorgeschlagen. Originale Bankbeschreibungen bleiben unverändert.</p></div>
+        <div><h3 class="card-title">Ähnliche Händler prüfen</h3><p class="card-subtitle">ALEMANNO BUCHHALTUNG vergleicht Namen intelligent und fragt nach, bevor ähnliche Händler dauerhaft getrennt bleiben. Es wird nie automatisch zusammengeführt.</p></div>
+        <span class="status-pill">${duplicateGroups.length} Vorschlag${duplicateGroups.length===1?'':'e'}</span>
       </div>
       <div class="suggestion-grid">
         ${duplicateGroups.map((group)=>`
           <div class="suggestion-card">
-            <div><strong>${escapeHtml(group.canonical.name)}</strong><span>als kanonischer Händler behalten</span></div>
-            ${group.duplicates.map((duplicate)=>`<div class="row-actions" style="margin-top:8px"><span class="table-meta">${escapeHtml(duplicate.name)}</span>${canWrite?`<button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${group.canonical.id}" data-duplicate-id="${duplicate.id}">Zusammenführen</button>`:''}</div>`).join('')}
+            <div><strong>${escapeHtml(group.canonical.name)}</strong><span>möglicherweise derselbe Händler wie <strong>${escapeHtml(group.duplicate.name)}</strong> · Ähnlichkeit ${Math.round(group.similarity*100)}%</span></div>
+            ${canWrite?`<div class="row-actions" style="margin-top:10px">
+              <button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${group.canonical.id}" data-duplicate-id="${group.duplicate.id}">Zusammenführen</button>
+              <button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(group.pairKey)}">Nicht identisch</button>
+            </div>`:''}
           </div>`).join('')}
       </div>
     </article>`:'';
