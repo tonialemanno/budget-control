@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">FinanceApp by ALEMANNO</title>
+<desc id="desc">Navy shield with gold growth bars and rising arrow.</desc>
+<defs>
+  <linearGradient id="navy" x1="110" y1="70" x2="390" y2="450" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#173f67"/>
+    <stop offset=".45" stop-color="#082946"/>
+    <stop offset="1" stop-color="#03172c"/>
+  </linearGradient>
+  <linearGradient id="navyEdge" x1="120" y1="90" x2="390" y2="430" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#315d83"/>
+    <stop offset=".55" stop-color="#0b2f50"/>
+    <stop offset="1" stop-color="#02101f"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="150" y1="180" x2="410" y2="385" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#fff1a8"/>
+    <stop offset=".25" stop-color="#f4cf68"/>
+    <stop offset=".58" stop-color="#d49a2f"/>
+    <stop offset=".82" stop-color="#f2cf6c"/>
+    <stop offset="1" stop-color="#99611a"/>
+  </linearGradient>
+  <linearGradient id="goldEdge" x1="150" y1="200" x2="410" y2="390" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#b8781d"/>
+    <stop offset=".52" stop-color="#8b5412"/>
+    <stop offset="1" stop-color="#f5d879"/>
+  </linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+    <feDropShadow dx="0" dy="12" stdDeviation="13" flood-color="#00152a" flood-opacity=".22"/>
+  </filter>
+  <filter id="goldShadow" x="-30%" y="-30%" width="160%" height="170%">
+    <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#8b5412" flood-opacity=".28"/>
+  </filter>
+</defs>
+<rect width="512" height="512" rx="110" fill="#fffdf8"/>
+<g filter="url(#shadow)">
+  <path d="M108 161Q108 139 128 128L246 68Q258 62 270 68L385 121L340 146L258 108L163 157Q151 163 151 177V301Q151 368 207 407L256 435L307 406Q354 373 354 311V252L401 215V321Q401 412 326 460L272 492Q256 501 240 492L184 459Q108 414 108 315Z" fill="url(#navy)" stroke="url(#navyEdge)" stroke-width="4"/>
+  <path d="M151 178Q151 164 164 157L258 108L340 146L317 159L258 132L176 174Q169 177 169 186V293L151 306Z" fill="#fffdf8" opacity=".96"/>
+</g>
+<g filter="url(#goldShadow)">
+  <path d="M181 321V272L229 247V339Q206 334 181 321Z" fill="url(#gold)" stroke="url(#goldEdge)" stroke-width="2"/>
+  <path d="M244 339V222L293 196V324Q269 335 244 339Z" fill="url(#gold)" stroke="url(#goldEdge)" stroke-width="2"/>
+  <path d="M309 314V165L360 137V272Q337 295 309 314Z" fill="url(#gold)" stroke="url(#goldEdge)" stroke-width="2"/>
+  <path d="M118 314C167 371 241 382 312 346C349 328 379 300 401 265L417 239C393 316 344 372 278 397C209 423 143 393 118 343Z" fill="url(#gold)" stroke="url(#goldEdge)" stroke-width="3"/>
+  <path d="M331 341C374 314 408 274 430 221L407 209L461 141L451 220L436 212C411 277 375 321 331 341Z" fill="url(#gold)" stroke="url(#goldEdge)" stroke-width="3"/>
+  <path d="M454 141L407 160L430 179Z" fill="#fff0a5" opacity=".75"/>
+</g>
+</svg>
