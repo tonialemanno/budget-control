@@ -12,6 +12,7 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildCategoryMlModel, predictCategoryMl } from './app/ml-categorization.js';
+import { IMPORT_SEMANTIC_OPTIONS, suggestImportSemantic } from './app/import-intelligence.js';
 import { buildSetupStatus } from './app/setup-model.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
 import { buildBudgetDecisionGuide } from './app/finance-coach.js';
