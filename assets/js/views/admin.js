@@ -52,6 +52,19 @@ export function renderAdmin({adminUsers=[],productModules=[],adminQuery='',admin
 
   return `
     ${pageHeader({title:'Administration',subtitle:`${onlineCount} online · ${adminUsers.length} Benutzer. Online bedeutet: aktives Signal innerhalb der letzten 95 Sekunden.`,actions:'<button class="action-button action-button--secondary" type="button" data-action="admin-refresh-presence">Status aktualisieren</button>'})}
+    <article class="card card-padding" style="margin-bottom:16px">
+      <div class="card-heading"><div><h3 class="card-title">Demo-Zugang</h3><p class="card-subtitle">Ein neues Passwort erzeugen, ohne Buchungen, Sparziele oder Demodaten zurückzusetzen.</p></div></div>
+      <p class="card-subtitle">E-Mail: <strong>demo@example.com</strong></p>
+      <button class="action-button action-button--primary" type="button" data-action="admin-demo-password-reset">Neues Demo-Passwort erzeugen</button>
+      <div id="adminDemoPasswordResult" hidden style="margin-top:16px">
+        <div class="inline-alert"><strong>Passwort geändert.</strong><span>Dieses Passwort wird nur jetzt angezeigt. Kopiere den Zugang, bevor du die Seite verlässt.</span></div>
+        <div class="form-grid">
+          <label class="field"><span>E-Mail</span><input class="text-control" id="adminDemoEmail" type="text" value="demo@example.com" readonly autocomplete="off"></label>
+          <label class="field"><span>Neues Demo-Passwort</span><input class="text-control" id="adminDemoPassword" type="text" readonly autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        </div>
+        <div class="form-actions"><button class="action-button action-button--secondary" type="button" data-action="admin-demo-password-copy">E-Mail und Passwort kopieren</button></div>
+      </div>
+    </article>
     <div class="grid-main-aside">
       <form class="card card-padding" id="admin-user-create" data-form="admin-user-create">
         <div class="card-heading"><div><h3 class="card-title">Benutzer anlegen</h3><p class="card-subtitle">Direkt bestätigt, keine E-Mail-Bestätigung nötig</p></div><span class="list-row-leading">${icon('shield')}</span></div>
