@@ -555,13 +555,20 @@ async function saveCurrentUserLocale(locale,{renderAfter=true,notify=true}={}) {
   if(notify) showToast('Sprache & Region gespeichert.');
 }
 
+function profileInitials(value){
+  const parts=String(value||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return 'AB';
+  if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+}
+
 function updateProfileUI() {
   setLocale(runtime.profile?.locale || APP_CONFIG.defaultLocale);
   const fallbackName = runtime.user?.email?.split('@')[0] || 'Privat';
   const name = runtime.profile?.display_name || fallbackName;
-  profileAvatar.textContent = name.trim().charAt(0).toUpperCase() || 'F';
+  profileAvatar.textContent = profileInitials(name);
   profileName.textContent = name;
-  profileMeta.textContent = runtime.user?.email || '';
+  profileMeta.textContent = runtime.adminRole ? 'Administration' : 'Privatkonto';
   profileButton?.setAttribute('aria-label', `${t('Konto und Zugriff')} – ${runtime.user?.email || name}`);
   translateElement(document.querySelector('.sidebar-footer'));
   translateElement(document.querySelector('.topbar'));
@@ -574,7 +581,7 @@ function profileMenuHtml() {
   const available = (runtime.productModules || []).filter((m)=>!m.is_core && runtime.moduleAccess[m.key] !== true);
   const visible = entitled.filter((m)=>!hidden.has(m.key));
   return `<div class="profile-popover-card">
-    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml((runtime.profile?.display_name || runtime.user?.email || 'F').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'ALEMANNO BUCHHALTUNG Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
+    <div class="profile-popover-head"><span class="profile-avatar">${escapeHtml(profileInitials(runtime.profile?.display_name || runtime.user?.email || 'ALEMANNO BUCHHALTUNG'))}</span><div><strong>${escapeHtml(runtime.profile?.display_name || 'ALEMANNO BUCHHALTUNG Benutzer')}</strong><span>${escapeHtml(runtime.user?.email || '')}</span></div></div>
     <div class="profile-access-grid"><span>Haushaltsrolle<strong>${escapeHtml(householdRoleLabel(runtime.householdRole))}</strong></span><span>Systemrolle<strong>${escapeHtml(runtime.adminRole ? `App-${runtime.adminRole}` : 'Benutzer')}</strong></span></div>
     <div class="profile-module-section"><strong>Meine Navigation</strong><span class="profile-muted">${visible.length} sichtbar · ${entitled.length} freigeschaltet</span><div class="chip-row">${visible.map((m)=>`<span class="chip chip--active">${escapeHtml(m.label)}</span>`).join('')}</div></div>
     <div class="profile-module-section"><strong>Weitere Module</strong>${available.length?`<div class="chip-row">${available.map((m)=>`<span class="chip">${escapeHtml(m.label)}</span>`).join('')}</div>`:'<span class="profile-muted">Alle verfügbaren Module sind freigeschaltet.</span>'}</div>
