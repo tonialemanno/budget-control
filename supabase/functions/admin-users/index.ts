@@ -31,6 +31,22 @@ function demoPassword() {
   return `Demo-${token}!7`;
 }
 
+
+async function restoreGoldenDemo(admin: any, callerRole: string, origin: string | null) {
+  if (callerRole !== "owner") return json({ error: "Nur der System-Owner darf den Referenzstand wiederherstellen." }, 403, origin);
+  const { data: demoRows, error: lookupError } = await admin.from("demo_instances").select("user_id").limit(20);
+  if (lookupError) return json({ error: "Demo-Instanz konnte nicht bestimmt werden." }, 400, origin);
+  const demoIds = new Set((demoRows || []).map((row: { user_id: string }) => row.user_id));
+  const users = await listAllUsers(admin);
+  const demoUser = users.find((user) => demoIds.has(user.id) && String(user.email || "").trim().toLowerCase() === "demo@example.com");
+  if (!demoUser) return json({ error: "Demo-Benutzer ist nicht vorhanden." }, 404, origin);
+  const { data: restored, error: restoreError } = await admin.rpc("restore_demo_golden_v1", { p_user_id: demoUser.id });
+  if (restoreError || !restored?.ok) {
+    return json({ error: restoreError?.message || "Der gespeicherte Demo-Stand konnte nicht wiederhergestellt werden." }, 400, origin);
+  }
+  return json({ ok: true, reset: true, restored_from_baseline: true, email: demoUser.email, restored }, 200, origin);
+}
+
 async function listAllUsers(admin: any) {
   const users: any[] = [];
   for (let page = 1; page <= 20; page += 1) {
@@ -294,12 +310,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  if (action === "restore_demo_baseline") {
+    return restoreGoldenDemo(admin, String(adminRow.role || ""), origin);
+  }
+
   if (action === "create_demo") {
     const email = String(body.email || "demo@example.com").trim().toLowerCase();
     const requestedLocale = String(body.locale || "de-CH");
     const allowedLocales = new Set(["de-CH", "de-DE", "it-CH", "it-IT", "en-CH", "en-GB"]);
     const locale = allowedLocales.has(requestedLocale) ? requestedLocale : "de-CH";
     if (!email || !email.includes("@")) return json({ error: "Bitte eine gültige Demo-E-Mail-Adresse angeben." }, 400, origin);
+    if (email === "demo@example.com") return restoreGoldenDemo(admin, String(adminRow.role || ""), origin);
 
     const password = demoPassword();
     let users;
