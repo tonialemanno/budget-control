@@ -4078,6 +4078,7 @@ async function handleForm(form) {
       }
     }
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
+    const semanticSelections = new Map([...form.querySelectorAll('[data-csv-semantic-key]')].map((select)=>[select.dataset.csvSemanticKey, select.value || null]));
     const merchantMatchSelections = new Map([...form.querySelectorAll('[data-csv-merchant-match-key]')].map((select)=>[select.dataset.csvMerchantMatchKey, select.value || '']));
     const unresolvedMerchantMatches=[...merchantMatchSelections.entries()].filter(([,value])=>!value);
     if(unresolvedMerchantMatches.length) throw new Error(`Bitte zuerst ${unresolvedMerchantMatches.length} Händlervergleich${unresolvedMerchantMatches.length===1?'':'e'} beantworten. So wird kein ähnlicher Händler versehentlich doppelt angelegt.`);
@@ -4129,6 +4130,11 @@ async function handleForm(form) {
             categorySelections.has(merchantInfo.key)
               ? categorySelections.get(merchantInfo.key)
               : (categorySelections.has(groupKey)?categorySelections.get(groupKey):null)
+          );
+          const selectedSemantic = (ownCounterAccount||cashInfo) ? null : (
+            semanticSelections.has(merchantInfo.key)
+              ? semanticSelections.get(merchantInfo.key)
+              : (semanticSelections.has(groupKey)?semanticSelections.get(groupKey):null)
           );
           const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
@@ -4182,7 +4188,7 @@ async function handleForm(form) {
             counterparty_account_ref:tx.counterparty_account_ref||null,
             import_raw_data:tx.import_raw_data||null,
             import_source_page:tx.import_source_page||null,
-            semantic_type:ownCounterAccount?'internal_transfer':null,
+            semantic_type:ownCounterAccount?'internal_transfer':(selectedSemantic||null),
             status:'booked',
             source:'import',
             external_reference:externalReference
