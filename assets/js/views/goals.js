@@ -70,15 +70,17 @@ function demoSavingsTimeline(goal,locale,currency){
   const current=Number(goal.current_amount||0);
   const monthly=Number(goal.monthly_amount||0);
   if (!Number.isFinite(start.getTime())||monthly<=0) return '';
-  const count=Math.max(1,Math.round(current/monthly));
-  const bars=Array.from({length:Math.min(count,36)},(_,i)=>{
+  const now=new Date();
+  const count=Math.max(1,Math.min(36,(now.getFullYear()-start.getFullYear())*12+now.getMonth()-start.getMonth()+1));
+  const opening=Math.max(0,current-count*monthly);
+  const bars=Array.from({length:count},(_,i)=>{
     const d=new Date(start.getFullYear(),start.getMonth()+i,1);
-    const val=Math.min(current,(i+1)*monthly);
+    const val=Math.min(current,opening+(i+1)*monthly);
     const pct=Math.max(2,Math.round(val/Math.max(current,1)*100));
     const title=`${d.toLocaleDateString(locale,{month:'short',year:'numeric'})}: ${money(val,{currency,locale})}`;
     return `<div title="${escapeHtml(title)}" style="flex:1;min-width:4px;height:88px;display:flex;align-items:end"><div style="width:100%;height:${pct}%;background:var(--color-primary,#4774a5);border-radius:3px 3px 0 0;opacity:.84"></div></div>`;
   }).join('');
-  return `<section style="margin:14px 0" aria-label="Sparverlauf"><div class="mini-detail-list"><span>Beginn <strong>${dateLabel(goal.start_date,locale)}</strong></span><span>Bisher angespart <strong>${money(current,{currency,locale})}</strong></span><span>Monatlich <strong>${money(monthly,{currency,locale})}</strong></span></div><p class="card-subtitle">Sparentwicklung (Demo-Modell, monatlich)</p><div style="display:flex;align-items:end;gap:4px;padding:8px 0;border-bottom:1px solid var(--border-color,#ddd)">${bars}</div></section>`;
+  return `<section style="margin:14px 0" aria-label="Sparverlauf"><div class="mini-detail-list"><span>Beginn <strong>${dateLabel(goal.start_date,locale)}</strong></span><span>Startguthaben <strong>${money(opening,{currency,locale})}</strong></span><span>Bisher angespart <strong>${money(current,{currency,locale})}</strong></span><span>Monatlich <strong>${money(monthly,{currency,locale})}</strong></span></div><p class="card-subtitle">Sparentwicklung (Demo-Modell, monatlich)</p><div style="display:flex;align-items:end;gap:4px;padding:8px 0;border-bottom:1px solid var(--border-color,#ddd)">${bars}</div></section>`;
 }
 
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], household, profile, fxRates, canWrite=false } = {}) {
