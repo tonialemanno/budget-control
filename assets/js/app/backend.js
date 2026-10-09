@@ -91,20 +91,36 @@ async function ensureSession() {
 }
 
 async function rest(path, { method = 'GET', body, headers = {} } = {}) {
-  const active = await ensureSession();
-  if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const requestHeaders = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${active.access_token}`,
-    Accept: 'application/json',
-    ...headers,
+  let active = await ensureSession();
+  if (!active?.access_token) {
+    const error=new Error('Unauthorized');
+    error.status=401;
+    throw error;
+  }
+  const execute = (token) => {
+    const requestHeaders = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      ...headers,
+    };
+    if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
+    return fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
+      method,
+      headers: requestHeaders,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
   };
-  if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
-  const response = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
-    method,
-    headers: requestHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let response = await execute(active.access_token);
+  if (response.status === 401) {
+    active = await refreshSession();
+    if (!active?.access_token) {
+      const error=new Error('Unauthorized');
+      error.status=401;
+      throw error;
+    }
+    response = await execute(active.access_token);
+  }
   return parseResponse(response);
 }
 
@@ -113,17 +129,31 @@ async function rpc(name, body = {}) {
 }
 
 async function invokeFunction(name, { method = 'POST', body } = {}) {
-  const active = await ensureSession();
-  if (!active?.access_token) throw new Error('Nicht angemeldet.');
-  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${name}`, {
+  let active = await ensureSession();
+  if (!active?.access_token) {
+    const error=new Error('Unauthorized');
+    error.status=401;
+    throw error;
+  }
+  const execute = (token) => fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${name}`, {
     method,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${active.access_token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+  let response=await execute(active.access_token);
+  if(response.status===401){
+    active=await refreshSession();
+    if(!active?.access_token){
+      const error=new Error('Unauthorized');
+      error.status=401;
+      throw error;
+    }
+    response=await execute(active.access_token);
+  }
   return parseResponse(response);
 }
 

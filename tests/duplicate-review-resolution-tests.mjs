@@ -6,7 +6,7 @@ const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8
 assert.match(main,/async function finishDuplicateMerge\(keep,duplicate,message\)/);
 assert.match(main,/runtime\.transactions=\(runtime\.transactions\|\|\[\]\)\.filter\(\(row\)=>row\.id!==duplicate\.id\)/);
 assert.match(main,/doc\?\.object_type==='transaction'&&doc\?\.object_id===duplicate\.id/);
-assert.match(main,/await loadFinanceData\(\);\s*render\(\);/);
+assert.match(main,/await loadFinanceData\(\{generation,userId\}\);\s*assertActiveSession\(generation,userId\);\s*render\(\);/);
 
 assert.match(main,/function finishDuplicateIgnore\(left,right,ignoredRow,message\)/);
 assert.match(main,/runtime\.transactionDuplicateIgnores\.push/);

@@ -112,7 +112,8 @@ const merchantHtml=renderMerchants({
   household:{country_code:'CH'},
   countryMasterMerchants:[],
 });
-assert.match(merchantHtml,/Mögliche Händler-Dubletten/);
+assert.match(merchantHtml,/Ähnliche Händler prüfen/);
+assert.match(merchantHtml,/Nicht identisch/);
 assert.match(merchantHtml,/data-action="merchant-merge"/);
 
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Haushaltsabgaben'&&parent==='Wohnen'));
