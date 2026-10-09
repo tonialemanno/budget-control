@@ -146,14 +146,14 @@ export function renderAdmin({user:currentUser=null,adminUsers=[],productModules=
     ${pageHeader({title:'Administration',subtitle:`${activeCount} aktiv · ${idleCount} inaktiv · ${adminUsers.length} Benutzer. Aktiv = Bedienung in den letzten 5 Minuten; Inaktiv = Seite offen ohne Bedienung; danach Offline.`,actions:'<button class="action-button action-button--secondary" type="button" data-action="admin-refresh-presence">Status aktualisieren</button>'})}
     <div class="grid-main-aside">
       <form class="card card-padding" id="admin-demo-create" data-form="admin-demo-create">
-        <div class="card-heading"><div><h3 class="card-title">Demo-Instanz</h3><p class="card-subtitle">Isolierter Demo-Haushalt mit synthetischen Daten und allen Modulen.</p></div><span class="list-row-leading">${icon('sparkles')}</span></div>
+        <div class="card-heading"><div><h3 class="card-title">Gesicherter Demo-Referenzstand</h3><p class="card-subtitle">Familie Müller · 14 Monate · 399 Buchungen · Stand 9. Oktober 2026</p></div><span class="list-row-leading">${icon('sparkles')}</span></div>
         <div class="form-grid">
-          <label class="field"><span>Demo-E-Mail</span><input class="text-control" name="email" type="email" value="demo@example.com" required></label>
-          <label class="field"><span>Sprache</span><select class="text-control" name="locale"><option value="de-CH">Deutsch · Schweiz</option><option value="it-CH">Italiano · Svizzera</option><option value="en-CH">English · Switzerland</option></select></label>
+          <label class="field"><span>Demo-E-Mail</span><input class="text-control" name="email" type="email" value="demo@example.com" readonly></label>
+          <label class="field"><span>Gesicherter Stand</span><input class="text-control" value="9. Oktober 2026 · 42 Bereiche / Datentabellen" readonly></label>
         </div>
-        <p class="admin-search-hint">Der Passwort-Button erhält alle bestehenden Demo-Buchungen und Sparziele. Nur „Demo-Daten vollständig zurücksetzen“ erzeugt die Demo-Daten neu.</p>
-        <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="admin-demo-password-reset">${icon('shield')} Nur Demo-Passwort erneuern</button><button class="action-button action-button--secondary" type="submit">${icon('repeat')} Demo-Daten vollständig zurücksetzen</button></div>
-        ${demoCredentials?`<div class="inline-alert" style="margin-top:14px"><strong>Demo-Zugang bereit</strong><span>Die Zugangsdaten wurden neu gesetzt. Beim nächsten Zurücksetzen wird ein neues Passwort erzeugt.</span></div>
+        <p class="admin-search-hint">Du kannst in der Demo beliebig Änderungen testen. «Referenzstand wiederherstellen» verwirft diese Änderungen und stellt genau die gesicherten Daten wieder her – inklusive Konten, Buchungen, Familie, Fahrzeug und Sparzielen. Das Demo-Passwort bleibt dabei unverändert.</p>
+        <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="admin-demo-restore">${icon('repeat')} Referenzstand wiederherstellen</button><button class="action-button action-button--secondary" type="button" data-action="admin-demo-password-reset">${icon('shield')} Nur Demo-Passwort erneuern</button></div>
+        ${demoCredentials?`<div class="inline-alert" style="margin-top:14px"><strong>Demo-Zugang bereit</strong><span>Das Passwort wurde neu gesetzt. Eine Wiederherstellung der Demodaten verändert das Passwort nicht.</span></div>
         <div class="form-grid" style="margin-top:12px">
           <label class="field"><span>E-Mail</span><input class="text-control" value="${escapeHtml(demoCredentials.email||'')}" readonly></label>
           <label class="field"><span>Passwort</span><input class="text-control" value="${escapeHtml(demoCredentials.password||'')}" readonly></label>
