@@ -1,7 +1,7 @@
 import { APP_CONFIG, MODULES, NAV_ITEMS, PAGE_META } from './app/config.js?v=20261008-r60';
 import { currentRouteLocation, isKnownRouteUrl, migrateLegacyHash, navigateToRoute, rewriteLegacyRouteLinks, routeDefinition, routeHref } from './app/router.js?v=20261008-r52';
 import { store } from './app/store.js';
-import { backend } from './app/backend.js?v=20261008-r60';
+import { backend } from './app/backend.js?v=20261009-r61';
 import { financeApi } from './app/finance-api.js?v=20261008-r52';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js?v=20261008-r60';
 import { setLocale, t, translateElement } from './app/i18n.js?v=20261008-r60';
@@ -42,7 +42,7 @@ import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js?v=20261008-r60';
 import { renderCategories } from './views/categories.js';
-import { renderMerchants } from './views/merchants.js';
+import { renderMerchants } from './views/merchants.js?v=20261009-r61';
 import { renderImports } from './views/imports.js';
 import { renderImportHistory } from './views/import-history.js';
 import { renderRecurring } from './views/recurring.js';
@@ -176,6 +176,43 @@ const runtime = {
 
 const importState = { items: [] };
 const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+
+let sessionGeneration=0;
+
+function staleSessionError(){
+  const error=new Error('Sitzung wurde gewechselt.');
+  error.name='StaleSessionError';
+  return error;
+}
+
+function assertActiveSession(generation,userId){
+  if(generation!==sessionGeneration || !runtime.user || runtime.user.id!==userId) throw staleSessionError();
+}
+
+function clearUserRuntimeState({keepIdentity=false}={}){
+  const session=keepIdentity?runtime.session:null;
+  const user=keepIdentity?runtime.user:null;
+  for(const key of Object.keys(runtime)){
+    if(key==='session'||key==='user') continue;
+    const value=runtime[key];
+    runtime[key]=Array.isArray(value)?[]:(key==='moduleAccess'?{}:null);
+  }
+  runtime.session=session;
+  runtime.user=user;
+  importState.items=[];
+  uiState.demoCredentials=null;
+  uiState.merchantQuery='';
+  uiState.searchQuery='';
+  uiState.transactionQuery='';
+  uiState.transactionIds=[];
+  uiState.transactionCategoryIds=[];
+  uiState.transactionSourceSet=[];
+  uiState.pendingTransactionEditId=null;
+  if(typeof pageContent!=='undefined') pageContent.replaceChildren();
+  if(typeof desktopNav!=='undefined') desktopNav.replaceChildren();
+  if(typeof mobileNav!=='undefined') mobileNav.replaceChildren();
+}
+
 
 const authGate = document.querySelector('#authGate');
 const appShell = document.querySelector('#appShell');
@@ -813,21 +850,18 @@ function startLiveTimers() {
 }
 
 async function logoutCurrentUser({notice=''}={}) {
+  ++sessionGeneration;
   stopLiveTimers();
   hideSessionWarning();
   closeProfileMenu();
   closeMobileNav();
   closeQuickAdd();
+  appShell.hidden=true;
+  pageContent.replaceChildren();
   await financeApi.clearPresence().catch(()=>null);
   await backend.signOut();
   clearSessionClock();
-  runtime.session=null;
-  runtime.user=null;
-  runtime.profile=null;
-  runtime.household=null;
-  runtime.householdRole=null;
-  runtime.adminRole=null;
-  runtime.runtimeState=null;
+  clearUserRuntimeState();
   navigateToRoute('overview',null,{replace:true});
   window.scrollTo({top:0,left:0,behavior:'auto'});
   showAuth(notice);
@@ -868,6 +902,7 @@ function humanError(error) {
   const message = String(error?.message || error || 'Unbekannter Fehler');
   if (/invalid login credentials/i.test(message)) return 'E-Mail oder Passwort ist nicht korrekt.';
   if (/email not confirmed/i.test(message)) return 'Dieser Benutzer ist noch nicht freigeschaltet.';
+  if (/unauthorized|jwt expired|invalid jwt|not authenticated/i.test(message)) return 'Deine Sitzung ist abgelaufen. Bitte erneut anmelden.';
   if (/duplicate key/i.test(message)) return 'Dieser Datensatz existiert bereits.';
   if (/row-level security/i.test(message)) return 'Du hast für diese Aktion keine Berechtigung.';
   if (/Payment total must equal principal plus interest plus fees/i.test(message)) return 'Zahlung gesamt muss Tilgung + Zins + Gebühren entsprechen.';
@@ -949,9 +984,11 @@ async function runLimited(tasks, limit = 5) {
   return results;
 }
 
-async function loadFinanceData() {
+async function loadFinanceData({generation=sessionGeneration,userId=runtime.user?.id}={}) {
   if (!runtime.household) return;
+  assertActiveSession(generation,userId);
   const h = runtime.household.id;
+  const countryCode=runtime.household.country_code;
   const tasks = [
     () => financeApi.listAccounts(h), () => financeApi.listCategories(h), () => financeApi.listCategorizationRules(h), () => financeApi.listTransactions(h),
     () => financeApi.listImportBatches(h), () => financeApi.listMerchants(h), () => financeApi.listMerchantAliases(h), () => financeApi.listCounterparties(h), () => financeApi.listTransactionContexts(h), () => financeApi.listRecurringRules(h), () => financeApi.listBudgets(h), () => financeApi.listBills(h), () => financeApi.listContracts(h), () => financeApi.listSalesDocuments(h),
@@ -959,8 +996,8 @@ async function loadFinanceData() {
     () => financeApi.listGoals(h), () => financeApi.listGoalSources(h), () => financeApi.listDebts(h), () => financeApi.listDebtPayments(h), () => financeApi.listReceivables(h), () => financeApi.listReceivablePayments(h), () => financeApi.listLegalCases(h), () => financeApi.listLegalEvents(h), () => financeApi.listAssets(h),
     () => financeApi.listProperties(h), () => financeApi.listVehicles(h), () => financeApi.listInsurance(h), () => financeApi.listInvestments(h), () => financeApi.listInvestmentTransactions(h), () => financeApi.listPensions(h),
     () => financeApi.listDocuments(h), () => financeApi.listHouseholdMembers(h), () => financeApi.getFxRates().catch(()=>null),
-    () => financeApi.listCountryCategoryCatalog(runtime.household.country_code).catch(()=>[]),
-    () => financeApi.listCountryMerchantCatalog(runtime.household.country_code).catch(()=>[]),
+    () => financeApi.listCountryCategoryCatalog(countryCode).catch(()=>[]),
+    () => financeApi.listCountryMerchantCatalog(countryCode).catch(()=>[]),
     () => financeApi.listMasterDataHouseholds().catch(()=>[]),
     () => financeApi.listTransactionChangeLogs(h).catch(()=>[]),
     () => financeApi.listTaxRuleVersions().catch(()=>[]),
@@ -975,6 +1012,7 @@ async function loadFinanceData() {
     () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
   ];
   const results = await runLimited(tasks, 5);
+  assertActiveSession(generation,userId);
   [
     runtime.accounts, runtime.categories, runtime.categorizationRules, runtime.transactions,
     runtime.importBatches, runtime.merchants, runtime.merchantAliases, runtime.counterparties, runtime.transactionContexts, runtime.recurringRules, runtime.budgets, runtime.bills, runtime.contracts, runtime.salesDocuments,
@@ -998,11 +1036,13 @@ async function loadFinanceData() {
     at:row.created_at||row.at,
   }));
 }
-async function loadContext() {
+async function loadContext({generation=sessionGeneration,userId=runtime.user?.id}={}) {
+  if(!userId) throw new Error('Nicht angemeldet.');
   const [profile, adminRole, moduleAccess, productModules, households] = await Promise.all([
-    financeApi.getProfile(runtime.user.id), financeApi.getAdminRole(runtime.user.id), financeApi.listUserModules(runtime.user.id),
+    financeApi.getProfile(userId), financeApi.getAdminRole(userId), financeApi.listUserModules(userId),
     financeApi.listProductModules(), financeApi.listHouseholds(),
   ]);
+  assertActiveSession(generation,userId);
   runtime.profile = profile;
   setLocale(profile?.locale || APP_CONFIG.defaultLocale);
   runtime.adminRole = adminRole;
@@ -1010,9 +1050,11 @@ async function loadContext() {
   runtime.productModules = productModules || [];
   runtime.household = households?.[0] || null;
   runtime.adminUsers = runtime.adminRole ? (await backend.adminListUsers().catch(()=>({ users: [] })))?.users || [] : [];
+  assertActiveSession(generation,userId);
   if (runtime.household) {
-    await loadFinanceData();
-    runtime.householdRole = runtime.householdMembers.find((member)=>member.user_id===runtime.user.id)?.role || null;
+    await loadFinanceData({generation,userId});
+    assertActiveSession(generation,userId);
+    runtime.householdRole = runtime.householdMembers.find((member)=>member.user_id===userId)?.role || null;
   } else {
     runtime.householdRole = null;
   }
@@ -1079,6 +1121,7 @@ function render() {
     importQuery: uiState.importQuery,
     importCategory: uiState.importCategory,
     merchantQuery: uiState.merchantQuery,
+    merchantDuplicateIgnores: Array.isArray(profilePreferences().merchant_duplicate_ignores)?profilePreferences().merchant_duplicate_ignores:[],
     searchQuery: uiState.searchQuery,
     previousVisitAt: runtime.previousVisitAt,
     changeHistory: runtime.changeHistory,
@@ -1164,7 +1207,9 @@ function applyPermissionUI(route) {
 
 async function refresh(message = '') {
   showLoading('Daten werden aktualisiert …');
-  await loadContext();
+  const generation=sessionGeneration; const userId=runtime.user?.id;
+  await loadContext({generation,userId});
+  assertActiveSession(generation,userId);
   render();
   if (message) showToast(message);
 }
@@ -1179,7 +1224,9 @@ async function finishDuplicateMerge(keep,duplicate,message){
   render();
   if(message) showToast(message);
   try {
-    await loadFinanceData();
+    const generation=sessionGeneration; const userId=runtime.user?.id;
+    await loadFinanceData({generation,userId});
+    assertActiveSession(generation,userId);
     render();
   } catch {
     // Die Servermutation ist bereits erfolgreich. Der lokale Zustand bleibt
@@ -2912,6 +2959,14 @@ async function handleForm(form) {
     if(!key) throw new Error('Bitte einen gültigen Händlernamen eingeben.');
     const duplicate=runtime.merchants.find((row)=>row.normalized_key===key);
     if(duplicate) throw new Error('Dieser Händler existiert bereits.');
+    const similar=runtime.merchants
+      .map((row)=>({row,score:merchantSimilarity({name},{name:row.name})}))
+      .filter((entry)=>entry.score>=0.72)
+      .sort((a,b)=>b.score-a.score)[0];
+    if(similar){
+      const proceed=confirm(`„${name}“ ist „${similar.row.name}“ zu ${Math.round(similar.score*100)}% ähnlich. Wirklich als neuen Händler anlegen?\n\nAbbrechen = vorhandenen Händler zuerst prüfen bzw. zusammenführen.`);
+      if(!proceed) return;
+    }
     await financeApi.upsertMerchant({
       household_id:h,
       name,
@@ -4257,7 +4312,7 @@ async function createReceiptFromInvoice(invoice,paymentTx=null) {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
@@ -4474,6 +4529,15 @@ async function handleAction(target) {
     select.value='';
     form.removeAttribute('hidden');
     form.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  if (action === 'merchant-duplicate-ignore') {
+    const pairKey=String(target.dataset.pairKey||'').trim();
+    if(!pairKey) throw new Error('Händlervergleich wurde nicht gefunden.');
+    const current=Array.isArray(profilePreferences().merchant_duplicate_ignores)?profilePreferences().merchant_duplicate_ignores:[];
+    if(!current.includes(pairKey)) await saveUserPreferences({merchant_duplicate_ignores:[...current,pairKey].slice(-500)});
+    render();
+    showToast('Diese beiden Händler werden nicht mehr als Dublette vorgeschlagen.');
     return;
   }
   if (action === 'merchant-merge') {
@@ -5897,34 +5961,53 @@ pageContent.addEventListener('input', (event) => {
 });
 
 async function enterApp(session,{freshLogin=false}={}) {
+  const generation=++sessionGeneration;
+  stopLiveTimers();
+  appShell.hidden=true;
+  authGate.hidden=false;
+  authGate.innerHTML=`<div class="auth-card"><div class="loading-state"><span class="loading-spinner" aria-hidden="true"></span><strong>${escapeHtml(t('Daten werden sicher geladen …'))}</strong></div></div>`;
+  clearUserRuntimeState();
   runtime.session=session;
   runtime.user=session.user;
+  const userId=session.user?.id;
+  if(!userId){ showAuth('Sitzung konnte nicht bestätigt werden. Bitte erneut anmelden.'); return; }
   ensureSessionClock({fresh:freshLogin});
-  authGate.hidden=true;
-  appShell.hidden=false;
-  showLoading();
   const releaseCurrent=await ensureCurrentRelease();
   if(!releaseCurrent) return;
+  assertActiveSession(generation,userId);
   const compatible=await ensureRuntimeCompatibility();
   if(!compatible) return;
+  assertActiveSession(generation,userId);
   try {
-    await loadContext();
+    await loadContext({generation,userId});
+    assertActiveSession(generation,userId);
     const visitPreferences=profilePreferences();
     const previousVisit=visitPreferences.last_visit_at||null;
     const previousTs=previousVisit?new Date(previousVisit).getTime():0;
     runtime.previousVisitAt=previousVisit;
-    // A quick refresh should not erase the useful "since last visit" window.
     if(!previousTs || Date.now()-previousTs>30*60*1000){
       const nextVisitAt=new Date().toISOString();
       const nextPreferences={...visitPreferences,last_visit_at:nextVisitAt};
-      void financeApi.updateProfile(runtime.user.id,{preferences:nextPreferences}).then((profile)=>{ runtime.profile=profile; }).catch(()=>{});
+      void financeApi.updateProfile(userId,{preferences:nextPreferences}).then((profile)=>{
+        if(generation===sessionGeneration && runtime.user?.id===userId) runtime.profile=profile;
+      }).catch(()=>{});
     }
-    // Profile preference is authoritative after login, but keep it locally for pre-profile session checks.
     persistNumber(SESSION_KEYS.timeout,configuredSessionTimeout());
+    assertActiveSession(generation,userId);
+    authGate.hidden=true;
+    appShell.hidden=false;
     render();
     startLiveTimers();
   } catch (error) {
-    pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht geladen werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`;
+    if(error?.name==='StaleSessionError') return;
+    appShell.hidden=true;
+    pageContent.replaceChildren();
+    const status=Number(error?.status||0);
+    if(status===401||status===403||/unauthorized|jwt expired|invalid jwt/i.test(String(error?.message||''))){
+      await logoutCurrentUser({notice:'Deine Sitzung ist abgelaufen. Bitte erneut anmelden.'});
+      return;
+    }
+    showAuth(`Daten konnten nicht geladen werden. ${humanError(error)}`);
   }
 }
 
@@ -5962,7 +6045,9 @@ document.addEventListener('visibilitychange',async()=>{
   if(awayMs>=BACKGROUND_REFRESH_MS && !hasDeferredSettingsChanges(pageContent)){
     try {
       showLoading('Daten werden synchronisiert …');
-      await loadContext();
+      const generation=sessionGeneration; const userId=runtime.user?.id;
+      await loadContext({generation,userId});
+      assertActiveSession(generation,userId);
       render();
     } catch(error){
       pageContent.innerHTML=`<div class="inline-alert"><strong>Daten konnten nicht aktualisiert werden.</strong><span>${escapeHtml(humanError(error))}</span></div>`;
