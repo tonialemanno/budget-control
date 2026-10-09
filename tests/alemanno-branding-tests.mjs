@@ -10,8 +10,8 @@ const icons=fs.readFileSync(new URL('../assets/js/app/icons.js',import.meta.url)
 assert.match(config,/appName:\s*'ALEMANNO BUCHHALTUNG'/);
 assert.match(config,/releaseId:\s*'2026\.10\.09-r69'/);
 assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
-assert.match(index,/Finance<span>App<\\/span>/);
-assert.match(index,/financeapp-mark\\.svg/);
+assert.match(index,/Finance<span>App<\/span>/);
+assert.match(index,/financeapp-mark\.svg/);
 assert.doesNotMatch(index,/spendy/i);
 assert.match(icons,/alemanno:/);
 assert.doesNotMatch(icons,/spendy:/i);
