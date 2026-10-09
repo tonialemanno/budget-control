@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.14'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.15'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /ALEMANNO BUCHHALTUNG wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
@@ -194,3 +194,12 @@ assert.match(read('assets/js/app/components.js'), /overview-transaction-edit/);
 assert.match(read('assets/js/main.js'), /activateDashboardDrilldown/);
 assert.match(read('assets/js/main.js'), /overview-account-edit/);
 assert.match(read('assets/css/components.css'), /dashboard-drilldown/);
+
+assert.match(read('assets/js/views/review.js'), /review-summary-tile/);
+assert.match(read('assets/js/views/review.js'), /data-action="review-jump-section"/);
+assert.match(read('assets/js/views/review.js'), /id="review-expenses"/);
+assert.match(read('assets/js/views/review.js'), /id="review-income"/);
+assert.match(read('assets/js/views/review.js'), /id="review-transfers"/);
+assert.match(read('assets/js/views/review.js'), /id="review-bills"/);
+assert.match(read('assets/js/main.js'), /action === 'review-jump-section'/);
+assert.match(read('assets/css/components.css'), /review-summary-tile/);
