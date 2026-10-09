@@ -64,23 +64,27 @@ function feasibility(goal,plannedMonthly) {
   return { tone,label,required,forecast,note:monthly>=required?'Der geplante Monatsbetrag reicht voraussichtlich.':`Es fehlen rund ${Math.max(0,required-monthly).toFixed(2)} pro Monat.` };
 }
 
-function demoSavingsTimeline(goal,locale,currency){
-  if (!String(goal.notes||'').includes('Demo-Verlauf:') || !goal.start_date) return '';
+function demoSavingsTimeline(goal,transactions,locale,currency){
+  if (!String(goal.notes||'').includes('Demo-Verlauf:') || !goal.start_date || !goal.account_id) return '';
   const start=new Date(goal.start_date+'T12:00:00');
-  const current=Number(goal.current_amount||0);
-  const monthly=Number(goal.monthly_amount||0);
-  if (!Number.isFinite(start.getTime())||monthly<=0) return '';
+  if (!Number.isFinite(start.getTime())) return '';
   const now=new Date();
-  const count=Math.max(1,Math.min(36,(now.getFullYear()-start.getFullYear())*12+now.getMonth()-start.getMonth()+1));
-  const opening=Math.max(0,current-count*monthly);
-  const bars=Array.from({length:count},(_,i)=>{
+  const monthCount=Math.max(1,Math.min(36,(now.getFullYear()-start.getFullYear())*12+now.getMonth()-start.getMonth()+1));
+  const deposits=transactions.filter(t=>t.account_id===goal.account_id && t.transfer_group_id && t.status==='booked' && Number(t.amount)>0 && new Date(t.occurred_at)>=start);
+  const transferred=deposits.reduce((sum,t)=>sum+Number(t.amount||0),0);
+  if(!deposits.length) return '';
+  const current=Number(goal.current_amount||0);
+  const opening=Math.max(0,current-transferred);
+  let accumulated=opening;
+  const bars=Array.from({length:monthCount},(_,i)=>{
     const d=new Date(start.getFullYear(),start.getMonth()+i,1);
-    const val=Math.min(current,opening+(i+1)*monthly);
-    const pct=Math.max(2,Math.round(val/Math.max(current,1)*100));
-    const title=`${d.toLocaleDateString(locale,{month:'short',year:'numeric'})}: ${money(val,{currency,locale})}`;
-    return `<div title="${escapeHtml(title)}" style="flex:1;min-width:4px;height:88px;display:flex;align-items:end"><div style="width:100%;height:${pct}%;background:var(--color-primary,#4774a5);border-radius:3px 3px 0 0;opacity:.84"></div></div>`;
+    const paid=deposits.filter(t=>{const x=new Date(t.occurred_at);return x.getFullYear()===d.getFullYear()&&x.getMonth()===d.getMonth()}).reduce((sum,t)=>sum+Number(t.amount||0),0);
+    accumulated+=paid;
+    const pct=Math.max(2,Math.round(accumulated/Math.max(current,1)*100));
+    const title=`${d.toLocaleDateString(locale,{month:'short',year:'numeric'})}: ${money(accumulated,{currency,locale})} (+${money(paid,{currency,locale})})`;
+    return `<div title="${escapeHtml(title)}" style="flex:1;min-width:4px;height:88px;display:flex;align-items:end"><div style="width:100%;height:${Math.min(100,pct)}%;background:var(--color-primary,#4774a5);border-radius:3px 3px 0 0;opacity:.84"></div></div>`;
   }).join('');
-  return `<section style="margin:14px 0" aria-label="Sparverlauf"><div class="mini-detail-list"><span>Beginn <strong>${dateLabel(goal.start_date,locale)}</strong></span><span>Startguthaben <strong>${money(opening,{currency,locale})}</strong></span><span>Bisher angespart <strong>${money(current,{currency,locale})}</strong></span><span>Monatlich <strong>${money(monthly,{currency,locale})}</strong></span></div><p class="card-subtitle">Sparentwicklung (Demo-Modell, monatlich)</p><div style="display:flex;align-items:end;gap:4px;padding:8px 0;border-bottom:1px solid var(--border-color,#ddd)">${bars}</div></section>`;
+  return `<section style="margin:14px 0" aria-label="Sparverlauf"><div class="mini-detail-list"><span>Sparbeginn <strong>${dateLabel(goal.start_date,locale)}</strong></span><span>Startguthaben <strong>${money(opening,{currency,locale})}</strong></span><span>Einzahlungen <strong>${money(transferred,{currency,locale})}</strong></span><span>Heute <strong>${money(current,{currency,locale})}</strong></span></div><p class="card-subtitle">Sparentwicklung aus ${deposits.length} tatsächlichen Demo-Kontoüberträgen</p><div style="display:flex;align-items:end;gap:4px;padding:8px 0;border-bottom:1px solid var(--border-color,#ddd)">${bars}</div></section>`;
 }
 
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], household, profile, fxRates, canWrite=false } = {}) {
@@ -118,7 +122,7 @@ export function renderGoals({ goals = [], goalSources = [], recurringRules = [],
       const f=feasibility(g,plan.total);
       const extraSources=Math.max(0,plan.total-Number(g.monthly_amount||0));
       const suggestedBase=Math.max(0,f.required-extraSources);
-      return `<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">${escapeHtml(g.name)}</h3><p class="card-subtitle">${g.target_date?`Ziel ${dateLabel(g.target_date,locale)}`:'Ohne Zieltermin'}</p></div><span class="goal-bubble goal-bubble--${f.tone}">${escapeHtml(f.label)}</span></div>${goalProgress(g,locale)}${demoSavingsTimeline(g,locale,g.currency||currency)}
+      return `<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">${escapeHtml(g.name)}</h3><p class="card-subtitle">${g.target_date?`Ziel ${dateLabel(g.target_date,locale)}`:'Ohne Zieltermin'}</p></div><span class="goal-bubble goal-bubble--${f.tone}">${escapeHtml(f.label)}</span></div>${goalProgress(g,locale)}${demoSavingsTimeline(g,transactions,locale,g.currency||currency)}
         <div class="mini-detail-list"><span>Eigener Monatsbetrag <strong>${money(g.monthly_amount,{currency:g.currency||currency,locale})}</strong></span><span>Gesamt geplant / Monat <strong>${money(plan.total,{currency:g.currency||currency,locale})}</strong></span>${g.target_date?`<span>Erforderlich / Monat <strong>${money(f.required,{currency:g.currency||currency,locale})}</strong></span>`:''}${f.forecast!==null?`<span>Restlaufzeit bei Plan <strong>ca. ${f.forecast} Monate</strong></span>`:''}</div>
         ${plan.components.length?`<div class="goal-source-list">${plan.components.map((c)=>`<div class="goal-source-row"><div><strong>${escapeHtml(c.label)}</strong><span>${money(c.amount,{currency:g.currency||currency,locale})} / Monat</span></div>${c.id&&canWrite?`<button class="table-action table-action--danger" type="button" data-action="goal-source-delete" data-id="${c.id}">Entfernen</button>`:''}</div>`).join('')}</div>`:''}
         <p class="goal-feasibility-note">${escapeHtml(f.note)}</p>
