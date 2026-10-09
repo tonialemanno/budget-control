@@ -75,7 +75,7 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
 function accountProgress(label,value,percent,meta='',accountId=''){
   const pct=Math.max(0,Math.min(100,Number(percent)||0));
   const open=accountId
-    ? `<button class="insight-row insight-row--interactive" type="button" data-action="overview-account-edit" data-id="${escapeHtml(accountId)}" aria-label="${escapeHtml(label)} bearbeiten">`
+    ? `<button class="insight-row insight-row--interactive" type="button" data-action="overview-account-edit" data-id="${escapeHtml(accountId)}" aria-label="Konto öffnen und bearbeiten">`
     : '<div class="insight-row">';
   const close=accountId?'</button>':'</div>';
   return `${open}
