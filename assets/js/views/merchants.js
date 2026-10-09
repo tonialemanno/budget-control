@@ -183,7 +183,9 @@ export function renderMerchants({
       <div><strong>${escapeHtml(cluster.canonical.name)}</strong><span>${cluster.duplicates.length} mögliche Variante${cluster.duplicates.length===1?'':'n'} · höchste Ähnlichkeit ${Math.round(cluster.similarity*100)}%</span></div>
       <div class="merchant-duplicate-variants">${cluster.duplicates.map((row)=>`<span>${escapeHtml(row.merchant.name)} · ${Math.round(row.similarity*100)}%</span>`).join('')}</div>
       ${canWrite?`<div class="row-actions" style="margin-top:10px">
-        <button class="table-action" type="button" data-action="merchant-merge-cluster" data-canonical-id="${cluster.canonical.id}" data-duplicate-ids="${escapeHtml(cluster.duplicates.map((row)=>row.merchant.id).join(','))}">${cluster.duplicates.length===1?'Zusammenführen':'Alle Varianten zusammenführen'}</button>
+        ${cluster.duplicates.length===1
+          ? `<button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${cluster.canonical.id}" data-duplicate-id="${cluster.duplicates[0].merchant.id}">Zusammenführen</button>`
+          : `<button class="table-action" type="button" data-action="merchant-merge-cluster" data-canonical-id="${cluster.canonical.id}" data-duplicate-ids="${escapeHtml(cluster.duplicates.map((row)=>row.merchant.id).join(','))}">Alle Varianten zusammenführen</button>`}
         ${cluster.duplicates.length===1?`<button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(cluster.duplicates[0].pairKey)}">Nicht identisch</button>`:''}
       </div>`:''}
     </div>`;
