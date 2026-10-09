@@ -2,7 +2,7 @@ import { formShell, goalProgress, pageHeader, deleteButton } from '../app/compon
 import { dateLabel, escapeHtml, money, moneyText } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
 import { icon } from '../app/icons.js';
-import { goalPlanningMonths, goalStartsInFuture, projectedGoalAmount, projectedGoalGap } from '../app/goal-planning.js?v=20261008-r53';
+import { goalPlanningMonths, goalStartsInFuture, projectedGoalAmount, projectedGoalGap } from '../app/goal-planning.js';
 
 function cadenceMonthly(amount,cadence){
   const n=Number(amount||0);
