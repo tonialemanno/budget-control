@@ -30,12 +30,19 @@ const html=renderAdmin({
   productModules:[],
   demoCredentials:{email:'demo@example.com',password:'Demo-AbCd2345!7'},
 });
-assert.match(html,/Demo-Instanz/);
+assert.match(html,/Gesicherter Demo-Referenzstand/);
 assert.match(html,/demo@example\.com/);
 assert.match(html,/Demo-AbCd2345!7/);
 assert.match(html,/admin-demo-copy/);
 assert.match(html,/Nur Demo-Passwort erneuern/);
-assert.match(html,/Demo-Daten vollständig zurücksetzen/);
+assert.match(html,/Referenzstand wiederherstellen/);
+assert.match(html,/9\. Oktober 2026/);
+assert.match(html,/399 Buchungen/);
+assert.match(html,/admin-demo-restore/);
+assert.match(backend,/adminRestoreDemoBaseline/);
+assert.match(main,/admin-demo-restore/);
+assert.match(edge,/action === "restore_demo_baseline"/);
+assert.match(edge,/restore_demo_golden_v1/);
 assert.match(html,/admin-demo-password-reset/);
 assert.match(backend,/adminResetDemoPassword/);
 assert.match(main,/admin-demo-password-reset/);
