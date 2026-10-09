@@ -5718,6 +5718,21 @@ async function handleAction(target) {
   if (action === 'document-download') {
     const blob=await financeApi.downloadDocument(target.dataset.path); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=target.dataset.name||'dokument'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); return;
   }
+  if (action === 'admin-demo-password-reset') {
+    if (!runtime.adminRole) throw new Error('Nur App-Admins dürfen das Demo-Passwort ändern.');
+    target.disabled=true;
+    try {
+      const result=await backend.adminResetDemoPassword();
+      if (!result?.ok || !result.email || !result.password) throw new Error('Der Demo-Zugang konnte nicht erneuert werden.');
+      uiState.demoCredentials={email:result.email,password:result.password};
+      render();
+      document.querySelector('[data-action="admin-demo-copy"]')?.scrollIntoView({behavior:'smooth',block:'center'});
+      showToast('Demo-Passwort erneuert. Bitte Zugang kopieren.');
+    } finally {
+      target.disabled=false;
+    }
+    return;
+  }
   if (action === 'admin-password') {
     const password=prompt(t('Neues temporäres Passwort (mind. 8 Zeichen):')); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
