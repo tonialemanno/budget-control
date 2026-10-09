@@ -1,5 +1,5 @@
 import { financeApi } from './finance-api.js';
-import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js?v=20261006-r31-ocr';
+import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue, financeEventTimestamp } from './format.js';
 import { getLocale, t } from './i18n.js';
@@ -345,6 +345,7 @@ async function saveReceipt(form) {
         categoryId,
         merchantId: merchant?.id || null,
         merchants: context.merchants.concat(merchant ? [merchant] : []),
+        categories: context.categories,
         occurredAt: financeEventTimestamp(receiptDate),
         description: merchantName,
         counterparty: merchantName,
@@ -369,7 +370,7 @@ async function saveReceipt(form) {
 
     if (linked) {
       const patch = {};
-      const resolvedCategoryId=merchantDefaultCategory(merchant?.id||null,categoryId,context.merchants.concat(merchant ? [merchant] : []));
+      const resolvedCategoryId=merchantDefaultCategory(merchant?.id||null,categoryId,context.merchants.concat(merchant ? [merchant] : []),context.categories,'expense');
       if (resolvedCategoryId && !transaction.category_id) patch.category_id = resolvedCategoryId;
       if (merchant?.id && !transaction.merchant_id) patch.merchant_id = merchant.id;
       if (!transaction.counterparty) patch.counterparty = merchantName;
