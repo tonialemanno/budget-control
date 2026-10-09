@@ -51,6 +51,8 @@ function resetState({ hide = true } = {}) {
   state.geo = null;
   const input = document.querySelector('#receiptCameraInput');
   if (input) input.value = '';
+  const charged=document.querySelector('#receiptChargeAmount');
+  if (charged) charged.value = '';
   if (hide) document.querySelector('#receipt-create')?.setAttribute('hidden', '');
 }
 
@@ -90,27 +92,40 @@ function selectedValues() {
     amount: Math.abs(Number(document.querySelector('#receiptAmount')?.value || 0)),
     currency: String(document.querySelector('#receiptCurrency')?.value || 'CHF'),
     date: String(document.querySelector('#receiptDate')?.value || ''),
+    accountId: String(document.querySelector('#receiptAccount')?.value || ''),
+    chargedAmount: Number(document.querySelector('#receiptChargeAmount')?.value || 0),
   };
+}
+
+function updateChargeField() {
+  if (!state.context) return;
+  const receiptCurrency=String(document.querySelector('#receiptCurrency')?.value||'CHF');
+  const accountId=String(document.querySelector('#receiptAccount')?.value||'');
+  const account=state.context.accounts.find(row=>row.account_id===accountId);
+  const different=Boolean(account && account.currency!==receiptCurrency);
+  const field=document.querySelector('#receiptChargeField');
+  const input=document.querySelector('#receiptChargeAmount');
+  const label=document.querySelector('#receiptChargeLabel');
+  const hint=document.querySelector('#receiptChargeHint');
+  if (field) field.hidden=!different;
+  if (input) input.required=different;
+  if (label && different) label.textContent='Tatsächlich auf dem Konto belastet ('+account.currency+')';
+  if (hint && different) hint.textContent='Originalbeleg in '+receiptCurrency+'; bitte den tatsächlich belasteten '+account.currency+'-Betrag von der Bankbuchung eingeben. Keine automatische Kursschätzung.';
 }
 
 function updateAccountChoices(currency) {
   const select = document.querySelector('#receiptAccount');
   if (!select || !state.context) return;
-  let firstAllowed = '';
+  // Cross-border payments are valid: never hide CHF accounts for EUR receipts.
   for (const option of [...select.options]) {
-    if (!option.value) continue;
-    const account = state.context.accounts.find((row) => row.account_id === option.value);
-    const allowed = account?.currency === currency;
-    option.disabled = !allowed;
-    option.hidden = !allowed;
-    if (allowed && !firstAllowed) firstAllowed = option.value;
+    option.disabled=false;
+    option.hidden=false;
   }
-  if (select.value && select.selectedOptions[0]?.disabled) select.value = '';
   if (!select.value) {
-    const allowed = state.context.accounts.filter((row) => row.currency === currency);
-    if (allowed.length === 1) select.value = allowed[0].account_id;
-    else if (firstAllowed) select.value = firstAllowed;
+    const account=state.context.accounts.find(row=>row.currency===currency)||state.context.accounts[0];
+    select.value=account?.account_id||'';
   }
+  updateChargeField();
 }
 
 function setMode(mode) {
@@ -124,10 +139,12 @@ function setMode(mode) {
 function refreshMatches({ chooseBest = false } = {}) {
   if (!state.context) return;
   const values = selectedValues();
+  const paymentAccount=state.context.accounts.find(row=>row.account_id===values.accountId);
+  const different=Boolean(paymentAccount && paymentAccount.currency!==values.currency);
   state.matches = findReceiptMatches({
     transactions: state.context.transactions.filter((tx) => !state.context.receiptTransactionIds?.has(tx.id)),
-    amount: values.amount,
-    currency: values.currency,
+    amount: different?values.chargedAmount:values.amount,
+    currency: different?paymentAccount.currency:values.currency,
     date: values.date,
     merchant: values.merchant,
     limit: 6,
@@ -234,7 +251,7 @@ async function analyzeFile(file) {
     if (generation !== state.generation) return;
     analysisResult = {
       merchant: '', amount: null, currency: state.geo?.currency || state.context.household.base_currency || 'CHF',
-      date: dateInputValue(), suggestedCategoryName: null, rawText: '', confidence: 0, ocrConfidence: 0,
+      date: null, suggestedCategoryName: null, rawText: '', confidence: 0, ocrConfidence: 0,
     };
     toast(`${t('OCR nicht verfügbar')}: ${String(error?.message || error)}. ${t('Du kannst den Beleg trotzdem manuell erfassen.')}`, 'error');
   }
@@ -251,7 +268,7 @@ async function analyzeFile(file) {
   if (merchant) merchant.value = analysis.merchant || '';
   if (amount) amount.value = analysis.amount ? Number(analysis.amount).toFixed(2) : '';
   if (currency) currency.value = analysis.currency || state.context.household.base_currency || 'CHF';
-  if (date) date.value = analysis.date || dateInputValue();
+  if (date) date.value = analysis.date || '';
   if (ocrText) ocrText.textContent = analysis.rawText || '';
   if (note && !note.value && analysis.paymentMethod) note.value = `Zahlung: ${analysis.paymentMethod}`;
   selectSuggestedCategory(analysis);
@@ -307,6 +324,15 @@ async function saveReceipt(form) {
     const note = String(data.get('note') || '').trim() || null;
     const remember = data.get('rememberMerchant') === 'on';
     const mode = String(data.get('mode') || 'new');
+    const paymentAccount=context.accounts.find(row=>row.account_id===String(data.get('accountId')||''));
+    const crossCurrency=Boolean(paymentAccount && paymentAccount.currency!==currency);
+    const chargedAmount=Number(data.get('chargedAmount')||0);
+    const postingCurrency=crossCurrency?paymentAccount.currency:currency;
+    const postingAmount=crossCurrency?chargedAmount:amount;
+    if (crossCurrency && !(chargedAmount>0)) throw new Error('Bitte den tatsächlich belasteten '+postingCurrency+'-Betrag der Bank- oder Kartenbuchung eingeben.');
+    const fxReceiptNote=crossCurrency
+      ?'Originalbeleg: '+currency+' '+amount.toFixed(2)+'; Kartenbelastung: '+postingCurrency+' '+chargedAmount.toFixed(2)
+      :null;
 
     if (!merchantName) throw new Error(t('Bitte den Händler angeben.'));
     if (!(amount > 0)) throw new Error(t('Bitte einen gültigen Betrag angeben.'));
@@ -321,8 +347,8 @@ async function saveReceipt(form) {
       const transactionId = String(data.get('transactionId') || '');
       transaction = context.transactions.find((row) => row.id === transactionId);
       if (!transaction) throw new Error(t('Bitte eine passende Bankbuchung auswählen.'));
-      const amountOk = Math.abs(Math.abs(Number(transaction.amount)) - amount) <= Math.max(0.02, amount * 0.002);
-      if (transaction.status !== 'booked' || Number(transaction.amount) >= 0 || transaction.transfer_group_id || transaction.cashflow_type === 'debt_payment' || transaction.currency !== currency || !amountOk) {
+      const amountOk = Math.abs(Math.abs(Number(transaction.amount)) - postingAmount) <= Math.max(0.02, postingAmount * 0.002);
+      if (transaction.status !== 'booked' || Number(transaction.amount) >= 0 || transaction.transfer_group_id || transaction.cashflow_type === 'debt_payment' || transaction.currency !== postingCurrency || !amountOk) {
         throw new Error(t('Die ausgewählte Bankbuchung passt nicht sicher zu diesem Beleg.'));
       }
       linked = true;
@@ -330,9 +356,9 @@ async function saveReceipt(form) {
       const accountId = String(data.get('accountId') || '');
       const account = context.accounts.find((row) => row.account_id === accountId);
       if (!account) throw new Error(t('Bitte ein Zahlungskonto auswählen.'));
-      if (account.currency !== currency) throw new Error(t('Kontowährung und Belegwährung müssen übereinstimmen.'));
+      if (account.currency !== postingCurrency) throw new Error('Die gewählte Bankbelastungswährung passt nicht zum Konto.');
 
-      const duplicates = findReceiptMatches({ transactions: context.transactions.filter((tx) => !context.receiptTransactionIds?.has(tx.id)), amount, currency, date: receiptDate, merchant: merchantName, limit: 6 });
+      const duplicates = findReceiptMatches({ transactions: context.transactions.filter((tx) => !context.receiptTransactionIds?.has(tx.id)), amount:postingAmount, currency:postingCurrency, date: receiptDate, merchant: merchantName, limit: 6 });
       const safe = duplicates.filter((entry) => entry.highConfidence);
       if (safe.length === 1 && !confirm(t('Es gibt bereits eine sehr ähnliche Bankbuchung. Trotzdem eine neue Ausgabe anlegen?'))) return;
 
@@ -341,14 +367,14 @@ async function saveReceipt(form) {
         householdId: context.household.id,
         account,
         direction: 'expense',
-        amount,
+        amount: postingAmount,
         categoryId,
         merchantId: merchant?.id || null,
         merchants: context.merchants.concat(merchant ? [merchant] : []),
         occurredAt: financeEventTimestamp(receiptDate),
         description: merchantName,
         counterparty: merchantName,
-        note,
+        note: [note,fxReceiptNote].filter(Boolean).join(' · ')||null,
         source: 'manual',
       });
       createdTransaction = transaction;
@@ -364,7 +390,7 @@ async function saveReceipt(form) {
       mime_type: state.file.type || 'image/jpeg',
       file_size: state.file.size,
       document_date: receiptDate,
-      notes: 'Kassenbeleg · Fotoerfassung',
+      notes: ['Kassenbeleg · Fotoerfassung',fxReceiptNote].filter(Boolean).join(' · '),
     });
 
     if (linked) {
@@ -420,14 +446,19 @@ document.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'receiptMode') { setMode(target.value); return; }
-    if (['receiptMerchant','receiptAmount','receiptCurrency','receiptDate'].includes(target.id)) {
+    if (['receiptMerchant','receiptAmount','receiptCurrency','receiptDate','receiptAccount','receiptChargeAmount'].includes(target.id)) {
       if (target.id === 'receiptCurrency') updateAccountChoices(target.value);
+      if (target.id === 'receiptAccount') updateChargeField();
       refreshMatches();
     }
   } catch (error) {
     setProgress(t('Analyse fehlgeschlagen'), 0);
     toast(String(error?.message || error), 'error');
   }
+});
+
+document.addEventListener('input', (event) => {
+  if (event.target?.id === 'receiptChargeAmount') refreshMatches();
 });
 
 document.addEventListener('submit', async (event) => {
