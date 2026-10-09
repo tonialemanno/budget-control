@@ -32,7 +32,7 @@ import {
 import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
-import { merchantSimilarity, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
+import { merchantSimilarity, similarMerchantCandidates, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js';
 
 import { renderOverview } from './views/overview.js';
@@ -1926,6 +1926,9 @@ function renderImportReview() {
   let earliest=null;
   let latest=null;
   let bankLike=0;
+  let ambiguousMerchantGroups=0;
+  let mlSuggestionGroups=0;
+
   for (const item of importState.items) {
     const mapping=importMappingForParsed(item.parsed,preferredMapping);
     if(!validImportMapping(mapping)){ unmappedFiles+=1; continue; }
@@ -1933,6 +1936,7 @@ function renderImportReview() {
     bankLike+=profile.bankLike;
     if(profile.earliest&&(!earliest||profile.earliest<earliest)) earliest=profile.earliest;
     if(profile.latest&&(!latest||profile.latest>latest)) latest=profile.latest;
+
     for (const row of item.parsed.rows) {
       const tx = rowToTransaction(row,mapping);
       if (!tx) continue;
@@ -1944,10 +1948,32 @@ function renderImportReview() {
       const cashNeedsAmount=Boolean(cashInfo&&cashInfo.foreign&&!cashInfo.originalAmount);
       const merchant = merchantFromTransaction(tx);
       const existing = (ownCounterAccount||cashInfo)?null:resolveCanonicalMerchant(merchant,{merchants:runtime.merchants,aliases:runtime.merchantAliases});
+      const matchCandidates = (!ownCounterAccount&&!cashInfo&&!existing)
+        ? similarMerchantCandidates(merchant,runtime.merchants,{minimum:0.72,limit:4})
+        : [];
+
+      const ruleCategoryId=(ownCounterAccount||cashInfo)?null:applyCategoryRules(tx,runtime.categorizationRules);
       const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
-      const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
+      const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
       const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,tx);
-      const categoryId = (ownCounterAccount||cashInfo)?'':(existing?.default_category_id || applyCategoryRules(tx,runtime.categorizationRules) || knownCategory?.id || mlPrediction?.categoryId || '');
+      const autoCategoryId=(ownCounterAccount||cashInfo)?'':(
+        existing?.default_category_id
+        || ruleCategoryId
+        || knownCategory?.id
+        || (mlPrediction?.safe?mlPrediction.categoryId:null)
+        || ''
+      );
+      const suggestedCategoryId=autoCategoryId||mlPrediction?.categoryId||'';
+      const categorySource=existing?.default_category_id
+        ? {type:'remembered',label:'Gemerkte Händlerkategorie',safe:true}
+        : ruleCategoryId
+          ? {type:'rule',label:'Kategorisierungsregel',safe:true}
+          : knownCategory?.id
+            ? {type:'known',label:'Bekannter Händler',safe:true}
+            : mlPrediction
+              ? {type:'ml',label:`Machine Learning · ${Math.round(mlPrediction.confidence*100)} %`,safe:Boolean(mlPrediction.safe)}
+              : null;
+
       const fromName=Number(tx.amount)<0?(importAccount?.name||'Importkonto'):(ownCounterAccount?.name||'eigenes Konto');
       const toName=Number(tx.amount)<0?(ownCounterAccount?.name||'eigenes Konto'):(importAccount?.name||'Importkonto');
       const groupKey=ownCounterAccount
@@ -1957,6 +1983,7 @@ function renderImportReview() {
           : cashNeedsAmount
             ? 'cash-transfer:foreign-review'
             : (existing?.normalized_key||merchant.key);
+
       const group = groups.get(groupKey) || {
         merchant:{
           ...merchant,
@@ -1969,25 +1996,62 @@ function renderImportReview() {
                 : (existing?.name||merchant.name),
           key:groupKey
         },
-        rows:[], total:0, categoryId, isTransfer:Boolean(ownCounterAccount||autoCash), needsReview:cashNeedsAmount
+        rows:[],
+        total:0,
+        categoryId:autoCategoryId,
+        suggestedCategoryId,
+        categorySource,
+        isTransfer:Boolean(ownCounterAccount||autoCash),
+        needsReview:cashNeedsAmount,
+        existingMerchant:existing||null,
+        matchCandidates,
       };
-      group.rows.push(tx); group.total += Number(tx.amount);
-      if (!group.categoryId && categoryId) group.categoryId = categoryId;
+      group.rows.push(tx);
+      group.total += Number(tx.amount);
+      if (!group.categoryId && autoCategoryId) group.categoryId = autoCategoryId;
+      if (!group.suggestedCategoryId && suggestedCategoryId) group.suggestedCategoryId = suggestedCategoryId;
+      if (!group.categorySource && categorySource) group.categorySource = categorySource;
+      if (!group.matchCandidates?.length && matchCandidates.length) group.matchCandidates = matchCandidates;
       groups.set(groupKey,group);
     }
   }
-  const html = [...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total)).map((group)=>{
+
+  const values=[...groups.values()].sort((a,b)=>Math.abs(b.total)-Math.abs(a.total));
+  ambiguousMerchantGroups=values.filter((group)=>!group.isTransfer&&!group.needsReview&&!group.existingMerchant&&group.matchCandidates?.length).length;
+  mlSuggestionGroups=values.filter((group)=>group.categorySource?.type==='ml').length;
+
+  const html = values.map((group)=>{
     const kind = group.total < 0 ? 'expense' : 'income';
-    const options = runtime.categories.filter((c)=>c.kind===kind).map((c)=>`<option value="${c.id}" ${c.id===group.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
-    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':''}</span></div>${group.isTransfer?'<span class="status-pill status-pill--active">Umbuchung</span>':group.needsReview?'<span class="status-pill status-pill--warning">Prüfen</span>':`<select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select>`}</div>`;
+    const options = runtime.categories.filter((category)=>category.kind===kind).map((category)=>`<option value="${category.id}" ${category.id===group.categoryId?'selected':''}>${escapeHtml(category.name)}</option>`).join('');
+    const suggestedCategory=runtime.categories.find((category)=>category.id===group.suggestedCategoryId)||null;
+    const sourceText=group.categorySource?.type==='ml' && !group.categorySource.safe
+      ? `${group.categorySource.label} schlägt „${escapeHtml(suggestedCategory?.name||'Kategorie')}“ vor · bitte prüfen`
+      : group.categorySource?.label||'Noch kein sicherer Kategorievorschlag';
+
+    const merchantQuestion=group.matchCandidates?.length && !group.existingMerchant
+      ? `<label class="field csv-merchant-match"><span>Ist das derselbe Händler?</span><select class="text-control" data-csv-merchant-match-key="${escapeHtml(group.merchant.key)}" required><option value="">Bitte entscheiden</option>${group.matchCandidates.map((candidate)=>`<option value="${candidate.merchant.id}">Ja · ${escapeHtml(candidate.merchant.name)} · ${Math.round(candidate.similarity*100)} % ähnlich</option>`).join('')}<option value="__new__">Nein · als neuen Händler anlegen</option></select><small>Bei „Ja“ wird dieser Banktext als Alias gespeichert. Es entsteht kein neuer Händler.</small></label>`
+      : '';
+
+    const categoryControl=group.isTransfer
+      ? '<span class="status-pill status-pill--active">Umbuchung</span>'
+      : group.needsReview
+        ? '<span class="status-pill status-pill--warning">Prüfen</span>'
+        : `<div class="csv-review-controls">${merchantQuestion}<label class="field"><span>Kategorie</span><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select><small>${sourceText}</small></label></div>`;
+
+    return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':group.existingMerchant?' · bekannter Händler':''}</span></div>${categoryControl}</div>`;
   }).join('');
+
   const warning=unmappedFiles?` · ${unmappedFiles} Datei${unmappedFiles===1?'':'en'} mit abweichenden Spalten bitte prüfen`:'';
   const range=earliest&&latest?` · Zeitraum ${earliest}–${latest}`:'';
+  const intelligence=[
+    ambiguousMerchantGroups?`${ambiguousMerchantGroups} Händlervergleich${ambiguousMerchantGroups===1?'':'e'} offen`:'',
+    mlSuggestionGroups?`${mlSuggestionGroups} ML-Vorschlag${mlSuggestionGroups===1?'':'e'}`:'',
+  ].filter(Boolean).join(' · ');
   const wrongAccount=importAccount?.account_type==='cash'&&validRows>=20&&bankLike/Math.max(1,validRows)>=0.25;
   const accountWarning=wrongAccount
     ? `<div class="inline-alert"><strong>Zielkonto wirkt unlogisch.</strong><span>Diese Daten sehen nach einem Bankkontoauszug aus, ausgewählt ist aber „${escapeHtml(importAccount.name)}“ (Bargeld). Der Import wird so blockiert.</span></div>`
     : '';
-  host.innerHTML = `${accountWarning}<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen${range} · ${groups.size} erkannte Händler${warning}</p></div></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
+  host.innerHTML = `${accountWarning}<div class="card-heading csv-review-heading"><div><h3 class="card-title">Händler & Kategorien prüfen</h3><p class="card-subtitle">${importState.items.length} Datei${importState.items.length===1?'':'en'} · ${validRows} gültige Buchungen${range} · ${groups.size} erkannte Gruppen${intelligence?` · ${intelligence}`:''}${warning}</p></div></div><div class="inline-alert inline-alert--success"><strong>Import legt keine Kategorien automatisch neu an.</strong><span>Bestehende Händler, Aliase, Regeln und Machine Learning werden zuerst verwendet. Ein neuer Händler entsteht erst, wenn kein bestehender Händler passt oder du „Nein“ bestätigst.</span></div><div class="csv-review-list">${html || '<div class="table-empty">Keine gültigen Buchungszeilen erkannt.</div>'}</div>`;
 }
 
 function suggestedCategoryIdForTransaction({
