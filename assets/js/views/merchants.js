@@ -44,7 +44,7 @@ function duplicateSuggestions(merchants,transactions,recurringRules,budgets,igno
       if(ignored.has(pairKey)) continue;
       const sameFamily=Boolean(duplicateFamily(left)&&duplicateFamily(left)===duplicateFamily(right));
       const similarity=merchantSimilarity(left,right);
-      if(!sameFamily && similarity<0.72) continue;
+      if(!sameFamily && similarity<0.58) continue;
       const leftScore=merchantUsageScore(left,transactions,recurringRules,budgets);
       const rightScore=merchantUsageScore(right,transactions,recurringRules,budgets);
       const canonical=rightScore>leftScore?right:left;
@@ -60,7 +60,7 @@ function duplicateSuggestions(merchants,transactions,recurringRules,budgets,igno
   }
   return pairs
     .sort((a,b)=>b.similarity-a.similarity || merchantUsageScore(b.canonical,transactions,recurringRules,budgets)-merchantUsageScore(a.canonical,transactions,recurringRules,budgets))
-    .slice(0,40);
+    .slice(0,200);
 }
 
 export function renderMerchants({
@@ -72,6 +72,8 @@ export function renderMerchants({
   budgets = [],
   canWrite = false,
   merchantQuery = '',
+  merchantFilter = 'all',
+  merchantPage = 1,
   adminRole = null,
   household = null,
   countryMasterMerchants = [],
@@ -99,8 +101,14 @@ export function renderMerchants({
     <label class="field"><span>Name</span><input class="text-control" name="name" id="merchantEditName" required></label>
     <label class="field"><span>Standardkategorie</span><select class="text-control" name="categoryId" id="merchantEditCategory"><option value="">Keine Standardkategorie</option>${categoryOptions}</select><small>Bestehende Buchungen bleiben unverändert; neue Imports verwenden diese Zuordnung.</small></label>`;
 
+  const duplicateMerchantIds=new Set(duplicateGroups.flatMap((group)=>[group.canonical.id,group.duplicate.id]));
   const filtered=merchants
     .filter((merchant)=>{
+      if(merchantFilter==='duplicates'&&!duplicateMerchantIds.has(merchant.id)) return false;
+      if(merchantFilter==='unused'){
+        const usage=usageLabel(merchant,transactions,recurringRules,budgets);
+        if(usage.txCount||usage.fixedCount||usage.budgetCount) return false;
+      }
       if(!query) return true;
       const category=categories.find((c)=>c.id===merchant.default_category_id)?.name||'';
       const aliases=(aliasesByMerchant.get(merchant.id)||[]).map((row)=>row.alias_name).join(' ');
@@ -109,7 +117,12 @@ export function renderMerchants({
     .slice()
     .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de'));
 
-  const rows=filtered.map((merchant)=>{
+  const pageSize=30;
+  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
+  const safePage=Math.min(Math.max(1,Number(merchantPage)||1),totalPages);
+  const visible=filtered.slice((safePage-1)*pageSize,safePage*pageSize);
+
+  const rows=visible.map((merchant)=>{
     const category=categories.find((c)=>c.id===merchant.default_category_id);
     const usage=usageLabel(merchant,transactions,recurringRules,budgets);
     const aliases=aliasesByMerchant.get(merchant.id)||[];
@@ -146,7 +159,7 @@ export function renderMerchants({
       <div class="suggestion-grid">
         ${duplicateGroups.map((group)=>`
           <div class="suggestion-card">
-            <div><strong>${escapeHtml(group.canonical.name)}</strong><span>möglicherweise derselbe Händler wie <strong>${escapeHtml(group.duplicate.name)}</strong> · Ähnlichkeit ${Math.round(group.similarity*100)}%</span></div>
+            <div><strong>${escapeHtml(group.canonical.name)}</strong><span>möglicherweise derselbe Händler wie <strong>${escapeHtml(group.duplicate.name)}</strong> · ${group.similarity>=0.9?'sehr ähnlich':group.similarity>=0.72?'ähnlich':'möglicherweise ähnlich'} · ${Math.round(group.similarity*100)}%</span></div>
             ${canWrite?`<div class="row-actions" style="margin-top:10px">
               <button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${group.canonical.id}" data-duplicate-id="${group.duplicate.id}">Zusammenführen</button>
               <button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(group.pairKey)}">Nicht identisch</button>
@@ -169,11 +182,18 @@ export function renderMerchants({
 
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
-        <div><h3 class="card-title">Händlersuche</h3><p class="card-subtitle">${merchants.length} kanonische Händler · ${merchantAliases.length} erkannte Aliase</p></div>
+        <div><h3 class="card-title">Händlerbestand</h3><p class="card-subtitle">${merchants.length} Händler · ${merchantAliases.length} Aliase · ${duplicateMerchantIds.size} Händler mit möglicher Dublette</p></div>
       </div>
-      <label class="field"><span>Händler, Alias oder Kategorie suchen</span><input class="text-control" id="merchantSearch" value="${escapeHtml(merchantQuery)}" placeholder="z. B. Uzon, Avenir, Wohnen"></label>
+      <div class="form-grid form-grid--2">
+        <label class="field"><span>Händler, Alias oder Kategorie suchen</span><input class="text-control" id="merchantSearch" value="${escapeHtml(merchantQuery)}" placeholder="z. B. EDEKA, Aldi, Restaurant"></label>
+        <label class="field"><span>Ansicht</span><select class="text-control" id="merchantFilter">
+          <option value="all"${merchantFilter==='all'?' selected':''}>Alle Händler</option>
+          <option value="duplicates"${merchantFilter==='duplicates'?' selected':''}>Nur mögliche Dubletten</option>
+          <option value="unused"${merchantFilter==='unused'?' selected':''}>Unbenutzte Händler</option>
+        </select></label>
+      </div>
+      <div class="table-meta">${filtered.length} Treffer · Seite ${safePage} von ${totalPages}</div>
     </article>
-
     ${canWrite?`<article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
         <div><h3 class="card-title">Mehrere Händler zusammenführen</h3><p class="card-subtitle">Markiere beliebig viele Händler unten und wähle einmal, welcher Name bleiben soll.</p></div>
@@ -191,5 +211,10 @@ export function renderMerchants({
         rows,
         emptyText:query?'Keine Händler für diese Suche gefunden.':'Noch keine Händler vorhanden.'
       })}
+      ${totalPages>1?`<div class="form-actions" style="justify-content:space-between">
+        <button class="action-button action-button--secondary" type="button" data-action="merchant-page" data-page="${safePage-1}" ${safePage<=1?'disabled':''}>Zurück</button>
+        <span class="table-meta">Seite ${safePage} / ${totalPages}</span>
+        <button class="action-button action-button--secondary" type="button" data-action="merchant-page" data-page="${safePage+1}" ${safePage>=totalPages?'disabled':''}>Weiter</button>
+      </div>`:''}
     </article>`;
 }
