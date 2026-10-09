@@ -11,7 +11,7 @@ const headers=read('_headers');
 
 const configRelease=config.match(/releaseId:\s*'([^']+)'/)?.[1]||'';
 assert.equal(configRelease,version.releaseId,'client config and version manifest must use the same release id');
-assert.match(index,/assets\/js\/main\.js\?v=20261009-r66/,'index must load the current bootstrap URL');
+assert.match(index,/assets\/js\/main\.js\?v=20261009-r67/,'index must load the current bootstrap URL');
 assert.match(main,/from '\.\/app\/backend\.js';/,'main and finance-api must share exactly one backend module instance');
 assert.match(financeApi,/from '\.\/backend\.js';/,'finance-api must use the shared backend module instance');
 assert.doesNotMatch(main,/from ['"][^'"]+\.js\?v=/,'main module imports must not fork stateful ES modules through cache query strings');

@@ -167,6 +167,50 @@ export function financeCycleSeries({
 }
 
 
+export function historicalFinanceSurplusRecord({
+  transactions=[],
+  debtPayments=[],
+  recurringRules=[],
+  categories=[],
+  baseCurrency='CHF',
+  fxRates=null,
+  now=new Date(),
+  fallbackDay=25,
+  financeMonthMode='day_25',
+}={}) {
+  const dates=(transactions||[])
+    .filter((tx)=>tx?.status==='booked')
+    .map((tx)=>new Date(tx.occurred_at))
+    .filter((date)=>!Number.isNaN(date.getTime())&&date<=now)
+    .sort((a,b)=>a-b);
+  if(!dates.length) return null;
+
+  const first=dates[0];
+  const monthDistance=Math.max(0,(now.getFullYear()-first.getFullYear())*12+(now.getMonth()-first.getMonth()));
+  const cycles=Math.min(120,Math.max(6,monthDistance+4));
+  const currentCycle=resolveFinanceCycle({now,fallbackDay,mode:financeMonthMode});
+  const rows=financeCycleSeries({
+    transactions,
+    debtPayments,
+    recurringRules,
+    categories,
+    baseCurrency,
+    fxRates,
+    now,
+    cycles,
+    fallbackDay,
+    financeMonthMode,
+  }).filter((row)=>
+    row.coverage==='full'
+    && row.endExclusive<=currentCycle.start
+    && Number(row.net)>0
+  );
+
+  if(!rows.length) return null;
+  return rows.sort((a,b)=>b.net-a.net||b.start-a.start)[0];
+}
+
+
 function surplusAccountMatch(account){
   const name=String(account?.name||'')
     .normalize('NFKD')
