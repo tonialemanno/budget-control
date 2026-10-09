@@ -72,13 +72,17 @@ function insightCard(insight,{currency,locale,privacyEnabled=false}={}){
   </a>`;
 }
 
-function accountProgress(label,value,percent,meta=''){
+function accountProgress(label,value,percent,meta='',accountId=''){
   const pct=Math.max(0,Math.min(100,Number(percent)||0));
-  return `<div class="insight-row">
+  const open=accountId
+    ? `<button class="insight-row insight-row--interactive" type="button" data-action="overview-account-edit" data-id="${escapeHtml(accountId)}" aria-label="${escapeHtml(label)} bearbeiten">`
+    : '<div class="insight-row">';
+  const close=accountId?'</button>':'</div>';
+  return `${open}
     <div class="insight-row-head"><strong>${escapeHtml(label)}</strong><span>${value}</span></div>
     <div class="insight-track"><span style="--insight-progress:${pct}%"></span></div>
     ${meta?`<small>${escapeHtml(meta)}</small>`:''}
-  </div>`;
+  ${close}`;
 }
 
 export function renderOverview({
@@ -137,6 +141,13 @@ export function renderOverview({
   const recordDate=surplusRecord?.start?shortDate(new Date(surplusRecord.start),locale):null;
   const halfBudgetSpend=Math.max(0,Number(coach.variableRemaining||0))/2;
   const halfBudgetPotential=Math.max(0,Number(coach.zeroSpendEndBalance||0)-halfBudgetSpend);
+  const dateKey=(value)=>value instanceof Date&&!Number.isNaN(value.getTime())?value.toISOString().slice(0,10):'';
+  const cycleFrom=dateKey(financeCycle.start);
+  const cycleTo=dateKey(new Date(financeCycle.endExclusive.getTime()-86400000));
+  const recordFrom=surplusRecord?.start?dateKey(new Date(surplusRecord.start)):'';
+  const recordTo=surplusRecord?.endExclusive?dateKey(new Date(new Date(surplusRecord.endExclusive).getTime()-86400000)):'';
+  const seriesFrom=months.length?dateKey(new Date(Math.min(...months.map((row)=>new Date(row.start).getTime())))):'';
+
 
   if(!accounts.length){
     return `
@@ -158,7 +169,7 @@ export function renderOverview({
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>Mehrere Währungen aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben auf den Konten erhalten.</span></div>`:''}
 
     <section class="coach-cockpit">
-      <article class="card coach-hero coach-hero--${coachTone}">
+      <article class="card coach-hero coach-hero--${coachTone} dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung für frei verfügbares Geld öffnen">
         <div class="coach-hero-head">
           <div>
             <span class="coach-eyebrow">Bis zum nächsten Lohn frei</span>
@@ -182,25 +193,25 @@ export function renderOverview({
       </article>
 
       <div class="coach-mini-grid">
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="settings-finance-month" role="link" tabindex="0" aria-label="Finanzmonat in den Einstellungen bearbeiten">
           <span class="coach-mini-icon">${icon('receipt')}</span>
           <span class="coach-mini-label">Bis zum nächsten Finanzmonat</span>
           <strong>${daysLabel}</strong>
           <small><span>Nächster Start</span> <b>${dateLabel(financeCycle.endExclusive,locale)}</b></small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung für frei verfügbares Tagesbudget öffnen">
           <span class="coach-mini-icon">${icon('wallet')}</span>
           <span class="coach-mini-label">Frei pro Tag</span>
           <strong>${privacyMoney(coach.dailyAllowance,{currency,locale,privacyEnabled})}</strong>
           <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled})}</small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="fixed-costs" role="link" tabindex="0" aria-label="Fixkosten und Reserven öffnen">
           <span class="coach-mini-icon">${icon('shield')}</span>
           <span class="coach-mini-label">Fix & reserviert</span>
           <strong>${privacyMoney(coach.fixedRemaining+coach.reserveRemaining+coach.transferRemaining,{currency,locale,privacyEnabled})}</strong>
           <small>bis zum nächsten Finanzmonat</small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="budget" role="link" tabindex="0" aria-label="Variables Budget öffnen">
           <span class="coach-mini-icon">${icon('target')}</span>
           <span class="coach-mini-label">Variables Budget offen</span>
           <strong>${privacyMoney(coach.variableRemaining,{currency,locale,privacyEnabled})}</strong>
@@ -209,7 +220,7 @@ export function renderOverview({
       </div>
     </section>
 
-    <article class="card card-padding coach-hero coach-hero--${savingsPotentialTone}">
+    <article class="card card-padding coach-hero coach-hero--${savingsPotentialTone} dashboard-drilldown" data-drilldown="route" data-route="goals" role="link" tabindex="0" aria-label="Sparziele und Sparpotenzial öffnen">
       <div class="coach-hero-head">
         <div>
           <span class="coach-eyebrow">${coach.additionalSavingsPotential>0?'Zusätzliches Sparpotenzial':'Auf dem Weg zum Monatsüberschuss'}</span>
@@ -237,13 +248,13 @@ export function renderOverview({
         <div><span class="coach-eyebrow">Deine Motivation</span><h3>Kleine Fortschritte, die man sonst leicht übersieht</h3></div>
       </div>
       <div class="coach-mini-grid">
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${cycleFrom}" data-to="${cycleTo}" data-direction="all" role="link" tabindex="0" aria-label="Buchungen dieses Finanzmonats öffnen">
           <span class="coach-mini-icon">${icon('check-circle')}</span>
           <span class="coach-mini-label">No-Spend-Tage</span>
           <strong>${coach.noSpendDays}</strong>
           <small>Aktuelle Serie <b>${coach.noSpendStreak} Tage</b></small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="${primaryAccount?.account_id?'account-edit':'route'}" ${primaryAccount?.account_id?`data-id="${escapeHtml(primaryAccount.account_id)}"`:'data-route="money"'} role="link" tabindex="0" aria-label="Hauptkonto öffnen und bearbeiten">
           <span class="coach-mini-icon">${icon('target')}</span>
           <span class="coach-mini-label">${coach.primaryStartBalance<0?'Minus abgebaut':'Hauptkonto seit Finanzmonat'}</span>
           <strong>${privacyMoney(coach.primaryStartBalance<0?coach.recoveredFromMinus:Math.abs(coach.primaryBalanceChange),{currency,locale,privacyEnabled})}</strong>
@@ -251,7 +262,7 @@ export function renderOverview({
             ? `${Math.round(coach.recoveryPercent||0)} % des Startminus aufgeholt`
             : `${coach.primaryBalanceChange>=0?'Plus':'Minus'} seit Start`}</small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="${recordFrom?'transactions-range':'route'}" ${recordFrom?`data-from="${recordFrom}" data-to="${recordTo}" data-direction="all"`:'data-route="transactions"'} role="link" tabindex="0" aria-label="Finanzmonat des Überschuss-Rekords öffnen">
           <span class="coach-mini-icon">${icon('sparkles')}</span>
           <span class="coach-mini-label">Persönlicher Überschuss-Rekord</span>
           <strong>${bestCompletedSurplus!==null&&bestCompletedSurplus>0?privacyMoney(bestCompletedSurplus,{currency,locale,privacyEnabled}):'–'}</strong>
@@ -261,7 +272,7 @@ export function renderOverview({
               ? ' · <span>Rekord wäre aktuell wieder drin</span>'
               : ` · <span>Noch</span> ${privacyMoney(recordGap,{currency,locale,privacyEnabled})} <span>bis zum Rekord</span>`}`}</small>
         </article>
-        <article class="card coach-mini-card">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="budget" role="link" tabindex="0" aria-label="Budget für Was-wäre-wenn-Szenario öffnen">
           <span class="coach-mini-icon">${icon('piggy-bank')}</span>
           <span class="coach-mini-label">Was wäre wenn?</span>
           <strong>${privacyMoney(halfBudgetPotential,{currency,locale,privacyEnabled})}</strong>
@@ -281,7 +292,7 @@ export function renderOverview({
     </section>
 
     <div class="coach-analysis-grid">
-      <article class="card card-padding income-plan-card">
+      <article class="card card-padding income-plan-card dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung öffnen">
         <div class="card-heading">
           <div><h3 class="card-title">Was von deinem Einkommen bleibt</h3><p class="card-subtitle">Eine klare Rechnung aus deinem aktuellen Monatsplan – ohne Flussdiagramm.</p></div>
           <a class="card-link" href="#/planning">Planung</a>
@@ -289,7 +300,7 @@ export function renderOverview({
         ${renderIncomePlan({flow:coach.flow,currency,locale,privacy:privacyEnabled})}
       </article>
 
-      <article class="card card-padding budget-coach-card">
+      <article class="card card-padding budget-coach-card dashboard-drilldown" data-drilldown="route" data-route="budget" role="link" tabindex="0" aria-label="Budget öffnen und bearbeiten">
         <div class="card-heading">
           <div><h3 class="card-title">Variable Ausgaben</h3><p class="card-subtitle">Der Rahmen für Entscheidungen, die du im Alltag noch beeinflussen kannst.</p></div>
           <a class="card-link" href="#/budget">Budget öffnen</a>
@@ -308,7 +319,7 @@ export function renderOverview({
     </div>
 
     <div class="dashboard-chart-grid">
-      <article class="card card-padding dashboard-donut-card">
+      <article class="card card-padding dashboard-donut-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${cycleFrom}" data-to="${cycleTo}" data-direction="expense" role="link" tabindex="0" aria-label="Ausgaben dieses Finanzmonats öffnen">
         <div class="card-heading">
           <div><h3 class="card-title">Wofür du Geld ausgibst</h3><p class="card-subtitle">Echte Konsumausgaben im aktuellen Finanzmonat.</p></div>
           <a class="card-link" href="#/transactions">Details</a>
@@ -316,7 +327,7 @@ export function renderOverview({
         ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
       </article>
 
-      <article class="card card-padding finance-chart-card">
+      <article class="card card-padding finance-chart-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${seriesFrom}" data-to="${cycleTo}" data-direction="all" role="link" tabindex="0" aria-label="Buchungen der letzten sechs Finanzmonate öffnen">
         <div class="card-heading">
           <div><h3 class="card-title">Deine Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Finanzmonate.</p></div>
           <a class="card-link" href="#/transactions">Buchungen</a>
@@ -325,7 +336,7 @@ export function renderOverview({
       </article>
     </div>
 
-    <article class="card card-padding overview-income-card">
+    <article class="card card-padding overview-income-card dashboard-drilldown" data-drilldown="income-year" data-kind="earned" role="link" tabindex="0" aria-label="Verdienste dieses Jahres öffnen">
       <div class="card-heading">
         <div><h3 class="card-title">Einnahmen ${annualIncome.year}</h3><p class="card-subtitle">Verdienst getrennt von Rückerstattungen, Rückzahlungen und ungeklärten Eingängen.</p></div>
         <button class="card-link card-link--button" type="button" data-action="overview-drilldown-income" data-kind="earned">Alle Verdienste</button>
@@ -343,11 +354,11 @@ export function renderOverview({
       </div>
     </article>
 
-    <article class="card card-padding overview-account-card">
+    <article class="card card-padding overview-account-card dashboard-drilldown" data-drilldown="route" data-route="money" role="link" tabindex="0" aria-label="Geldtöpfe öffnen">
       <div class="card-heading"><div><h3 class="card-title">Deine Geldtöpfe</h3><p class="card-subtitle">Hauptkonto, Sparkonten und Bargeld bleiben getrennt. Nur das Hauptkonto bestimmt den täglichen freien Rahmen.</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
       <div class="insight-list insight-list--accounts">
         ${accountRows.length
-          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale}),row.share,row.account.currency)).join('')
+          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale}),row.share,row.account.currency,row.account.account_id)).join('')
           : '<div class="table-empty">Noch keine liquiden Konten.</div>'}
       </div>
       <div class="coach-account-summary">
@@ -358,9 +369,9 @@ export function renderOverview({
     </article>
 
     ${sectionHeading('Letzte Bewegungen','Die letzten echten Transaktionen','<a class="card-link" href="#/transactions">Alle ansehen</a>')}
-    <article class="card card-padding">
+    <article class="card card-padding dashboard-drilldown" data-drilldown="route" data-route="transactions" role="link" tabindex="0" aria-label="Alle Buchungen öffnen">
       ${actualTransactions.length
-        ? `<div class="list">${actualTransactions.slice(0,6).map((tx)=>transactionRow(tx,{locale})).join('')}</div>`
+        ? `<div class="list">${actualTransactions.slice(0,6).map((tx)=>transactionRow(tx,{locale,interactive:true})).join('')}</div>`
         : '<div class="table-empty">Noch keine gebuchten Transaktionen.</div>'}
     </article>
   `;
