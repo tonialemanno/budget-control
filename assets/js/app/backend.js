@@ -191,6 +191,7 @@ export const backend = Object.freeze({
   adminCreateUser(payload) { return invokeFunction('admin-users', { body: { action: 'create_user', ...payload } }); },
   adminSetModule(payload) { return invokeFunction('admin-users', { body: { action: 'set_module', ...payload } }); },
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },
+  adminResetDemoPassword() { return invokeFunction('admin-users', { body: { action: 'reset_demo_password' } }); },
   householdMembers(payload) { return invokeFunction('household-members', { body: payload }); },
   fxRates() { return invokeFunction('fx-rates', { method: 'GET' }); },
 
