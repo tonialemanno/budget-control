@@ -1272,6 +1272,11 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  'Erste offene Entscheidung öffnen':'Apri la prima decisione aperta',
+  'Ausgaben ohne Kategorie öffnen':'Apri le spese senza categoria',
+  'Ungeklärte Eingänge öffnen':'Apri le entrate da chiarire',
+  'Mögliche Umbuchungen öffnen':'Apri i possibili trasferimenti',
+  'Bald fällige Rechnungen öffnen':'Apri le fatture in scadenza',
   'Planung für frei verfügbares Geld öffnen':'Apri la pianificazione del denaro disponibile',
   'Finanzmonat in den Einstellungen bearbeiten':'Modifica il mese finanziario nelle impostazioni',
   'Planung für frei verfügbares Tagesbudget öffnen':'Apri la pianificazione del budget giornaliero disponibile',
@@ -1661,6 +1666,11 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  'Erste offene Entscheidung öffnen':'Open the first unresolved decision',
+  'Ausgaben ohne Kategorie öffnen':'Open expenses without a category',
+  'Ungeklärte Eingänge öffnen':'Open unexplained incoming payments',
+  'Mögliche Umbuchungen öffnen':'Open possible transfers',
+  'Bald fällige Rechnungen öffnen':'Open bills due soon',
   'Planung für frei verfügbares Geld öffnen':'Open planning for available money',
   'Finanzmonat in den Einstellungen bearbeiten':'Edit the finance month in settings',
   'Planung für frei verfügbares Tagesbudget öffnen':'Open planning for the available daily budget',
