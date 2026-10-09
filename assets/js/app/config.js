@@ -9,8 +9,8 @@ function releaseChannel() {
 
 export const APP_CONFIG = Object.freeze({
   appName: 'ALEMANNO BUCHHALTUNG',
-  version: '2.4.10',
-  releaseId: '2026.10.09-r66',
+  version: '2.4.11',
+  releaseId: '2026.10.09-r67',
   schemaVersion: 2026100802,
   releaseChannel: releaseChannel(),
   defaultCountry: 'CH',
