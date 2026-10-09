@@ -63,6 +63,33 @@ function duplicateSuggestions(merchants,transactions,recurringRules,budgets,igno
     .slice(0,200);
 }
 
+function duplicateClusters(pairs=[]){
+  const clusters=new Map();
+  for(const pair of pairs){
+    const key=pair.canonical.id;
+    const current=clusters.get(key)||{
+      canonical:pair.canonical,
+      duplicates:new Map(),
+      similarity:pair.similarity,
+      pairKeys:[],
+    };
+    current.similarity=Math.max(current.similarity,pair.similarity);
+    current.duplicates.set(pair.duplicate.id,{
+      merchant:pair.duplicate,
+      similarity:pair.similarity,
+      pairKey:pair.pairKey,
+    });
+    current.pairKeys.push(pair.pairKey);
+    clusters.set(key,current);
+  }
+  return [...clusters.values()]
+    .map((cluster)=>({
+      ...cluster,
+      duplicates:[...cluster.duplicates.values()].sort((a,b)=>b.similarity-a.similarity),
+    }))
+    .sort((a,b)=>b.similarity-a.similarity||b.duplicates.length-a.duplicates.length);
+}
+
 export function renderMerchants({
   merchants = [],
   merchantAliases = [],
@@ -89,6 +116,7 @@ export function renderMerchants({
     aliasesByMerchant.set(alias.merchant_id,rows);
   }
   const duplicateGroups=duplicateSuggestions(merchants,transactions,recurringRules,budgets,merchantDuplicateIgnores);
+  const duplicateClustersList=duplicateClusters(duplicateGroups);
 
   const createFields=`
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Uzon Immobilien AG"></label>
@@ -150,23 +178,32 @@ export function renderMerchants({
     </tr>`;
   });
 
+  const duplicateClusterCard=(cluster)=>`
+    <div class="suggestion-card">
+      <div><strong>${escapeHtml(cluster.canonical.name)}</strong><span>${cluster.duplicates.length} mögliche Variante${cluster.duplicates.length===1?'':'n'} · höchste Ähnlichkeit ${Math.round(cluster.similarity*100)}%</span></div>
+      <div class="merchant-duplicate-variants">${cluster.duplicates.map((row)=>`<span>${escapeHtml(row.merchant.name)} · ${Math.round(row.similarity*100)}%</span>`).join('')}</div>
+      ${canWrite?`<div class="row-actions" style="margin-top:10px">
+        ${cluster.duplicates.length===1
+          ? `<button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${cluster.canonical.id}" data-duplicate-id="${cluster.duplicates[0].merchant.id}">Zusammenführen</button>`
+          : `<button class="table-action" type="button" data-action="merchant-merge-cluster" data-canonical-id="${cluster.canonical.id}" data-duplicate-ids="${escapeHtml(cluster.duplicates.map((row)=>row.merchant.id).join(','))}">Alle Varianten zusammenführen</button>`}
+        ${cluster.duplicates.length===1?`<button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(cluster.duplicates[0].pairKey)}">Nicht identisch</button>`:''}
+      </div>`:''}
+    </div>`;
+  const primaryDuplicateClusters=duplicateClustersList.slice(0,12);
+  const moreDuplicateClusters=duplicateClustersList.slice(12);
   const duplicateHtml=duplicateGroups.length?`
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
-        <div><h3 class="card-title">Ähnliche Händler prüfen</h3><p class="card-subtitle">ALEMANNO BUCHHALTUNG vergleicht Namen intelligent und fragt nach, bevor ähnliche Händler dauerhaft getrennt bleiben. Es wird nie automatisch zusammengeführt.</p></div>
-        <span class="status-pill">${duplicateGroups.length} Vorschlag${duplicateGroups.length===1?'':'e'}</span>
+        <div><h3 class="card-title">Ähnliche Händler prüfen</h3><p class="card-subtitle">Varianten desselben Händlers werden gebündelt. Du entscheidest einmal; danach bleiben frühere Banktexte als Aliase erhalten.</p></div>
+        <span class="status-pill">${duplicateGroups.length} Vergleich${duplicateGroups.length===1?'':'e'}</span>
       </div>
+      <div class="inline-alert"><strong>${duplicateClustersList.length} Händlergruppen brauchen deine Entscheidung.</strong><span>Die wahrscheinlichsten Gruppen stehen zuerst. Ein Zusammenführen löscht keine Buchungen; frühere Namen werden als Alias gelernt.</span></div>
       <div class="suggestion-grid">
-        ${duplicateGroups.map((group)=>`
-          <div class="suggestion-card">
-            <div><strong>${escapeHtml(group.canonical.name)}</strong><span>möglicherweise derselbe Händler wie <strong>${escapeHtml(group.duplicate.name)}</strong> · ${group.similarity>=0.9?'sehr ähnlich':group.similarity>=0.72?'ähnlich':'möglicherweise ähnlich'} · ${Math.round(group.similarity*100)}%</span></div>
-            ${canWrite?`<div class="row-actions" style="margin-top:10px">
-              <button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${group.canonical.id}" data-duplicate-id="${group.duplicate.id}">Zusammenführen</button>
-              <button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(group.pairKey)}">Nicht identisch</button>
-            </div>`:''}
-          </div>`).join('')}
+        ${primaryDuplicateClusters.map(duplicateClusterCard).join('')}
       </div>
+      ${moreDuplicateClusters.length?`<details class="category-advanced" style="margin-top:12px"><summary>Weitere ${moreDuplicateClusters.length} Händlergruppen prüfen</summary><div class="suggestion-grid" style="margin-top:12px">${moreDuplicateClusters.map(duplicateClusterCard).join('')}</div></details>`:''}
     </article>`:'';
+
 
   return `
     ${pageHeader({

@@ -4,6 +4,7 @@ import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { financeMonthMode } from '../app/user-preferences.js';
+import { buildLearningSummary } from '../app/learning-intelligence.js';
 
 export function renderIntelligence({
   transactions = [],
@@ -19,6 +20,9 @@ export function renderIntelligence({
   vehicles = [],
   investments = [],
   pensions = [],
+  categories = [],
+  merchants = [],
+  merchantAliases = [],
   household,
   profile,
   fxRates,
@@ -33,6 +37,7 @@ export function renderIntelligence({
   const currency = snapshot.currency;
   const financePeriodLabel=financeCycleLabel(snapshot.financeCycle,locale);
   const planTone = snapshot.plannedFreeMonthly >= 0 ? 'positive' : 'warning';
+  const learning=buildLearningSummary({transactions,categories,merchants,merchantAliases});
 
   return `
     ${pageHeader({
@@ -61,6 +66,22 @@ export function renderIntelligence({
         ${metricCard('Rücklagen & Umbuchungen / Monat',money(snapshot.fixedTransfersMonthly,{currency,locale}),snapshot.reserveTransfersMonthly>0?`davon Rücklagen ${money(snapshot.reserveTransfersMonthly,{currency,locale})}`:'Töpfe und Sparen')}
       </div>
     </div>
+
+    ${sectionHeading('Lernsystem','Was die App aus deinen Entscheidungen gelernt hat')}
+    <div class="metric-grid">
+      ${metricCard('Trainingsbuchungen',String(learning.trainingExamples),'kategorisierte Buchungen für das lokale Machine Learning')}
+      ${metricCard('Gelernte Händler',String(learning.learnedMerchants),`von ${learning.merchantCount} Händlern mit Standardkategorie`)}
+      ${metricCard('Händler-Aliase',String(learning.aliasCount),'abweichende Banktexte, die bereits auf bekannte Händler zeigen')}
+      ${metricCard('Offen für ML',String(learning.openCount),learning.safeCount?`${learning.safeCount} sichere Vorschläge · ${learning.reviewCount} zur Prüfung`:'keine sicheren Vorschläge offen')}
+    </div>
+    <article class="card card-padding" style="margin-top:16px">
+      <div class="card-heading"><div><h3 class="card-title">Machine Learning ist aktiv</h3><p class="card-subtitle">Es lernt lokal aus deinen bestätigten Kategorien. Im Import wird jetzt angezeigt, ob ein Vorschlag vom Händlerwissen, einer Regel oder vom Machine Learning kommt.</p></div></div>
+      <div class="stack compact-copy">
+        <p><strong>Neue Händler:</strong> werden bei ähnlichen bestehenden Namen nicht mehr still angelegt. Du entscheidest zuerst, ob es derselbe Händler ist.</p>
+        <p><strong>Neue Kategorien:</strong> werden beim Import nie automatisch erzeugt.</p>
+        <p><strong>Deine Korrekturen:</strong> werden als Händler-Standard, Alias oder Trainingsbeispiel wiederverwendet.</p>
+      </div>
+    </article>
 
     ${sectionHeading('Liquidität','Was ist heute tatsächlich vorhanden?')}
     <div class="metric-grid">

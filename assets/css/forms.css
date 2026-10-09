@@ -448,7 +448,7 @@ textarea.text-control { resize: vertical; min-height: 88px; }
   padding-right: 4px; scrollbar-width: thin;
 }
 .csv-review-row, .import-group-row {
-  display: grid; grid-template-columns: minmax(0,1fr) minmax(180px,260px) auto; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(230px,360px) auto; gap: 10px; align-items: center;
   padding: 10px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2);
 }
 .csv-review-row > div strong, .csv-review-row > div span, .import-group-copy strong, .import-group-copy span { display:block; }
@@ -497,6 +497,11 @@ textarea.text-control { resize: vertical; min-height: 88px; }
 .suggestion-card strong, .suggestion-card span { display: block; }
 .suggestion-card strong { font-size: 11px; }
 .suggestion-card span { margin-top: 3px; color: var(--text-3); font-size: 10px; }
+.merchant-duplicate-variants { display: grid; gap: 3px; min-width: 0; }
+.merchant-duplicate-variants span { margin-top: 0; overflow-wrap: anywhere; }
+.csv-review-controls { display: grid; gap: 8px; min-width: 0; }
+.csv-review-controls .field { min-width: 0; }
+.csv-review-controls small { line-height: 1.35; }
 .budget-pattern-card { display: block; }
 .budget-pattern-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .budget-pattern-head > div:first-child { min-width: 0; }

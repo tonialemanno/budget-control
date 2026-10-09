@@ -12,6 +12,7 @@ import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
 import { buildCategoryMlModel, predictCategoryMl } from './app/ml-categorization.js';
+import { IMPORT_SEMANTIC_OPTIONS, suggestImportSemantic } from './app/import-intelligence.js';
 import { buildSetupStatus } from './app/setup-model.js';
 import { resolveFinanceCycle } from './app/finance-cycle.js';
 import { buildBudgetDecisionGuide } from './app/finance-coach.js';
@@ -1963,6 +1964,7 @@ function renderImportReview() {
       const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
       const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,tx);
+      const semanticSuggestion=(ownCounterAccount||cashInfo)?null:suggestImportSemantic(tx);
       const autoCategoryId=(ownCounterAccount||cashInfo)?'':(
         existing?.default_category_id
         || ruleCategoryId
@@ -2012,6 +2014,8 @@ function renderImportReview() {
         needsReview:cashNeedsAmount,
         existingMerchant:existing||null,
         matchCandidates,
+        semanticSuggestion,
+        semanticMixed:false,
       };
       group.rows.push(tx);
       group.total += Number(tx.amount);
@@ -2019,6 +2023,10 @@ function renderImportReview() {
       if (!group.suggestedCategoryId && suggestedCategoryId) group.suggestedCategoryId = suggestedCategoryId;
       if (!group.categorySource && categorySource) group.categorySource = categorySource;
       if (!group.matchCandidates?.length && matchCandidates.length) group.matchCandidates = matchCandidates;
+      if(group.semanticSuggestion?.value && semanticSuggestion?.value && group.semanticSuggestion.value!==semanticSuggestion.value){
+        group.semanticSuggestion=null;
+        group.semanticMixed=true;
+      }
       groups.set(groupKey,group);
     }
   }
@@ -2034,6 +2042,13 @@ function renderImportReview() {
     const sourceText=group.categorySource?.type==='ml' && !group.categorySource.safe
       ? `${group.categorySource.label} schlägt „${escapeHtml(suggestedCategory?.name||'Kategorie')}“ vor · bitte prüfen`
       : group.categorySource?.label||'Noch kein sicherer Kategorievorschlag';
+    const semanticSelected=group.semanticMixed?'':(group.semanticSuggestion?.value||'');
+    const semanticOptions=IMPORT_SEMANTIC_OPTIONS.map(([value,label])=>`<option value="${escapeHtml(value)}" ${value===semanticSelected?'selected':''}>${escapeHtml(label)}</option>`).join('');
+    const semanticHint=group.semanticMixed
+      ? 'Unterschiedliche Bewegungsarten in dieser Gruppe · automatisch lassen oder Gruppe später einzeln prüfen'
+      : group.semanticSuggestion
+        ? `ALEMANNO BUCHHALTUNG schlägt vor: ${escapeHtml(group.semanticSuggestion.label)} · ${escapeHtml(group.semanticSuggestion.reason)}`
+        : 'Optional. Damit werden z. B. Lohn, Rückerstattung, Tilgung und normale Ausgabe korrekt getrennt.';
 
     const merchantQuestion=group.matchCandidates?.length && !group.existingMerchant
       ? `<label class="field csv-merchant-match"><span>Ist das derselbe Händler?</span><select class="text-control" data-csv-merchant-match-key="${escapeHtml(group.merchant.key)}" required><option value="">Bitte entscheiden</option>${group.matchCandidates.map((candidate)=>`<option value="${candidate.merchant.id}">Ja · ${escapeHtml(candidate.merchant.name)} · ${Math.round(candidate.similarity*100)} % ähnlich</option>`).join('')}<option value="__new__">Nein · als neuen Händler anlegen</option></select><small>Bei „Ja“ wird dieser Banktext als Alias gespeichert. Es entsteht kein neuer Händler.</small></label>`
@@ -2043,7 +2058,7 @@ function renderImportReview() {
       ? '<span class="status-pill status-pill--active">Umbuchung</span>'
       : group.needsReview
         ? '<span class="status-pill status-pill--warning">Prüfen</span>'
-        : `<div class="csv-review-controls">${merchantQuestion}<label class="field"><span>Kategorie</span><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select><small>${sourceText}</small></label></div>`;
+        : `<div class="csv-review-controls">${merchantQuestion}<label class="field"><span>Was ist diese Bewegung?</span><select class="text-control" data-csv-semantic-key="${escapeHtml(group.merchant.key)}">${semanticOptions}</select><small>${semanticHint}</small></label><label class="field"><span>Kategorie</span><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select><small>${sourceText}</small></label></div>`;
 
     return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':group.existingMerchant?' · bekannter Händler':''}</span></div>${categoryControl}</div>`;
   }).join('');
@@ -4063,6 +4078,7 @@ async function handleForm(form) {
       }
     }
     const categorySelections = new Map([...form.querySelectorAll('[data-csv-merchant-key]')].map((select)=>[select.dataset.csvMerchantKey, select.value || null]));
+    const semanticSelections = new Map([...form.querySelectorAll('[data-csv-semantic-key]')].map((select)=>[select.dataset.csvSemanticKey, select.value || null]));
     const merchantMatchSelections = new Map([...form.querySelectorAll('[data-csv-merchant-match-key]')].map((select)=>[select.dataset.csvMerchantMatchKey, select.value || '']));
     const unresolvedMerchantMatches=[...merchantMatchSelections.entries()].filter(([,value])=>!value);
     if(unresolvedMerchantMatches.length) throw new Error(`Bitte zuerst ${unresolvedMerchantMatches.length} Händlervergleich${unresolvedMerchantMatches.length===1?'':'e'} beantworten. So wird kein ähnlicher Händler versehentlich doppelt angelegt.`);
@@ -4114,6 +4130,11 @@ async function handleForm(form) {
             categorySelections.has(merchantInfo.key)
               ? categorySelections.get(merchantInfo.key)
               : (categorySelections.has(groupKey)?categorySelections.get(groupKey):null)
+          );
+          const selectedSemantic = (ownCounterAccount||cashInfo) ? null : (
+            semanticSelections.has(merchantInfo.key)
+              ? semanticSelections.get(merchantInfo.key)
+              : (semanticSelections.has(groupKey)?semanticSelections.get(groupKey):null)
           );
           const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
           const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((c)=>c.name===name&&c.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
@@ -4167,7 +4188,7 @@ async function handleForm(form) {
             counterparty_account_ref:tx.counterparty_account_ref||null,
             import_raw_data:tx.import_raw_data||null,
             import_source_page:tx.import_source_page||null,
-            semantic_type:ownCounterAccount?'internal_transfer':null,
+            semantic_type:ownCounterAccount?'internal_transfer':(selectedSemantic||null),
             status:'booked',
             source:'import',
             external_reference:externalReference
@@ -4416,7 +4437,7 @@ async function createReceiptFromInvoice(invoice,paymentTx=null) {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
@@ -4622,6 +4643,23 @@ async function handleAction(target) {
       duplicateMerchantIds:duplicateIds,
     });
     await refresh(`${Number(merged)||duplicateIds.length} Händler wurden unter ${canonical.name} zusammengeführt und als Aliase gelernt.`);
+    return;
+  }
+  if (action === 'merchant-merge-cluster') {
+    const canonical=runtime.merchants.find((row)=>row.id===target.dataset.canonicalId);
+    const duplicateIds=String(target.dataset.duplicateIds||'').split(',').map((value)=>value.trim()).filter(Boolean);
+    const duplicates=duplicateIds.map((id)=>runtime.merchants.find((row)=>row.id===id)).filter(Boolean);
+    if(!canonical||!duplicates.length) throw new Error('Händlergruppe wurde nicht gefunden.');
+    const names=duplicates.map((row)=>row.name);
+    const preview=names.slice(0,4).join(', ')+(names.length>4?' und '+(names.length-4)+' weitere':'');
+    const countLabel=duplicates.length===1?'Variante':'Varianten';
+    if(!confirm(duplicates.length+' '+countLabel+' mit „'+canonical.name+'“ zusammenführen? '+preview+'. Alle bisherigen Namen bleiben als Aliase erhalten.')) return;
+    const merged=await financeApi.mergeMerchantsBulk({
+      householdId:runtime.household.id,
+      canonicalMerchantId:canonical.id,
+      duplicateMerchantIds:duplicates.map((row)=>row.id),
+    });
+    await refresh((Number(merged)||duplicates.length)+' Händler-'+countLabel+' wurden unter '+canonical.name+' zusammengeführt und gelernt.');
     return;
   }
   if (action === 'merchant-merge-open') {
