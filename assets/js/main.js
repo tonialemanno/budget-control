@@ -2042,6 +2042,13 @@ function renderImportReview() {
     const sourceText=group.categorySource?.type==='ml' && !group.categorySource.safe
       ? `${group.categorySource.label} schlägt „${escapeHtml(suggestedCategory?.name||'Kategorie')}“ vor · bitte prüfen`
       : group.categorySource?.label||'Noch kein sicherer Kategorievorschlag';
+    const semanticSelected=group.semanticMixed?'':(group.semanticSuggestion?.value||'');
+    const semanticOptions=IMPORT_SEMANTIC_OPTIONS.map(([value,label])=>`<option value="${escapeHtml(value)}" ${value===semanticSelected?'selected':''}>${escapeHtml(label)}</option>`).join('');
+    const semanticHint=group.semanticMixed
+      ? 'Unterschiedliche Bewegungsarten in dieser Gruppe · automatisch lassen oder Gruppe später einzeln prüfen'
+      : group.semanticSuggestion
+        ? `ALEMANNO BUCHHALTUNG schlägt vor: ${escapeHtml(group.semanticSuggestion.label)} · ${escapeHtml(group.semanticSuggestion.reason)}`
+        : 'Optional. Damit werden z. B. Lohn, Rückerstattung, Tilgung und normale Ausgabe korrekt getrennt.';
 
     const merchantQuestion=group.matchCandidates?.length && !group.existingMerchant
       ? `<label class="field csv-merchant-match"><span>Ist das derselbe Händler?</span><select class="text-control" data-csv-merchant-match-key="${escapeHtml(group.merchant.key)}" required><option value="">Bitte entscheiden</option>${group.matchCandidates.map((candidate)=>`<option value="${candidate.merchant.id}">Ja · ${escapeHtml(candidate.merchant.name)} · ${Math.round(candidate.similarity*100)} % ähnlich</option>`).join('')}<option value="__new__">Nein · als neuen Händler anlegen</option></select><small>Bei „Ja“ wird dieser Banktext als Alias gespeichert. Es entsteht kein neuer Händler.</small></label>`
@@ -2051,7 +2058,7 @@ function renderImportReview() {
       ? '<span class="status-pill status-pill--active">Umbuchung</span>'
       : group.needsReview
         ? '<span class="status-pill status-pill--warning">Prüfen</span>'
-        : `<div class="csv-review-controls">${merchantQuestion}<label class="field"><span>Kategorie</span><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select><small>${sourceText}</small></label></div>`;
+        : `<div class="csv-review-controls">${merchantQuestion}<label class="field"><span>Was ist diese Bewegung?</span><select class="text-control" data-csv-semantic-key="${escapeHtml(group.merchant.key)}">${semanticOptions}</select><small>${semanticHint}</small></label><label class="field"><span>Kategorie</span><select class="text-control" data-csv-merchant-key="${escapeHtml(group.merchant.key)}"><option value="">Ohne Kategorie</option>${options}</select><small>${sourceText}</small></label></div>`;
 
     return `<div class="csv-review-row"><div><strong>${escapeHtml(group.merchant.name)}</strong><span>${group.rows.length} Buchung${group.rows.length===1?'':'en'}${group.isTransfer?' · wird als interne Umbuchung verbunden':group.needsReview?' · Betrag in Fremdwährung fehlt im Export':group.existingMerchant?' · bekannter Händler':''}</span></div>${categoryControl}</div>`;
   }).join('');
