@@ -1272,6 +1272,17 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  '• Vor der Kategorie kann die wirtschaftliche Bedeutung geprüft werden: Lohn, Rückerstattung, Tilgung, Steuerzahlung, Vermögenskauf oder normale Buchung.':'• Prima della categoria puoi verificare il significato economico del movimento: stipendio, rimborso, rimborso del debito, pagamento fiscale, acquisto patrimoniale o movimento ordinario.',
+  'Gelernte Händler':'Esercenti appresi',
+  'Händler-Aliase':'Alias esercenti',
+  'abweichende Banktexte, die bereits auf bekannte Händler zeigen':'testi bancari differenti già collegati a esercenti conosciuti',
+  'Offen für ML':'Aperti per ML',
+  'keine sicheren Vorschläge offen':'nessun suggerimento sicuro aperto',
+  'Es lernt lokal aus deinen bestätigten Kategorien. Im Import wird jetzt angezeigt, ob ein Vorschlag vom Händlerwissen, einer Regel oder vom Machine Learning kommt.':'Impara localmente dalle categorie confermate. Nell’importazione ora vedi se un suggerimento proviene dalla conoscenza degli esercenti, da una regola o dal machine learning.',
+  'Neue Händler:':'Nuovi esercenti:',
+  'werden bei ähnlichen bestehenden Namen nicht mehr still angelegt. Du entscheidest zuerst, ob es derselbe Händler ist.':'non vengono più creati silenziosamente quando esistono nomi simili. Decidi prima se si tratta dello stesso esercente.',
+  'Neue Kategorien:':'Nuove categorie:',
+  'werden als Händler-Standard, Alias oder Trainingsbeispiel wiederverwendet.':'vengono riutilizzate come standard dell’esercente, alias o esempio di addestramento.',
   'Noch kein vollständig abgedeckter Finanzmonat mit Überschuss':'Nessun mese finanziario completamente coperto con avanzo.',
   '• Bevor ein neuer Händler entsteht, werden bestehende Händler auf Ähnlichkeit geprüft. Bei einem plausiblen Treffer fragt ALEMANNO BUCHHALTUNG nach und speichert eine Bestätigung als Alias.':'• Prima di creare un nuovo esercente, ALEMANNO BUCHHALTUNG confronta gli esercenti esistenti. Se trova una corrispondenza plausibile, chiede conferma e salva il testo bancario come alias.',
   '• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch. Machine-Learning-Vorschläge zeigen ihre Herkunft und Sicherheit direkt in der Importprüfung.':'• Gli esercenti conosciuti ricevono automaticamente la categoria memorizzata. I suggerimenti del machine learning mostrano origine e affidabilità direttamente nella verifica dell’importazione.',
@@ -1631,6 +1642,17 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  '• Vor der Kategorie kann die wirtschaftliche Bedeutung geprüft werden: Lohn, Rückerstattung, Tilgung, Steuerzahlung, Vermögenskauf oder normale Buchung.':'• Before choosing a category, you can review the economic meaning of the movement: salary, refund, debt repayment, tax payment, asset purchase or ordinary transaction.',
+  'Gelernte Händler':'Learned merchants',
+  'Händler-Aliase':'Merchant aliases',
+  'abweichende Banktexte, die bereits auf bekannte Händler zeigen':'different bank texts already linked to known merchants',
+  'Offen für ML':'Open for ML',
+  'keine sicheren Vorschläge offen':'no safe suggestions open',
+  'Es lernt lokal aus deinen bestätigten Kategorien. Im Import wird jetzt angezeigt, ob ein Vorschlag vom Händlerwissen, einer Regel oder vom Machine Learning kommt.':'It learns locally from your confirmed categories. The import now shows whether a suggestion comes from merchant knowledge, a rule or machine learning.',
+  'Neue Händler:':'New merchants:',
+  'werden bei ähnlichen bestehenden Namen nicht mehr still angelegt. Du entscheidest zuerst, ob es derselbe Händler ist.':'are no longer created silently when similar existing names are found. You decide first whether it is the same merchant.',
+  'Neue Kategorien:':'New categories:',
+  'werden als Händler-Standard, Alias oder Trainingsbeispiel wiederverwendet.':'are reused as a merchant default, alias or training example.',
   'Noch kein vollständig abgedeckter Finanzmonat mit Überschuss':'No fully covered finance month with a surplus yet.',
   '• Bevor ein neuer Händler entsteht, werden bestehende Händler auf Ähnlichkeit geprüft. Bei einem plausiblen Treffer fragt ALEMANNO BUCHHALTUNG nach und speichert eine Bestätigung als Alias.':'• Before creating a new merchant, ALEMANNO BUCHHALTUNG checks existing merchants for similarity. If a plausible match is found, it asks for confirmation and saves the bank text as an alias.',
   '• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch. Machine-Learning-Vorschläge zeigen ihre Herkunft und Sicherheit direkt in der Importprüfung.':'• Known merchants automatically receive their remembered category. Machine-learning suggestions show their source and confidence directly in the import review.',
@@ -1992,6 +2014,8 @@ const DICTS = { it: Object.freeze({ ...IT, ...IT_EXTRA, ...UI_TRANSLATIONS.it })
 const PATTERNS = {
   it: [
     ...UI_PATTERNS.it,
+    [/^von (\\d+) Händlern mit Standardkategorie$/, 'di $1 esercenti con categoria predefinita'],
+    [/^(\\d+) sichere Vorschläge · (\\d+) zur Prüfung$/, '$1 suggerimenti sicuri · $2 da verificare'],
     [/^(\d+) ausgewählt$/, '$1 selezionati'],
     [/^Diese Auswahl wird Trainingswissen für Machine Learning, ohne alle Buchungen von (.+) gleichzusetzen\.$/, 'Questa selezione diventa conoscenza di addestramento per il Machine Learning senza trattare allo stesso modo tutti i movimenti di $1.'],
     [/^Speichert nur die markierten Buchungen\. Es wird keine feste Regel für (.+) angelegt\. Machine Learning verwendet die Entscheidung als Trainingsbeispiel\.$/, 'Salva solo i movimenti selezionati. Non viene creata alcuna regola fissa per $1. Il Machine Learning usa la decisione come esempio di addestramento.'],
@@ -2052,6 +2076,8 @@ const PATTERNS = {
   ],
   en: [
     ...UI_PATTERNS.en,
+    [/^von (\\d+) Händlern mit Standardkategorie$/, '$1 merchants with a default category'],
+    [/^(\\d+) sichere Vorschläge · (\\d+) zur Prüfung$/, '$1 safe suggestions · $2 to review'],
     [/^(\d+) ausgewählt$/, '$1 selected'],
     [/^Diese Auswahl wird Trainingswissen für Machine Learning, ohne alle Buchungen von (.+) gleichzusetzen\.$/, 'This selection becomes training knowledge for machine learning without treating every transaction from $1 the same way.'],
     [/^Speichert nur die markierten Buchungen\. Es wird keine feste Regel für (.+) angelegt\. Machine Learning verwendet die Entscheidung als Trainingsbeispiel\.$/, 'Saves only the selected transactions. No fixed rule is created for $1. Machine learning uses the decision as a training example.'],
