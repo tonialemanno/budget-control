@@ -120,10 +120,20 @@ function amountCandidates(lines){
 
 function currencyFromText(text,fallback='CHF'){
   const source=String(text||'');
-  if(/\b(?:CHF|SFR|Fr\.)\b/i.test(source)) return 'CHF';
+  // Explicit receipt currency takes precedence over the phone's IP location.
+  // Border-shop receipts sometimes mention both CHF and EUR; use the amount line.
+  const totals=source.split(/\r?\n/).filter(line=>/\b(?:gesamt|summe|total|endbetrag|zahlbetrag|zu zahlen|kartenzahlung|zu bezahlen)\b/i.test(line));
+  for (const line of totals){
+    if(/\bEUR\b|€/i.test(line)) return 'EUR';
+    if(/\b(?:CHF|SFR)\b|\bFr\./i.test(line)) return 'CHF';
+  }
   if(/\bEUR\b|€/i.test(source)) return 'EUR';
+  if(/\b(?:CHF|SFR)\b|\bFr\./i.test(source)) return 'CHF';
   if(/\bUSD\b|\$/i.test(source)) return 'USD';
   if(/\bGBP\b|£/i.test(source)) return 'GBP';
+  // German grocery / pharmacy logos still identify EUR even without a printed € sign.
+  if(/\b(?:EDEKA|REWE|KAUFLAND|NETTO\s+MARKEN.DISCOUNT|ROSSMANN|PENNY\s+MARKT)\b/i.test(source)) return 'EUR';
+  if(/\b(?:USt.IdNr\.?\s*DE\d{9}|Steuer.Nr\.?|DE\d{9}\b)\b/i.test(source)) return 'EUR';
   return fallback;
 }
 
@@ -148,6 +158,14 @@ function merchantProfile(rawText,lines){
     const restaurant=/\bcoop\s+restaurant\b/i.test(text)||/restaur\w*/i.test(text)||/\bbuffet\b/i.test(text);
     return {name:restaurant?'Coop Restaurant':'Coop',key:restaurant?'coop restaurant':'coop',category:restaurant?'Restaurant':'Lebensmittel'};
   }
+  if(/\b(?:edeka|edk\*)\b/i.test(text)) return {name:'EDEKA',key:'edeka',category:'Lebensmittel'};
+  if(/\brewe\b/i.test(text)) return {name:'REWE',key:'rewe',category:'Lebensmittel'};
+  if(/\bkaufland\b/i.test(text)) return {name:'Kaufland',key:'kaufland',category:'Lebensmittel'};
+  if(/\bnetto(?:\s+marken.discount)?\b/i.test(text)) return {name:'Netto',key:'netto',category:'Lebensmittel'};
+  if(/\bpenny\b/i.test(text)) return {name:'Penny',key:'penny',category:'Lebensmittel'};
+  if(/\brossmann\b/i.test(text)) return {name:'Rossmann',key:'rossmann',category:'Shopping'};
+  if(/\bdm(?:\s+drogerie\s+markt|\s+drogerie)?\b/i.test(text)) return {name:'dm Drogeriemarkt',key:'dm drogeriemarkt',category:'Shopping'};
+  if(/\baldi\s+(?:süd|sued|nord)\b/i.test(text)) return {name:'Aldi',key:'aldi',category:'Lebensmittel'};
   if(/\blidl\b/i.test(text)) return {name:'Lidl',key:'lidl',category:'Lebensmittel'};
   if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner',category:'Lebensmittel'};
   if(/\b(?:mcdonald'?s|mc\s*donald'?s)\b/i.test(text)) return {name:"McDonald's",key:'mcdonalds',category:'Restaurant'};
@@ -162,6 +180,7 @@ function explicitTotal(rawText){
   const patterns=[
     /\btotal\s*(?:-?eft\s*)?(?:chf|eur|usd|gbp|sfr|fr\.)?\s*[:=]?\s*(\d{1,6}[.,]\d{2})\b/i,
     /\b(?:summe|gesamt|endbetrag|zahlbetrag)\s*(?:chf|eur|usd|gbp|sfr|fr\.)?\s*[:=]?\s*(\d{1,6}[.,]\d{2})\b/i,
+    /\b(?:zu\s+zahlen|zu\s+bezahlen|kassenbetrag|ec.?karte|kartenzahlung|betrag\s+eur)\s*(?:eur|€)?\s*[:=]?\s*(\d{1,6}(?:[.']\d{3})*[.,]\d{2})\b/i,
     /\bdein\s+lidl\s+preis\s*(\d{1,6}[.,]\d{2})\b/i,
     /\b(?:visadebit|visa\s*debit|twint\s*qr)\s*(?:chf|eur)?\s*[:=]?\s*(\d{1,6}[.,]\d{2})\b/i,
   ];
