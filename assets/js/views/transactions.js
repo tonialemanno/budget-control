@@ -436,7 +436,7 @@ export function renderTransactions({ accounts = [], categories = [], transaction
     <form class="card card-padding form-card receipt-review" id="receipt-create" data-form="receipt-create" hidden>
       <div class="card-heading"><div><h3 class="card-title">Beleg prüfen</h3><p class="card-subtitle">ALEMANNO BUCHHALTUNG liest Händler, Datum und Betrag lokal auf diesem Gerät. Vor dem Buchen kannst du alles korrigieren.</p></div><span class="list-row-leading">${icon('receipt')}</span></div>
       <div class="receipt-review-grid">
-        <div class="receipt-preview-card"><img id="receiptPreview" class="receipt-preview" alt="Belegvorschau"><div class="receipt-ocr-status"><strong id="receiptOcrStatus">Bereit</strong><span id="receiptOcrProgressText">Foto auswählen</span><div class="receipt-progress"><span id="receiptOcrProgressBar"></span></div></div></div>
+        <div class="receipt-preview-card"><img id="receiptPreview" class="receipt-preview" alt="Belegvorschau"><div class="receipt-ocr-status"><strong id="receiptOcrStatus">Bereit</strong><span id="receiptOcrProgressText">Foto auswählen</span><div class="receipt-progress"><span id="receiptOcrProgressBar"></span></div></div><div class="inline-alert" id="receiptOcrWarning" hidden role="status"></div></div>
         <div class="form-grid form-grid--2 receipt-fields">
           <label class="field form-grid-span"><span>Händler</span><input class="text-control" id="receiptMerchant" name="merchant" required placeholder="z. B. McDonald's"></label>
           <label class="field"><span>Betrag</span><input class="text-control" id="receiptAmount" name="amount" type="number" step="0.01" min="0.01" required></label>
