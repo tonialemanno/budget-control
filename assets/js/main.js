@@ -1964,6 +1964,7 @@ function renderImportReview() {
       const knownCategoryNames=(ownCounterAccount||cashInfo)?[]:suggestKnownCategoryCandidates(tx);
       const knownCategory=knownCategoryNames.map((name)=>runtime.categories.find((category)=>category.name===name&&category.kind===(Number(tx.amount)<0?'expense':'income'))).find(Boolean)||null;
       const mlPrediction=(ownCounterAccount||cashInfo)?null:predictCategoryMl(mlModel,tx);
+      const semanticSuggestion=(ownCounterAccount||cashInfo)?null:suggestImportSemantic(tx);
       const autoCategoryId=(ownCounterAccount||cashInfo)?'':(
         existing?.default_category_id
         || ruleCategoryId
@@ -2013,6 +2014,8 @@ function renderImportReview() {
         needsReview:cashNeedsAmount,
         existingMerchant:existing||null,
         matchCandidates,
+        semanticSuggestion,
+        semanticMixed:false,
       };
       group.rows.push(tx);
       group.total += Number(tx.amount);
@@ -2020,6 +2023,10 @@ function renderImportReview() {
       if (!group.suggestedCategoryId && suggestedCategoryId) group.suggestedCategoryId = suggestedCategoryId;
       if (!group.categorySource && categorySource) group.categorySource = categorySource;
       if (!group.matchCandidates?.length && matchCandidates.length) group.matchCandidates = matchCandidates;
+      if(group.semanticSuggestion?.value && semanticSuggestion?.value && group.semanticSuggestion.value!==semanticSuggestion.value){
+        group.semanticSuggestion=null;
+        group.semanticMixed=true;
+      }
       groups.set(groupKey,group);
     }
   }
