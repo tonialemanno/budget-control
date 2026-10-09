@@ -69,7 +69,7 @@ export function renderReview({
         <span class="hero-label">Seit deinem letzten Besuch · ${escapeHtml(lastVisitLabel)}</span><div class="hero-value">${queue.openCount}</div><span class="hero-caption">offene Entscheidungen · ${queue.sinceLastVisit.length} neue Buchungen erkannt</span>
       </button>
       <div class="review-summary-grid">
-        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-expenses" aria-label="Ausgaben ohne Kategorie öffnen"><span>Ausgaben ohne Kategorie</span><strong>${queue.uncategorizedExpenses.length}</strong></button>
+        <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-expenses" aria-label="Ausgaben zu prüfen öffnen"><span>Ausgaben zu prüfen</span><strong>${queue.uncategorizedExpenses.length}</strong></button>
         <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-income" aria-label="Ungeklärte Eingänge öffnen"><span>Ungeklärte Eingänge</span><strong>${queue.unknownIncoming.length}</strong></button>
         <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-transfers" aria-label="Mögliche Umbuchungen öffnen"><span>Mögliche Umbuchungen</span><strong>${queue.possibleTransfers.length+queue.ambiguousTransfers.length}</strong></button>
         <button type="button" class="review-summary-tile" data-action="review-jump-section" data-target="review-bills" aria-label="Bald fällige Rechnungen öffnen"><span>Rechnungen bald fällig</span><strong>${queue.dueBills.length}</strong></button>
