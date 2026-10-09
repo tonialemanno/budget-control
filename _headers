@@ -20,5 +20,11 @@
 /sw.js
   Cache-Control: no-store, max-age=0, must-revalidate
 
+/assets/js/main.js
+  Cache-Control: no-store, max-age=0, must-revalidate
+
+/assets/js/app/config.js
+  Cache-Control: no-store, max-age=0, must-revalidate
+
 /assets/*
   Cache-Control: no-cache, max-age=0, must-revalidate
