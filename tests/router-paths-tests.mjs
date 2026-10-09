@@ -48,7 +48,7 @@ for(const item of NAV_ITEMS){
 
 const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert.doesNotMatch(index,/href="#\//);
-assert.match(index,/href="\/assets\/brand\/alemanno-mark\.svg/);
+assert.match(index,/href="\/assets\/brand\/financeapp-mark\.svg/);
 assert.match(index,/src="\/assets\/js\/main\.js/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
