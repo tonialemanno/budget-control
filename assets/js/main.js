@@ -2088,10 +2088,14 @@ function suggestedCategoryIdForTransaction({
   contextName='',
 }={}) {
   if(explicitCategoryId) return explicitCategoryId;
+  const expectedKind=Number(amount)<0?'expense':Number(amount)>0?'income':'';
   const merchantDefault=merchantId
     ? runtime.merchants.find((row)=>row.id===merchantId)?.default_category_id||null
     : null;
-  if(merchantDefault) return merchantDefault;
+  const merchantDefaultCategory=merchantDefault
+    ? runtime.categories.find((row)=>row.id===merchantDefault&&(!expectedKind||row.kind===expectedKind))
+    : null;
+  if(merchantDefaultCategory) return merchantDefaultCategory.id;
 
   const candidates=[];
   if(semanticType==='asset_acquisition') candidates.push('Fahrzeugkauf','Mobilität');
