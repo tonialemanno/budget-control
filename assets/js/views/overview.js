@@ -205,7 +205,7 @@ export function renderOverview({
           <strong>${privacyMoney(coach.dailyAllowance,{currency,locale,privacyEnabled})}</strong>
           <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled})}</small>
         </article>
-        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="fixed-costs" role="link" tabindex="0" aria-label="Fixkosten und Reserven öffnen">
+        <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Fixkosten, Reserven und geplante Umbuchungen öffnen">
           <span class="coach-mini-icon">${icon('shield')}</span>
           <span class="coach-mini-label">Fix & reserviert</span>
           <strong>${privacyMoney(coach.fixedRemaining+coach.reserveRemaining+coach.transferRemaining,{currency,locale,privacyEnabled})}</strong>
