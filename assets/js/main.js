@@ -2810,7 +2810,7 @@ async function handleForm(form) {
     }
     await createEconomicTransaction({
       api:financeApi, householdId:h, account, direction, amount:rawAmount,
-      categoryId, merchantId, merchants:runtime.merchants, occurredAt,
+      categoryId, merchantId, merchants:runtime.merchants, categories:runtime.categories, occurredAt,
       description:formValue(data,'description'), counterparty:nullValue(data,'counterparty'),
       counterpartyId:counterpartyEntity?.id||null,
       contextId,
