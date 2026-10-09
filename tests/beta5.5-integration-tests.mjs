@@ -84,7 +84,7 @@ assert.match(read('assets/js/main.js'), /budgetExpandedMerchantId/);
 assert.match(read('assets/js/main.js'), /pendingTransactionEditId/);
 assert.match(read('assets/js/views/transactions.js'), /transactionEditMerchant/);
 assert.match(read('assets/js/main.js'), /createEconomicTransaction/);
-assert.match(read('assets/js/main.js'), /merchantDefaultCategory/);
+assert.match(read('assets/js/app/transaction-engine.js'), /merchantDefaultCategory/);
 
 assert.match(read('supabase/migrations/20261001_finance_recurring_merchant_links.sql'), /merchant_id/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Händler \/ Empfänger/);
@@ -111,7 +111,8 @@ const recurringEnd=mainSource.indexOf("if (id === 'fixed-cost-create')",recurrin
 const recurringBlock=mainSource.slice(recurringStart,recurringEnd);
 assert.doesNotMatch(recurringBlock,/merchant_id:merchantId/);
 assert.doesNotMatch(recurringBlock,/merchant\?\.name/);
-assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
+assert.match(recurringBlock,/const recurringCategoryId=direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
+assert.match(recurringBlock,/category_id:recurringCategoryId/);
 
 assert.match(read('assets/js/app/config.js'), /ROUTE_REGISTRY/);
 assert.match(read('assets/js/app/router.js'), /route:'merchants'.*eyebrow:'Einstellungen'/s);
