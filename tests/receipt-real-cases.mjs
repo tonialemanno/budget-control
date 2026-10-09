@@ -11,7 +11,7 @@ const cases=[
   {text:'ROSSMANN\n09.10.2026 10:15\nGesamt 9,49\nEC-KARTE',merchant:'Rossmann',amount:9.49,currency:'EUR',date:'2026-10-09',category:'Shopping'},
 ];
 for(const c of cases){
-  const r=parseReceiptText(c.text,{fallbackCurrency:'EUR'});
+  const r=parseReceiptText(c.text,{fallbackCurrency:'CHF'});
   assert.equal(r.merchant,c.merchant);
   assert.equal(r.amount,c.amount);
   assert.equal(r.currency,c.currency);
