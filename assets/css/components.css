@@ -1463,7 +1463,24 @@ body.quick-add-open { overflow:hidden; }
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:8px;
 }
-.review-summary-grid > div {
+.review-summary-main {
+  display:grid;
+  gap:0;
+  width:100%;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+  font:inherit;
+}
+.review-summary-main--interactive { cursor:pointer; border-radius:14px; }
+.review-summary-main--interactive:focus-visible,
+.review-summary-tile:focus-visible {
+  outline:2px solid color-mix(in srgb,var(--accent) 62%,transparent);
+  outline-offset:3px;
+}
+.review-summary-tile {
   display:grid;
   gap:5px;
   min-height:82px;
@@ -1471,6 +1488,20 @@ body.quick-add-open { overflow:hidden; }
   border:1px solid var(--border);
   border-radius:var(--radius-sm);
   background:color-mix(in srgb,var(--surface) 78%,transparent);
+  color:inherit;
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+  transition:transform .16s var(--ease),border-color .16s var(--ease),background .16s var(--ease),box-shadow .16s var(--ease);
+}
+@media (hover:hover) and (pointer:fine) {
+  .review-summary-main--interactive:hover { transform:translateY(-1px); }
+  .review-summary-tile:hover {
+    transform:translateY(-1px);
+    border-color:color-mix(in srgb,var(--accent) 26%,var(--border));
+    background:var(--surface);
+    box-shadow:var(--shadow-xs);
+  }
 }
 .review-summary-grid span { color:var(--text-3); font-size:10px; }
 .review-summary-grid strong { font-size:22px; }
@@ -1525,6 +1556,10 @@ button.search-result-row { cursor:pointer; }
 .review-history-row strong { font-size:11px; }
 .review-history-row span { color:var(--text-3); font-size:9px; }
 .review-done-card { margin-bottom:16px; }
+.review-section--focus {
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent),var(--shadow-sm);
+  border-color:color-mix(in srgb,var(--accent) 34%,var(--border));
+}
 
 .global-search-card { margin-bottom:16px; }
 .global-search-input-wrap { position:relative; display:flex; align-items:center; }
