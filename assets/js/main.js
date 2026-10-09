@@ -1594,6 +1594,48 @@ async function handleAction(target) {
   if (action === 'document-download') {
     const blob=await financeApi.downloadDocument(target.dataset.path); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=target.dataset.name||'dokument'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); return;
   }
+  if (action === 'admin-demo-password-reset') {
+    target.disabled = true;
+    try {
+      const result = await backend.adminResetDemoPassword();
+      if (!result?.ok || !result.password || !result.email) throw new Error('Die Demo-Zugangsdaten konnten nicht erneuert werden.');
+      const panel = document.querySelector('#adminDemoPasswordResult');
+      const emailInput = document.querySelector('#adminDemoEmail');
+      const passwordInput = document.querySelector('#adminDemoPassword');
+      if (!panel || !emailInput || !passwordInput) throw new Error('Die Anzeige für die neuen Zugangsdaten fehlt.');
+      emailInput.value = result.email;
+      passwordInput.value = result.password;
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      showToast('Demo-Passwort erneuert. Bitte Zugangsdaten kopieren.');
+    } finally {
+      target.disabled = false;
+    }
+    return;
+  }
+  if (action === 'admin-demo-password-copy') {
+    const email = document.querySelector('#adminDemoEmail')?.value || '';
+    const password = document.querySelector('#adminDemoPassword')?.value || '';
+    if (!email || !password) throw new Error('Zuerst ein neues Demo-Passwort erzeugen.');
+    const content = 'Demo AIONE Finance\\nE-Mail: ' + email + '\\nPasswort: ' + password;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(content);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = content;
+      textarea.style.position = 'fixed';
+      textarea.style.top = '0';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const copied = document.execCommand('copy');
+      textarea.remove();
+      if (!copied) throw new Error('Bitte das angezeigte Passwort manuell kopieren.');
+    }
+    showToast('Demo-Zugangsdaten kopiert.');
+    return;
+  }
   if (action === 'admin-password') {
     const password=prompt('Neues temporäres Passwort (mind. 8 Zeichen):'); if (password===null) return; if (password.length<8) throw new Error('Mindestens 8 Zeichen.');
     await backend.adminSetPassword({userId:target.dataset.userId,password}); showToast('Passwort gesetzt.'); return;
