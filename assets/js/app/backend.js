@@ -249,6 +249,7 @@ export const backend = Object.freeze({
   adminCreateDemo(payload = {}) { return invokeFunction('admin-users', { body: { action: 'create_demo', ...payload } }); },
   adminSetModule(payload) { return invokeFunction('admin-users', { body: { action: 'set_module', ...payload } }); },
   adminSetLocale(payload) { return invokeFunction('admin-users', { body: { action: 'set_locale', ...payload } }); },
+  adminSetDisplayName(payload) { return invokeFunction('admin-users', { body: { action: 'set_display_name', ...payload } }); },
   adminSetPassword(payload) { return invokeFunction('admin-users', { body: { action: 'set_password', ...payload } }); },
   adminDeleteUser(payload) { return invokeFunction('admin-users', { body: { action: 'delete_user', ...payload } }); },
   deleteOwnAccount(payload) { return invokeFunction('admin-users', { body: { action: 'delete_self', confirmation: 'DELETE', ...payload } }); },
