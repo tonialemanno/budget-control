@@ -381,6 +381,30 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, locale }, 200, origin);
   }
 
+  if (action === "set_display_name") {
+    const userId = String(body.userId || "");
+    const displayName = String(body.displayName || "").trim().replace(/\s+/g, " ");
+    if (!userId || displayName.length < 2 || displayName.length > 80) {
+      return json({ error: "Der Anzeigename muss zwischen 2 und 80 Zeichen lang sein." }, 400, origin);
+    }
+
+    const { data: target, error: targetError } = await admin.auth.admin.getUserById(userId);
+    const targetUser = target?.user;
+    if (targetError || !targetUser) return json({ error: "Benutzer wurde nicht gefunden." }, 404, origin);
+
+    const { error: profileError } = await admin
+      .from("profiles")
+      .upsert({ user_id: userId, display_name: displayName }, { onConflict: "user_id" });
+    if (profileError) return json({ error: profileError.message }, 400, origin);
+
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+      user_metadata: { ...(targetUser.user_metadata || {}), display_name: displayName },
+    });
+    if (authError) return json({ error: authError.message }, 400, origin);
+
+    return json({ ok: true, display_name: displayName }, 200, origin);
+  }
+
   if (action === "set_password") {
     const userId = String(body.userId || "");
     const password = String(body.password || "");
