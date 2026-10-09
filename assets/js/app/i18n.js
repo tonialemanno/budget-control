@@ -1272,6 +1272,10 @@ const EN = Object.freeze({
 });
 
 const IT_EXTRA = Object.freeze({
+  'Noch kein vollständig abgedeckter Finanzmonat mit Überschuss':'Nessun mese finanziario completamente coperto con avanzo.',
+  '• Bevor ein neuer Händler entsteht, werden bestehende Händler auf Ähnlichkeit geprüft. Bei einem plausiblen Treffer fragt ALEMANNO BUCHHALTUNG nach und speichert eine Bestätigung als Alias.':'• Prima di creare un nuovo esercente, ALEMANNO BUCHHALTUNG confronta gli esercenti esistenti. Se trova una corrispondenza plausibile, chiede conferma e salva il testo bancario come alias.',
+  '• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch. Machine-Learning-Vorschläge zeigen ihre Herkunft und Sicherheit direkt in der Importprüfung.':'• Gli esercenti conosciuti ricevono automaticamente la categoria memorizzata. I suggerimenti del machine learning mostrano origine e affidabilità direttamente nella verifica dell’importazione.',
+  '• Beim Import werden keine neuen Kategorien automatisch erzeugt. Es werden nur bereits vorhandene Kategorien verwendet.':'• Durante l’importazione non vengono create automaticamente nuove categorie. Vengono utilizzate solo categorie già esistenti.',
   'Persönliche Einstellungen':'Impostazioni personali',
   'Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.':'Queste impostazioni appartengono al tuo account e sono indipendenti dal ruolo nel nucleo familiare.',
   'Die Sprache wird nur für dein Benutzerkonto gespeichert.':'La lingua viene salvata solo per il tuo account utente.',
@@ -1627,6 +1631,10 @@ const IT_EXTRA = Object.freeze({
 });
 
 const EN_EXTRA = Object.freeze({
+  'Noch kein vollständig abgedeckter Finanzmonat mit Überschuss':'No fully covered finance month with a surplus yet.',
+  '• Bevor ein neuer Händler entsteht, werden bestehende Händler auf Ähnlichkeit geprüft. Bei einem plausiblen Treffer fragt ALEMANNO BUCHHALTUNG nach und speichert eine Bestätigung als Alias.':'• Before creating a new merchant, ALEMANNO BUCHHALTUNG checks existing merchants for similarity. If a plausible match is found, it asks for confirmation and saves the bank text as an alias.',
+  '• Bekannte Händler erhalten ihre gemerkte Kategorie automatisch. Machine-Learning-Vorschläge zeigen ihre Herkunft und Sicherheit direkt in der Importprüfung.':'• Known merchants automatically receive their remembered category. Machine-learning suggestions show their source and confidence directly in the import review.',
+  '• Beim Import werden keine neuen Kategorien automatisch erzeugt. Es werden nur bereits vorhandene Kategorien verwendet.':'• Imports never create new categories automatically. Only existing categories are used.',
   'Persönliche Einstellungen':'Personal settings',
   'Diese Einstellungen gehören zu deinem Login und sind unabhängig von deiner Haushaltsrolle.':'These settings belong to your login and are independent of your household role.',
   'Die Sprache wird nur für dein Benutzerkonto gespeichert.':'The language is saved only for your user account.',
