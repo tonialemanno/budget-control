@@ -42,7 +42,7 @@ import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js?v=20261008-r60';
 import { renderCategories } from './views/categories.js';
-import { renderMerchants } from './views/merchants.js?v=20261009-r61';
+import { renderMerchants } from './views/merchants.js?v=20261009-r62';
 import { renderImports } from './views/imports.js';
 import { renderImportHistory } from './views/import-history.js';
 import { renderRecurring } from './views/recurring.js';
@@ -175,7 +175,7 @@ const runtime = {
 };
 
 const importState = { items: [] };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
 
 let sessionGeneration=0;
 
@@ -202,6 +202,8 @@ function clearUserRuntimeState({keepIdentity=false}={}){
   importState.items=[];
   uiState.demoCredentials=null;
   uiState.merchantQuery='';
+  uiState.merchantFilter='all';
+  uiState.merchantPage=1;
   uiState.searchQuery='';
   uiState.transactionQuery='';
   uiState.transactionIds=[];
@@ -1121,6 +1123,8 @@ function render() {
     importQuery: uiState.importQuery,
     importCategory: uiState.importCategory,
     merchantQuery: uiState.merchantQuery,
+    merchantFilter: uiState.merchantFilter,
+    merchantPage: uiState.merchantPage,
     merchantDuplicateIgnores: Array.isArray(profilePreferences().merchant_duplicate_ignores)?profilePreferences().merchant_duplicate_ignores:[],
     searchQuery: uiState.searchQuery,
     previousVisitAt: runtime.previousVisitAt,
@@ -4490,6 +4494,11 @@ async function handleAction(target) {
     await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
     return;
   }
+  if (action === 'merchant-page') {
+    uiState.merchantPage=Math.max(1,Number(target.dataset.page)||1);
+    render();
+    return;
+  }
   if (action === 'merchant-select-visible') {
     document.querySelectorAll('[data-merchant-select]').forEach((input)=>{ input.checked=true; });
     return;
@@ -5599,6 +5608,12 @@ pageContent.addEventListener('input', (event) => {
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
   markDeferredSettingsDirty(target);
+  if (target?.id === 'merchantFilter') {
+    uiState.merchantFilter=target.value||'all';
+    uiState.merchantPage=1;
+    render();
+    return;
+  }
   const filePicker = target.closest?.('.file-picker');
   if (filePicker && target.matches?.('input[type="file"]')) {
     const fileName = filePicker.querySelector('[data-file-name]');
@@ -5945,7 +5960,7 @@ pageContent.addEventListener('input', (event) => {
     return;
   }
   if (target.id === 'merchantSearch') {
-    uiState.merchantQuery = target.value; render();
+    uiState.merchantQuery = target.value; uiState.merchantPage = 1; render();
     const next = document.querySelector('#merchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
     return;
   }
