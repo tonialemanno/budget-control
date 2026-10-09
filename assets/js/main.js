@@ -4434,10 +4434,94 @@ async function createReceiptFromInvoice(invoice,paymentTx=null) {
 }
 
 
+function openAccountEditorById(accountId){
+  if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
+  const account=runtime.accounts.find((row)=>row.account_id===accountId);
+  if (!account) throw new Error('Konto wurde nicht gefunden.');
+  const id=document.querySelector('#accountEditId'); if(id) id.value=account.account_id;
+  const name=document.querySelector('#accountEditName'); if(name) name.value=account.name||'';
+  const type=document.querySelector('#accountEditType'); if(type) type.value=account.account_type||'checking';
+  const institution=document.querySelector('#accountEditInstitution'); if(institution) institution.value=account.institution_name||'';
+  const externalRef=document.querySelector('#accountEditExternalRef'); if(externalRef) externalRef.value=account.external_account_ref||'';
+  const currency=document.querySelector('#accountEditCurrency'); if(currency) currency.value=account.currency||runtime.household.base_currency;
+  const visibility=document.querySelector('#accountEditVisibility'); if(visibility) visibility.value=account.visibility||'private';
+  const balance=document.querySelector('#accountEditBalance'); if(balance) balance.value='';
+  const form=document.querySelector('#account-edit');
+  form?.removeAttribute('hidden');
+  form?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetTransactionDrilldownFilters(){
+  uiState.transactionQuery='';
+  uiState.transactionCategory='all';
+  uiState.transactionCategoryIds=[];
+  uiState.transactionSourceSet=[];
+  uiState.transactionIds=[];
+  uiState.transactionAccount='all';
+  uiState.transactionContext='all';
+  uiState.transactionVehicle='all';
+  uiState.transactionDirection='all';
+  uiState.transactionSemantic='all';
+  uiState.transactionFrom='';
+  uiState.transactionTo='';
+  uiState.transactionPeriod='all';
+  uiState.transactionView='details';
+  uiState.transactionPage=1;
+}
+
+function activateDashboardDrilldown(target){
+  const mode=target?.dataset?.drilldown||'';
+  if(!mode) return;
+
+  if(mode==='route'){
+    const route=target.dataset.route||'overview';
+    goToRoute(route);
+    return;
+  }
+
+  if(mode==='settings-finance-month'){
+    goToRoute('settings');
+    requestAnimationFrame(()=>{
+      const select=document.querySelector('#financeMonthModeSelect');
+      select?.scrollIntoView({behavior:'smooth',block:'center'});
+      select?.focus();
+    });
+    return;
+  }
+
+  if(mode==='account-edit'){
+    const accountId=target.dataset.id||'';
+    if(!accountId){ goToRoute('accounts'); return; }
+    goToRoute('accounts');
+    requestAnimationFrame(()=>openAccountEditorById(accountId));
+    return;
+  }
+
+  if(mode==='transactions-range'){
+    resetTransactionDrilldownFilters();
+    uiState.transactionDirection=target.dataset.direction||'all';
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=(uiState.transactionFrom||uiState.transactionTo)?'custom':'all';
+    goToRoute('transactions');
+    return;
+  }
+
+  if(mode==='income-year'){
+    resetTransactionDrilldownFilters();
+    uiState.transactionDirection='income';
+    uiState.transactionSemantic=target.dataset.kind||'earned';
+    uiState.transactionFrom=`${new Date().getFullYear()}-01-01`;
+    uiState.transactionTo=`${new Date().getFullYear()}-12-31`;
+    uiState.transactionPeriod='custom';
+    goToRoute('transactions');
+  }
+}
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
@@ -4897,18 +4981,13 @@ async function handleAction(target) {
     return;
   }
   if (action === 'account-edit') {
-    if (!canWriteHousehold()) throw new Error('Du hast nur Leserechte.');
-    const account=runtime.accounts.find((row)=>row.account_id===target.dataset.id);
-    if (!account) throw new Error('Konto wurde nicht gefunden.');
-    document.querySelector('#accountEditId').value=account.account_id;
-    document.querySelector('#accountEditName').value=account.name||'';
-    document.querySelector('#accountEditType').value=account.account_type||'checking';
-    document.querySelector('#accountEditInstitution').value=account.institution_name||'';
-    const externalRef=document.querySelector('#accountEditExternalRef'); if(externalRef) externalRef.value=account.external_account_ref||'';
-    document.querySelector('#accountEditCurrency').value=account.currency||runtime.household.base_currency;
-    document.querySelector('#accountEditVisibility').value=account.visibility||'private';
-    document.querySelector('#accountEditBalance').value='';
-    const form=document.querySelector('#account-edit'); form?.removeAttribute('hidden'); form?.scrollIntoView({behavior:'smooth',block:'start'});
+    openAccountEditorById(target.dataset.id);
+    return;
+  }
+  if (action === 'overview-account-edit') {
+    const accountId=target.dataset.id||'';
+    goToRoute('accounts');
+    requestAnimationFrame(()=>openAccountEditorById(accountId));
     return;
   }
   if (action === 'vehicle-edit') {
@@ -5124,6 +5203,19 @@ async function handleAction(target) {
     uiState.transactionView='details';
     uiState.transactionPage=1;
     uiState.pendingTransactionEditId=tx.id;
+    goToRoute('transactions');
+    return;
+  }
+  if (action === 'overview-transaction-edit') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx) throw new Error('Buchung wurde nicht gefunden.');
+    if(canWriteHousehold()){
+      uiState.pendingTransactionEditId=tx.id;
+      goToRoute('transactions');
+      return;
+    }
+    resetTransactionDrilldownFilters();
+    uiState.transactionIds=[tx.id];
     goToRoute('transactions');
     return;
   }
@@ -5690,6 +5782,24 @@ pageContent.addEventListener('click', async (event) => {
   if (!target || target.matches('input[type="checkbox"]')) return;
   try { await handleAction(target); }
   catch (error) { showToast(humanError(error),'error'); }
+});
+
+pageContent.addEventListener('click',(event)=>{
+  const drilldown=event.target.closest?.('[data-drilldown]');
+  if(!drilldown) return;
+  const nestedControl=event.target.closest?.('a,button,input,select,textarea,label,[data-action]');
+  if(nestedControl && nestedControl!==drilldown) return;
+  try { activateDashboardDrilldown(drilldown); }
+  catch(error){ showToast(humanError(error),'error'); }
+});
+
+pageContent.addEventListener('keydown',(event)=>{
+  if(event.key!=='Enter'&&event.key!==' ') return;
+  const drilldown=event.target.closest?.('[data-drilldown]');
+  if(!drilldown||event.target!==drilldown) return;
+  event.preventDefault();
+  try { activateDashboardDrilldown(drilldown); }
+  catch(error){ showToast(humanError(error),'error'); }
 });
 
 pageContent.addEventListener('input', (event) => {

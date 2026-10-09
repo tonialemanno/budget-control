@@ -119,11 +119,15 @@ export function accountCard(account, { locale = 'de-CH', canWrite = false, proje
     </article>`;
 }
 
-export function transactionRow(tx, { locale = 'de-CH', canWrite = false } = {}) {
+export function transactionRow(tx, { locale = 'de-CH', canWrite = false, interactive = false } = {}) {
   const positive = Number(tx.amount) >= 0;
   const transfer = Boolean(tx.transfer_group_id);
+  const tag=interactive?'button':'div';
+  const attrs=interactive
+    ? ` type="button" data-action="overview-transaction-edit" data-id="${escapeHtml(tx.id)}" aria-label="Buchung öffnen und bearbeiten"`
+    : '';
   return `
-    <div class="list-row transaction-row">
+    <${tag} class="list-row transaction-row${interactive?' transaction-row--interactive':''}"${attrs}>
       <div class="list-row-main">
         <span class="list-row-leading ${positive ? 'list-row-leading--green' : ''}">${icon(transfer ? 'repeat' : positive ? 'arrow-down-left' : 'arrow-up-right')}</span>
         <div><div class="list-row-title">${escapeHtml(tx.description)}</div><div class="list-row-meta">${escapeHtml(tx.categories?.name || t(transfer ? 'Umbuchung' : 'Ohne Kategorie'))} · ${escapeHtml(tx.accounts?.name || '')} · ${dateLabel(tx.occurred_at, locale)}</div></div>
@@ -132,7 +136,7 @@ export function transactionRow(tx, { locale = 'de-CH', canWrite = false } = {}) 
         <div class="amount ${positive ? 'amount--positive' : 'amount--negative'}">${money(tx.amount, { sign: positive, currency: tx.currency, locale })}</div>
         ${canWrite ? `<div class="row-actions">${transfer ? '' : `<button class="table-action" type="button" data-action="transaction-edit" data-id="${escapeHtml(tx.id)}">${escapeHtml(t('Bearbeiten'))}</button><button class="table-action" type="button" data-action="transaction-make-recurring" data-id="${escapeHtml(tx.id)}">${escapeHtml(t('Wiederkehrend'))}</button>`}<button class="table-action table-action--danger" type="button" data-action="transaction-delete" data-id="${escapeHtml(tx.id)}">${escapeHtml(t(transfer ? 'Umbuchung löschen' : 'Löschen'))}</button></div>` : ''}
       </div>
-    </div>`;
+    </${tag}>`;
 }
 
 export function goalProgress(goal, locale) {

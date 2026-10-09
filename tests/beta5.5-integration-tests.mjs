@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.13'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.14'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /ALEMANNO BUCHHALTUNG wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
@@ -185,3 +185,12 @@ assert.match(read('assets/js/main.js'), /suggestImportSemantic/);
 assert.match(read('index.html'), /financeapp-mark\.svg/);
 assert.match(read('index.html'), /manifest\.webmanifest/);
 assert.match(read('assets/js/main.js'), /auth-brand--financeapp/);
+
+assert.match(read('assets/js/views/overview.js'), /data-drilldown="settings-finance-month"/);
+assert.match(read('assets/js/views/overview.js'), /data-drilldown="transactions-range"/);
+assert.match(read('assets/js/views/overview.js'), /data-drilldown="income-year"/);
+assert.match(read('assets/js/views/overview.js'), /interactive:true/);
+assert.match(read('assets/js/app/components.js'), /overview-transaction-edit/);
+assert.match(read('assets/js/main.js'), /activateDashboardDrilldown/);
+assert.match(read('assets/js/main.js'), /overview-account-edit/);
+assert.match(read('assets/css/components.css'), /dashboard-drilldown/);
