@@ -1,5 +1,5 @@
 import { financeApi } from './finance-api.js';
-import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js?v=20261006-r31-ocr';
+import { analyzeReceiptImage, findReceiptMatches } from './receipt-ocr.js?v=20261009-r74-ocr';
 import { normalizeMerchantKey } from './csv-import.js';
 import { dateInputValue, financeEventTimestamp } from './format.js';
 import { getLocale, t } from './i18n.js';
@@ -49,6 +49,8 @@ function resetState({ hide = true } = {}) {
   state.matches = [];
   state.busy = false;
   state.geo = null;
+  const warning=document.querySelector('#receiptOcrWarning');
+  if (warning){warning.hidden=true;warning.textContent='';}
   const input = document.querySelector('#receiptCameraInput');
   if (input) input.value = '';
   const charged=document.querySelector('#receiptChargeAmount');
@@ -241,6 +243,7 @@ async function analyzeFile(file) {
   const accountHint=document.querySelector('#receiptAccountHint');
   if(accountHint && state.geo.country) accountHint.textContent=`${t('Standort')} ${state.geo.country}: ${state.geo.currency} ${t('vorgeschlagen. Eine erkannte Belegwährung hat Vorrang.')}`;
   let analysisResult;
+  let ocrFailure=null;
   try {
     analysisResult = await analyzeReceiptImage(file, {
       fallbackCurrency: state.geo.currency,
@@ -249,6 +252,7 @@ async function analyzeFile(file) {
     });
   } catch (error) {
     if (generation !== state.generation) return;
+    ocrFailure=String(error?.message||error);
     analysisResult = {
       merchant: '', amount: null, currency: state.geo?.currency || state.context.household.base_currency || 'CHF',
       date: null, suggestedCategoryName: null, rawText: '', confidence: 0, ocrConfidence: 0,
@@ -274,7 +278,12 @@ async function analyzeFile(file) {
   selectSuggestedCategory(analysis);
   updateAccountChoices(currency?.value || state.context.household.base_currency || 'CHF');
   refreshMatches({ chooseBest: true });
-  setProgress('Erkennung abgeschlossen', 1);
+  setProgress(ocrFailure?'OCR fehlgeschlagen – Daten bitte manuell prüfen':'Erkennung abgeschlossen', 1);
+  const warning=document.querySelector('#receiptOcrWarning');
+  if(warning){
+    warning.hidden=!ocrFailure;
+    if(ocrFailure) warning.textContent='Texterkennung nicht abgeschlossen: '+ocrFailure+'. Belegdaten können manuell erfasst werden.';
+  }
 
   if (!analysis.amount || !analysis.date || !analysis.merchant || analysis.merchant === 'Unbekannter Händler') {
     const alert = document.querySelector('#receiptMatchAlert');
@@ -453,6 +462,8 @@ document.addEventListener('change', async (event) => {
     }
   } catch (error) {
     setProgress(t('Analyse fehlgeschlagen'), 0);
+    const warning=document.querySelector('#receiptOcrWarning');
+    if(warning){warning.hidden=false;warning.textContent='Beleganalyse fehlgeschlagen: '+String(error?.message||error);}
     toast(String(error?.message || error), 'error');
   }
 });
