@@ -152,7 +152,7 @@ export function renderAdmin({user:currentUser=null,adminUsers=[],productModules=
           <label class="field"><span>Sprache</span><select class="text-control" name="locale"><option value="de-CH">Deutsch · Schweiz</option><option value="it-CH">Italiano · Svizzera</option><option value="en-CH">English · Switzerland</option></select></label>
         </div>
         <p class="admin-search-hint">Der Passwort-Button erhält alle bestehenden Demo-Buchungen und Sparziele. Nur „Demo-Daten vollständig zurücksetzen“ erzeugt die Demo-Daten neu.</p>
-        <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="admin-demo-password-reset">${icon('key-round')} Nur Demo-Passwort erneuern</button><button class="action-button action-button--secondary" type="submit">${icon('repeat')} Demo-Daten vollständig zurücksetzen</button></div>
+        <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="admin-demo-password-reset">${icon('shield')} Nur Demo-Passwort erneuern</button><button class="action-button action-button--secondary" type="submit">${icon('repeat')} Demo-Daten vollständig zurücksetzen</button></div>
         ${demoCredentials?`<div class="inline-alert" style="margin-top:14px"><strong>Demo-Zugang bereit</strong><span>Die Zugangsdaten wurden neu gesetzt. Beim nächsten Zurücksetzen wird ein neues Passwort erzeugt.</span></div>
         <div class="form-grid" style="margin-top:12px">
           <label class="field"><span>E-Mail</span><input class="text-control" value="${escapeHtml(demoCredentials.email||'')}" readonly></label>
