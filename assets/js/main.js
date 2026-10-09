@@ -4646,6 +4646,17 @@ async function handleAction(target) {
     return;
   }
 
+  if (action === 'review-jump-section') {
+    const targetId=String(target.dataset.target||'');
+    const section=document.getElementById(targetId);
+    if(!section) throw new Error('Bereich wurde nicht gefunden.');
+    section.scrollIntoView({behavior:'smooth',block:'start'});
+    section.classList.add('review-section--focus');
+    window.setTimeout(()=>section.classList.remove('review-section--focus'),900);
+    const firstAction=section.querySelector('[data-action="review-edit-transaction"],[data-action="review-link-transfer"],a.review-work-row--link');
+    firstAction?.focus?.({preventScroll:true});
+    return;
+  }
   if (action === 'review-edit-transaction' || action === 'search-open-transaction') {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
     if(!tx) throw new Error('Buchung wurde nicht gefunden.');
