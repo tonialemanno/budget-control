@@ -2014,8 +2014,8 @@ const DICTS = { it: Object.freeze({ ...IT, ...IT_EXTRA, ...UI_TRANSLATIONS.it })
 const PATTERNS = {
   it: [
     ...UI_PATTERNS.it,
-    [/^von (\\d+) Händlern mit Standardkategorie$/, 'di $1 esercenti con categoria predefinita'],
-    [/^(\\d+) sichere Vorschläge · (\\d+) zur Prüfung$/, '$1 suggerimenti sicuri · $2 da verificare'],
+    [/^von (\d+) Händlern mit Standardkategorie$/, 'di $1 esercenti con categoria predefinita'],
+    [/^(\d+) sichere Vorschläge · (\d+) zur Prüfung$/, '$1 suggerimenti sicuri · $2 da verificare'],
     [/^(\d+) ausgewählt$/, '$1 selezionati'],
     [/^Diese Auswahl wird Trainingswissen für Machine Learning, ohne alle Buchungen von (.+) gleichzusetzen\.$/, 'Questa selezione diventa conoscenza di addestramento per il Machine Learning senza trattare allo stesso modo tutti i movimenti di $1.'],
     [/^Speichert nur die markierten Buchungen\. Es wird keine feste Regel für (.+) angelegt\. Machine Learning verwendet die Entscheidung als Trainingsbeispiel\.$/, 'Salva solo i movimenti selezionati. Non viene creata alcuna regola fissa per $1. Il Machine Learning usa la decisione come esempio di addestramento.'],
