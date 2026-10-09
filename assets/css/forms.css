@@ -42,6 +42,51 @@
   font-size: 11px;
 }
 
+.auth-brand--financeapp {
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-brand-logo {
+  width: 82px;
+  height: 82px;
+  flex: 0 0 82px;
+  object-fit: cover;
+  border-radius: 22px;
+  background: #fffdf8;
+  border: 1px solid color-mix(in srgb, #d5aa55 48%, var(--border) 52%);
+  box-shadow: 0 12px 28px rgba(7,35,66,.12);
+}
+.auth-brand-lockup { min-width: 0; }
+.auth-brand-lockup strong {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 29px;
+  line-height: .95;
+  font-weight: 700;
+  letter-spacing: -.05em;
+  color: #0a2948;
+}
+.auth-brand-lockup strong span,
+.auth-brand-lockup strong em { display: inline; }
+.auth-brand-lockup strong em { color: #bd8a2d; font-style: normal; }
+.auth-brand-lockup small {
+  display: block;
+  margin-top: 7px;
+  color: #0a2948;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.auth-brand-lockup > span {
+  margin-top: 7px;
+  color: var(--text-3);
+  font-size: 10px;
+}
+
 .auth-copy h1 {
   margin-top: 4px;
   font-size: 34px;

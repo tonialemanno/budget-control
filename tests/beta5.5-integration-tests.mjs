@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const exists = (path) => fs.existsSync(new URL(`../${path}`, import.meta.url));
 
-assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.12'/);
+assert.match(read('assets/js/app/config.js'), /version:\s*'2\.4\.13'/);
 assert.match(read('index.html'), /boot-fallback\.js/);
 assert.match(read('index.html'), /ALEMANNO BUCHHALTUNG wird geladen/);
 assert.doesNotMatch(read('assets/js/app/receipt-controller.js'), /new MutationObserver\(syncVersionLabel\)/);
@@ -181,3 +181,7 @@ assert.match(read('assets/js/main.js'), /merchant-merge-cluster/);
 assert.match(read('assets/js/main.js'), /data-csv-semantic-key/);
 assert.match(read('assets/js/main.js'), /semanticSelections/);
 assert.match(read('assets/js/main.js'), /suggestImportSemantic/);
+
+assert.match(read('index.html'), /financeapp-mark\.svg/);
+assert.match(read('index.html'), /manifest\.webmanifest/);
+assert.match(read('assets/js/main.js'), /auth-brand--financeapp/);
