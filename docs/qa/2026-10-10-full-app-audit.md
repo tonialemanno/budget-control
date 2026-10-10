@@ -2,9 +2,9 @@
 
 ## Umfang und Beweisbasis
 
-**Code:** Branch `beta`; **Release:** 2.4.19 R75 während der Prüfung. Stable-Branch unverändert.
+**Code:** Branch `beta`; **Release:** 2.4.21 R77 (abschliessend getesteter Beta-Code). Stable-Branch unverändert.
 
-**Automatische CI:** 64 Tests vollständig bestanden. JavaScript-Syntaxprüfung bestanden. Vollständiges ZIP erfolgreich gebaut. GitHub Actions Lauf `38039783319` (10.10.2026).
+**Automatische CI:** 64 Tests vollständig bestanden. JavaScript-Syntaxprüfung bestanden. Vollständiges ZIP erfolgreich gebaut. GitHub Actions Lauf `38040014535` (10.10.2026).
 
 **Bedieninventar (statisch):** 35 View-Module, 194 authored Button-Markupstellen, 123 eindeutige `data-action`-Aktionstypen, 27 Formulartypen, 17 Drilldown-Verweise. Im automatisierten Mapping fehlten keine zugehörigen Handlernamen. Dies ist **keine** erfolgreiche Ausführung sämtlicher Buttons gegen einen eingeloggten Benutzer.
 
@@ -13,7 +13,7 @@
 ## Nachweislich behobene Fehler
 
 1. **Release-Kette:** R74 scheiterte in CI wegen veralteter fest codierter Versionsprüfungen und fehlender IT/EN-Übersetzungen. Die Tests prüfen Versionsgleichheit jetzt anhand `version.json`; fehlende Übersetzungen ergänzt.
-2. **Fehlende Demo-Funktionen:** Sparverlauf aus datierten Kontoüberträgen, Fahrzeug-Kaufpreis mit Leasing-Zahlungsverlauf und die Familienanzeige (Maximilian, Petra, Peter und Lukas Müller mit Haustieren) waren nicht im Beta-Zweig. In Beta eingebaut und durch `tests/demo-story-visibility-tests.mjs` abgesichert.
+2. **Fehlende Demo-Funktionen:** Sparverlauf aus datierten Kontoüberträgen, Fahrzeug-Kaufpreis, dokumentierter Anzahlung, finanziertem Betrag und Leasing-Zahlungsverlauf und die Familienanzeige (Maximilian, Petra, Peter und Lukas Müller mit Haustieren) waren nicht im Beta-Zweig. In Beta eingebaut und durch `tests/demo-story-visibility-tests.mjs` abgesichert.
 3. **Mobile Rechnungen/Offerten:** Aktionsleiste überschritt auf 375px Bildschirmen den Rand. Responsives Layout korrigiert und im Browser mit CSS überprüft.
 4. **Falsche Stable-Anzeige im Beta-Build:** Branch `beta` kann unabhängig vom Hostnamen als Beta erkannt werden; die anfängliche HTML-Kanalbeschriftung wurde angepasst. Stable-Code nicht überschrieben.
 5. **Quittungskamera:** Vollständiger Seiten-Reload nach dem Speichern entfällt; stattdessen wird der Finanzdaten-Kontext neu geladen und die aktuelle Ansicht aktualisiert. Regressionstest hinzugefügt.
