@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { merchantFromTransaction, suggestKnownCategoryName } from '../assets/js/app/csv-import.js';
+import { merchantFromTransaction, suggestKnownCategoryCandidates, suggestKnownCategoryName } from '../assets/js/app/csv-import.js';
+import { DE } from '../assets/js/country/de.js';
+import { CH } from '../assets/js/country/ch.js';
 import { renderSettings } from '../assets/js/views/settings.js';
 import { renderMerchants } from '../assets/js/views/merchants.js';
 import { renderCategories } from '../assets/js/views/categories.js';
@@ -22,6 +24,18 @@ assert.match(api,/copyHouseholdMasterData/);
 assert.match(api,/promoteMerchantToCountryCatalog/);
 assert.match(main,/masterdata-install-country/);
 assert.match(main,/masterdata-copy/);
+
+for(const name of ['Unterhalt / Unterhaltsvorschuss','Kindergeld','Kinderzuschlag','Elterngeld','Sozialleistungen']){
+  assert.ok(DE.starterCategories.some(([category,kind])=>category===name&&kind==='income'),`DE income master data missing ${name}`);
+}
+for(const name of ['Unterhalt / Alimente','Familien- / Kinderzulagen','Sozialleistungen']){
+  assert.ok(CH.starterCategories.some(([category,kind])=>category===name&&kind==='income'),`CH income master data missing ${name}`);
+}
+assert.equal(suggestKnownCategoryCandidates({description:'Unterhaltsvorschuss Oktober',amount:355})[0],'Unterhalt / Unterhaltsvorschuss');
+assert.equal(suggestKnownCategoryCandidates({description:'Kindergeld Oktober',amount:259})[0],'Kindergeld');
+assert.equal(suggestKnownCategoryCandidates({description:'Kinderzuschlag',amount:200})[0],'Kinderzuschlag');
+assert.equal(suggestKnownCategoryCandidates({description:'Elterngeld',amount:500})[0],'Elterngeld');
+assert.equal(suggestKnownCategoryCandidates({description:'Bürgergeld',amount:700})[0],'Sozialleistungen');
 
 const wellauer=merchantFromTransaction({counterparty:'WELLAUER AG ST. GALLEN 9000'});
 assert.equal(wellauer.name,'Wellauer AG');
