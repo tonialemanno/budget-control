@@ -112,7 +112,10 @@ const recurringEnd=mainSource.indexOf("if (id === 'fixed-cost-create')",recurrin
 const recurringBlock=mainSource.slice(recurringStart,recurringEnd);
 assert.doesNotMatch(recurringBlock,/merchant_id:merchantId/);
 assert.doesNotMatch(recurringBlock,/merchant\?\.name/);
-assert.match(recurringBlock,/category_id:direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
+assert.match(recurringBlock,/const categoryId=direction==='transfer'\?null:nullValue\(data,'categoryId'\)/);
+assert.match(recurringBlock,/category_id:categoryId/);
+assert.match(recurringBlock,/Für eine Einnahme bitte eine Einnahmen-Kategorie wählen/);
+assert.match(recurringBlock,/Für eine Ausgabe bitte eine Ausgaben-Kategorie wählen/);
 
 assert.match(read('assets/js/app/config.js'), /ROUTE_REGISTRY/);
 assert.match(read('assets/js/app/router.js'), /route:'merchants'.*eyebrow:'Einstellungen'/s);

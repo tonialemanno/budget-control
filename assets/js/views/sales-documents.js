@@ -3,6 +3,7 @@ import { dateInputValue, dateLabel, escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 
 const TYPE_LABELS = Object.freeze({ invoice:'Rechnung', quote:'Offerte', receipt:'Quittung' });
+const TYPE_LABELS_DE = Object.freeze({ invoice:'Rechnung', quote:'Angebot', receipt:'Quittung' });
 const STATUS_LABELS = Object.freeze({ draft:'Entwurf', sent:'Versendet', accepted:'Angenommen', paid:'Bezahlt', cancelled:'Storniert', expired:'Abgelaufen' });
 const PREFIXES = Object.freeze({ invoice:'RE', quote:'OF', receipt:'QU' });
 
@@ -14,8 +15,9 @@ export const SALES_DOCUMENT_TEXT_DEFAULTS = Object.freeze({
   closing:'Vielen Dank für Ihr Vertrauen. Für Fragen stehen wir Ihnen gerne zur Verfügung.',
 });
 
-export function salesDocumentTypeLabel(type) {
-  return TYPE_LABELS[type] || 'Dokument';
+export function salesDocumentTypeLabel(type,countryCode='CH') {
+  const labels=countryCode==='DE'?TYPE_LABELS_DE:TYPE_LABELS;
+  return labels[type] || 'Dokument';
 }
 
 export function nextSalesDocumentNumber(documents = [], type = 'invoice', date = new Date()) {
@@ -31,7 +33,9 @@ export function nextSalesDocumentNumber(documents = [], type = 'invoice', date =
   return `${prefix}-${year}-${String(max + 1).padStart(4, '0')}`;
 }
 
-export function salesDocumentDefaults(settings = {}, fallbackSender = '') {
+export function salesDocumentDefaults(settings = {}, fallbackSender = '', countryCode='CH') {
+  const quoteIntroDefault=countryCode==='DE'?'Vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen folgendes Angebot.':SALES_DOCUMENT_TEXT_DEFAULTS.quoteIntro;
+  const paymentDefault=countryCode==='DE'?'Zahlbar innerhalb von {Zahlungsfrist} Tagen ohne Abzug.':SALES_DOCUMENT_TEXT_DEFAULTS.payment;
   return {
     senderName: settings?.company_name || fallbackSender || '',
     senderAddress: settings?.company_address || '',
@@ -39,10 +43,10 @@ export function salesDocumentDefaults(settings = {}, fallbackSender = '') {
     paymentDays: Math.max(0, Number(settings?.default_payment_days ?? 30) || 30),
     quoteValidDays: Math.max(0, Number(settings?.default_quote_valid_days ?? 30) || 30),
     taxRate: Math.max(0, Number(settings?.default_tax_rate ?? 0) || 0),
-    quoteIntro: settings?.default_quote_intro || SALES_DOCUMENT_TEXT_DEFAULTS.quoteIntro,
+    quoteIntro: settings?.default_quote_intro || quoteIntroDefault,
     invoiceIntro: settings?.default_invoice_intro || SALES_DOCUMENT_TEXT_DEFAULTS.invoiceIntro,
     receiptIntro: settings?.default_receipt_intro || SALES_DOCUMENT_TEXT_DEFAULTS.receiptIntro,
-    paymentText: settings?.default_payment_text || SALES_DOCUMENT_TEXT_DEFAULTS.payment,
+    paymentText: settings?.default_payment_text || paymentDefault,
     closingText: settings?.default_closing_text || SALES_DOCUMENT_TEXT_DEFAULTS.closing,
   };
 }
@@ -129,9 +133,13 @@ function paymentOptions(invoice,transactions,payments,locale) {
 
 function settingsPanel({settings,templates,household,profile,canWrite}) {
   if(!canWrite) return '';
-  const defaults=salesDocumentDefaults(settings,profile?.display_name||household?.name||'');
+  const countryCode=household?.country_code||'CH';
+  const isDE=countryCode==='DE';
+  const quoteSingular=isDE?'Angebot':'Offerte';
+  const quotePlural=isDE?'Angebote':'Offerten';
+  const defaults=salesDocumentDefaults(settings,profile?.display_name||household?.name||'',countryCode);
   const logoNote=settings?.logo_storage_path?'Logo ist hinterlegt. Ein neues Bild ersetzt es beim Speichern.':'Noch kein Logo hinterlegt.';
-  const templateRows=(templates||[]).map((row)=>`<div class="list-row"><div class="list-row-main"><div><div class="list-row-title">${escapeHtml(row.name)}</div><div class="list-row-meta">${escapeHtml(row.document_type==='all'?'Alle':salesDocumentTypeLabel(row.document_type))} · ${escapeHtml(({intro:'Einleitung',payment:'Zahlung',closing:'Schluss'})[row.section]||row.section)}</div></div></div><div class="list-row-trailing"><button class="table-action table-action--danger" type="button" data-action="sales-template-delete" data-id="${escapeHtml(row.id)}">Löschen</button></div></div>`).join('');
+  const templateRows=(templates||[]).map((row)=>`<div class="list-row"><div class="list-row-main"><div><div class="list-row-title">${escapeHtml(row.name)}</div><div class="list-row-meta">${escapeHtml(row.document_type==='all'?'Alle':salesDocumentTypeLabel(row.document_type,countryCode))} · ${escapeHtml(({intro:'Einleitung',payment:'Zahlung',closing:'Schluss'})[row.section]||row.section)}</div></div></div><div class="list-row-trailing"><button class="table-action table-action--danger" type="button" data-action="sales-template-delete" data-id="${escapeHtml(row.id)}">Löschen</button></div></div>`).join('');
   return `
     <section class="card card-padding" style="margin:16px 0" id="salesDocumentSettingsCard">
       <div class="card-heading">
@@ -143,13 +151,13 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
       </div>
       <div class="inline-alert" style="margin:12px 0 18px">
         <strong>Automatik ist aktiv.</strong>
-        <span>Offerten können in Rechnungen übernommen werden. Passende Zahlungseingänge werden vorgeschlagen. Vollständig bezahlte Rechnungen werden auf „Bezahlt“ gesetzt und können automatisch eine Quittung erzeugen.</span>
+        <span>${quotePlural} können in Rechnungen übernommen werden. Passende Zahlungseingänge werden vorgeschlagen. Vollständig bezahlte Rechnungen werden auf „Bezahlt“ gesetzt und können automatisch eine Quittung erzeugen.</span>
       </div>
       <form id="sales-document-settings" data-form="sales-document-settings">
-        <div class="card-heading"><div><h3 class="card-title">Absender & Branding</h3><p class="card-subtitle">Einmal pflegen. Diese Angaben werden für neue Offerten, Rechnungen und Quittungen automatisch übernommen.</p></div></div>
+        <div class="card-heading"><div><h3 class="card-title">Absender & Branding</h3><p class="card-subtitle">Einmal pflegen. Diese Angaben werden für neue ${quotePlural}, Rechnungen und Quittungen automatisch übernommen.</p></div></div>
         <div class="form-grid form-grid--2">
           <label class="field"><span>Firma / Absender</span><input class="text-control" name="companyName" value="${escapeHtml(defaults.senderName)}"></label>
-          <label class="field"><span>MWST-/USt-/IVA-Nr.</span><input class="text-control" name="taxId" value="${escapeHtml(settings?.tax_id||'')}"></label>
+          <label class="field"><span>${isDE?'USt-IdNr. / Steuernummer':'MWST-/USt-/IVA-Nr.'}</span><input class="text-control" name="taxId" value="${escapeHtml(settings?.tax_id||'')}"></label>
           <label class="field form-grid-span"><span>Adresse</span><textarea class="text-control" name="companyAddress" rows="2">${escapeHtml(settings?.company_address||'')}</textarea></label>
           <label class="field"><span>E-Mail</span><input class="text-control" name="companyEmail" type="email" value="${escapeHtml(settings?.company_email||'')}"></label>
           <label class="field"><span>Telefon</span><input class="text-control" name="companyPhone" value="${escapeHtml(settings?.company_phone||'')}"></label>
@@ -158,14 +166,14 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
           <label class="field"><span>Bank</span><input class="text-control" name="bankName" value="${escapeHtml(settings?.bank_name||'')}"></label>
           <label class="field form-grid-span"><span>Logo</span>${filePicker({id:'salesDocumentLogo',name:'logoFile',accept:'image/png,image/jpeg,image/webp,image/svg+xml'})}<small>${escapeHtml(logoNote)} Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.</small></label>
           <label class="field"><span>Standard-Zahlungsfrist</span><input class="text-control" name="defaultPaymentDays" type="number" min="0" max="365" value="${defaults.paymentDays}"></label>
-          <label class="field"><span>Standard-Gültigkeit Offerte</span><input class="text-control" name="defaultQuoteValidDays" type="number" min="0" max="365" value="${defaults.quoteValidDays}"></label>
+          <label class="field"><span>Standard-Gültigkeit ${quoteSingular}</span><input class="text-control" name="defaultQuoteValidDays" type="number" min="0" max="365" value="${defaults.quoteValidDays}"></label>
           <label class="field"><span>Standard-Steuer %</span><input class="text-control" name="defaultTaxRate" type="number" min="0" max="100" step="0.001" value="${escapeHtml(String(defaults.taxRate))}"></label>
           <label class="field"><span>Automatische Quittung</span><span class="settings-inline-control"><input name="autoReceiptOnPayment" type="checkbox" value="true" ${settings?.auto_receipt_on_payment===false?'':'checked'}><span>bei vollständig zugeordneter Zahlung</span></span></label>
           <label class="field form-grid-span"><span>Fusszeile</span><textarea class="text-control" name="footerText" rows="2">${escapeHtml(settings?.footer_text||'')}</textarea></label>
         </div>
         <div class="card-heading" style="margin-top:20px"><div><h3 class="card-title">Standardtexte</h3><p class="card-subtitle">Platzhalter: {Kunde}, {Dokumentnummer}, {Datum}, {Fälligkeitsdatum}, {Total}, {Zahlungsfrist}</p></div></div>
         <div class="form-grid form-grid--2">
-          <label class="field form-grid-span"><span>Offerte · Einleitung</span><textarea class="text-control" name="defaultQuoteIntro" rows="2">${escapeHtml(defaults.quoteIntro)}</textarea></label>
+          <label class="field form-grid-span"><span>${quoteSingular} · Einleitung</span><textarea class="text-control" name="defaultQuoteIntro" rows="2">${escapeHtml(defaults.quoteIntro)}</textarea></label>
           <label class="field form-grid-span"><span>Rechnung · Einleitung</span><textarea class="text-control" name="defaultInvoiceIntro" rows="2">${escapeHtml(defaults.invoiceIntro)}</textarea></label>
           <label class="field form-grid-span"><span>Quittung · Einleitung</span><textarea class="text-control" name="defaultReceiptIntro" rows="2">${escapeHtml(defaults.receiptIntro)}</textarea></label>
           <label class="field form-grid-span"><span>Zahlungstext</span><textarea class="text-control" name="defaultPaymentText" rows="2">${escapeHtml(defaults.paymentText)}</textarea></label>
@@ -177,7 +185,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
       <div class="card-heading" style="margin-top:26px"><div><h3 class="card-title">Textbausteine</h3><p class="card-subtitle">Wiederverwendbare Texte, die beim Schreiben mit einem Klick eingesetzt werden. Du musst Standardformulierungen nicht jedes Mal neu schreiben.</p></div></div>
       <form id="sales-template-create" data-form="sales-template-create" class="form-grid form-grid--2">
         <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Projektabschluss"></label>
-        <label class="field"><span>Dokument</span><select class="text-control" name="documentType"><option value="all">Alle</option><option value="quote">Offerte</option><option value="invoice">Rechnung</option><option value="receipt">Quittung</option></select></label>
+        <label class="field"><span>Dokument</span><select class="text-control" name="documentType"><option value="all">Alle</option><option value="quote">${quoteSingular}</option><option value="invoice">Rechnung</option><option value="receipt">Quittung</option></select></label>
         <label class="field"><span>Bereich</span><select class="text-control" name="section"><option value="intro">Einleitung</option><option value="payment">Zahlung</option><option value="closing">Schluss</option></select></label>
         <label class="field form-grid-span"><span>Text</span><textarea class="text-control" name="content" rows="3" required></textarea></label>
         <div class="form-actions form-grid-span"><button class="action-button action-button--secondary" type="submit">Textbaustein speichern</button></div>
@@ -192,7 +200,12 @@ export function renderSalesDocuments({
 } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
-  const defaults=salesDocumentDefaults(salesDocumentSettings,profile?.display_name||household?.name||'');
+  const countryCode=household?.country_code||'CH';
+  const isDE=countryCode==='DE';
+  const quoteSingular=isDE?'Angebot':'Offerte';
+  const quotePlural=isDE?'Angebote':'Offerten';
+  const typeLabel=(type)=>salesDocumentTypeLabel(type,countryCode);
+  const defaults=salesDocumentDefaults(salesDocumentSettings,profile?.display_name||household?.name||'',countryCode);
   const today = dateInputValue();
   const plusPayment = dateInputValue(new Date(Date.now() + defaults.paymentDays * 86400000));
   const plusQuote = dateInputValue(new Date(Date.now() + defaults.quoteValidDays * 86400000));
@@ -230,7 +243,7 @@ export function renderSalesDocuments({
     const paymentMeta=row.document_type==='invoice'
       ? ` · bezahlt ${money(paid,{currency:row.currency||currency,locale})} · offen ${money(remaining,{currency:row.currency||currency,locale})}`
       : '';
-    return `<div class="list-row sales-document-list-row"><div class="list-row-main"><span class="list-row-leading">${icon('receipt')}</span><div><div class="list-row-title">${escapeHtml(row.document_number)} · ${escapeHtml(salesDocumentTypeLabel(row.document_type))}</div><div class="list-row-meta">${escapeHtml(row.recipient_name)} · ${secondary}${paymentMeta}</div>${linkedUi}${paymentUi}</div></div><div class="list-row-trailing"><div class="amount">${money(row.total,{currency:row.currency||currency,locale})}</div>${statusPill(tone(row.status),STATUS_LABELS[row.status]||row.status)}${actions}</div></div>`;
+    return `<div class="list-row sales-document-list-row"><div class="list-row-main"><span class="list-row-leading">${icon('receipt')}</span><div><div class="list-row-title">${escapeHtml(row.document_number)} · ${escapeHtml(typeLabel(row.document_type))}</div><div class="list-row-meta">${escapeHtml(row.recipient_name)} · ${secondary}${paymentMeta}</div>${linkedUi}${paymentUi}</div></div><div class="list-row-trailing"><div class="amount">${money(row.total,{currency:row.currency||currency,locale})}</div>${statusPill(tone(row.status),STATUS_LABELS[row.status]||row.status)}${actions}</div></div>`;
   }).join('');
 
   const form = canWrite ? `
@@ -265,10 +278,10 @@ export function renderSalesDocuments({
     </form>` : '';
 
   return `
-    ${pageHeader({title:'Rechnungen, Offerten & Quittungen',subtitle:'Professionelle Ausgangsdokumente mit Branding, Textbausteinen und Verknüpfung zu echten Zahlungseingängen.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="sales-document-new" data-document-type="invoice">${icon('plus')} Rechnung erstellen</button><button class="action-button action-button--secondary" type="button" data-action="sales-document-new" data-document-type="quote">${icon('plus')} Offerte schreiben</button><button class="action-button action-button--secondary" type="button" data-action="sales-document-new" data-document-type="receipt">${icon('plus')} Quittung ausstellen</button>`:''})}
+    ${pageHeader({title:`Rechnungen, ${quotePlural} & Quittungen`,subtitle:'Professionelle Ausgangsdokumente mit Branding, Textbausteinen und Verknüpfung zu echten Zahlungseingängen.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="sales-document-new" data-document-type="invoice">${icon('plus')} Rechnung erstellen</button><button class="action-button action-button--secondary" type="button" data-action="sales-document-new" data-document-type="quote">${icon('plus')} ${quoteSingular} schreiben</button><button class="action-button action-button--secondary" type="button" data-action="sales-document-new" data-document-type="receipt">${icon('plus')} Quittung ausstellen</button>`:''})}
     ${settingsPanel({settings:salesDocumentSettings,templates:salesDocumentTemplates,household,profile,canWrite})}
     ${form}
-    <div class="metric-grid" style="margin:16px 0">${metricCard('Offene Rechnungen',String(openInvoices.length),`${invoiceCount} Rechnungen total`)}${metricCard('Offerten',String(quoteCount),'Entwürfe, versendet oder angenommen')}${metricCard('Quittungen',String(receiptCount),'ausgestellte Zahlungsbestätigungen')}</div>
+    <div class="metric-grid" style="margin:16px 0">${metricCard('Offene Rechnungen',String(openInvoices.length),`${invoiceCount} Rechnungen total`)}${metricCard(quotePlural,String(quoteCount),'Entwürfe, versendet oder angenommen')}${metricCard('Quittungen',String(receiptCount),'ausgestellte Zahlungsbestätigungen')}</div>
     <div class="inline-alert"><strong>Zahlungen werden mit echten Kontobuchungen verbunden.</strong><span>ALEMANNO BUCHHALTUNG schlägt passende Zahlungseingänge nach Betrag, Währung und Datum vor. Eine vollständig zugeordnete Rechnung wird bezahlt; auf Wunsch entsteht automatisch eine Quittung.</span></div>
-    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Ausgangsdokumente</h3><p class="card-subtitle">${salesDocuments.length} Dokumente</p></div></div>${rows?`<div class="list">${rows}</div>`:'<div class="table-empty">Noch keine Rechnungen, Offerten oder Quittungen erstellt.</div>'}</article>`;
+    <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Ausgangsdokumente</h3><p class="card-subtitle">${salesDocuments.length} Dokumente</p></div></div>${rows?`<div class="list">${rows}</div>`:'<div class="table-empty">Noch keine Rechnungen, ${quotePlural} oder Quittungen erstellt.</div>'}</article>`;
 }

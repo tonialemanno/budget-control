@@ -23,6 +23,10 @@ export function renderAccounts({ accounts = [], recurringRules = [], household, 
   const baseCurrency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const primaryAccountId = primaryAccountPreferenceId(profile,household?.id,accounts);
+  const isDE=household?.country_code==='DE';
+  const accountNameExample=isDE?'z. B. ING Girokonto oder Revolut EUR':'z. B. UBS Lohnkonto oder Revolut EUR';
+  const institutionExample=isDE?'z. B. ING, DKB, Sparkasse, Revolut':'z. B. UBS, ZKB, Raiffeisen, Revolut';
+  const ibanExample=isDE?'optional · z. B. DE89 3704 …':'optional · z. B. CH93 0076 …';
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
   const baseLiquid = accounts
     .filter((a) => liquidTypes.has(a.account_type))
@@ -37,10 +41,10 @@ export function renderAccounts({ accounts = [], recurringRules = [], household, 
   const foreignSummary = [...foreign.entries()].map(([currency,value])=>money(value,{currency,locale})).join(' · ') || 'Keine';
 
   const createFields = `
-    <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. UBS Lohnkonto oder Revolut EUR"></label>
+    <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="${accountNameExample}"></label>
     <label class="field"><span>Kontotyp</span><select class="text-control" name="accountType" required>${typeOptions()}</select></label>
-    <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" placeholder="z. B. UBS, Revolut"></label>
-    <label class="field"><span>IBAN / Kontokennung</span><input class="text-control" name="externalAccountRef" placeholder="optional · z. B. CH93 0076 …"><small>Hilft ALEMANNO BUCHHALTUNG, eigene Konten bei Bankimporten automatisch als Umbuchung zu erkennen. Wird nicht für Zahlungen verwendet.</small></label>
+    <label class="field"><span>Bank / Anbieter</span><input class="text-control" name="institutionName" placeholder="${institutionExample}"></label>
+    <label class="field"><span>IBAN / Kontokennung</span><input class="text-control" name="externalAccountRef" placeholder="${ibanExample}"><small>Hilft ALEMANNO BUCHHALTUNG, eigene Konten bei Bankimporten automatisch als Umbuchung zu erkennen. Wird nicht für Zahlungen verwendet.</small></label>
     <label class="field"><span>Kontowährung</span><select class="text-control" name="currency" required>${currencyOptions(baseCurrency)}</select><small>Die Kontowährung ist unabhängig vom Wohnland und von der Basiswährung des Haushalts.</small></label>
     <label class="field"><span>Kontostand jetzt</span><input class="text-control" name="balance" type="number" step="0.01" required value="0"><small>Negative Salden mit Minus eingeben, z. B. -1250.40.</small></label>
     <label class="field"><span>Sichtbarkeit</span><select class="text-control" name="visibility"><option value="private">Privat</option><option value="household">Im Haushalt geteilt</option></select></label>

@@ -259,6 +259,7 @@ function moduleEntitled(moduleKey) {
 
 function moduleEnabled(moduleKey) {
   if (!moduleEntitled(moduleKey)) return false;
+  if (moduleKey === 'tax' && runtime.household?.country_code !== 'CH') return false;
   if (moduleKey === 'admin' || MODULES[moduleKey]?.locked) return true;
   return !hiddenModuleKeys().includes(moduleKey);
 }
@@ -2159,6 +2160,8 @@ function syncRecurringDirectionUI(edit=false) {
     ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
     : 'Hier gehört der externe Empfänger der Zahlung hinein.');
   if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. Vermieter, Händler';
+  const category=document.querySelector(`#${prefix}Category`);
+  if(category && !transfer) rebuildRankedCategorySelect(category,{kind:income?'income':'expense',selectedId:category.value});
 }
 
 function syncFixedCostDirectionUI(edit=false) {
@@ -2171,6 +2174,11 @@ function syncFixedCostDirectionUI(edit=false) {
   const counterpartyLabel=document.querySelector(`#${prefix}CounterpartyLabel`);
   const counterpartyHelp=document.querySelector(`#${prefix}CounterpartyHelp`);
   const counterparty=document.querySelector(`#${prefix}Merchant`);
+  const counterpartyKind=document.querySelector(`#${prefix}CounterpartyKind`);
+  const counterpartyKindField=document.querySelector(`#${prefix}CounterpartyKindField`);
+  if(counterpartyKindField) counterpartyKindField.hidden=transfer;
+  if(income&&counterpartyKind&&counterpartyKind.value==='merchant') counterpartyKind.value='organization';
+  if(!income&&!transfer&&counterpartyKind&&!counterpartyKind.value) counterpartyKind.value='merchant';
   if(accountLabel) accountLabel.textContent=t(transfer?'Von Konto':income?'Eingang auf Konto':'Belastung von Konto');
   if(accountHelp) accountHelp.textContent=t(transfer
     ? 'Das ist dein eigenes Quellkonto.'
@@ -2182,6 +2190,8 @@ function syncFixedCostDirectionUI(edit=false) {
     ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
     : 'Bei Ausgaben ist das der Empfänger der Zahlung.');
   if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. UZON';
+  const category=document.querySelector(`#${prefix}Category`);
+  if(category && !transfer) rebuildRankedCategorySelect(category,{kind:income?'income':'expense',selectedId:category.value});
 }
 
 function rebuildRankedCategorySelect(select,{kind,selectedId=''}={}) {
@@ -2690,18 +2700,22 @@ async function handleForm(form) {
     const account=runtime.accounts.find((row)=>row.account_id===formValue(data,'accountId'));
     if(!account) throw new Error('Bitte ein Zielkonto für die Einnahme auswählen.');
     const amount=Math.abs(numberValue(data,'amount'));
-    if(!amount) throw new Error('Bitte einen gültigen Monatsbetrag eingeben.');
-    const incomeCategory=runtime.categories.find((row)=>row.kind==='income'&&String(row.name||'').toLowerCase()==='lohn')
+    if(!amount) throw new Error('Bitte einen gültigen Betrag eingeben.');
+    const requestedCategoryId=nullValue(data,'categoryId');
+    const fallbackName=runtime.household?.country_code==='DE'?'gehalt':'lohn';
+    const incomeCategory=(requestedCategoryId&&runtime.categories.find((row)=>row.id===requestedCategoryId))
+      || runtime.categories.find((row)=>row.kind==='income'&&String(row.name||'').toLowerCase()===fallbackName)
       || runtime.categories.find((row)=>row.kind==='income')
       || null;
+    if(!incomeCategory||incomeCategory.kind!=='income') throw new Error('Bitte eine Einnahmen-Kategorie auswählen.');
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
       destination_account_id:null,
-      category_id:incomeCategory?.id||null,
+      category_id:incomeCategory.id,
       merchant_id:null,
       direction:'income',
-      description:formValue(data,'description')||'Lohn',
+      description:formValue(data,'description')||(runtime.household?.country_code==='DE'?'Gehalt':'Lohn'),
       counterparty:nullValue(data,'counterparty'),
       amount,
       currency:account.currency||currency,
@@ -2722,8 +2736,9 @@ async function handleForm(form) {
     const amount=Math.abs(numberValue(data,'amount'));
     if(!amount) throw new Error('Bitte einen gültigen Betrag eingeben.');
     const counterpartyName=String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(counterpartyName){
+    if(counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -2751,7 +2766,7 @@ async function handleForm(form) {
       end_date:null,
       active:true,
     });
-    await refresh(merchant?'Fixkosten gespeichert und Empfänger verknüpft.':'Fixkosten gespeichert.');
+    await refresh(merchant?'Fixkosten gespeichert und Händler verknüpft.':counterpartyName?'Fixkosten gespeichert und Gegenpartei als Text geführt.':'Fixkosten gespeichert.');
     goToRoute('setup');
     return;
   }
@@ -3182,6 +3197,10 @@ async function handleForm(form) {
     const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Bitte ein Konto auswählen.');
+    const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='income'&&category&&category.kind!=='income') throw new Error('Für eine Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense'&&category&&category.kind!=='expense') throw new Error('Für eine Ausgabe bitte eine Ausgaben-Kategorie wählen.');
     let destinationAccountId=null;
     if(direction==='transfer'){
       const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
@@ -3194,7 +3213,7 @@ async function handleForm(form) {
       household_id:h,
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      category_id:categoryId,
       direction,
       description:formValue(data,'description'),
       counterparty:direction==='transfer'?null:nullValue(data,'counterparty'),
@@ -3234,6 +3253,9 @@ async function handleForm(form) {
     }
 
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='income'&&category&&category.kind!=='income') throw new Error('Für eine Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense'&&category&&category.kind!=='expense') throw new Error('Für eine Ausgabe bitte eine Ausgaben-Kategorie wählen.');
     await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
@@ -3271,8 +3293,9 @@ async function handleForm(form) {
     if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
 
     const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(direction==='expense' && counterpartyName){
+    if(direction==='expense' && counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -3360,8 +3383,9 @@ async function handleForm(form) {
     if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
 
     const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(direction==='expense' && counterpartyName){
+    if(direction==='expense' && counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -3518,7 +3542,7 @@ async function handleForm(form) {
       const net=Number(item.quantity)*Number(item.unit_price);
       return sum+net+(net*Number(item.tax_rate)/100);
     },0);
-    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
     const context={
       recipientName,documentNumber,issueDate,dueDate:dueDate||validUntil||'',
       total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:documentCurrency}).format(total),
@@ -3545,7 +3569,7 @@ async function handleForm(form) {
       notes:nullValue(data,'notes'),
       items,
     });
-    await refresh(`${salesDocumentTypeLabel(type)} gespeichert.`);
+    await refresh(`${salesDocumentTypeLabel(type,runtime.household?.country_code||'CH')} gespeichert.`);
     return;
   }
   if (id === 'bill-edit') {
@@ -4335,7 +4359,7 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
   const select=document.querySelector('#salesDocumentType');
   if(select) select.value=normalized;
   const title=document.querySelector('#salesDocumentFormTitle');
-  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?'Offerte schreiben':'Quittung ausstellen';
+  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?(runtime.household?.country_code==='DE'?'Angebot schreiben':'Offerte schreiben'):'Quittung ausstellen';
   const due=document.querySelector('#salesInvoiceDueField');
   const valid=document.querySelector('#salesQuoteValidField');
   if(due) due.hidden=normalized!=='invoice';
@@ -4344,7 +4368,7 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
     const number=document.querySelector('#salesDocumentNumber');
     if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
   }
-  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
   const issueValue=document.querySelector('#salesDocumentIssueDate')?.value;
   const base=issueValue?new Date(`${issueValue}T12:00:00`):new Date();
   const dueInput=document.querySelector('#salesDocumentDueDate');
@@ -4397,7 +4421,7 @@ async function printSalesDocument(row) {
     catch { logoData=''; }
   }
   const locale=runtime.profile?.locale||'de-CH';
-  const type=salesDocumentTypeLabel(row.document_type);
+  const type=salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH');
   const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
   const fmt=(value)=>new Intl.NumberFormat(locale,{style:'currency',currency:row.currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
   const fmtDate=(value)=>{
@@ -4464,7 +4488,7 @@ async function createReceiptFromInvoice(invoice,paymentTx=null) {
   const existing=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id);
   if(existing) return existing;
   const settings=runtime.salesDocumentSettings||{};
-  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'');
+  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
   const issueDate=paymentTx?.occurred_at ? dateInputValue(new Date(paymentTx.occurred_at)) : (invoice.paid_at||dateInputValue());
   const totalText=new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{
     style:'currency',currency:invoice.currency||runtime.household?.base_currency||'CHF',
@@ -4661,14 +4685,15 @@ async function handleAction(target) {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
     await financeApi.updateSalesDocument(row.id,{status:target.dataset.status});
-    await refresh(`${salesDocumentTypeLabel(row.document_type)} auf „${salesDocumentStatusLabel(target.dataset.status)}“ gesetzt.`);
+    await refresh(`${salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH')} auf „${salesDocumentStatusLabel(target.dataset.status)}“ gesetzt.`);
     return;
   }
   if (action === 'sales-document-convert') {
     const quote=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='quote');
-    if(!quote) throw new Error('Offerte wurde nicht gefunden.');
-    if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error('Für diese Offerte wurde bereits eine Rechnung erstellt.');
-    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const quoteLabel=runtime.household?.country_code==='DE'?'Angebot':'Offerte';
+    if(!quote) throw new Error(`${quoteLabel} wurde nicht gefunden.`);
+    if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error(`Für dieses ${quoteLabel} wurde bereits eine Rechnung erstellt.`);
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
     const issueDate=dateInputValue();
     const dueDate=addDaysInput(defaults.paymentDays);
     const documentNumber=nextSalesDocumentNumber(runtime.salesDocuments,'invoice');
@@ -4702,13 +4727,13 @@ async function handleAction(target) {
       source_document_id:quote.id,
     });
     if(quote.status!=='accepted') await financeApi.updateSalesDocument(quote.id,{status:'accepted'});
-    await refresh('Offerte angenommen und als neue Rechnung übernommen.');
+    await refresh(`${quoteLabel} angenommen und als neue Rechnung übernommen.`);
     return;
   }
   if (action === 'sales-document-delete') {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
-    if(!confirm(`${salesDocumentTypeLabel(row.document_type)} ${row.document_number} wirklich löschen?`)) return;
+    if(!confirm(`${salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH')} ${row.document_number} wirklich löschen?`)) return;
     await financeApi.deleteSalesDocument(row.id);
     await refresh('Ausgangsdokument gelöscht.');
     return;
@@ -4769,13 +4794,10 @@ async function handleAction(target) {
   }
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
-    const result=await financeApi.installCountryMasterData(runtime.household.id);
-    const parts=[
-      Number(result?.categories_created||0)?`${result.categories_created} Kategorien neu`:'',
-      Number(result?.merchants_created||0)?`${result.merchants_created} Händler neu`:'',
-      Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
-    ].filter(Boolean);
-    await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    const changed=await seedStarterCategoriesForHousehold(runtime.household.id,runtime.household.country_code,runtime.categories);
+    await refresh(changed>0
+      ? `${runtime.household.country_code}-Stammdaten aktualisiert: ${changed} Ergänzungen vorgenommen.`
+      : `${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
     return;
   }
   if (action === 'merchant-page') {
@@ -5614,7 +5636,8 @@ async function handleAction(target) {
     document.querySelector('#recurringEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#recurringEditAccount').value=rule.account_id||'';
     document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
-    document.querySelector('#recurringEditCategory').value=rule.category_id||'';
+    const recurringEditCategory=document.querySelector('#recurringEditCategory');
+    if(recurringEditCategory && rule.direction!=='transfer') rebuildRankedCategorySelect(recurringEditCategory,{kind:rule.direction==='income'?'income':'expense',selectedId:rule.category_id||''});
     document.querySelector('#recurringEditCounterparty').value=rule.counterparty||rule.merchants?.name||'';
     document.querySelector('#recurringEditDescription').value=rule.description||'';
     document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
@@ -5646,8 +5669,11 @@ async function handleAction(target) {
     document.querySelector('#fixedCostEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
     document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
-    document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
+    const fixedEditCategory=document.querySelector('#fixedCostEditCategory');
+    if(fixedEditCategory && rule.direction!=='transfer') rebuildRankedCategorySelect(fixedEditCategory,{kind:rule.direction==='income'?'income':'expense',selectedId:rule.category_id||''});
     document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
+    const fixedCounterpartyKind=document.querySelector('#fixedCostEditCounterpartyKind');
+    if(fixedCounterpartyKind) fixedCounterpartyKind.value=rule.merchant_id?'merchant':rule.direction==='income'?'organization':'other';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#fixedCostEditInterval').value=rule.interval_months||1;
     const fixedIntervalField=document.querySelector('#fixedCostEditIntervalField');
@@ -5665,9 +5691,11 @@ async function handleAction(target) {
     const targetField=document.querySelector('#fixedCostEditTargetField');
     const categoryField=document.querySelector('#fixedCostEditCategoryField');
     const merchantField=document.querySelector('#fixedCostEditMerchantField');
+    const counterpartyKindField=document.querySelector('#fixedCostEditCounterpartyKindField');
     if(targetField) targetField.hidden=!transfer;
     if(categoryField) categoryField.hidden=transfer;
     if(merchantField) merchantField.hidden=transfer;
+    if(counterpartyKindField) counterpartyKindField.hidden=transfer;
     syncFixedCostDirectionUI(true);
     const form=document.querySelector('#fixed-cost-edit');
     form?.removeAttribute('hidden');
@@ -6003,7 +6031,7 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'salesDocumentIssueDate') {
-      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
       const base=target.value?new Date(`${target.value}T12:00:00`):new Date();
       const due=document.querySelector('#salesDocumentDueDate');
       const valid=document.querySelector('#salesDocumentValidUntil');
@@ -6157,6 +6185,7 @@ pageContent.addEventListener('change', async (event) => {
       const targetField=document.querySelector(edit?'#fixedCostEditTargetField':'#fixedCostTargetField');
       const categoryField=document.querySelector(edit?'#fixedCostEditCategoryField':'#fixedCostCategoryField');
       const merchantField=document.querySelector(edit?'#fixedCostEditMerchantField':'#fixedCostMerchantField');
+      const counterpartyKindField=document.querySelector(edit?'#fixedCostEditCounterpartyKindField':'#fixedCostCounterpartyKindField');
       const reserveToggleField=document.querySelector(edit?'#fixedCostEditReserveToggleField':'#fixedCostReserveToggleField');
       const reserveAccountField=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
       const reserveToggle=document.querySelector(edit?'#fixedCostEditReserveEnabled':'#fixedCostReserveEnabled');
@@ -6164,6 +6193,7 @@ pageContent.addEventListener('change', async (event) => {
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       if(merchantField) merchantField.hidden=transfer;
+      if(counterpartyKindField) counterpartyKindField.hidden=transfer;
       if(reserveToggleField) reserveToggleField.hidden=!expense;
       if(!expense&&reserveToggle) reserveToggle.checked=false;
       if(reserveAccountField) reserveAccountField.hidden=!expense||!reserveToggle?.checked;

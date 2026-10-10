@@ -344,11 +344,16 @@ function canonicalMerchantIdentity(name) {
   if(/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i.test(text)) return {name:'Coop Restaurant',key:'coop restaurant'};
   if(/\bsbb\b|\bcff\b|\bffs\b/i.test(text)) return {name:'SBB',key:'sbb'};
   if(/\bedeka\b|\bedk\*/i.test(text)) return {name:'EDEKA',key:'edeka'};
+  if(/\brewe\b/i.test(text)) return {name:'REWE',key:'rewe'};
+  if(/\bkaufland\b/i.test(text)) return {name:'Kaufland',key:'kaufland'};
+  if(/\b(?:deutsche\s+bahn|db\s+vertrieb|db\s+fernverkehr|db\s+regio)\b/i.test(text)) return {name:'Deutsche Bahn',key:'deutsche bahn'};
+  if(/(?:ard\s+zdf\s+deutschlandradio|beitragsservice|rundfunkbeitrag)/i.test(text)) return {name:'ARD ZDF Deutschlandradio Beitragsservice',key:'ard zdf deutschlandradio beitragsservice'};
   if(/\bmigros\b/i.test(text)) return {name:'Migros',key:'migros'};
   if(/\bcoop\b/i.test(text)) return {name:'Coop',key:'coop'};
   if(/\bdenner\b/i.test(text)) return {name:'Denner',key:'denner'};
   if(/\baldi\b(?:\s+suisse)?\s+mobile\b/i.test(text)) return {name:'ALDI SUISSE MOBILE',key:'aldi suisse mobile'};
-  if(/\baldi\b/i.test(text)) return {name:'Aldi Suisse',key:'aldi suisse'};
+  if(/\baldi\s+suisse\b/i.test(text)) return {name:'Aldi Suisse',key:'aldi suisse'};
+  if(/\baldi\b/i.test(text)) return {name:'ALDI',key:'aldi'};
   if(/\blidl\b/i.test(text)) return {name:'Lidl',key:'lidl'};
   if(/\bparkingpay\b/i.test(text)) return {name:'ParkingPay',key:'parkingpay'};
   if(/\bswisslos\b|euro\s*millions?|eurodreams?/i.test(text)) return {name:'Swisslos',key:'swisslos'};
@@ -444,6 +449,10 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bswisslos\b|euro\s*millions?|eurodreams?/i, name:'Swisslos', key:'swisslos', category:'Lotterie & Gewinnspiele' },
   { pattern:/\belvetino\b/i, name:'Elvetino', key:'elvetino', category:'Restaurant & Café' },
   { pattern:/\bedeka\b|\bedk\*/i, name:'EDEKA', key:'edeka', category:'Lebensmittel' },
+  { pattern:/\brewe\b/i, name:'REWE', key:'rewe', category:'Lebensmittel' },
+  { pattern:/\bkaufland\b/i, name:'Kaufland', key:'kaufland', category:'Lebensmittel' },
+  { pattern:/\b(?:deutsche\s+bahn|db\s+vertrieb|db\s+fernverkehr|db\s+regio)\b/i, name:'Deutsche Bahn', key:'deutsche bahn', category:'ÖV' },
+  { pattern:/(?:ard\s+zdf\s+deutschlandradio|beitragsservice|rundfunkbeitrag)/i, name:'ARD ZDF Deutschlandradio Beitragsservice', key:'ard zdf deutschlandradio beitragsservice', category:'Rundfunkbeitrag' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
   { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner|take\s*away|burger\s*king|autogrill|pret\s+a\s+manger|irish\s+pub|braceria|pizza)\b/i, name:null, key:null, category:'Restaurant & Café' },
@@ -464,7 +473,8 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bcoop\b/i, name:'Coop', key:'coop', category:'Lebensmittel' },
   { pattern:/\bdenner\b/i, name:'Denner', key:'denner', category:'Lebensmittel' },
   { pattern:/\baldi\b(?:\s+suisse)?\s+mobile\b/i, name:'ALDI SUISSE MOBILE', key:'aldi suisse mobile', category:'Telefon & Internet' },
-  { pattern:/\baldi\b/i, name:'Aldi Suisse', key:'aldi suisse', category:'Lebensmittel' },
+  { pattern:/\baldi\s+suisse\b/i, name:'Aldi Suisse', key:'aldi suisse', category:'Lebensmittel' },
+  { pattern:/\baldi\b/i, name:'ALDI', key:'aldi', category:'Lebensmittel' },
   { pattern:/\blidl\b/i, name:'Lidl', key:'lidl', category:'Lebensmittel' },
   { pattern:/media\s*markt|mediamarkt/i, name:'MediaMarkt', key:'mediamarkt', category:'Shopping' },
   { pattern:/\bdigitec\b/i, name:'Digitec', key:'digitec', category:'Shopping' },
@@ -511,7 +521,9 @@ export function suggestKnownCategoryCandidates(tx) {
   const category=knownMerchantSuggestion(probe)?.category||null;
   if(!category) return [];
   const fallback={
-    'Restaurant & Café':['Restaurant & Café','Restaurant','Freizeit'],
+    'Restaurant & Café':['Restaurant & Café','Restaurant & Take-away','Restaurant','Freizeit'],
+    'Supermarkt':['Supermarkt','Lebensmittel'],
+    'Rundfunkbeitrag':['Rundfunkbeitrag','Haushaltsabgaben','Wohnen'],
     'Haushaltsabgaben':['Haushaltsabgaben','Wohnen'],
     'Mietfahrzeug':['Mietfahrzeug','Mobilität'],
     'Wartung & Reparatur':['Wartung & Reparatur','Mobilität'],

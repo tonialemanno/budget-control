@@ -9,6 +9,9 @@ export function renderLegal({ legalCases = [], legalEvents = [], household, prof
   const country = countryConfig(household?.country_code || 'CH');
   const caseTypes = country.legalCaseTypes.map(([value,label])=>`<option value="${value}">${escapeHtml(label)}</option>`).join('');
   const statuses = country.legalStatuses.map((s)=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  const isDE=household?.country_code==='DE';
+  const pageTitle=isDE?'Mahnung / Inkasso / Zwangsvollstreckung':'Mahnung / Betreibung / Inkasso';
+  const emptyLabel=isDE?'Noch keine Mahn-/Inkasso-/Vollstreckungsfälle.':'Noch keine Mahn-/Betreibungs-/Inkassofälle.';
   const fields = `
     <label class="field"><span>Gläubiger</span><input class="text-control" name="creditor" required></label>
     <label class="field"><span>Prozessart</span><select class="text-control" name="caseType">${caseTypes}</select></label>
@@ -29,9 +32,9 @@ export function renderLegal({ legalCases = [], legalEvents = [], household, prof
   });
 
   return `
-    ${pageHeader({title:'Mahnung / Betreibung / Inkasso',subtitle:`${country.label}: problematische Forderungen werden als Timeline-Prozess geführt, nicht nur als einzelner Status.`,actions:`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="legal-create">${icon('plus')} Fall</button>`})}
+    ${pageHeader({title:pageTitle,subtitle:`${country.label}: problematische Forderungen werden als Timeline-Prozess geführt, nicht nur als einzelner Status.`,actions:`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="legal-create">${icon('plus')} Fall</button>`})}
     ${formShell('legal-create','Neuer Fall',`${country.label} · manuelle Verwaltung`,fields,{hidden:true,submitLabel:'Fall speichern'})}
     <div class="metric-grid" style="margin-bottom:16px">${metricCard('Offene Fälle',String(open.length),country.label)}${metricCard('Offener Betrag',money(outstanding,{currency,locale}),'über offene Fälle')}${metricCard('Ereignisse',String(legalEvents.length),'Timeline-Einträge')}</div>
-    <article class="card card-padding">${dataTable({headers:['Gläubiger','Art','Offen','Status','Nächste Aktion',''],rows,emptyText:'Noch keine Mahn-/Betreibungs-/Inkassofälle.'})}</article>
+    <article class="card card-padding">${dataTable({headers:['Gläubiger','Art','Offen','Status','Nächste Aktion',''],rows,emptyText:emptyLabel})}</article>
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Timeline</h3><p class="card-subtitle">Letzte Ereignisse über alle Fälle</p></div></div>${dataTable({headers:['Datum','Ereignis','Typ','Notiz'],rows:eventRows,emptyText:'Noch keine Timeline-Ereignisse.'})}</article>`;
 }

@@ -32,11 +32,12 @@ export function renderPlanning({
   const fixedExpenses=activeRecurring.filter((r)=>r.direction==='expense');
   const fixedIncome=activeRecurring.filter((r)=>r.direction==='income');
   const installmentDebts=debts.filter((d)=>d.status!=='paid' && Number(d.installment_amount||0)>0);
+  const isDE=household?.country_code==='DE';
   const cards=[];
 
   cards.push(planCard({
     href:'#/fixed-costs',iconName:'receipt',title:'Feste Zahlungen',
-    text:'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Sparraten und andere wiederkehrende Bewegungen',
+    text:isDE?'Der einfache Einstieg für Gehalt, Leistungen, Miete, Krankenversicherung, Abos, Sparraten und andere wiederkehrende Bewegungen':'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Sparraten und andere wiederkehrende Bewegungen',
     meta:`${fixedExpenses.length} Ausgaben · ${fixedIncome.length} Einnahmen · ${activeRecurring.filter((r)=>r.direction==='transfer').length} Umbuchungen`
   }));
   if(depth!=='simple') cards.push(planCard({
@@ -51,8 +52,8 @@ export function renderPlanning({
       meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
     }));
     cards.push(planCard({
-      href:'#/sales-documents',iconName:'receipt',title:'Rechnungen / Offerten erstellen',
-      text:'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
+      href:'#/sales-documents',iconName:'receipt',title:isDE?'Rechnungen / Angebote erstellen':'Rechnungen / Offerten erstellen',
+      text:isDE?'Eigene Rechnungen, Angebote und Quittungen für Kunden erstellen und verwalten':'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
       meta:`${salesDocuments.length} erstellt`
     }));
   }

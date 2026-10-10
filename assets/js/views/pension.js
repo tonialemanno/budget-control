@@ -10,8 +10,9 @@ export function renderPension({ pensions = [], household, profile, fxRates } = {
   const locale = profile?.locale || country.locale;
   const total = pensions.reduce((s,p)=>s+(convertAmount(p.current_value,p.currency||currency,currency,fxRates)??0),0);
   const annual = pensions.reduce((s,p)=>s+(convertAmount(p.annual_contribution,p.currency||currency,currency,fxRates)??0),0);
+  const pensionNameExample=household?.country_code==='DE'?'z. B. Betriebliche Altersvorsorge':'z. B. Säule 3a VIAC';
   const fields = `
-    <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Säule 3a VIAC"></label>
+    <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="${pensionNameExample}"></label>
     <label class="field"><span>Vorsorgeart</span><select class="text-control" name="pensionType">${country.pensionTypes.map((t)=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}</select></label>
     <label class="field"><span>Anbieter</span><input class="text-control" name="provider"></label>
     <label class="field"><span>Aktueller Wert</span><input class="text-control" name="currentValue" type="number" min="0" step="0.01" required></label>

@@ -27,19 +27,34 @@ function reviewButton(key,label='Später') {
 }
 
 
-function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canWrite=false}={}) {
+function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canWrite=false,countryCode='CH'}={}) {
   if(!canWrite) return '';
+  const isDE=countryCode==='DE';
   const accountOptions=accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const expenseCategories=categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const fixedCostPresets=[
-    ['Miete','Miete'],
-    ['Krankenkasse','Krankenkasse'],
-    ['Kinderunterhalt / Alimente','Kinderunterhalt / Alimente'],
-    ['Telefon & Internet','Telefon & Internet'],
-    ['Versicherungen','Versicherungen'],
-    ['Steuern','Steuern'],
-    ['Haushaltsabgaben','Haushaltsabgaben'],
-  ].map(([label,categoryName])=>{
+  const defaultIncomeName=isDE?'Gehalt':'Lohn';
+  const incomeCategories=categories.filter((c)=>c.kind==='income').map((c)=>`<option value="${c.id}" ${c.name===defaultIncomeName?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  const fixedCostPresetRows=isDE
+    ? [
+        ['Miete','Miete'],
+        ['Krankenversicherung','Krankenversicherung'],
+        ['Unterhaltszahlungen','Unterhaltszahlungen'],
+        ['Telefon & Internet','Telefon & Internet'],
+        ['Strom & Energie','Strom & Energie'],
+        ['Rundfunkbeitrag','Rundfunkbeitrag'],
+        ['Versicherungen','Versicherungen'],
+        ['Steuern','Steuern'],
+      ]
+    : [
+        ['Miete','Miete'],
+        ['Krankenkasse','Krankenkasse'],
+        ['Kinderunterhalt / Alimente','Kinderunterhalt / Alimente'],
+        ['Telefon & Internet','Telefon & Internet'],
+        ['Versicherungen','Versicherungen'],
+        ['Steuern','Steuern'],
+        ['Haushaltsabgaben','Haushaltsabgaben'],
+      ];
+  const fixedCostPresets=fixedCostPresetRows.map(([label,categoryName])=>{
     const category=categories.find((c)=>c.kind==='expense'&&c.name===categoryName);
     return category?`<option value="${category.id}" data-description="${escapeHtml(label)}">${escapeHtml(label)}</option>`:'';
   }).join('');
@@ -55,10 +70,11 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
       <details class="setup-inline-panel" ${incomeRules.length?'':'open'}>
         <summary>Monatseinnahme hinzufügen</summary>
         <form class="form-grid form-grid--2 setup-inline-form" id="setup-income-create" data-form="setup-income-create">
-          <label class="field"><span>Bezeichnung</span><input class="text-control" name="description" value="Lohn" required></label>
-          <label class="field"><span>Arbeitgeber / Zahler</span><input class="text-control" name="counterparty" placeholder="z. B. Abacus Umantis"></label>
-          <label class="field"><span>Nettobetrag pro Monat</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
-          <label class="field"><span>Auf Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
+          <label class="field"><span>Bezeichnung</span><input class="text-control" name="description" value="${isDE?'Gehalt':'Lohn'}" required></label>
+          <label class="field"><span>Zahler / Quelle der Einnahme</span><input class="text-control" name="counterparty" placeholder="${isDE?'z. B. Arbeitgeber, Familienkasse, Landkreis':'z. B. Arbeitgeber, Behörde, Person'}"></label>
+          <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" required><option value="">Bitte wählen</option>${incomeCategories}</select></label>
+          <label class="field"><span>Nettobetrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label class="field"><span>Eingang auf Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
           <label class="field"><span>Zahlungstag / nächster Eingang</span><input class="text-control" name="nextDate" type="date" value="${next}" required></label>
           <div class="field"><span>&nbsp;</span><button class="action-button action-button--primary" type="submit">Monatseinnahme speichern</button></div>
         </form>
@@ -68,7 +84,8 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
         <form class="form-grid form-grid--2 setup-inline-form" id="setup-expense-create" data-form="setup-expense-create">
           <label class="field"><span>Typische Position</span><select class="text-control" id="setupExpensePreset"><option value="">Frei erfassen</option>${fixedCostPresets}</select><small>ALEMANNO BUCHHALTUNG füllt Bezeichnung und Kategorie vor. Du kannst beides danach ändern.</small></label>
           <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" id="setupExpenseDescription" name="description" required placeholder="z. B. Miete"></label>
-          <label class="field"><span>Empfänger</span><input class="text-control" name="counterparty" placeholder="z. B. UZON"><small>Optional. Neue Empfänger werden bei Bedarf automatisch als Händler angelegt.</small></label>
+          <label class="field"><span>Empfänger / Gegenpartei</span><input class="text-control" name="counterparty" placeholder="${isDE?'z. B. Vermieter, Versicherung, Person':'z. B. Vermieter, Versicherung, Person'}"><small>Optional. Wähle darunter, ob es wirklich ein Händler/Anbieter oder z. B. eine Person bzw. Behörde ist.</small></label>
+          <label class="field"><span>Art der Gegenpartei</span><select class="text-control" name="counterpartyKind"><option value="merchant">Händler / Anbieter</option><option value="person">Person</option><option value="authority">Behörde</option><option value="organization">Organisation</option><option value="other">Andere</option></select></label>
           <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
           <label class="field"><span>Von Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
           <label class="field"><span>Kategorie</span><select class="text-control" id="setupExpenseCategory" name="categoryId" required><option value="">Bitte wählen</option>${expenseCategories}</select></label>
@@ -119,7 +136,7 @@ export function renderSetupGuide({
     moduleEnabled('goals',moduleAccess,hiddenModules)?['#/goals','Sparziele','target']:null,
     moduleEnabled('debts',moduleAccess,hiddenModules)?['#/debts','Schulden','credit-card']:null,
     moduleEnabled('debts',moduleAccess,hiddenModules)?['#/receivables','Forderungen','banknote']:null,
-    moduleEnabled('tax',moduleAccess,hiddenModules)?['#/tax-advisor','Steuern','receipt']:null,
+    household?.country_code==='CH'&&moduleEnabled('tax',moduleAccess,hiddenModules)?['#/tax-advisor','Steuern','receipt']:null,
   ].filter(Boolean);
 
   const steps=[
@@ -132,7 +149,7 @@ export function renderSetupGuide({
     }),
     stepCard({
       number:2,key:'accounts',title:'Konten & Geldbörsen',
-      text:'Lege UBS, Revolut, Bargeld, Kreditkarten oder weitere Konten an. Jede Währung bleibt am Konto erhalten.',
+      text:'Lege Giro-/Zahlungskonten, Sparkonten, Bargeld, Kreditkarten oder Wallets an. Jede Währung bleibt am jeweiligen Konto erhalten.',
       done:s.accounts,current:firstOpen==='accounts',iconName:'wallet',
       meta:s.accounts?`${accounts.length} Konto${accounts.length===1?'':'en'} eingerichtet`:'Noch kein Konto eingerichtet',
       actions:actionLink('#/accounts?create=account',s.accounts?'Konten verwalten':'Erstes Konto anlegen',!s.accounts),
@@ -172,7 +189,7 @@ export function renderSetupGuide({
       text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt ALEMANNO BUCHHALTUNG deinen echten Monatsrahmen vor dem ersten Import.',
       done:s.recurring,current:firstOpen==='recurring',optional:true,iconName:'repeat',
       meta:`${status.recurringIncome} / ${status.recurringExpenses}`,
-      actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
+      actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite,countryCode:household?.country_code||'CH'})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
     }),
     stepCard({
       number:8,key:'modules',title:'Budget, Ziele, Schulden, Forderungen & Steuern',
