@@ -35,7 +35,7 @@ assert.notEqual(aldi.name,'Aldi Suisse');
 assert.equal(merchantFromTransaction({description:'REWE Markt Freiburg'}).name,'REWE');
 assert.equal(merchantFromTransaction({description:'DB Vertrieb GmbH'}).name,'Deutsche Bahn');
 assert.equal(merchantFromTransaction({description:'ARD ZDF Deutschlandradio Beitragsservice'}).name,'ARD ZDF Deutschlandradio Beitragsservice');
-assert.equal(suggestKnownCategoryCandidates({description:'REWE Markt Freiburg',amount:-42})[0],'Supermarkt');
+assert.equal(suggestKnownCategoryCandidates({description:'REWE Markt Freiburg',amount:-42})[0],'Lebensmittel');
 assert.equal(suggestKnownCategoryCandidates({description:"McDonald's Freiburg",amount:-15})[1],'Restaurant & Take-away');
 assert.equal(suggestKnownCategoryCandidates({description:'ARD ZDF Deutschlandradio Beitragsservice',amount:-55.08})[0],'Rundfunkbeitrag');
 
