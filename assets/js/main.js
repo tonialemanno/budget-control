@@ -6311,6 +6311,17 @@ async function enterApp(session,{freshLogin=false}={}) {
   }
 }
 
+window.addEventListener('finance:receipt-saved',async()=>{
+  try {
+    const generation=sessionGeneration;
+    const userId=runtime.user?.id;
+    await loadFinanceData({generation,userId});
+    assertActiveSession(generation,userId);
+    render();
+  } catch(error) {
+    showToast(humanError(error),'error');
+  }
+});
 window.addEventListener('popstate',()=>{
   if(!runtime.user) return;
   if(hasDeferredSettingsChanges(pageContent) && !confirm(t('Es gibt noch nicht gespeicherte Änderungen. Seite wirklich verlassen?'))){
