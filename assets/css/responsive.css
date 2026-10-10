@@ -788,3 +788,34 @@
   .wallet-summary-actions { grid-template-columns:1fr; }
   .wallet-summary-actions .action-button:first-child { grid-column:auto; }
 }
+
+
+/* Invoice actions must fit an iPhone width without horizontal overflow. */
+@media (max-width: 660px) {
+  .sales-document-list-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .sales-document-list-row .list-row-main,
+  .sales-document-list-row .list-row-trailing {
+    width: 100%;
+    min-width: 0;
+  }
+  .sales-document-list-row .list-row-trailing {
+    display: grid;
+    gap: 8px;
+    text-align: left;
+  }
+  .sales-document-list-row .row-actions {
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .sales-document-list-row .row-actions .table-action {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
