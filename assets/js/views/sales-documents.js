@@ -230,7 +230,7 @@ export function renderSalesDocuments({
     const paymentMeta=row.document_type==='invoice'
       ? ` · bezahlt ${money(paid,{currency:row.currency||currency,locale})} · offen ${money(remaining,{currency:row.currency||currency,locale})}`
       : '';
-    return `<div class="list-row"><div class="list-row-main"><span class="list-row-leading">${icon('receipt')}</span><div><div class="list-row-title">${escapeHtml(row.document_number)} · ${escapeHtml(salesDocumentTypeLabel(row.document_type))}</div><div class="list-row-meta">${escapeHtml(row.recipient_name)} · ${secondary}${paymentMeta}</div>${linkedUi}${paymentUi}</div></div><div class="list-row-trailing"><div class="amount">${money(row.total,{currency:row.currency||currency,locale})}</div>${statusPill(tone(row.status),STATUS_LABELS[row.status]||row.status)}${actions}</div></div>`;
+    return `<div class="list-row sales-document-list-row"><div class="list-row-main"><span class="list-row-leading">${icon('receipt')}</span><div><div class="list-row-title">${escapeHtml(row.document_number)} · ${escapeHtml(salesDocumentTypeLabel(row.document_type))}</div><div class="list-row-meta">${escapeHtml(row.recipient_name)} · ${secondary}${paymentMeta}</div>${linkedUi}${paymentUi}</div></div><div class="list-row-trailing"><div class="amount">${money(row.total,{currency:row.currency||currency,locale})}</div>${statusPill(tone(row.status),STATUS_LABELS[row.status]||row.status)}${actions}</div></div>`;
   }).join('');
 
   const form = canWrite ? `
