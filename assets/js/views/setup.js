@@ -32,7 +32,8 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
   const isDE=countryCode==='DE';
   const accountOptions=accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const expenseCategories=categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const incomeCategories=categories.filter((c)=>c.kind==='income').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const defaultIncomeName=isDE?'Gehalt':'Lohn';
+  const incomeCategories=categories.filter((c)=>c.kind==='income').map((c)=>`<option value="${c.id}" ${c.name===defaultIncomeName?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   const fixedCostPresetRows=isDE
     ? [
         ['Miete','Miete'],
@@ -83,7 +84,8 @@ function setupMonthlyPlanForms({accounts=[],categories=[],recurringRules=[],canW
         <form class="form-grid form-grid--2 setup-inline-form" id="setup-expense-create" data-form="setup-expense-create">
           <label class="field"><span>Typische Position</span><select class="text-control" id="setupExpensePreset"><option value="">Frei erfassen</option>${fixedCostPresets}</select><small>ALEMANNO BUCHHALTUNG füllt Bezeichnung und Kategorie vor. Du kannst beides danach ändern.</small></label>
           <label class="field"><span>Bezeichnung / Zweck</span><input class="text-control" id="setupExpenseDescription" name="description" required placeholder="z. B. Miete"></label>
-          <label class="field"><span>Empfänger</span><input class="text-control" name="counterparty" placeholder="z. B. UZON"><small>Optional. Neue Empfänger werden bei Bedarf automatisch als Händler angelegt.</small></label>
+          <label class="field"><span>Empfänger / Gegenpartei</span><input class="text-control" name="counterparty" placeholder="${isDE?'z. B. Vermieter, Versicherung, Person':'z. B. Vermieter, Versicherung, Person'}"><small>Optional. Wähle darunter, ob es wirklich ein Händler/Anbieter oder z. B. eine Person bzw. Behörde ist.</small></label>
+          <label class="field"><span>Art der Gegenpartei</span><select class="text-control" name="counterpartyKind"><option value="merchant">Händler / Anbieter</option><option value="person">Person</option><option value="authority">Behörde</option><option value="organization">Organisation</option><option value="other">Andere</option></select></label>
           <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" type="number" min="0.01" step="0.01" required></label>
           <label class="field"><span>Von Konto</span><select class="text-control" name="accountId" required><option value="">Bitte wählen</option>${accountOptions}</select></label>
           <label class="field"><span>Kategorie</span><select class="text-control" id="setupExpenseCategory" name="categoryId" required><option value="">Bitte wählen</option>${expenseCategories}</select></label>
