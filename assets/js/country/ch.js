@@ -11,7 +11,7 @@ export const CH = Object.freeze({
     ['other','Sonstiges'],
   ],
   legalStatuses: ['offen','Mahnung','Zahlungsbefehl','Rechtsvorschlag','Fortsetzung','Pfändung','Verlustschein','abgeschlossen'],
-  starterCategories: [['Lohn','income'],['Rückerstattung','income'],['Rückzahlung','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Familie & Unterhalt','expense'],['Shopping','expense'],['Rechts- & Gerichtskosten','expense'],['Sonstiges','expense']],
+  starterCategories: [['Lohn','income'],['Unterhalt / Alimente','income'],['Familien- / Kinderzulagen','income'],['Sozialleistungen','income'],['Rückerstattung','income'],['Rückzahlung','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenkasse','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Familie & Unterhalt','expense'],['Shopping','expense'],['Rechts- & Gerichtskosten','expense'],['Sonstiges','expense']],
   starterSubcategories: [
     ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],['Haushaltsabgaben','Wohnen','expense'],
     ['Supermarkt','Lebensmittel','expense'],
