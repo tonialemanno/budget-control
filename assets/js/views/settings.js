@@ -26,12 +26,12 @@ export function renderSettings({
   budgets=[], goals=[], debts=[], receivables=[], taxCases=[], runtimeState=null,
 } = {}) {
   const hidden = new Set(hiddenModules || []);
-  const catalog = (productModules || []).filter((module)=>module.key !== 'admin');
+  const countryCode=household?.country_code||'CH';
+  const catalog = (productModules || []).filter((module)=>module.key !== 'admin' && !(module.key==='tax'&&countryCode!=='CH'));
   const entitled = catalog.filter((module)=>module.is_core || moduleAccess[module.key] === true);
   const optionalEntitled = entitled.filter((module)=>!module.is_core && !MODULES[module.key]?.locked);
   const available = catalog.filter((module)=>!module.is_core && moduleAccess[module.key] !== true);
   const visibleCount = entitled.filter((module)=>!hidden.has(module.key)).length;
-  const countryCode=household?.country_code||'CH';
   const eligibleHouseholds=(masterDataHouseholds||[]);
   const sourceHouseholds=eligibleHouseholds.filter((row)=>row.id!==household?.id || Boolean(adminRole));
   const sourceOptions=sourceHouseholds.map((row)=>`<option value="${row.id}" ${adminRole && row.id===household?.id?'selected':''}>${escapeHtml(row.name)} · ${escapeHtml(row.country_code)}</option>`).join('');
@@ -58,7 +58,7 @@ export function renderSettings({
       ${settingsLink({href:'#/setup',iconName:'sparkles',title:'ALEMANNO BUCHHALTUNG einrichten',text:'Konten, Kategorien und Händler Schritt für Schritt',badge:setupReady?'bereit':`${setupState.preparationDone}/8`})}
       ${settingsLink({href:'#/accounts',iconName:'wallet',title:'Konten & Währungen',text:`Basis ${household?.base_currency||'CHF'} · Konten dürfen eigene Währungen führen`,badge:`${accounts.length} Konten`})}
       ${settingsLink({href:'#/categories',iconName:'layout-grid',title:'Kategorien & Unterkategorien',text:'Deine persönliche Finanzstruktur',badge:`${categories.length} Kategorien`})}
-      ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}
+      ${settingsLink({href:'#/merchants',iconName:'basket',title:'Händler',text:countryCode==='DE'?'REWE, EDEKA und weitere Händler automatisch zuordnen':'Coop, Migros und weitere Händler automatisch zuordnen',badge:`${merchants.length} Händler`})}
       ${settingsLink({href:'#/sales-documents',iconName:'receipt',title:'Rechnungen & Dokumente',text:'Logo, Absender, Zahlungsdaten und Textbausteine'})}
       ${adminRole?settingsLink({href:'#/admin',iconName:'shield',title:'Administration',text:'Benutzer, Module und Systemstatus'}):''}
     </div>
@@ -93,7 +93,7 @@ export function renderSettings({
     <article class="card card-padding">
       <div class="card-heading"><div><h3 class="card-title">Automatische Zuordnung</h3><p class="card-subtitle">Diese Daten steuern Import, Fixkosten und Händlererkennung.</p></div></div>
       <div class="stack">
-        <div class="settings-link-card"><div><span class="list-row-leading">${icon('sparkles')}</span><div><h3 class="card-title">${escapeHtml(standardLabel)} installieren / aktualisieren</h3><p class="card-subtitle">${countryMasterCategories.length} Kategorien · ${countryMasterMerchants.length} geprüfte Händler. Eigene Zuordnungen werden nicht überschrieben.</p></div></div>${canWrite?`<button class="action-button action-button--secondary" type="button" data-action="masterdata-install-country">${escapeHtml(standardLabel)} anwenden</button>`:`<span>${statusPill('paused','Nur lesen')}</span>`}</div>
+        <div class="settings-link-card"><div><span class="list-row-leading">${icon('sparkles')}</span><div><h3 class="card-title">${escapeHtml(standardLabel)} installieren / aktualisieren</h3><p class="card-subtitle">${categories.length} Kategorien aktuell im Haushalt. Länderstandard und geprüfte Händler werden ergänzt; eigene Zuordnungen werden nicht überschrieben.</p></div></div>${canWrite?`<button class="action-button action-button--secondary" type="button" data-action="masterdata-install-country">${escapeHtml(standardLabel)} anwenden</button>`:`<span>${statusPill('paused','Nur lesen')}</span>`}</div>
         ${sourceHouseholds.length && canWrite ? `<form class="settings-link-card" id="masterdata-copy" data-form="masterdata-copy"><div><span class="list-row-leading">${icon('arrow-down-left')}</span><div><h3 class="card-title">Stammdaten aus anderem Haushalt übernehmen</h3><p class="card-subtitle">Kopiert nur Kategorien, Händler-Zuordnungen und Kategorisierungsregeln. Keine Buchungen, Konten, Salden, Fixkosten oder Beträge.</p><label class="field"><span>Quelle</span><select class="select-control" name="sourceHouseholdId" required><option value="">Quellhaushalt wählen</option>${sourceOptions}</select></label>${adminRole?`<label class="field"><span>Ziel</span><select class="select-control" name="targetHouseholdId" required>${targetOptions}</select></label>`:`<input type="hidden" name="targetHouseholdId" value="${household?.id||''}">`}</div></div><button class="action-button action-button--secondary" type="submit">Stammdaten übernehmen</button></form>` : ''}
       </div>
     </article>
