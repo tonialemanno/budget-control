@@ -1,5 +1,15 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Die Demo-Familie": "La famiglia demo",
+  "App-Zugänge": "Accessi all’app",
+  "Kaufpreis": "Prezzo di acquisto",
+  "Kaufdatum": "Data di acquisto",
+  "Leasingbeginn": "Inizio leasing",
+  "Monatliche Rate": "Rata mensile",
+  "Monatliche Zahlungen": "Pagamenti mensili",
+  "Sparbeginn": "Inizio risparmio",
+  "Einzahlungen seit Beginn": "Versamenti dall’inizio",
+  "Aktueller Kontostand": "Saldo attuale",
   "Tatsächlich belasteter Betrag auf dem Konto": "Importo effettivamente addebitato sul conto",
   "Betrag der Bank- oder Kartenbuchung": "Importo del movimento bancario o della carta",
   "Familie Müller · 14 Monate · 399 Buchungen · Stand 9. Oktober 2026": "Famiglia Müller · 14 mesi · 399 movimenti · situazione al 9 ottobre 2026",
@@ -1288,6 +1298,16 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Die Demo-Familie": "The demo family",
+  "App-Zugänge": "App logins",
+  "Kaufpreis": "Purchase price",
+  "Kaufdatum": "Purchase date",
+  "Leasingbeginn": "Lease start",
+  "Monatliche Rate": "Monthly installment",
+  "Monatliche Zahlungen": "Monthly payments",
+  "Sparbeginn": "Savings start",
+  "Einzahlungen seit Beginn": "Deposits since start",
+  "Aktueller Kontostand": "Current account balance",
   "Tatsächlich belasteter Betrag auf dem Konto": "Amount actually charged to the account",
   "Betrag der Bank- oder Kartenbuchung": "Amount of the bank or card transaction",
   "Familie Müller · 14 Monate · 399 Buchungen · Stand 9. Oktober 2026": "Müller family · 14 months · 399 transactions · as of 9 October 2026",
@@ -2579,6 +2599,9 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Nucleo domestico condiviso · $1/5 accessi all’app. I conti possono essere privati o condivisi.'],
+    [/^(.+) · Kosten und Zahlungen$/, '$1 · Costi e pagamenti'],
+    [/^Sparverlauf aus (\d+) internen Einzahlungen$/, 'Andamento risparmi da $1 versamenti interni'],
     [/^(\d+) erstellt$/, '$1 creati'],
     [/^(.+) · Rechnung$/, '$1 · Fattura'],
     [/^(.+) · Fällig (.+)$/, '$1 · Scadenza $2'],
@@ -2679,6 +2702,9 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Shared household · $1/5 app logins. Accounts can be private or shared.'],
+    [/^(.+) · Kosten und Zahlungen$/, '$1 · Costs and payments'],
+    [/^Sparverlauf aus (\d+) internen Einzahlungen$/, 'Savings history from $1 internal deposits'],
     [/^(\d+) erstellt$/, '$1 created'],
     [/^(.+) · Rechnung$/, '$1 · Invoice'],
     [/^(.+) · Fällig (.+)$/, '$1 · Due $2'],
