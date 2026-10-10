@@ -2731,8 +2731,9 @@ async function handleForm(form) {
     const amount=Math.abs(numberValue(data,'amount'));
     if(!amount) throw new Error('Bitte einen gültigen Betrag eingeben.');
     const counterpartyName=String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(counterpartyName){
+    if(counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -2760,7 +2761,7 @@ async function handleForm(form) {
       end_date:null,
       active:true,
     });
-    await refresh(merchant?'Fixkosten gespeichert und Empfänger verknüpft.':'Fixkosten gespeichert.');
+    await refresh(merchant?'Fixkosten gespeichert und Händler verknüpft.':counterpartyName?'Fixkosten gespeichert und Gegenpartei als Text geführt.':'Fixkosten gespeichert.');
     goToRoute('setup');
     return;
   }
