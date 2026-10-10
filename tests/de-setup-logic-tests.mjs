@@ -10,6 +10,8 @@ import { renderInsurance } from '../assets/js/views/insurance.js';
 import { renderLegal } from '../assets/js/views/legal.js';
 import { renderPension } from '../assets/js/views/pension.js';
 import { renderSettings } from '../assets/js/views/settings.js';
+import { renderSalesDocuments, salesDocumentDefaults } from '../assets/js/views/sales-documents.js';
+import { merchantFromTransaction, suggestKnownCategoryCandidates } from '../assets/js/app/csv-import.js';
 
 const requiredIncome=['Gehalt','Unterhalt / Unterhaltsvorschuss','Kindergeld','Kinderzuschlag','Elterngeld','Sozialleistungen'];
 for(const name of requiredIncome) assert.ok(DE.starterCategories.some(([n,kind])=>n===name&&kind==='income'),`missing DE income category ${name}`);
@@ -25,6 +27,17 @@ for(const [name,parent] of [
   ['Kfz-Versicherung','Versicherungen'],
 ]) assert.ok(DE.starterSubcategories.some(([n,p,kind])=>n===name&&p===parent&&kind==='expense'),`missing DE expense category ${name}`);
 assert.ok(DE.starterMerchantCategories.some(([merchant,category])=>merchant==='ARD ZDF Deutschlandradio Beitragsservice'&&category==='Rundfunkbeitrag'));
+
+const aldi=merchantFromTransaction({description:'ALDI SUED 1234 FREIBURG'});
+assert.equal(aldi.name,'ALDI');
+assert.equal(aldi.key,'aldi');
+assert.notEqual(aldi.name,'Aldi Suisse');
+assert.equal(merchantFromTransaction({description:'REWE Markt Freiburg'}).name,'REWE');
+assert.equal(merchantFromTransaction({description:'DB Vertrieb GmbH'}).name,'Deutsche Bahn');
+assert.equal(merchantFromTransaction({description:'ARD ZDF Deutschlandradio Beitragsservice'}).name,'ARD ZDF Deutschlandradio Beitragsservice');
+assert.equal(suggestKnownCategoryCandidates({description:'REWE Markt Freiburg',amount:-42})[0],'Supermarkt');
+assert.equal(suggestKnownCategoryCandidates({description:"McDonald's Freiburg",amount:-15})[1],'Restaurant & Take-away');
+assert.equal(suggestKnownCategoryCandidates({description:'ARD ZDF Deutschlandradio Beitragsservice',amount:-55.08})[0],'Rundfunkbeitrag');
 
 const categories=[
   {id:'inc-salary',name:'Gehalt',kind:'income',parent_id:null},
@@ -90,6 +103,18 @@ const settings=renderSettings({
 assert.doesNotMatch(settings,/value="tax"/);
 assert.match(settings,/REWE, EDEKA/);
 assert.match(settings,/Kategorien aktuell im Haushalt/);
+
+const deDocDefaults=salesDocumentDefaults({},'Ana','DE');
+assert.match(deDocDefaults.quoteIntro,/Angebot/);
+assert.match(deDocDefaults.paymentText,/innerhalb/);
+assert.doesNotMatch(deDocDefaults.paymentText,/innert/);
+const sales=renderSalesDocuments({
+  salesDocuments:[],salesDocumentSettings:null,salesDocumentTemplates:[],salesDocumentPayments:[],
+  transactions:[],household,profile,canWrite:true,
+});
+assert.match(sales,/Rechnungen, Angebote & Quittungen/);
+assert.match(sales,/Angebot schreiben/);
+assert.doesNotMatch(sales,/Offerte schreiben/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/moduleKey === 'tax' && runtime\.household\?\.country_code !== 'CH'/);
