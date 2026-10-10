@@ -157,7 +157,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
         <div class="card-heading"><div><h3 class="card-title">Absender & Branding</h3><p class="card-subtitle">Einmal pflegen. Diese Angaben werden für neue ${quotePlural}, Rechnungen und Quittungen automatisch übernommen.</p></div></div>
         <div class="form-grid form-grid--2">
           <label class="field"><span>Firma / Absender</span><input class="text-control" name="companyName" value="${escapeHtml(defaults.senderName)}"></label>
-          <label class="field"><span>MWST-/USt-/IVA-Nr.</span><input class="text-control" name="taxId" value="${escapeHtml(settings?.tax_id||'')}"></label>
+          <label class="field"><span>${isDE?'USt-IdNr. / Steuernummer':'MWST-/USt-/IVA-Nr.'}</span><input class="text-control" name="taxId" value="${escapeHtml(settings?.tax_id||'')}"></label>
           <label class="field form-grid-span"><span>Adresse</span><textarea class="text-control" name="companyAddress" rows="2">${escapeHtml(settings?.company_address||'')}</textarea></label>
           <label class="field"><span>E-Mail</span><input class="text-control" name="companyEmail" type="email" value="${escapeHtml(settings?.company_email||'')}"></label>
           <label class="field"><span>Telefon</span><input class="text-control" name="companyPhone" value="${escapeHtml(settings?.company_phone||'')}"></label>
@@ -166,7 +166,7 @@ function settingsPanel({settings,templates,household,profile,canWrite}) {
           <label class="field"><span>Bank</span><input class="text-control" name="bankName" value="${escapeHtml(settings?.bank_name||'')}"></label>
           <label class="field form-grid-span"><span>Logo</span>${filePicker({id:'salesDocumentLogo',name:'logoFile',accept:'image/png,image/jpeg,image/webp,image/svg+xml'})}<small>${escapeHtml(logoNote)} Empfohlen: PNG/SVG/WebP mit transparentem Hintergrund.</small></label>
           <label class="field"><span>Standard-Zahlungsfrist</span><input class="text-control" name="defaultPaymentDays" type="number" min="0" max="365" value="${defaults.paymentDays}"></label>
-          <label class="field"><span>Standard-Gültigkeit Offerte</span><input class="text-control" name="defaultQuoteValidDays" type="number" min="0" max="365" value="${defaults.quoteValidDays}"></label>
+          <label class="field"><span>Standard-Gültigkeit ${quoteSingular}</span><input class="text-control" name="defaultQuoteValidDays" type="number" min="0" max="365" value="${defaults.quoteValidDays}"></label>
           <label class="field"><span>Standard-Steuer %</span><input class="text-control" name="defaultTaxRate" type="number" min="0" max="100" step="0.001" value="${escapeHtml(String(defaults.taxRate))}"></label>
           <label class="field"><span>Automatische Quittung</span><span class="settings-inline-control"><input name="autoReceiptOnPayment" type="checkbox" value="true" ${settings?.auto_receipt_on_payment===false?'':'checked'}><span>bei vollständig zugeordneter Zahlung</span></span></label>
           <label class="field form-grid-span"><span>Fusszeile</span><textarea class="text-control" name="footerText" rows="2">${escapeHtml(settings?.footer_text||'')}</textarea></label>
