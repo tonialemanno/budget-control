@@ -110,6 +110,42 @@ function feasibility(goal,plannedMonthly,currentAmount,currency='CHF',locale='de
   return { tone,label,required,forecast,note,months,projected,projectedGap };
 }
 
+
+function renderSavingsTimeline(goal,account,transactions,locale,currency) {
+  if (!account || !goal.start_date) return '';
+  const start=new Date(goal.start_date+'T12:00:00');
+  if(Number.isNaN(start.getTime())) return '';
+  const today=new Date();
+  const count=Math.min(36,Math.max(1,(today.getFullYear()-start.getFullYear())*12+today.getMonth()-start.getMonth()+1));
+  const transfers=transactions.filter(tx=>tx.account_id===account.account_id && tx.status==='booked' &&
+    tx.transfer_group_id && Number(tx.amount)>0 && tx.currency===currency && new Date(tx.occurred_at)>=start);
+  if (!transfers.length) return '';
+  const total=transfers.reduce((n,tx)=>n+Number(tx.amount||0),0);
+  const current=Number(account.current_balance||0);
+  const opening=current-total;
+  if (opening < -0.01) return '<p class="card-subtitle">Sparverlauf: bisherige Überträge können nicht vollständig mit dem Kontostand abgeglichen werden.</p>';
+  const bars=[];
+  let balance=Math.max(0,opening);
+  for(let i=0;i<count;i++){
+    const period=new Date(start.getFullYear(),start.getMonth()+i,1);
+    const monthTotal=transfers.filter(tx=>{
+      const day=new Date(tx.occurred_at);
+      return day.getFullYear()===period.getFullYear() && day.getMonth()===period.getMonth();
+    }).reduce((n,tx)=>n+Number(tx.amount||0),0);
+    balance+=monthTotal;
+    const pct=Math.min(100,Math.max(3,Math.round(balance/Math.max(current,1)*100)));
+    const text=period.toLocaleDateString(locale,{month:'short',year:'numeric'})+': '+money(balance,{currency,locale});
+    bars.push('<span title="'+escapeHtml(text)+'" style="flex:1;min-width:5px;height:85px;display:flex;align-items:flex-end"><span style="width:100%;height:'+pct+'%;background:var(--color-primary,#4774a5);border-radius:3px 3px 0 0"></span></span>');
+  }
+  return '<section class="goal-history" style="margin:12px 0" aria-label="Sparverlauf">'
+    +'<div class="mini-detail-list"><span>Sparbeginn <strong>'+dateLabel(goal.start_date,locale)+'</strong></span>'
+    +'<span>Einzahlungen seit Beginn <strong>'+money(total,{currency,locale})+'</strong></span>'
+    +'<span>Aktueller Kontostand <strong>'+money(current,{currency,locale})+'</strong></span></div>'
+    +'<p class="card-subtitle">Sparverlauf aus '+transfers.length+' internen Einzahlungen</p>'
+    +'<div style="display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid var(--border-color,#ddd);padding:8px 0">'+bars.join('')+'</div>'
+    +'</section>';
+}
+
 export function renderGoals({ goals = [], goalSources = [], recurringRules = [], transactions = [], accounts = [], household, profile, fxRates, canWrite=false } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
@@ -170,7 +206,7 @@ export function renderGoals({ goals = [], goalSources = [], recurringRules = [],
         g.duration_months?`${Number(g.duration_months)} Monate`:'',
         g.target_date?`Ziel ${dateLabel(g.target_date,locale)}`:'',
       ].filter(Boolean).join(' · ')||'Ohne Zeitplan';
-      return `<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">${escapeHtml(g.name)}</h3><p class="card-subtitle">${scheduleMeta}${linkedAccount?` · ${escapeHtml(linkedAccount.name)}`:''}</p></div><span class="goal-bubble goal-bubble--${f.tone}">${escapeHtml(f.label)}</span></div>${goalProgress(displayGoal,locale)}
+      return `<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">${escapeHtml(g.name)}</h3><p class="card-subtitle">${scheduleMeta}${linkedAccount?` · ${escapeHtml(linkedAccount.name)}`:''}</p></div><span class="goal-bubble goal-bubble--${f.tone}">${escapeHtml(f.label)}</span></div>${goalProgress(displayGoal,locale)}${renderSavingsTimeline(g,linkedAccount,transactions,locale,goalCurrency)}
         <div class="mini-detail-list">${accountMeta}${g.start_date?`<span>Start <strong>${dateLabel(g.start_date,locale)}</strong></span>`:''}${g.duration_months?`<span>Laufzeit <strong>${Number(g.duration_months)} Monate</strong></span>`:''}<span>Eigener Zusatz / Monat <strong>${money(g.monthly_amount,{currency:goalCurrency,locale})}</strong></span><span>Gesamt geplant / Monat <strong>${money(plan.total,{currency:goalCurrency,locale})}</strong></span>${g.target_date?`<span>Erforderlich / Monat <strong>${money(f.required,{currency:goalCurrency,locale})}</strong></span>`:''}${f.projected!==null?`<span>Bei unverändertem Plan am Zieltermin <strong>${money(f.projected,{currency:goalCurrency,locale})}</strong></span>`:''}${f.projectedGap!==null&&Math.abs(f.projectedGap)>=0.01?`<span>${f.projectedGap>0?'Fehlen zum Ziel':'Über Ziel'} <strong>${money(Math.abs(f.projectedGap),{currency:goalCurrency,locale})}</strong></span>`:''}${f.forecast!==null?`<span>Restlaufzeit bei Plan <strong>ca. ${f.forecast} Monate</strong></span>`:''}</div>
         ${plan.components.length?`<div class="goal-source-list">${plan.components.map((component)=>`<div class="goal-source-row"><div><strong>${escapeHtml(component.label)}</strong><span>${component.amount<0?'−':''}${money(Math.abs(component.amount),{currency:goalCurrency,locale})} / Monat</span></div>${component.id&&canWrite?`<button class="table-action table-action--danger" type="button" data-action="goal-source-delete" data-id="${component.id}">Entfernen</button>`:''}</div>`).join('')}</div>`:''}
         <p class="goal-feasibility-note">${escapeHtml(f.note)}</p>
