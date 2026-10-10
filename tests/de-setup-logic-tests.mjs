@@ -112,9 +112,11 @@ const sales=renderSalesDocuments({
   salesDocuments:[],salesDocumentSettings:null,salesDocumentTemplates:[],salesDocumentPayments:[],
   transactions:[],household,profile,canWrite:true,
 });
-assert.match(sales,/Rechnungen, Angebote & Quittungen/);
+assert.match(sales,/Rechnungen, Angebote &amp; Quittungen/);
 assert.match(sales,/Angebot schreiben/);
 assert.doesNotMatch(sales,/Offerte schreiben/);
+assert.match(sales,/Standard-Gültigkeit Angebot/);
+assert.match(sales,/USt-IdNr\. \/ Steuernummer/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
 assert.match(main,/moduleKey === 'tax' && runtime\.household\?\.country_code !== 'CH'/);
