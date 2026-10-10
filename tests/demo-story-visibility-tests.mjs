@@ -27,12 +27,12 @@ const goals=renderGoals({...base,profile:demoProfile,accounts:[account],goals:[s
 for(const needle of ['Sparverlauf aus','Einzahlungen seit Beginn','Aktueller Kontostand','Sparbeginn'])
  assert.ok(goals.includes(needle),'Missing savings detail: '+needle);
 
-const vehicle={...base.vehicles[0],id:'demo-car',name:'Škoda Kodiaq',purchase_price:31000,purchase_date:'2025-10-01'};
+const vehicle={...base.vehicles[0],id:'demo-car',name:'Škoda Kodiaq',purchase_price:31000,purchase_date:'2025-10-01',notes:'Fiktives Fahrzeug: Kaufpreis CHF 31 000, Anzahlung CHF 13 000, finanziert CHF 18 000'};
 const carDebt={...base.debts[0],name:'Škoda Kodiaq Leasing',start_date:'2025-10-01',installment_amount:420};
 const leasePayment={id:'lease-1',vehicle_id:'demo-car',occurred_at:'2026-09-05T10:00:00Z',status:'booked',
  cashflow_type:'debt_payment',currency:'CHF',amount:-420};
 const vehicles=renderVehicles({...base,vehicles:[vehicle],debts:[carDebt],transactions:[leasePayment]});
-for(const needle of ['Kaufpreis','Leasingbeginn','Monatliche Rate','Bereits bezahlt','Monatliche Zahlungen'])
+for(const needle of ['Kaufpreis','Leasingbeginn','Monatliche Rate','Bereits bezahlt','Monatliche Zahlungen','Anzahlung','Finanzierter Betrag','Bisher bezahlt inkl. Anzahlung'])
  assert.ok(vehicles.includes(needle),'Missing vehicle story: '+needle);
 
 console.log('Demo family, 14-month savings, and vehicle payment stories rendered correctly');
