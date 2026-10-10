@@ -65,7 +65,8 @@ const settingsHtml=renderSettings({
   ],
 });
 assert.match(settingsHtml,/CH-Standard installieren \/ aktualisieren/);
-assert.match(settingsHtml,/2 Kategorien · 1 geprüfte Händler/);
+assert.match(settingsHtml,/0 Kategorien aktuell im Haushalt/);
+assert.match(settingsHtml,/Länderstandard und geprüfte Händler werden ergänzt/);
 assert.match(settingsHtml,/name="sourceHouseholdId"/);
 assert.match(settingsHtml,/name="targetHouseholdId"/);
 assert.match(settingsHtml,/Keine Buchungen, Konten, Salden, Fixkosten oder Beträge/);
