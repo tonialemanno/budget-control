@@ -4,17 +4,19 @@ import { convertAmount } from '../app/fx.js';
 import { effectiveNextDate } from '../app/recurrence.js';
 import { icon } from '../app/icons.js';
 
-function formFields(accounts,categories,{edit=false}={}) {
+function formFields(accounts,categories,{edit=false,countryCode='CH',baseCurrency='CHF'}={}) {
   const p=edit?'insuranceEdit':'';
   const accountOptions=accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const categoryOptions=categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const policyTypeExample=countryCode==='DE'?'z. B. Krankenversicherung, Haftpflicht, Hausrat':'z. B. Krankenkasse, Haftpflicht, Hausrat';
+  const currencyOptions=['CHF','EUR','USD','GBP'].map((code)=>`<option value="${code}" ${code===baseCurrency?'selected':''}>${code}</option>`).join('');
   return `${edit?'<input type="hidden" name="insuranceId" id="insuranceEditId">':''}
     <label class="field"><span>Versicherung</span><input class="text-control" name="name" ${edit?`id="${p}Name"`:''} required placeholder="z. B. Hausrat"></label>
     <label class="field"><span>Anbieter</span><input class="text-control" name="provider" ${edit?`id="${p}Provider"`:''}></label>
-    <label class="field"><span>Art</span><input class="text-control" name="policyType" ${edit?`id="${p}Type"`:''} placeholder="z. B. Krankenkasse"></label>
+    <label class="field"><span>Art</span><input class="text-control" name="policyType" ${edit?`id="${p}Type"`:''} placeholder="${policyTypeExample}"></label>
     <label class="field"><span>Policennummer</span><input class="text-control" name="policyNumber" ${edit?`id="${p}Number"`:''} placeholder="optional"></label>
     <label class="field"><span>Prämie</span><input class="text-control" name="premiumAmount" ${edit?`id="${p}Premium"`:''} type="number" min="0" step="0.01" required></label>
-    <label class="field"><span>Währung</span><select class="text-control" name="currency" ${edit?`id="${p}Currency"`:''}><option value="CHF">CHF</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="GBP">GBP</option></select></label>
+    <label class="field"><span>Währung</span><select class="text-control" name="currency" ${edit?`id="${p}Currency"`:''}>${currencyOptions}</select></label>
     <label class="field"><span>Rhythmus</span><select class="text-control" name="cadence" ${edit?`id="${p}Cadence"`:''}><option value="monthly">Monatlich</option><option value="quarterly">Quartalsweise</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select></label>
     <label class="field"><span>Zahlungskonto</span><select class="text-control" name="accountId" ${edit?`id="${p}Account"`:''}><option value="">Noch nicht zugeordnet</option>${accountOptions}</select></label>
     <label class="field"><span>Kategorie</span><select class="text-control" name="categoryId" ${edit?`id="${p}Category"`:''}><option value="">Ohne Kategorie</option>${categoryOptions}</select></label>
@@ -41,7 +43,7 @@ export function renderInsurance({ insurance = [], accounts = [], categories = []
   return `
     ${pageHeader({title:'Versicherungen',subtitle:'Policen, Prämien, Zahlungsrhythmus, Zahlungsverlauf und Dokumente. Änderungen der Jahresprämie können jederzeit nachgeführt werden.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="insurance-create">${icon('plus')} Versicherung</button>`:''})}
     ${canWrite?formShell('insurance-create','Neue Versicherung','Police und Zahlungsdaten',formFields(accounts,categories),{hidden:true,submitLabel:'Versicherung speichern'}):''}
-    ${canWrite?formShell('insurance-edit','Versicherung bearbeiten','Prämie, Zahlung und Policendaten aktualisieren',formFields(accounts,categories,{edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('insurance-edit','Versicherung bearbeiten','Prämie, Zahlung und Policendaten aktualisieren',formFields(accounts,categories,{edit:true,countryCode:household?.country_code||'CH',baseCurrency:currency}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('insurance-document-upload','Police / Beleg speichern','Direkt mit der Versicherung verknüpft',docFields,{hidden:true,submitLabel:'Dokument speichern'}):''}
     <div class="metric-grid" style="margin-bottom:16px">${metricCard('Prämien / Monat',money(monthly,{currency,locale}),'normalisierte laufende Kosten')}${metricCard('Aktive Policen',String(insurance.filter((p)=>p.status==='active').length),'Versicherungen')}${metricCard('Gesamt',String(insurance.length),'inkl. beendet')}</div>
     <div class="inline-alert"><strong>Budget-Verknüpfung.</strong><span>Policen mit Zahlungskonto und Termin werden mit Fixkosten verknüpft. Änderungen bleiben synchron; die Verbindung kann bewusst gelöst werden.</span></div>
