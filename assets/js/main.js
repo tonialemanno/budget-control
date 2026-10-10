@@ -3542,7 +3542,7 @@ async function handleForm(form) {
       const net=Number(item.quantity)*Number(item.unit_price);
       return sum+net+(net*Number(item.tax_rate)/100);
     },0);
-    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
     const context={
       recipientName,documentNumber,issueDate,dueDate:dueDate||validUntil||'',
       total:new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{style:'currency',currency:documentCurrency}).format(total),
@@ -3569,7 +3569,7 @@ async function handleForm(form) {
       notes:nullValue(data,'notes'),
       items,
     });
-    await refresh(`${salesDocumentTypeLabel(type)} gespeichert.`);
+    await refresh(`${salesDocumentTypeLabel(type,runtime.household?.country_code||'CH')} gespeichert.`);
     return;
   }
   if (id === 'bill-edit') {
@@ -4359,7 +4359,7 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
   const select=document.querySelector('#salesDocumentType');
   if(select) select.value=normalized;
   const title=document.querySelector('#salesDocumentFormTitle');
-  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?'Offerte schreiben':'Quittung ausstellen';
+  if(title) title.textContent=normalized==='invoice'?'Rechnung erstellen':normalized==='quote'?(runtime.household?.country_code==='DE'?'Angebot schreiben':'Offerte schreiben'):'Quittung ausstellen';
   const due=document.querySelector('#salesInvoiceDueField');
   const valid=document.querySelector('#salesQuoteValidField');
   if(due) due.hidden=normalized!=='invoice';
@@ -4368,7 +4368,7 @@ function syncSalesDocumentType(type,{updateNumber=true}={}) {
     const number=document.querySelector('#salesDocumentNumber');
     if(number) number.value=nextSalesDocumentNumber(runtime.salesDocuments,normalized);
   }
-  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+  const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
   const issueValue=document.querySelector('#salesDocumentIssueDate')?.value;
   const base=issueValue?new Date(`${issueValue}T12:00:00`):new Date();
   const dueInput=document.querySelector('#salesDocumentDueDate');
@@ -4421,7 +4421,7 @@ async function printSalesDocument(row) {
     catch { logoData=''; }
   }
   const locale=runtime.profile?.locale||'de-CH';
-  const type=salesDocumentTypeLabel(row.document_type);
+  const type=salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH');
   const nl=(value)=>escapeHtml(value||'').replace(/\n/g,'<br>');
   const fmt=(value)=>new Intl.NumberFormat(locale,{style:'currency',currency:row.currency||'CHF',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
   const fmtDate=(value)=>{
@@ -4488,7 +4488,7 @@ async function createReceiptFromInvoice(invoice,paymentTx=null) {
   const existing=runtime.salesDocuments.find((row)=>row.document_type==='receipt'&&row.source_document_id===invoice.id);
   if(existing) return existing;
   const settings=runtime.salesDocumentSettings||{};
-  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'');
+  const defaults=salesDocumentDefaults(settings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
   const issueDate=paymentTx?.occurred_at ? dateInputValue(new Date(paymentTx.occurred_at)) : (invoice.paid_at||dateInputValue());
   const totalText=new Intl.NumberFormat(runtime.profile?.locale||'de-CH',{
     style:'currency',currency:invoice.currency||runtime.household?.base_currency||'CHF',
@@ -4685,14 +4685,15 @@ async function handleAction(target) {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
     await financeApi.updateSalesDocument(row.id,{status:target.dataset.status});
-    await refresh(`${salesDocumentTypeLabel(row.document_type)} auf „${salesDocumentStatusLabel(target.dataset.status)}“ gesetzt.`);
+    await refresh(`${salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH')} auf „${salesDocumentStatusLabel(target.dataset.status)}“ gesetzt.`);
     return;
   }
   if (action === 'sales-document-convert') {
     const quote=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id&&entry.document_type==='quote');
-    if(!quote) throw new Error('Offerte wurde nicht gefunden.');
-    if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error('Für diese Offerte wurde bereits eine Rechnung erstellt.');
-    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+    const quoteLabel=runtime.household?.country_code==='DE'?'Angebot':'Offerte';
+    if(!quote) throw new Error(`${quoteLabel} wurde nicht gefunden.`);
+    if(runtime.salesDocuments.some((entry)=>entry.document_type==='invoice'&&entry.source_document_id===quote.id)) throw new Error(`Für dieses ${quoteLabel} wurde bereits eine Rechnung erstellt.`);
+    const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
     const issueDate=dateInputValue();
     const dueDate=addDaysInput(defaults.paymentDays);
     const documentNumber=nextSalesDocumentNumber(runtime.salesDocuments,'invoice');
@@ -4726,13 +4727,13 @@ async function handleAction(target) {
       source_document_id:quote.id,
     });
     if(quote.status!=='accepted') await financeApi.updateSalesDocument(quote.id,{status:'accepted'});
-    await refresh('Offerte angenommen und als neue Rechnung übernommen.');
+    await refresh(`${quoteLabel} angenommen und als neue Rechnung übernommen.`);
     return;
   }
   if (action === 'sales-document-delete') {
     const row=runtime.salesDocuments.find((entry)=>entry.id===target.dataset.id);
     if(!row) throw new Error('Dokument wurde nicht gefunden.');
-    if(!confirm(`${salesDocumentTypeLabel(row.document_type)} ${row.document_number} wirklich löschen?`)) return;
+    if(!confirm(`${salesDocumentTypeLabel(row.document_type,runtime.household?.country_code||'CH')} ${row.document_number} wirklich löschen?`)) return;
     await financeApi.deleteSalesDocument(row.id);
     await refresh('Ausgangsdokument gelöscht.');
     return;
@@ -6030,7 +6031,7 @@ pageContent.addEventListener('change', async (event) => {
       return;
     }
     if (target.id === 'salesDocumentIssueDate') {
-      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'');
+      const defaults=salesDocumentDefaults(runtime.salesDocumentSettings,runtime.profile?.display_name||runtime.household?.name||'',runtime.household?.country_code||'CH');
       const base=target.value?new Date(`${target.value}T12:00:00`):new Date();
       const due=document.querySelector('#salesDocumentDueDate');
       const valid=document.querySelector('#salesDocumentValidUntil');
