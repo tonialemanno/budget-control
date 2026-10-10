@@ -10,7 +10,7 @@ function recurringFields({ accounts = [], categories = [], edit = false, default
   const suffix=edit?'Edit':'';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${!edit&&a.account_id===defaultAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const destinationAccountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
-  const categoryOptions = categories.map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const categoryOptions = categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   return `${edit?'<input type="hidden" name="ruleId" id="recurringEditId">':''}
     <label class="field"><span>Typ</span><select class="text-control" name="direction" id="recurring${suffix}Direction"><option value="expense">Ausgabe</option><option value="income">Einnahme</option><option value="transfer">Umbuchung / Topf</option></select></label>
     <label class="field"><span>Betrag</span><input class="text-control" name="amount" id="recurring${suffix}Amount" type="number" min="0.01" step="0.01" required><small>Bei variablen Zahlungen ist das der Richtwert für die Planung.</small></label>
@@ -80,7 +80,7 @@ export function renderRecurring({ recurringRules = [], accounts = [], categories
       subtitle:'Alle wiederkehrenden Einnahmen, Ausgaben und Umbuchungen. Fixkosten mit Händler pflegst du am einfachsten unter Fixkosten; verknüpfte Verträge, Versicherungen und Schulden werden an ihrer Quelle bearbeitet.',
       actions,
     })}
-    ${canWrite?formShell('recurring-create','Neue wiederkehrende Regel','Für Lohn, allgemeine Zahlungen oder Umbuchungen. Fixe Ausgaben mit Händler können alternativ unter Fixkosten angelegt werden.',recurringFields({accounts,categories,defaultAccountId}),{hidden:true,submitLabel:'Regel speichern'}):''}
+    ${canWrite?formShell('recurring-create','Neue wiederkehrende Regel',household?.country_code==='DE'?'Für Gehalt, Leistungen, allgemeine Zahlungen oder Umbuchungen. Fixe Ausgaben mit Händler können alternativ unter Feste Zahlungen angelegt werden.':'Für Lohn, allgemeine Zahlungen oder Umbuchungen. Fixe Ausgaben mit Händler können alternativ unter Feste Zahlungen angelegt werden.',recurringFields({accounts,categories,defaultAccountId}),{hidden:true,submitLabel:'Regel speichern'}):''}
     ${canWrite?formShell('recurring-edit','Wiederkehrende Regel bearbeiten','Nur eigenständige Regeln werden hier bearbeitet.',recurringFields({accounts,categories,edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     <article class="card card-padding">${dataTable({headers:['Beschreibung','Typ','Betrag','Nächster Plantermin','Läuft bis','Status',''],rows,emptyText:'Noch keine wiederkehrenden Zahlungen.'})}</article>`;
 }
