@@ -496,6 +496,15 @@ export function knownMerchantSuggestion(tx) {
 }
 
 export function suggestKnownCategoryCandidates(tx) {
+  const raw=[importContextText(tx),tx?.description,tx?.counterparty,tx?.note].filter(Boolean).join(' ');
+  if(Number(tx?.amount||0)>0){
+    if(/\b(?:unterhaltsvorschuss|unterhalt|alimente|alimony)\b/i.test(raw)) return ['Unterhalt / Unterhaltsvorschuss','Unterhalt / Alimente','Sonstige Einnahmen'];
+    if(/\bkindergeld\b/i.test(raw)) return ['Kindergeld','Familien- / Kinderzulagen','Sonstige Einnahmen'];
+    if(/\bkinderzuschlag\b/i.test(raw)) return ['Kinderzuschlag','Sozialleistungen','Sonstige Einnahmen'];
+    if(/\belterngeld\b/i.test(raw)) return ['Elterngeld','Sozialleistungen','Sonstige Einnahmen'];
+    if(/\b(?:familienzulage|kinderzulage|familienausgleichskasse)\b/i.test(raw)) return ['Familien- / Kinderzulagen','Sonstige Einnahmen'];
+    if(/\b(?:bürgergeld|arbeitslosengeld|sozialleistung|wohngeld)\b/i.test(raw)) return ['Sozialleistungen','Sonstige Einnahmen'];
+  }
   const detected=merchantFromTransaction(tx);
   const purpose=[detected?.name||tx?.counterparty||tx?.description||'',tx?.note||''].filter(Boolean).join(' ');
   const probe={...tx,counterparty:detected?.name||tx?.counterparty,description:purpose};
