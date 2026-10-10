@@ -31,6 +31,8 @@ export function renderVehicles({ vehicles = [], debts = [], transactions = [], h
     if (!v.purchase_price && !payments.length && !debt) return '';
     const purchase=Number(v.purchase_price||0);
     const paid=payments.reduce((n,tx)=>n+Math.abs(Number(tx.amount||0)),0);
+    const downPaymentMatch=String(v.notes||'').match(/Anzahlung\s*(?:CHF|EUR|€)?\s*([0-9]{1,3}(?:[ '\u2019][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]+(?:[.,][0-9]{2})?)/i);
+    const downPayment=downPaymentMatch?Number(downPaymentMatch[1].replace(/[ '\u2019]/g,'').replace(',','.')):null;
     const monthly=Number(debt?.installment_amount||v.monthly_cost||0);
     const bars=payments.slice(-24).map(tx=>{
       const value=Math.abs(Number(tx.amount||0));
@@ -42,9 +44,12 @@ export function renderVehicles({ vehicles = [], debts = [], transactions = [], h
       +'<div class="mini-detail-list">'
       +(purchase>0?'<span>Kaufpreis <strong>'+money(purchase,{currency:v.currency||currency,locale})+'</strong></span>':'')
       +(v.purchase_date?'<span>Kaufdatum <strong>'+dateLabel(v.purchase_date,locale)+'</strong></span>':'')
+      +(Number.isFinite(downPayment)&&downPayment>0?'<span>Anzahlung <strong>'+money(downPayment,{currency:v.currency||currency,locale})+'</strong></span>':'')
+      +(debt?.original_amount>0?'<span>Finanzierter Betrag <strong>'+money(debt.original_amount,{currency:debt.currency||currency,locale})+'</strong></span>':'')
       +(debt?.start_date?'<span>Leasingbeginn <strong>'+dateLabel(debt.start_date,locale)+'</strong></span>':'')
       +(monthly>0?'<span>Monatliche Rate <strong>'+money(monthly,{currency:debt?.currency||currency,locale})+'</strong></span>':'')
       +(payments.length?'<span>Bereits bezahlt ('+payments.length+' Raten) <strong>'+money(paid,{currency:debt?.currency||currency,locale})+'</strong></span>':'')
+      +(Number.isFinite(downPayment)&&downPayment>0?'<span>Bisher bezahlt inkl. Anzahlung <strong>'+money(downPayment+paid,{currency:v.currency||currency,locale})+'</strong></span>':'')
       +'</div>'
       +(payments.length?'<p class="card-subtitle">Monatliche Zahlungen</p><div style="display:flex;gap:5px;align-items:flex-end;border-bottom:1px solid var(--border-color,#ddd);padding:12px 0">'+bars+'</div>':'')
       +'</article>';
