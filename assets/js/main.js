@@ -2174,6 +2174,11 @@ function syncFixedCostDirectionUI(edit=false) {
   const counterpartyLabel=document.querySelector(`#${prefix}CounterpartyLabel`);
   const counterpartyHelp=document.querySelector(`#${prefix}CounterpartyHelp`);
   const counterparty=document.querySelector(`#${prefix}Merchant`);
+  const counterpartyKind=document.querySelector(`#${prefix}CounterpartyKind`);
+  const counterpartyKindField=document.querySelector(`#${prefix}CounterpartyKindField`);
+  if(counterpartyKindField) counterpartyKindField.hidden=transfer;
+  if(income&&counterpartyKind&&counterpartyKind.value==='merchant') counterpartyKind.value='organization';
+  if(!income&&!transfer&&counterpartyKind&&!counterpartyKind.value) counterpartyKind.value='merchant';
   if(accountLabel) accountLabel.textContent=t(transfer?'Von Konto':income?'Eingang auf Konto':'Belastung von Konto');
   if(accountHelp) accountHelp.textContent=t(transfer
     ? 'Das ist dein eigenes Quellkonto.'
@@ -3288,8 +3293,9 @@ async function handleForm(form) {
     if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
 
     const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(direction==='expense' && counterpartyName){
+    if(direction==='expense' && counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -3377,8 +3383,9 @@ async function handleForm(form) {
     if(direction==='expense' && category && category.kind!=='expense') throw new Error('Für Fixkosten bitte eine Ausgaben-Kategorie wählen.');
 
     const counterpartyName=direction==='transfer'?'':String(formValue(data,'counterparty')||'').trim();
+    const counterpartyKind=formValue(data,'counterpartyKind')||'merchant';
     let merchant=null;
-    if(direction==='expense' && counterpartyName){
+    if(direction==='expense' && counterpartyName && counterpartyKind==='merchant'){
       const key=normalizeMerchantKey(counterpartyName);
       merchant=runtime.merchants.find((row)=>row.normalized_key===key) || await financeApi.upsertMerchant({
         household_id:h,
@@ -5667,6 +5674,8 @@ async function handleAction(target) {
     const fixedEditCategory=document.querySelector('#fixedCostEditCategory');
     if(fixedEditCategory && rule.direction!=='transfer') rebuildRankedCategorySelect(fixedEditCategory,{kind:rule.direction==='income'?'income':'expense',selectedId:rule.category_id||''});
     document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
+    const fixedCounterpartyKind=document.querySelector('#fixedCostEditCounterpartyKind');
+    if(fixedCounterpartyKind) fixedCounterpartyKind.value=rule.merchant_id?'merchant':rule.direction==='income'?'organization':'other';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#fixedCostEditInterval').value=rule.interval_months||1;
     const fixedIntervalField=document.querySelector('#fixedCostEditIntervalField');
@@ -5684,9 +5693,11 @@ async function handleAction(target) {
     const targetField=document.querySelector('#fixedCostEditTargetField');
     const categoryField=document.querySelector('#fixedCostEditCategoryField');
     const merchantField=document.querySelector('#fixedCostEditMerchantField');
+    const counterpartyKindField=document.querySelector('#fixedCostEditCounterpartyKindField');
     if(targetField) targetField.hidden=!transfer;
     if(categoryField) categoryField.hidden=transfer;
     if(merchantField) merchantField.hidden=transfer;
+    if(counterpartyKindField) counterpartyKindField.hidden=transfer;
     syncFixedCostDirectionUI(true);
     const form=document.querySelector('#fixed-cost-edit');
     form?.removeAttribute('hidden');
@@ -6176,6 +6187,7 @@ pageContent.addEventListener('change', async (event) => {
       const targetField=document.querySelector(edit?'#fixedCostEditTargetField':'#fixedCostTargetField');
       const categoryField=document.querySelector(edit?'#fixedCostEditCategoryField':'#fixedCostCategoryField');
       const merchantField=document.querySelector(edit?'#fixedCostEditMerchantField':'#fixedCostMerchantField');
+      const counterpartyKindField=document.querySelector(edit?'#fixedCostEditCounterpartyKindField':'#fixedCostCounterpartyKindField');
       const reserveToggleField=document.querySelector(edit?'#fixedCostEditReserveToggleField':'#fixedCostReserveToggleField');
       const reserveAccountField=document.querySelector(edit?'#fixedCostEditReserveAccountField':'#fixedCostReserveAccountField');
       const reserveToggle=document.querySelector(edit?'#fixedCostEditReserveEnabled':'#fixedCostReserveEnabled');
@@ -6183,6 +6195,7 @@ pageContent.addEventListener('change', async (event) => {
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       if(merchantField) merchantField.hidden=transfer;
+      if(counterpartyKindField) counterpartyKindField.hidden=transfer;
       if(reserveToggleField) reserveToggleField.hidden=!expense;
       if(!expense&&reserveToggle) reserveToggle.checked=false;
       if(reserveAccountField) reserveAccountField.hidden=!expense||!reserveToggle?.checked;
