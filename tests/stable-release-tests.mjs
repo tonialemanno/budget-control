@@ -14,7 +14,7 @@ const manifest=JSON.parse(read('version.json'));
 assert.ok(config.includes(`version: '${manifest.version}'`),'app version should match the version manifest');
 assert.doesNotMatch(config,/version:\s*'[^']*beta/i);
 assert.match(index,/<title>ALEMANNO BUCHHALTUNG<\/title>/);
-assert.match(index,/releaseChannelLabel">Stable</);
+assert.match(index,/releaseChannelLabel">Beta</);
 assert.ok(index.includes(`releaseChannelCaption">v${manifest.version} · ${manifest.releaseId.split('-r')[1] ? 'R'+manifest.releaseId.split('-r')[1] : ''}`),'release caption must match manifest');
 assert.doesNotMatch(index,/Working Beta/);
 assert.match(ci,/\- stable/);
