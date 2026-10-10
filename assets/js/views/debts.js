@@ -15,6 +15,12 @@ const STATUSES = Object.freeze([
   ['active','Aktiv'], ['paused','Pausiert'], ['paid','Bezahlt'], ['defaulted','Problem / Verzug'],
 ]);
 
+function debtTypes(countryCode='CH') {
+  return DEBT_TYPES.map(([value,label])=>[
+    value,
+    value==='health_insurance'&&countryCode==='DE'?'Krankenversicherungsschuld':label,
+  ]);
+}
 function optionList(rows, selected = '') {
   return rows.map(([value,label])=>`<option value="${value}" ${value===selected?'selected':''}>${escapeHtml(label)}</option>`).join('');
 }
@@ -33,12 +39,12 @@ function currencyOptions(selected) {
   return ['CHF','EUR','USD','GBP'].map((currency)=>`<option value="${currency}" ${currency===selected?'selected':''}>${currency}</option>`).join('');
 }
 
-function debtFields(accounts, currency, { edit = false } = {}) {
+function debtFields(accounts, currency, { edit = false, countryCode = 'CH' } = {}) {
   const prefix = edit ? 'debtEdit' : 'debtCreate';
   return `${edit?`<input type="hidden" name="debtId" id="${prefix}Id">`:''}
     <label class="field"><span>Name</span><input class="text-control" name="name" id="${prefix}Name" required placeholder="z. B. Privatdarlehen"></label>
     <label class="field"><span>Gläubiger</span><input class="text-control" name="creditor" id="${prefix}Creditor" required placeholder="z. B. Andy"></label>
-    <label class="field"><span>Typ</span><select class="text-control" name="debtType" id="${prefix}Type">${optionList(DEBT_TYPES,'private')}</select></label>
+    <label class="field"><span>Typ</span><select class="text-control" name="debtType" id="${prefix}Type">${optionList(debtTypes(countryCode),'private')}</select></label>
     <label class="field"><span>Währung</span><select class="text-control" name="currency" id="${prefix}Currency">${currencyOptions(currency)}</select>${edit?'<small>Nach der ersten erfassten Zahlung bleibt die Währung aus Gründen der Verlaufskonsistenz fix.</small>':''}</label>
     <label class="field"><span>Ursprünglicher Betrag</span><input class="text-control" name="originalAmount" id="${prefix}Original" type="number" min="0" step="0.01" required></label>
     <label class="field"><span>Restschuld</span><input class="text-control" name="outstandingAmount" id="${prefix}Outstanding" type="number" min="0" step="0.01" required><small>Nur für Korrekturen. Tatsächliche Zahlungen über „Zahlung erfassen“ buchen.</small></label>
@@ -130,8 +136,8 @@ export function renderDebts({
 
   return `
     ${pageHeader({title:'Schulden & Kredite',subtitle:'Restschuld, Rate und tatsächliche Zahlungen getrennt führen. Tilgung verändert die Schuld, Zins und Gebühren sind Kosten.',actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="debt-create">${icon('plus')} Kredit / Schuld</button>`:''})}
-    ${canWrite?formShell('debt-create','Neue Schuld / Kredit','Vertragliche Eckdaten und geplante Rate erfassen',debtFields(accounts,currency),{hidden:true,submitLabel:'Schuld speichern'}):''}
-    ${canWrite?formShell('debt-edit','Schuld / Kredit bearbeiten','Rate, Restschuld, Rhythmus und Termine sauber korrigieren',debtFields(accounts,currency,{edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('debt-create','Neue Schuld / Kredit','Vertragliche Eckdaten und geplante Rate erfassen',debtFields(accounts,currency,{countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Schuld speichern'}):''}
+    ${canWrite?formShell('debt-edit','Schuld / Kredit bearbeiten','Rate, Restschuld, Rhythmus und Termine sauber korrigieren',debtFields(accounts,currency,{edit:true,countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('debt-payment-create','Zahlung erfassen','Zahlung in Tilgung, Zins und Gebühren aufteilen',paymentFields(accounts,transactions,debtPayments,bills,currency,locale),{hidden:true,submitLabel:'Zahlung verbuchen'}):''}
     <div class="metric-grid" style="margin-bottom:16px">
       ${metricCard('Restschuld gesamt',money(outstanding,{currency,locale}),`${fxLabel(fxRates,currency)} · nicht bezahlte Schulden`)}
