@@ -10,7 +10,8 @@ const headers = read('_headers');
 const index = read('index.html');
 const css = read('assets/css/receipt.css');
 
-assert.match(config, /version:\s*'2\.4\.18'/);
+const manifest=JSON.parse(read('version.json'));
+assert.ok(config.includes(`version: '${manifest.version}'`),'receipt tests use the current release manifest');
 assert.match(tx, /data-action="receipt-camera"/);
 assert.match(tx, /id="receiptCameraInput"[^>]+capture="environment"/);
 assert.match(tx, /id="receipt-create"/);
