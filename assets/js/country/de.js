@@ -11,7 +11,7 @@ export const DE = Object.freeze({
     ['other','Sonstiges'],
   ],
   legalStatuses: ['offen','Mahnung','Inkasso','Mahnbescheid','Widerspruch','Vollstreckungsbescheid','Zwangsvollstreckung','abgeschlossen'],
-  starterCategories: [['Gehalt','income'],['Rückerstattung','income'],['Rückzahlung','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenversicherung','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Rechts- & Gerichtskosten','expense'],['Sonstiges','expense']],
+  starterCategories: [['Gehalt','income'],['Unterhalt / Unterhaltsvorschuss','income'],['Kindergeld','income'],['Kinderzuschlag','income'],['Elterngeld','income'],['Sozialleistungen','income'],['Rückerstattung','income'],['Rückzahlung','income'],['Sonstige Einnahmen','income'],['Wohnen','expense'],['Lebensmittel','expense'],['Krankenversicherung','expense'],['Versicherungen','expense'],['Mobilität','expense'],['Steuern','expense'],['Freizeit','expense'],['Abos & Verträge','expense'],['Gesundheit','expense'],['Shopping','expense'],['Rechts- & Gerichtskosten','expense'],['Sonstiges','expense']],
   starterSubcategories: [
     ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],['Haushaltsabgaben','Wohnen','expense'],
     ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
