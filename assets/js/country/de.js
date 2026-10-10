@@ -28,6 +28,7 @@ export const DE = Object.freeze({
     ['REWE','Supermarkt'],['EDEKA','Supermarkt'],['Aldi','Supermarkt'],['Lidl','Supermarkt'],['Kaufland','Supermarkt'],
     ["McDonald's",'Restaurant & Take-away'],['Burger King','Restaurant & Take-away'],
     ['Deutsche Bahn','ÖV'],['Aral','Tanken'],['Shell','Tanken'],
+    ['ARD ZDF Deutschlandradio Beitragsservice','Rundfunkbeitrag'],
     ['Netflix','Streaming'],['Spotify','Streaming'],
   ],
   pensionTypes: ['Gesetzliche Rente','Betriebliche Altersvorsorge','Riester','Rürup','Private Vorsorge','Andere'],
