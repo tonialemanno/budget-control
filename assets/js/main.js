@@ -2322,7 +2322,7 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
   const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
   const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
-  const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
+  const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionDirectionUI(form); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function handleForm(form) {
