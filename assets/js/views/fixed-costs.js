@@ -14,18 +14,19 @@ function endLabel(value, locale='de-CH') {
   return `bis ${new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(date)}`;
 }
 
-function fixedCostFields({ accounts = [], categories = [], merchants = [], edit = false, defaultAccountId = '' } = {}) {
+function fixedCostFields({ accounts = [], categories = [], merchants = [], edit = false, defaultAccountId = '', countryCode = 'CH' } = {}) {
   const suffix = edit ? 'Edit' : '';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${!edit&&a.account_id===defaultAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const destinationAccountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const expenseCategoryOptions = categories.filter((c)=>c.kind==='expense'&&String(c.name||'').trim().toLowerCase()!=='sparen').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const incomeCategoryOptions = categories.filter((c)=>c.kind==='income').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const categoryOptions = `<optgroup label="Einnahmen">${incomeCategoryOptions}</optgroup><optgroup label="Ausgaben">${expenseCategoryOptions}</optgroup>`;
+  const categoryOptions = expenseCategoryOptions;
+  const incomeLabel=countryCode==='DE'?'Feste Einnahme / Gehalt':'Feste Einnahme / Lohn';
+  const positionHint=countryCode==='DE'?'z. B. Miete, Krankenversicherung oder Sparen':'z. B. Miete, Krankenkasse oder Sparen';
   const merchantDatalist = merchants.map((m)=>`<option value="${escapeHtml(m.name)}"></option>`).join('');
   return `
     ${edit?'<input type="hidden" name="ruleId" id="fixedCostEditId">':''}
-    <label class="field"><span>Art</span><select class="text-control" name="direction" id="fixedCost${suffix}Direction"><option value="expense">Fixe Ausgabe</option><option value="income">Feste Einnahme / Lohn</option><option value="transfer">Umbuchung / Topf</option></select></label>
-    <label class="field"><span>Bezeichnung</span><input class="text-control" name="description" id="fixedCost${suffix}Description" required placeholder="z. B. Krankenkasse oder Sparen"></label>
+    <label class="field"><span>Art</span><select class="text-control" name="direction" id="fixedCost${suffix}Direction"><option value="expense">Fixe Ausgabe</option><option value="income">${incomeLabel}</option><option value="transfer">Umbuchung / Topf</option></select></label>
+    <label class="field"><span>Bezeichnung</span><input class="text-control" name="description" id="fixedCost${suffix}Description" required placeholder="${positionHint}"></label>
     <label class="field"><span>Betrag pro Zahlung</span><input class="text-control" name="amount" id="fixedCost${suffix}Amount" type="number" min="0.01" step="0.01" required><small>Bei variablen Kosten ist das dein Richtwert für die Planung.</small></label>
     <label class="field" id="fixedCost${suffix}AmountModeField"><span>Betragsart</span><select class="text-control" name="amountMode" id="fixedCost${suffix}AmountMode"><option value="fixed">Fixer Betrag</option><option value="variable">Variabel · Richtwert</option></select></label>
     <label class="field"><span id="fixedCost${suffix}AccountLabel">Belastung von Konto</span><select class="text-control" name="accountId" id="fixedCost${suffix}Account" required><option value="">Bitte wählen</option>${accountOptions}</select><small id="fixedCost${suffix}AccountHelp">Das ist dein eigenes Konto, von dem die Zahlung abgeht.</small></label>
@@ -102,11 +103,11 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
       subtitle:'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Rücklagen und feste Umbuchungen. ALEMANNO BUCHHALTUNG hält die technische Wiederholungslogik im Hintergrund zusammen.',
       actions:`${canWrite?'<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="fixed-cost-create">'+icon('plus')+' Position hinzufügen</button>':''}<a class="action-button action-button--secondary" href="#/bills">Einzelne Rechnungen</a>`
     })}
-    ${canWrite?formShell('fixed-cost-create','Neue feste Position','Lohn, Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories,merchants,defaultAccountId}),{hidden:true,submitLabel:'Speichern'}):''}
-    ${canWrite?formShell('fixed-cost-edit','Feste Position bearbeiten','Betrag, Gegenpartei, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,merchants,edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
+    ${canWrite?formShell('fixed-cost-create','Neue feste Position',household?.country_code==='DE'?'Gehalt, andere Einnahme, Ausgabe oder feste Umbuchung mit optionalem Enddatum':'Lohn, andere Einnahme, Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories,merchants,defaultAccountId,countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Speichern'}):''}
+    ${canWrite?formShell('fixed-cost-edit','Feste Position bearbeiten','Betrag, Gegenpartei, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,merchants,edit:true,countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
 
     <div class="metric-grid" style="margin-bottom:16px">
-      ${metricCard('Feste Einnahmen / Monat',money(monthlyIncome,{currency,locale}),'Lohn und andere planbare Einnahmen','positive')}
+      ${metricCard('Feste Einnahmen / Monat',money(monthlyIncome,{currency,locale}),household?.country_code==='DE'?'Gehalt, Unterhalt, Kindergeld und andere planbare Einnahmen':'Lohn und andere planbare Einnahmen','positive')}
       ${metricCard('Fixe Ausgaben / Monat',money(monthlyExpenses,{currency,locale}),'echte regelmässige Kosten')}
       ${metricCard('Rücklagen & Umbuchungen / Monat',money(monthlyTransfers,{currency,locale}),monthlyReserve>0?`davon Rücklagen ${money(monthlyReserve,{currency,locale})}`:'Sparen, Überschuss und andere Töpfe')}
       ${metricCard('Aktive Positionen',String(running.length),'Einnahmen, Ausgaben und Umbuchungen')}
