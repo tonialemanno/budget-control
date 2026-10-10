@@ -421,9 +421,8 @@ async function saveReceipt(form) {
 
     resetState();
     toast(t(linked ? 'Beleg mit der vorhandenen Bankbuchung verknüpft.' : 'Beleg erkannt und Ausgabe gespeichert.'));
-    // main.js owns the in-memory finance context. A short reload is the cleanest
-    // way to refresh that context without duplicating its private state here.
-    window.setTimeout(() => window.location.reload(), 550);
+    // Refresh the in-memory finance context without a browser-wide page reload.
+    window.dispatchEvent(new CustomEvent('finance:receipt-saved'));
   } catch (error) {
     if (uploadedPath && !createdDocument) await financeApi.deleteStoredDocument(uploadedPath).catch(() => null);
     if (createdTransaction?.id) await financeApi.deleteTransaction(createdTransaction.id).catch(() => null);
