@@ -52,8 +52,8 @@ export function renderPlanning({
       meta:`${openBills.length} offen · ${contracts.filter((c)=>c.status==='active').length} Verträge`
     }));
     cards.push(planCard({
-      href:'#/sales-documents',iconName:'receipt',title:'Rechnungen / Offerten erstellen',
-      text:'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
+      href:'#/sales-documents',iconName:'receipt',title:isDE?'Rechnungen / Angebote erstellen':'Rechnungen / Offerten erstellen',
+      text:isDE?'Eigene Rechnungen, Angebote und Quittungen für Kunden erstellen und verwalten':'Eigene Rechnungen, Offerten und Quittungen für Kunden erstellen und verwalten',
       meta:`${salesDocuments.length} erstellt`
     }));
   }
