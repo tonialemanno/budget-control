@@ -4793,13 +4793,10 @@ async function handleAction(target) {
   }
   if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
   if (action === 'masterdata-install-country') {
-    const result=await financeApi.installCountryMasterData(runtime.household.id);
-    const parts=[
-      Number(result?.categories_created||0)?`${result.categories_created} Kategorien neu`:'',
-      Number(result?.merchants_created||0)?`${result.merchants_created} Händler neu`:'',
-      Number(result?.merchants_linked||0)?`${result.merchants_linked} Händler ergänzt`:'',
-    ].filter(Boolean);
-    await refresh(parts.length?`${runtime.household.country_code}-Stammdaten aktualisiert: ${parts.join(' · ')}.`:`${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    const changed=await seedStarterCategoriesForHousehold(runtime.household.id,runtime.household.country_code,runtime.categories);
+    await refresh(changed>0
+      ? `${runtime.household.country_code}-Stammdaten aktualisiert: ${changed} Ergänzungen vorgenommen.`
+      : `${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
     return;
   }
   if (action === 'merchant-page') {
