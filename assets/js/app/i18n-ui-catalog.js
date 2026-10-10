@@ -1,5 +1,8 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Anzahlung": "Acconto",
+  "Finanzierter Betrag": "Importo finanziato",
+  "Bisher bezahlt inkl. Anzahlung": "Totale pagato incluso acconto",
   "Die Demo-Familie": "La famiglia demo",
   "App-Zugänge": "Accessi all’app",
   "Kaufpreis": "Prezzo di acquisto",
@@ -1298,6 +1301,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Anzahlung": "Down payment",
+  "Finanzierter Betrag": "Amount financed",
+  "Bisher bezahlt inkl. Anzahlung": "Total paid including down payment",
   "Die Demo-Familie": "The demo family",
   "App-Zugänge": "App logins",
   "Kaufpreis": "Purchase price",
