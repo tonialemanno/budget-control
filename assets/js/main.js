@@ -259,6 +259,7 @@ function moduleEntitled(moduleKey) {
 
 function moduleEnabled(moduleKey) {
   if (!moduleEntitled(moduleKey)) return false;
+  if (moduleKey === 'tax' && runtime.household?.country_code !== 'CH') return false;
   if (moduleKey === 'admin' || MODULES[moduleKey]?.locked) return true;
   return !hiddenModuleKeys().includes(moduleKey);
 }
@@ -2159,6 +2160,8 @@ function syncRecurringDirectionUI(edit=false) {
     ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
     : 'Hier gehört der externe Empfänger der Zahlung hinein.');
   if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. Vermieter, Händler';
+  const category=document.querySelector(`#${prefix}Category`);
+  if(category && !transfer) rebuildRankedCategorySelect(category,{kind:income?'income':'expense',selectedId:category.value});
 }
 
 function syncFixedCostDirectionUI(edit=false) {
@@ -2182,6 +2185,8 @@ function syncFixedCostDirectionUI(edit=false) {
     ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
     : 'Bei Ausgaben ist das der Empfänger der Zahlung.');
   if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. UZON';
+  const category=document.querySelector(`#${prefix}Category`);
+  if(category && !transfer) rebuildRankedCategorySelect(category,{kind:income?'income':'expense',selectedId:category.value});
 }
 
 function rebuildRankedCategorySelect(select,{kind,selectedId=''}={}) {
@@ -2690,18 +2695,22 @@ async function handleForm(form) {
     const account=runtime.accounts.find((row)=>row.account_id===formValue(data,'accountId'));
     if(!account) throw new Error('Bitte ein Zielkonto für die Einnahme auswählen.');
     const amount=Math.abs(numberValue(data,'amount'));
-    if(!amount) throw new Error('Bitte einen gültigen Monatsbetrag eingeben.');
-    const incomeCategory=runtime.categories.find((row)=>row.kind==='income'&&String(row.name||'').toLowerCase()==='lohn')
+    if(!amount) throw new Error('Bitte einen gültigen Betrag eingeben.');
+    const requestedCategoryId=nullValue(data,'categoryId');
+    const fallbackName=runtime.household?.country_code==='DE'?'gehalt':'lohn';
+    const incomeCategory=(requestedCategoryId&&runtime.categories.find((row)=>row.id===requestedCategoryId))
+      || runtime.categories.find((row)=>row.kind==='income'&&String(row.name||'').toLowerCase()===fallbackName)
       || runtime.categories.find((row)=>row.kind==='income')
       || null;
+    if(!incomeCategory||incomeCategory.kind!=='income') throw new Error('Bitte eine Einnahmen-Kategorie auswählen.');
     await financeApi.createRecurringRule({
       household_id:h,
       account_id:account.account_id,
       destination_account_id:null,
-      category_id:incomeCategory?.id||null,
+      category_id:incomeCategory.id,
       merchant_id:null,
       direction:'income',
-      description:formValue(data,'description')||'Lohn',
+      description:formValue(data,'description')||(runtime.household?.country_code==='DE'?'Gehalt':'Lohn'),
       counterparty:nullValue(data,'counterparty'),
       amount,
       currency:account.currency||currency,
@@ -3182,6 +3191,10 @@ async function handleForm(form) {
     const direction=formValue(data,'direction')||'expense';
     const account = runtime.accounts.find((a)=>a.account_id===formValue(data,'accountId'));
     if (!account) throw new Error('Bitte ein Konto auswählen.');
+    const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='income'&&category&&category.kind!=='income') throw new Error('Für eine Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense'&&category&&category.kind!=='expense') throw new Error('Für eine Ausgabe bitte eine Ausgaben-Kategorie wählen.');
     let destinationAccountId=null;
     if(direction==='transfer'){
       const destination=runtime.accounts.find((a)=>a.account_id===formValue(data,'destinationAccountId'));
@@ -3194,7 +3207,7 @@ async function handleForm(form) {
       household_id:h,
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
-      category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
+      category_id:categoryId,
       direction,
       description:formValue(data,'description'),
       counterparty:direction==='transfer'?null:nullValue(data,'counterparty'),
@@ -3234,6 +3247,9 @@ async function handleForm(form) {
     }
 
     const categoryId=direction==='transfer'?null:nullValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId)||null;
+    if(direction==='income'&&category&&category.kind!=='income') throw new Error('Für eine Einnahme bitte eine Einnahmen-Kategorie wählen.');
+    if(direction==='expense'&&category&&category.kind!=='expense') throw new Error('Für eine Ausgabe bitte eine Ausgaben-Kategorie wählen.');
     await financeApi.updateRecurringRule(ruleId,{
       account_id:account.account_id,
       destination_account_id:destinationAccountId,
@@ -5614,7 +5630,8 @@ async function handleAction(target) {
     document.querySelector('#recurringEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#recurringEditAccount').value=rule.account_id||'';
     document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
-    document.querySelector('#recurringEditCategory').value=rule.category_id||'';
+    const recurringEditCategory=document.querySelector('#recurringEditCategory');
+    if(recurringEditCategory && rule.direction!=='transfer') rebuildRankedCategorySelect(recurringEditCategory,{kind:rule.direction==='income'?'income':'expense',selectedId:rule.category_id||''});
     document.querySelector('#recurringEditCounterparty').value=rule.counterparty||rule.merchants?.name||'';
     document.querySelector('#recurringEditDescription').value=rule.description||'';
     document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
@@ -5646,7 +5663,8 @@ async function handleAction(target) {
     document.querySelector('#fixedCostEditAmountMode').value=rule.amount_mode||'fixed';
     document.querySelector('#fixedCostEditAccount').value=rule.account_id||'';
     document.querySelector('#fixedCostEditTarget').value=rule.destination_account_id||'';
-    document.querySelector('#fixedCostEditCategory').value=rule.category_id||'';
+    const fixedEditCategory=document.querySelector('#fixedCostEditCategory');
+    if(fixedEditCategory && rule.direction!=='transfer') rebuildRankedCategorySelect(fixedEditCategory,{kind:rule.direction==='income'?'income':'expense',selectedId:rule.category_id||''});
     document.querySelector('#fixedCostEditMerchant').value=rule.merchants?.name||rule.counterparty||'';
     document.querySelector('#fixedCostEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#fixedCostEditInterval').value=rule.interval_months||1;
