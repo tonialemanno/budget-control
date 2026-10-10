@@ -461,6 +461,7 @@ function applyRouteIntent(route) {
     if (direction) direction.value = create;
     const account = form.querySelector('[name="accountId"]');
     if (account && accountId) account.value = accountId;
+    syncTransactionDirectionUI(form);
   }
   if (formId === 'transfer-create' && accountId) {
     const source = form.querySelector('[name="fromAccountId"]');
@@ -1812,6 +1813,78 @@ function categoryKindForForm(form) {
   return direction==='income'?'income':'expense';
 }
 
+function syncTransactionDirectionUI(form) {
+  if(!form) return;
+  const direction=form.querySelector('[name="direction"]')?.value||'expense';
+  const edit=form.id==='transaction-edit';
+  if(!['income','expense'].includes(direction)) return;
+  const accountLabel=form.querySelector(edit?'#transactionEditAccountLabel':'#transactionCreateAccountLabel');
+  const accountHelp=form.querySelector(edit?'#transactionEditAccountHint':'#transactionCreateAccountHelp');
+  const counterpartyLabel=form.querySelector(edit?'#transactionEditCounterpartyLabel':'#transactionCreateCounterpartyLabel');
+  const counterpartyHelp=form.querySelector(edit?'#transactionEditCounterpartyHelp':'#transactionCreateCounterpartyHelp');
+  const counterparty=form.querySelector('[name="counterparty"]');
+  const kind=form.querySelector('[name="counterpartyKind"]');
+  const income=direction==='income';
+  if(accountLabel) accountLabel.textContent=t(income?'Eingang auf Konto':'Belastung von Konto');
+  if(accountHelp) accountHelp.textContent=t(income
+    ? 'Das ist dein eigenes Konto, auf dem das Geld eingeht – nicht die Herkunft der Einnahme.'
+    : 'Das ist dein eigenes Konto, von dem die Zahlung abgeht.');
+  if(counterpartyLabel) counterpartyLabel.textContent=t(income?'Zahler / Quelle der Einnahme':'Empfänger / Gegenpartei');
+  if(counterpartyHelp) counterpartyHelp.textContent=t(income
+    ? 'Hier gehört z. B. Arbeitgeber, Behörde, Organisation oder Person hinein.'
+    : 'Hier gehört die Person oder Organisation hin, die das Geld erhält.');
+  if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. Händler, Person, Behörde';
+  if(income&&kind&&!kind.value) kind.value='organization';
+}
+
+function syncRecurringDirectionUI(edit=false) {
+  const prefix=edit?'recurringEdit':'recurring';
+  const direction=document.querySelector(`#${prefix}Direction`)?.value||'expense';
+  const transfer=direction==='transfer';
+  const income=direction==='income';
+  const accountLabel=document.querySelector(`#${prefix}AccountLabel`);
+  const accountHelp=document.querySelector(`#${prefix}AccountHelp`);
+  const counterpartyField=document.querySelector(`#${prefix}CounterpartyField`);
+  const counterpartyLabel=document.querySelector(`#${prefix}CounterpartyLabel`);
+  const counterpartyHelp=document.querySelector(`#${prefix}CounterpartyHelp`);
+  const counterparty=document.querySelector(`#${prefix}Counterparty`);
+  if(accountLabel) accountLabel.textContent=t(transfer?'Von Konto':income?'Eingang auf Konto':'Belastung von Konto');
+  if(accountHelp) accountHelp.textContent=t(transfer
+    ? 'Das ist dein eigenes Quellkonto.'
+    : income
+      ? 'Das ist dein eigenes Konto, auf dem die Einnahme eingeht – nicht der Zahler.'
+      : 'Das ist dein eigenes Konto, von dem die Zahlung abgeht.');
+  if(counterpartyField) counterpartyField.hidden=transfer;
+  if(counterpartyLabel) counterpartyLabel.textContent=t(income?'Zahler / Quelle der Einnahme':'Händler / Empfänger');
+  if(counterpartyHelp) counterpartyHelp.textContent=t(income
+    ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
+    : 'Hier gehört der externe Empfänger der Zahlung hinein.');
+  if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. Vermieter, Händler';
+}
+
+function syncFixedCostDirectionUI(edit=false) {
+  const prefix=edit?'fixedCostEdit':'fixedCost';
+  const direction=document.querySelector(`#${prefix}Direction`)?.value||'expense';
+  const transfer=direction==='transfer';
+  const income=direction==='income';
+  const accountLabel=document.querySelector(`#${prefix}AccountLabel`);
+  const accountHelp=document.querySelector(`#${prefix}AccountHelp`);
+  const counterpartyLabel=document.querySelector(`#${prefix}CounterpartyLabel`);
+  const counterpartyHelp=document.querySelector(`#${prefix}CounterpartyHelp`);
+  const counterparty=document.querySelector(`#${prefix}Merchant`);
+  if(accountLabel) accountLabel.textContent=t(transfer?'Von Konto':income?'Eingang auf Konto':'Belastung von Konto');
+  if(accountHelp) accountHelp.textContent=t(transfer
+    ? 'Das ist dein eigenes Quellkonto.'
+    : income
+      ? 'Das ist dein eigenes Konto, auf dem die Einnahme eingeht – nicht der Zahler.'
+      : 'Das ist dein eigenes Konto, von dem die Zahlung abgeht.');
+  if(counterpartyLabel) counterpartyLabel.textContent=t(income?'Zahler / Quelle der Einnahme':'Händler / Empfänger');
+  if(counterpartyHelp) counterpartyHelp.textContent=t(income
+    ? 'Hier gehört z. B. Landkreis, Arbeitgeber, Behörde, Organisation oder Person hinein.'
+    : 'Bei Ausgaben ist das der Empfänger der Zahlung.');
+  if(counterparty) counterparty.placeholder=income?'z. B. Landkreis Breisgau, Arbeitgeber':'z. B. UZON';
+}
+
 function rebuildRankedCategorySelect(select,{kind,selectedId=''}={}) {
   if(!select) return;
   const ranked=rankCategoriesByUsage(runtime.categories,runtime.transactions,{kind,excludeNames:['Sparen']});
@@ -2816,6 +2889,7 @@ async function handleForm(form) {
       category_id:direction==='transfer'?null:nullValue(data,'categoryId'),
       direction,
       description:formValue(data,'description'),
+      counterparty:direction==='transfer'?null:nullValue(data,'counterparty'),
       amount:Math.abs(numberValue(data,'amount')),
       amount_mode:direction==='transfer'?'fixed':(formValue(data,'amountMode')||'fixed'),
       currency:account.currency||currency,
@@ -2857,7 +2931,7 @@ async function handleForm(form) {
       destination_account_id:destinationAccountId,
       category_id:categoryId,
       merchant_id:direction==='expense'?(rule.merchant_id||null):null,
-      counterparty:direction==='expense'?(rule.counterparty||null):null,
+      counterparty:direction==='transfer'?null:nullValue(data,'counterparty'),
       direction,
       description:formValue(data,'description'),
       amount:Math.abs(numberValue(data,'amount')),
@@ -4681,6 +4755,7 @@ async function handleAction(target) {
     document.querySelector('#recurringEditAccount').value=rule.account_id||'';
     document.querySelector('#recurringEditTarget').value=rule.destination_account_id||'';
     document.querySelector('#recurringEditCategory').value=rule.category_id||'';
+    document.querySelector('#recurringEditCounterparty').value=rule.counterparty||rule.merchants?.name||'';
     document.querySelector('#recurringEditDescription').value=rule.description||'';
     document.querySelector('#recurringEditCadence').value=rule.cadence||'monthly';
     document.querySelector('#recurringEditInterval').value=rule.interval_months||1;
@@ -4695,6 +4770,7 @@ async function handleAction(target) {
     const categoryField=document.querySelector('#recurringEditCategoryField');
     if(targetField) targetField.hidden=!transfer;
     if(categoryField) categoryField.hidden=transfer;
+    syncRecurringDirectionUI(true);
     const form=document.querySelector('#recurring-edit');
     form?.removeAttribute('hidden');
     form?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -4732,6 +4808,7 @@ async function handleAction(target) {
     if(targetField) targetField.hidden=!transfer;
     if(categoryField) categoryField.hidden=transfer;
     if(merchantField) merchantField.hidden=transfer;
+    syncFixedCostDirectionUI(true);
     const form=document.querySelector('#fixed-cost-edit');
     form?.removeAttribute('hidden');
     form?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -5029,6 +5106,7 @@ pageContent.addEventListener('change', async (event) => {
       const form=target.closest('form');
       const category=form?.querySelector('[name="categoryId"]');
       if(category){ category.dataset.userSelected=''; category.dataset.autoCategory=''; }
+      syncTransactionDirectionUI(form);
       syncSmartCategoryForForm(form);
       return;
     }
@@ -5037,6 +5115,7 @@ pageContent.addEventListener('change', async (event) => {
         const form=target.closest('form');
         const category=form?.querySelector('[name="categoryId"]');
         if(category){ category.dataset.userSelected=''; category.dataset.autoCategory=''; }
+        syncTransactionDirectionUI(form);
         syncSmartCategoryForForm(form);
       }
       syncTransactionTransferEditor();
@@ -5124,6 +5203,7 @@ pageContent.addEventListener('change', async (event) => {
       if(targetField) targetField.hidden=!transfer;
       if(categoryField) categoryField.hidden=transfer;
       if(amountMode&&transfer) amountMode.value='fixed';
+      syncRecurringDirectionUI(edit);
       return;
     }
     if (target.id === 'recurringCadence' || target.id === 'recurringEditCadence') {
@@ -5150,6 +5230,7 @@ pageContent.addEventListener('change', async (event) => {
       if(!expense&&reserveToggle) reserveToggle.checked=false;
       if(reserveAccountField) reserveAccountField.hidden=!expense||!reserveToggle?.checked;
       if(amountMode&&transfer) amountMode.value='fixed';
+      syncFixedCostDirectionUI(edit);
       return;
     }
     if (target.id === 'fixedCostCadence' || target.id === 'fixedCostEditCadence') {
