@@ -39,7 +39,7 @@ assert.equal(otherSumup.paymentProcessor,'SumUp');
 
 assert.deepEqual(
   suggestKnownCategoryCandidates({description:'Elvetino AG'}),
-  ['Restaurant & Café','Restaurant','Freizeit']
+  ['Restaurant & Café','Restaurant & Take-away','Restaurant','Freizeit']
 );
 assert.deepEqual(
   suggestKnownCategoryCandidates({description:'SERAFE AG'}),
