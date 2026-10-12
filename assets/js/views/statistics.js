@@ -63,17 +63,31 @@ function periodRow(row,{currency,locale,privacyEnabled}){
   </div>`;
 }
 
-function budgetRowsHtml(rows,{currency,locale,privacyEnabled}){
+function categoryDetailsHtml(rows,{currency,locale,privacyEnabled,range}){
+  if(!rows.length) return '';
+  return `<div class="statistics-category-details">
+    ${rows.map((row)=>`<details class="statistics-category-group">
+      <summary><strong>${escapeHtml(row.label)}</strong><span>${privacyMoney(row.value,{currency,locale,privacyEnabled})} · ${Math.round(row.share||0)} %</span></summary>
+      <div class="statistics-category-leaves">
+        ${(row.subcategories||[]).map((leaf)=>`<button type="button" data-action="overview-drilldown-expense"
+          data-key="${escapeHtml(leaf.key)}" data-transaction-ids="${escapeHtml((leaf.transactionIds||[]).join(','))}"
+          data-from="${range.from}" data-to="${range.to}"><span>${escapeHtml(leaf.label)}</span><strong>${privacyMoney(leaf.value,{currency,locale,privacyEnabled})}</strong><small>${leaf.transactionIds?.length||0} Buchungen</small></button>`).join('')}
+      </div>
+    </details>`).join('')}
+  </div>`;
+}
+
+function budgetRowsHtml(rows,{currency,locale,privacyEnabled,range}){
   if(!rows.length) return '<div class="table-empty">Noch keine variablen Budgetrahmen vorhanden.</div>';
   return rows.map((row)=>{
     const tone=row.rawPercent>100?'negative':row.rawPercent>=80?'warning':'positive';
-    return `<button class="statistics-budget-row" type="button" data-action="statistics-drilldown-budget" data-merchant-id="${escapeHtml(row.merchantId||'')}" data-category-ids="${escapeHtml(row.categoryIds.join(','))}" data-transaction-ids="${escapeHtml((row.transactionIds||[]).join(','))}">
+    return `<button class="statistics-budget-row" type="button" data-action="statistics-drilldown-budget" data-merchant-id="${escapeHtml(row.merchantId||'')}" data-category-ids="${escapeHtml(row.categoryIds.join(','))}" data-transaction-ids="${escapeHtml((row.transactionIds||[]).join(','))}" data-from="${range.from}" data-to="${range.to}">
       <div class="statistics-budget-head">
         <div><strong>${escapeHtml(row.label)}</strong><small>${row.transactionCount} Buchung${row.transactionCount===1?'':'en'}</small></div>
-        <div><strong>${privacyMoney(row.spent,{currency,locale,privacyEnabled})} / ${privacyMoney(row.amount,{currency,locale,privacyEnabled})}</strong><small>${Math.round(row.rawPercent)}%</small></div>
+        <div><strong>${privacyMoney(row.spent,{currency,locale,privacyEnabled})} / ${row.amount===null?'FX-Kurs fehlt':privacyMoney(row.amount,{currency,locale,privacyEnabled})}</strong><small>${row.amount===null?'Nicht berechenbar':`${Math.round(row.rawPercent)}%`}</small></div>
       </div>
       <div class="statistics-progress statistics-progress--${tone}"><span style="--statistics-progress:${Math.min(100,Math.max(0,row.percent))}%"></span></div>
-      <div class="statistics-budget-foot"><span>${row.overBy>0?'Über Budget':'Noch verfügbar'}</span><strong>${privacyMoney(row.overBy>0?row.overBy:row.remaining,{currency,locale,privacyEnabled})}</strong></div>
+      <div class="statistics-budget-foot"><span>${row.overBy>0?'Über Budget':'Noch verfügbar'}</span><strong>${row.amount===null?'–':privacyMoney(row.overBy>0?row.overBy:row.remaining,{currency,locale,privacyEnabled})}</strong></div>
     </button>`;
   }).join('');
 }
@@ -133,7 +147,10 @@ export function renderStatistics({
         <div class="card-heading">
           <div><h3 class="card-title">Ausgaben nach Kategorien</h3><p class="card-subtitle">Echte Konsumausgaben im aktuellen Finanzmonat. Jeder Bereich ist anklickbar.</p></div>
         </div>
-        ${renderExpenseDonut({rows:model.categories,total:model.categoryTotal,currency,locale,privacy:privacyEnabled})}
+        ${renderExpenseDonut({rows:model.categories,total:model.categoryTotal,currency,locale,privacy:privacyEnabled,rangeStart:current.cycle.start,rangeEnd:current.cycle.endExclusive})}
+        <details class="statistics-expand-categories"><summary>Unterkategorien und Buchungen anzeigen</summary>
+          ${categoryDetailsHtml(model.categories,{currency,locale,privacyEnabled,range:currentRange})}
+        </details>
       </article>
 
       <article class="card card-padding">
@@ -141,7 +158,7 @@ export function renderStatistics({
           <div><h3 class="card-title">Budgetfortschritt</h3><p class="card-subtitle">Wie viel deines variablen Rahmens bereits verbraucht ist.</p></div>
           <a class="card-link" href="/planning/budget">Bearbeiten</a>
         </div>
-        <div class="statistics-budget-list">${budgetRowsHtml(budgetRows,{currency,locale,privacyEnabled})}</div>
+        <div class="statistics-budget-list">${budgetRowsHtml(budgetRows,{currency,locale,privacyEnabled,range:currentRange})}</div>
       </article>
     </section>
 
