@@ -158,7 +158,7 @@ export function calculateBudgetSummary({
     const value=matching.reduce((sum,tx)=>sum+semanticExpenseBase(tx,{categories,recurringRules,debtPayments,baseCurrency,fxRates}),0);
     matching.forEach((tx)=>matchedIds.add(tx.id));
     spent+=value;
-    return {...budget,spent:value,transactionCount:matching.length};
+    return {...budget,spent:value,transactionCount:matching.length,transactionIds:matching.filter((tx)=>semanticExpenseBase(tx,{categories,recurringRules,debtPayments,baseCurrency,fxRates})>0).map((tx)=>tx.id)};
   });
 
   for(const tx of actualRows){
