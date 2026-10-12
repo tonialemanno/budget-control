@@ -12,9 +12,16 @@ function localDateKey(value){
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
 }
 
+function inclusivePeriodEnd(value){
+  const end=new Date(value);
+  if(Number.isNaN(end.getTime())) return end;
+  end.setDate(end.getDate()-1);
+  return end;
+}
+
 function periodRange(row){
   const start=new Date(row.start);
-  const end=new Date(new Date(row.endExclusive).getTime()-86400000);
+  const end=inclusivePeriodEnd(row.endExclusive);
   return {from:localDateKey(start),to:localDateKey(end)};
 }
 
@@ -43,7 +50,7 @@ function periodRow(row,{currency,locale,privacyEnabled}){
   const net=Number(row.net||0);
   return `<div class="statistics-period-row">
     <button type="button" class="statistics-period-name" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="all">
-      <strong>${escapeHtml(label)}</strong><small>${escapeHtml(dateLabel(row.start,locale))} – ${escapeHtml(dateLabel(new Date(new Date(row.endExclusive).getTime()-86400000),locale))}</small>
+      <strong>${escapeHtml(label)}</strong><small>${escapeHtml(dateLabel(row.start,locale))} – ${escapeHtml(dateLabel(inclusivePeriodEnd(row.endExclusive),locale))}</small>
     </button>
     <button type="button" class="statistics-period-value statistics-period-value--income" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="income">
       <span>Einnahmen</span><strong>${privacyMoney(row.income,{currency,locale,privacyEnabled})}</strong>
