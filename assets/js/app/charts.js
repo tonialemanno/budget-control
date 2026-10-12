@@ -60,7 +60,7 @@ export function renderCashflowChart({
   const barWidth=Math.min(24,Math.max(11,groupWidth*.22));
   const gap=Math.max(4,barWidth*.28);
   const y=(value)=>top+plotHeight-(Math.max(0,finite(value))/maxValue*plotHeight);
-  const h=(value)=>Math.max(1,Math.max(0,finite(value))/maxValue*plotHeight);
+  const h=(value)=>Math.max(0,Math.max(0,finite(value))/maxValue*plotHeight);
 
   const grid=[0,.25,.5,.75,1].map((ratio)=>{
     const yy=top+plotHeight-(ratio*plotHeight);
@@ -85,6 +85,16 @@ export function renderCashflowChart({
     const expenseY=y(row.expenses);
     const incomeH=h(row.income);
     const expenseH=h(row.expenses);
+    const periodStart=row?.start?new Date(row.start):null;
+    const periodEnd=row?.endExclusive?new Date(new Date(row.endExclusive).getTime()-86400000):null;
+    const dayKey=(date)=>date&&!Number.isNaN(date.getTime())
+      ? `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+      : '';
+    const from=dayKey(periodStart);
+    const to=dayKey(periodEnd);
+    const drilldown=(direction)=>from&&to
+      ? `data-action="overview-drilldown-period" data-from="${from}" data-to="${to}" data-direction="${direction}" role="button" tabindex="0" focusable="true"`
+      : '';
     const incomeTitle=privacy
       ? `${t('Einnahmen',locale)} · ${period}`
       : `${t('Einnahmen',locale)} · ${period}: ${moneyText(row.income,{currency,locale})}`;
@@ -92,8 +102,8 @@ export function renderCashflowChart({
       ? `${t('Ausgaben',locale)} · ${period}`
       : `${t('Ausgaben',locale)} · ${period}: ${moneyText(row.expenses,{currency,locale})}`;
     return `<g class="cashflow-month">
-      <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
-      <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
+      <rect class="cashflow-bar cashflow-bar--income cashflow-bar--interactive" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5" ${drilldown('income')} aria-label="${escapeHtml(incomeTitle)}"><title>${escapeHtml(incomeTitle)}</title></rect>
+      <rect class="cashflow-bar cashflow-bar--expense cashflow-bar--interactive" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5" ${drilldown('expense')} aria-label="${escapeHtml(expenseTitle)}"><title>${escapeHtml(expenseTitle)}</title></rect>
       <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(period)}</text>
     </g>`;
   }).join('');
@@ -105,7 +115,7 @@ export function renderCashflowChart({
       <span><i class="legend-dot legend-dot--income"></i>${escapeHtml(t('Einnahmen',locale))}</span>
       <span><i class="legend-dot legend-dot--expense"></i>${escapeHtml(t('Ausgaben',locale))}</span>
     </div>
-    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Einnahmen und Ausgaben der letzten sechs Finanzmonate',locale))}" preserveAspectRatio="xMidYMid meet">
+    <svg class="cashflow-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('Einnahmen und Ausgaben nach Finanzmonaten',locale))}" preserveAspectRatio="xMidYMid meet">
       ${grid}
       ${groups}
     </svg>
@@ -142,13 +152,15 @@ export function renderExpenseDonut({
       ? `${displayLabel}: ${Math.round(share)}%`
       : `${displayLabel}: ${moneyText(row.value,{currency,locale})} · ${Math.round(share)}%`;
     const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
-    return `<circle class="donut-segment donut-segment--${index%6} donut-segment--interactive" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}" tabindex="0" role="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}"><title>${escapeHtml(title)}</title></circle>`;
+    const transactionIds=Array.isArray(row.transactionIds)?row.transactionIds.join(','):'';
+    return `<circle class="donut-segment donut-segment--${index%6} donut-segment--interactive" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}" tabindex="0" role="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}" data-transaction-ids="${escapeHtml(transactionIds)}" aria-label="${escapeHtml(title)}"><title>${escapeHtml(title)}</title></circle>`;
   }).join('');
 
   const legend=rows.map((row,index)=>{
     const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
     const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
-    return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}">
+    const transactionIds=Array.isArray(row.transactionIds)?row.transactionIds.join(','):'';
+    return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}" data-transaction-ids="${escapeHtml(transactionIds)}">
       <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
       <strong>${escapeHtml(displayLabel)}</strong>
       <span>${privacy?'•••':money(row.value,{currency,locale})}</span>
