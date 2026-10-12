@@ -20,6 +20,12 @@ function financePeriodLabel(row,locale){
   return startMonth===endMonth?startMonth:`${startMonth}/${endMonth}`;
 }
 
+function dateKey(value){
+  const date=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0,10);
+}
+
 function compactNumber(value, locale) {
   const n=Math.abs(finite(value));
   try {
@@ -91,7 +97,9 @@ export function renderCashflowChart({
     const expenseTitle=privacy
       ? `${t('Ausgaben',locale)} · ${period}`
       : `${t('Ausgaben',locale)} · ${period}: ${moneyText(row.expenses,{currency,locale})}`;
-    return `<g class="cashflow-month">
+    const from=dateKey(row.start||row.date);
+    const to=row.endExclusive?dateKey(new Date(new Date(row.endExclusive).getTime()-86400000)):dateKey(row.date);
+    return `<g class="cashflow-month cashflow-month--interactive" tabindex="0" role="button" data-action="overview-drilldown-period" data-from="${escapeHtml(from)}" data-to="${escapeHtml(to)}" aria-label="${escapeHtml(`${period}: Einnahmen und Ausgaben öffnen`)}">
       <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
       <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
       <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(period)}</text>
@@ -100,6 +108,19 @@ export function renderCashflowChart({
 
   const latest=series[series.length-1]||{};
   const incomplete=series.some((row)=>row.coverage&&row.coverage!=='full');
+  const periodRows=series.slice().reverse().map((row)=>{
+    const period=financePeriodLabel(row,locale);
+    const from=dateKey(row.start||row.date);
+    const to=row.endExclusive?dateKey(new Date(new Date(row.endExclusive).getTime()-86400000)):dateKey(row.date);
+    const net=finite(row.income)-finite(row.expenses);
+    const coverage=row.coverage||'full';
+    return `<button class="insight-row insight-row--interactive" type="button" data-action="overview-drilldown-period" data-from="${escapeHtml(from)}" data-to="${escapeHtml(to)}" ${coverage!=='full'?'disabled':''}>
+      <div class="insight-row-head"><strong>${escapeHtml(period)}</strong><span>${privacy?'•••':money(net,{currency,locale})}</span></div>
+      <small>${coverage==='full'
+        ? `${escapeHtml(t('Einnahmen',locale))} ${privacy?'•••':money(row.income||0,{currency,locale})} · ${escapeHtml(t('Ausgaben',locale))} ${privacy?'•••':money(row.expenses||0,{currency,locale})}`
+        : escapeHtml(coverage==='partial'?t('Teilweise Daten',locale):t('Keine Daten',locale))}</small>
+    </button>`;
+  }).join('');
   return `<div class="cashflow-chart">
     <div class="chart-legend" aria-hidden="true">
       <span><i class="legend-dot legend-dot--income"></i>${escapeHtml(t('Einnahmen',locale))}</span>
@@ -114,6 +135,7 @@ export function renderCashflowChart({
       <span>${escapeHtml(t('Aktueller Finanzmonat · Einnahmen',locale))} <strong>${privacy?'•••':money(latest.income||0,{currency,locale})}</strong></span>
       <span>${escapeHtml(t('Aktueller Finanzmonat · Ausgaben',locale))} <strong>${privacy?'•••':money(latest.expenses||0,{currency,locale})}</strong></span>
     </div>
+    <div class="insight-list cashflow-period-list">${periodRows}</div>
   </div>`;
 }
 
