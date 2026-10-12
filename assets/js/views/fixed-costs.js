@@ -18,8 +18,11 @@ function fixedCostFields({ accounts = [], categories = [], merchants = [], edit 
   const suffix = edit ? 'Edit' : '';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${!edit&&a.account_id===defaultAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const destinationAccountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
-  const expenseCategoryOptions = categories.filter((c)=>c.kind==='expense'&&String(c.name||'').trim().toLowerCase()!=='sparen').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const categoryOptions = expenseCategoryOptions;
+  const categoryOptions = categories
+    .filter((c)=>String(c.name||'').trim().toLowerCase()!=='sparen')
+    .slice()
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}))
+    .map((c)=>`<option value="${c.id}" data-kind="${escapeHtml(c.kind||'expense')}">${escapeHtml(c.name)}</option>`).join('');
   const incomeLabel=countryCode==='DE'?'Feste Einnahme / Gehalt':'Feste Einnahme / Lohn';
   const positionHint=countryCode==='DE'?'z. B. Miete, Krankenversicherung oder Sparen':'z. B. Miete, Krankenkasse oder Sparen';
   const merchantDatalist = merchants
