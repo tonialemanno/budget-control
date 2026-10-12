@@ -5,9 +5,9 @@ import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r60';
 import {
-  accountShare, annualIncomeBreakdown, categorySpending, currentFinanceCycleTotals,
-  financeCycleSeries, historicalFinanceSurplusRecord, primaryOperatingAccount,
+  historicalFinanceSurplusRecord, primaryOperatingAccount,
 } from '../app/finance-insights.js?v=20261008-r60';
+import { buildStatisticsModel } from '../app/statistics-model.js';
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r60';
@@ -104,23 +104,18 @@ export function renderOverview({
     snapshot,primaryAccount,accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,bills,
     household,fxRates,now,
   });
-  const cycleTotals=currentFinanceCycleTotals({
-    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
+  const statistics=buildStatisticsModel({
+    accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,
+    household,profile,fxRates,now,cycles:6,categoryLimit:5,
   });
+  const cycleTotals=statistics.current;
   const financeCycle=cycleTotals.cycle;
   const cycleLabel=financeCycleLabel(financeCycle,locale);
-  const months=financeCycleSeries({
-    transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,cycles:6,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
-  });
-  const categoriesSpent=categorySpending({
-    transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,now,limit:5,
-    rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
-  });
-  const categoryTotal=categoriesSpent[0]?.total||0;
-  const annualIncome=annualIncomeBreakdown({
-    transactions,categories,recurringRules,baseCurrency:currency,fxRates,year:now.getFullYear(),limit:5,
-  });
-  const accountRows=accountShare(accounts,currency,fxRates);
+  const months=statistics.series;
+  const categoriesSpent=statistics.categories;
+  const categoryTotal=statistics.categoryTotal;
+  const annualIncome=statistics.annualIncome;
+  const accountRows=statistics.accounts;
   const primaryRow=accountRows.find((row)=>row.account.account_id===primaryAccount?.account_id)||null;
   const otherLiquid=snapshot.cash-(primaryRow?.value||0);
   const actualTransactions=transactions.filter((tx)=>tx.status==='booked'&&new Date(tx.occurred_at)<=now);
@@ -322,7 +317,7 @@ export function renderOverview({
       <article class="card card-padding dashboard-donut-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${cycleFrom}" data-to="${cycleTo}" data-direction="expense" role="link" tabindex="0" aria-label="Ausgaben dieses Finanzmonats öffnen">
         <div class="card-heading">
           <div><h3 class="card-title">Wofür du Geld ausgibst</h3><p class="card-subtitle">Echte Konsumausgaben im aktuellen Finanzmonat.</p></div>
-          <a class="card-link" href="#/transactions">Details</a>
+          <a class="card-link" href="/statistics">Statistik</a>
         </div>
         ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
       </article>
@@ -330,9 +325,9 @@ export function renderOverview({
       <article class="card card-padding finance-chart-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${seriesFrom}" data-to="${cycleTo}" data-direction="all" role="link" tabindex="0" aria-label="Buchungen der letzten sechs Finanzmonate öffnen">
         <div class="card-heading">
           <div><h3 class="card-title">Deine Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Finanzmonate.</p></div>
-          <a class="card-link" href="#/transactions">Buchungen</a>
+          <a class="card-link" href="/statistics">Statistik</a>
         </div>
-        ${renderCashflowChart({series:months,currency,locale,privacy:privacyEnabled})}
+        ${renderCashflowChart({series:months,currency,locale,privacy:privacyEnabled,interactive:true})}
       </article>
     </div>
 

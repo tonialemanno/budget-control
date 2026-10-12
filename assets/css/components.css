@@ -1662,3 +1662,205 @@ button.search-result-row { cursor:pointer; }
   color:var(--text-2);
   font:10px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
 }
+
+
+/* Statistics workspace */
+.cashflow-hit { cursor:pointer; }
+.cashflow-hit .cashflow-bar { transition:opacity .14s var(--ease), transform .14s var(--ease); transform-box:fill-box; transform-origin:center bottom; }
+.cashflow-hit:hover .cashflow-bar,
+.cashflow-hit:focus .cashflow-bar { opacity:.78; transform:scaleY(1.025); }
+.cashflow-hit:focus { outline:none; }
+
+.statistics-metric-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.statistics-metric {
+  min-width:0;
+  display:grid;
+  gap:6px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+}
+.statistics-metric > span,
+.statistics-metric small { color:var(--text-3); font-size:10px; }
+.statistics-metric strong { font-size:23px; line-height:1.05; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.statistics-metric--income strong,
+.statistics-metric--positive strong { color:var(--positive); }
+.statistics-metric--expense strong,
+.statistics-metric--negative strong { color:var(--negative); }
+
+.statistics-chart-card { margin-bottom:16px; }
+.statistics-chart-card .cashflow-svg { height:300px; }
+.statistics-period-list {
+  display:grid;
+  gap:1px;
+  margin-top:16px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--border);
+}
+.statistics-period-row {
+  display:grid;
+  grid-template-columns:minmax(180px,1.25fr) repeat(3,minmax(120px,.75fr));
+  gap:1px;
+  background:var(--border);
+}
+.statistics-period-row > * {
+  min-width:0;
+  min-height:58px;
+  border:0;
+  background:var(--surface);
+}
+.statistics-period-name,
+.statistics-period-value {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:11px 13px;
+  color:var(--text);
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+}
+.statistics-period-name { align-items:flex-start; flex-direction:column; }
+.statistics-period-name strong { font-size:11px; }
+.statistics-period-name small,
+.statistics-period-value span { color:var(--text-3); font-size:9px; }
+.statistics-period-value { flex-direction:column; text-align:center; }
+.statistics-period-value strong { font-size:11px; }
+.statistics-period-value--income strong,
+.statistics-period-value--positive strong { color:var(--positive); }
+.statistics-period-value--expense strong,
+.statistics-period-value--negative strong { color:var(--negative); }
+.statistics-period-name:hover,
+.statistics-period-name:focus-visible,
+.statistics-period-value:hover,
+.statistics-period-value:focus-visible { background:var(--surface-2); outline:none; }
+.statistics-period-row--incomplete {
+  color:var(--text-3);
+}
+.statistics-period-row--incomplete > div {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:3px;
+  padding:11px 13px;
+}
+.statistics-period-row--incomplete > span {
+  display:grid;
+  place-items:center;
+}
+
+.statistics-two-column {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:16px;
+}
+.statistics-donut-card { min-width:0; }
+.statistics-budget-list,
+.statistics-account-list { display:grid; gap:8px; }
+.statistics-budget-row,
+.statistics-account-row {
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--surface);
+  color:var(--text);
+  font:inherit;
+  cursor:pointer;
+}
+.statistics-budget-row {
+  display:grid;
+  gap:9px;
+  padding:12px 13px;
+}
+.statistics-budget-head,
+.statistics-budget-foot,
+.statistics-account-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.statistics-budget-head > div,
+.statistics-account-row > div { min-width:0; display:grid; gap:3px; text-align:left; }
+.statistics-budget-head > div:last-child { text-align:right; }
+.statistics-budget-head strong,
+.statistics-account-row strong { font-size:11px; }
+.statistics-budget-head small,
+.statistics-budget-foot span,
+.statistics-account-row small { color:var(--text-3); font-size:9px; }
+.statistics-budget-foot strong { font-size:10px; }
+.statistics-progress {
+  height:8px;
+  overflow:hidden;
+  border-radius:999px;
+  background:var(--surface-3);
+}
+.statistics-progress > span {
+  display:block;
+  width:var(--statistics-progress);
+  height:100%;
+  border-radius:inherit;
+  background:var(--positive);
+}
+.statistics-progress--warning > span { background:var(--warning); }
+.statistics-progress--negative > span { background:var(--negative); }
+.statistics-budget-row:hover,
+.statistics-budget-row:focus-visible,
+.statistics-account-row:hover,
+.statistics-account-row:focus-visible {
+  border-color:color-mix(in srgb,var(--accent) 34%,var(--border));
+  background:var(--surface-2);
+  outline:none;
+}
+.statistics-account-row { min-height:58px; padding:11px 13px; text-align:right; }
+.statistics-income-total {
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+  padding:14px;
+  border-radius:14px;
+  background:var(--surface-2);
+}
+.statistics-income-total span { color:var(--text-3); font-size:10px; }
+.statistics-income-total strong { font-size:25px; }
+
+@media (max-width:900px) {
+  .statistics-metric-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .statistics-two-column { grid-template-columns:1fr; }
+}
+@media (max-width:660px) {
+  .statistics-metric-grid { gap:8px; }
+  .statistics-metric { padding:13px; border-radius:14px; }
+  .statistics-metric strong { font-size:19px; }
+  .statistics-chart-card .cashflow-svg { min-width:700px; height:250px; }
+  .statistics-chart-card .cashflow-chart { overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .statistics-chart-card .cashflow-chart::-webkit-scrollbar { display:none; }
+  .statistics-period-list { overflow:visible; border:0; background:transparent; gap:8px; }
+  .statistics-period-row {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    padding:11px;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:var(--surface);
+  }
+  .statistics-period-row > * { min-height:46px; border-radius:10px; background:var(--surface-2); }
+  .statistics-period-name { grid-column:1/-1; min-height:auto; background:transparent; padding:0 2px 7px; }
+  .statistics-period-value { padding:9px 6px; }
+  .statistics-period-row--incomplete > div { grid-column:1/-1; min-height:auto; background:transparent; padding:0 2px 7px; }
+  .statistics-period-row--incomplete > span { display:none; }
+  .statistics-two-column { gap:12px; margin-bottom:12px; }
+  .statistics-account-row { min-height:64px; }
+}

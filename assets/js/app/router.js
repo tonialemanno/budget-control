@@ -1,5 +1,6 @@
 const DEFINITIONS = [
   { route:'overview', path:'/', aliases:['/overview'], title:'Übersicht', eyebrow:'ALEMANNO BUCHHALTUNG', label:'Übersicht', mobileLabel:'Übersicht', icon:'home', group:'Start', module:'core', primary:true, section:'overview' },
+  { route:'statistics', path:'/statistics', aliases:['/finance/statistics'], title:'Statistik', eyebrow:'ALEMANNO BUCHHALTUNG', label:'Statistik', mobileLabel:'Statistik', icon:'chart', group:'Start', module:'core', primary:true, section:'statistics' },
   { route:'review', path:'/review', title:'Zu prüfen', eyebrow:'ALEMANNO BUCHHALTUNG', label:'Prüfen', mobileLabel:'Prüfen', icon:'check-circle', group:'Start', module:'core', primary:true, section:'review' },
   { route:'search', path:'/search', title:'Suchen', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
 

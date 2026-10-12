@@ -11,6 +11,13 @@ function monthLabel(date, locale) {
   catch { return String(new Date(date).getMonth()+1); }
 }
 
+function localDateKey(value){
+  const date=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(date.getTime())) return '';
+  const pad=(n)=>String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
 function financePeriodLabel(row,locale){
   const start=row?.start?new Date(row.start):null;
   const end=row?.endExclusive?new Date(new Date(row.endExclusive).getTime()-1):null;
@@ -42,6 +49,7 @@ export function renderCashflowChart({
   currency='CHF',
   locale='de-CH',
   privacy=false,
+  interactive=false,
 }={}) {
   if (!series.length) return `<div class="chart-empty">${escapeHtml(t('Keine Daten für die Entwicklung vorhanden.',locale))}</div>`;
 
@@ -91,9 +99,15 @@ export function renderCashflowChart({
     const expenseTitle=privacy
       ? `${t('Ausgaben',locale)} · ${period}`
       : `${t('Ausgaben',locale)} · ${period}: ${moneyText(row.expenses,{currency,locale})}`;
+    const from=localDateKey(row.start||row.date);
+    const inclusiveEnd=new Date(row.endExclusive||row.date);
+    if(row.endExclusive) inclusiveEnd.setDate(inclusiveEnd.getDate()-1);
+    const to=localDateKey(inclusiveEnd);
+    const incomeAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="income"`:'';
+    const expenseAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="expense"`:'';
     return `<g class="cashflow-month">
-      <rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect>
-      <rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect>
+      <g${incomeAttrs}><rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect></g>
+      <g${expenseAttrs}><rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect></g>
       <text class="cashflow-month-label" x="${center}" y="${height-14}" text-anchor="middle">${escapeHtml(period)}</text>
     </g>`;
   }).join('');
