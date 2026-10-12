@@ -11,6 +11,7 @@ assert.equal(model.series.length,12);
 assert.ok(model.current);
 assert.ok(Array.isArray(model.categories));
 assert.ok(Array.isArray(model.budgetRows));
+assert.ok(model.budgetRows.every((row)=>Array.isArray(row.transactionIds)),'budget drill-down must carry exact transaction ids');
 assert.ok(Array.isArray(model.accounts));
 assert.ok(model.annualIncome);
 
@@ -20,6 +21,7 @@ assert.match(html,/statistics-metric-grid/);
 assert.match(html,/Einnahmen & Ausgaben/);
 assert.match(html,/Ausgaben nach Kategorien/);
 assert.match(html,/Budgetfortschritt/);
+assert.match(html,/data-transaction-ids=/);
 assert.match(html,/Kontostände/);
 assert.match(html,/data-action="overview-drilldown-income"/);
 assert.doesNotMatch(html,/\bundefined\b|\bNaN\b|\$\{/);
