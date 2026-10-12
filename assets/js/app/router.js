@@ -4,6 +4,7 @@ const DEFINITIONS = [
   { route:'search', path:'/search', title:'Suchen', eyebrow:'ALEMANNO BUCHHALTUNG', section:'settings' },
 
   { route:'money', path:'/finance', aliases:['/money'], title:'Geld', eyebrow:'ALEMANNO BUCHHALTUNG', label:'Geld', mobileLabel:'Geld', icon:'wallet', group:'Start', module:'core', primary:true, section:'money' },
+  { route:'statistics', path:'/finance/statistics', aliases:['/statistics'], title:'Statistik', eyebrow:'Geld', label:'Statistik', icon:'chart', group:'Geld', module:'core', section:'money' },
   { route:'accounts', path:'/finance/accounts', title:'Konten', eyebrow:'Geld', label:'Konten', icon:'wallet', group:'Geld', module:'money', section:'money' },
   { route:'transactions', path:'/finance/transactions', title:'Transaktionen', eyebrow:'Geld', label:'Transaktionen', icon:'list', group:'Geld', module:'money', section:'money' },
   { route:'imports', path:'/finance/imports', title:'Datenimport', eyebrow:'Geld', label:'Datenimport', icon:'arrow-down-left', group:'Geld', module:'money', section:'money' },
