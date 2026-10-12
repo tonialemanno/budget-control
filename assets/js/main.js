@@ -5334,6 +5334,30 @@ async function handleAction(target) {
     goToRoute('transactions');
     return;
   }
+  if (action === 'overview-drilldown-period') {
+    resetTransactionDrilldownFilters();
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=(uiState.transactionFrom||uiState.transactionTo)?'custom':'all';
+    goToRoute('transactions');
+    return;
+  }
+  if (action === 'overview-drilldown-budget') {
+    resetTransactionDrilldownFilters();
+    const transactionIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
+    const categoryId=target.dataset.categoryId||'';
+    const merchantId=target.dataset.merchantId||'';
+    const label=target.dataset.label||'';
+    uiState.transactionDirection='expense';
+    uiState.transactionIds=transactionIds;
+    if(!transactionIds.length){
+      if(categoryId) uiState.transactionCategory=categoryId;
+      else if(merchantId||label) uiState.transactionQuery=label;
+    }
+    goToRoute('transactions');
+    return;
+  }
+
   if (action === 'overview-drilldown-expense') {
     const key=target.dataset.key||'';
     const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
@@ -5951,6 +5975,12 @@ pageContent.addEventListener('click',(event)=>{
 
 pageContent.addEventListener('keydown',(event)=>{
   if(event.key!=='Enter'&&event.key!==' ') return;
+  const actionTarget=event.target.closest?.('[data-action]');
+  if(actionTarget&&event.target===actionTarget&&!['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(actionTarget.tagName)){
+    event.preventDefault();
+    void handleAction(actionTarget).catch((error)=>showToast(humanError(error),'error'));
+    return;
+  }
   const drilldown=event.target.closest?.('[data-drilldown]');
   if(!drilldown||event.target!==drilldown) return;
   event.preventDefault();
