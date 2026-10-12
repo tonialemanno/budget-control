@@ -7,6 +7,7 @@ import {
   financeCycleSeries,
 } from './finance-insights.js';
 import { financeMonthMode } from './user-preferences.js';
+import { convertAmount } from './fx.js';
 
 function finite(value){
   const n=Number(value);
@@ -70,7 +71,8 @@ export function buildStatisticsModel({
   });
   const budgetRows=(budget.variableRows||[])
     .map((row)=>{
-      const amount=Math.max(0,finite(row.amount));
+      const converted=convertAmount(row.amount,row.currency||currency,currency,fxRates);
+      const amount=converted===null?null:Math.max(0,finite(converted));
       const spent=Math.max(0,finite(row.spent));
       const rawPercent=amount>0?spent/amount*100:0;
       return {
@@ -78,14 +80,15 @@ export function buildStatisticsModel({
         label:budgetLabel(row,categories,merchants),
         amount,
         spent,
-        remaining:Math.max(0,amount-spent),
-        overBy:Math.max(0,spent-amount),
+        remaining:amount===null?null:Math.max(0,amount-spent),
+        overBy:amount===null?null:Math.max(0,spent-amount),
         rawPercent,
         percent:Math.max(0,Math.min(100,rawPercent)),
         transactionCount:Number(row.transactionCount||0),
         transactionIds:Array.isArray(row.transactionIds)?row.transactionIds:[],
         categoryIds:categoryIdsForBudget(row,categories),
         merchantId:row.merchant_id||null,
+        transactionIds:row.transactionIds||[],
       };
     })
     .sort((a,b)=>b.rawPercent-a.rawPercent||b.spent-a.spent);
