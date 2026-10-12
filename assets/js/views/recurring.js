@@ -10,7 +10,10 @@ function recurringFields({ accounts = [], categories = [], edit = false, default
   const suffix=edit?'Edit':'';
   const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${!edit&&a.account_id===defaultAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const destinationAccountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
-  const categoryOptions = categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const categoryOptions = categories
+    .slice()
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}))
+    .map((c)=>`<option value="${c.id}" data-kind="${escapeHtml(c.kind||'expense')}">${escapeHtml(c.name)}</option>`).join('');
   return `${edit?'<input type="hidden" name="ruleId" id="recurringEditId">':''}
     <label class="field"><span>Typ</span><select class="text-control" name="direction" id="recurring${suffix}Direction"><option value="expense">Ausgabe</option><option value="income">Einnahme</option><option value="transfer">Umbuchung / Topf</option></select></label>
     <label class="field"><span>Betrag</span><input class="text-control" name="amount" id="recurring${suffix}Amount" type="number" min="0.01" step="0.01" required><small>Bei variablen Zahlungen ist das der Richtwert für die Planung.</small></label>
