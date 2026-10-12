@@ -1662,3 +1662,85 @@ button.search-result-row { cursor:pointer; }
   color:var(--text-2);
   font:10px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
 }
+
+/* Finance statistics: shared and interactive mobile/desktop views */
+.stat-overview-heading { margin-top:18px; }
+.stat-section { margin:14px 0; }
+.stat-section-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin:12px 0; }
+.stat-section-header h3 { margin:0 0 4px; font-size:17px; color:var(--text); }
+.stat-section-header p { margin:0; font-size:11px; line-height:1.5; color:var(--text-2); }
+.stat-section-header a { flex:0 0 auto; font-size:11px; font-weight:700; color:var(--accent); text-decoration:none; }
+.stat-month-balance { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:10px 0 18px; }
+.stat-month-tile { display:grid; align-content:start; justify-items:start; gap:7px; padding:17px; text-align:left;
+  background:var(--surface); border:1px solid var(--border); border-radius:17px; color:var(--text);
+  font:inherit; min-width:0; cursor:pointer; }
+.stat-month-tile span { font-size:11px; color:var(--text-2); }
+.stat-month-tile strong { font-size:clamp(16px,2.1vw,25px); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.stat-month-tile small { font-size:10px; color:var(--text-3); }
+.stat-month-tile--positive strong { color:var(--positive); }
+.stat-month-tile--negative strong { color:var(--negative); }
+.stat-month-tile:hover,.stat-month-tile:focus-visible { border-color:var(--accent); outline:2px solid transparent; background:var(--surface-2); }
+.cashflow-bar--interactive,.donut-segment--interactive { cursor:pointer; }
+.cashflow-bar--interactive:hover,.cashflow-bar--interactive:focus-visible { opacity:.74; stroke:var(--text); stroke-width:1.5; outline:none; }
+.donut-segment--interactive:hover,.donut-segment--interactive:focus-visible { stroke-width:23; outline:none; }
+.cashflow-bar--expense { fill:var(--negative); }
+.legend-dot--expense { background:var(--negative); }
+.stat-overview-expand { margin-top:15px; border-top:1px solid var(--border); padding-top:11px; }
+.stat-overview-expand summary { cursor:pointer; font-size:11px; color:var(--text-2); font-weight:650; padding:5px 0; }
+.stat-overview-expand[open] summary { margin-bottom:9px; }
+.stat-category-list { display:grid; gap:7px; min-width:0; }
+.stat-category { border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); }
+.stat-category > summary { display:flex; cursor:pointer; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
+.stat-category > summary::marker { content:''; }
+.stat-category-main { display:grid; gap:4px; min-width:0; }
+.stat-category-main strong { font-size:12px; overflow-wrap:anywhere; }
+.stat-category-main small { font-size:10px; color:var(--text-3); }
+.stat-category-value { font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.stat-category-value span { margin-left:6px; font-size:13px; color:var(--text-3); }
+.stat-subcategories { padding:4px 11px 11px; background:var(--surface-2); display:grid; gap:5px; }
+.stat-subcategory,.stat-all-link,.stat-income-source,.stat-month-line {
+  width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  border:0; border-radius:8px; background:transparent; color:var(--text); cursor:pointer; text-align:left;
+  padding:10px; font:inherit; font-size:11px; }
+.stat-subcategory > span,.stat-income-source > span { min-width:0; overflow-wrap:anywhere; flex:1; }
+.stat-subcategory strong,.stat-income-source strong,.stat-month-line strong { font-variant-numeric:tabular-nums; }
+.stat-subcategory small,.stat-income-source small,.stat-month-line small { font-size:10px; color:var(--text-3); white-space:nowrap; }
+.stat-all-link { justify-content:flex-end; font-weight:700; color:var(--accent); }
+.stat-subcategory:hover,.stat-subcategory:focus-visible,.stat-all-link:hover,.stat-all-link:focus-visible,
+.stat-income-source:hover,.stat-income-source:focus-visible,.stat-month-line:hover,.stat-month-line:focus-visible {
+  background:var(--surface-3); outline:2px solid transparent; }
+.stat-budget-list { display:grid; gap:15px; }
+.stat-budget-line { display:grid; gap:8px; }
+.stat-budget-head { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:11px; }
+.stat-budget-head strong { overflow-wrap:anywhere; }
+.stat-budget-head span { font-variant-numeric:tabular-nums; text-align:right; }
+.stat-budget-track { height:9px; border-radius:99px; overflow:hidden; background:var(--surface-3); }
+.stat-budget-track > span { height:100%; display:block; background:var(--positive); border-radius:inherit; }
+.stat-budget-line--warning .stat-budget-track > span { background:var(--warning); }
+.stat-budget-line--negative .stat-budget-track > span { background:var(--negative); }
+.stat-budget-line--unknown .stat-budget-track > span,.stat-budget-line--neutral .stat-budget-track > span { background:var(--text-3); }
+.stat-budget-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.stat-budget-foot small { color:var(--text-3); font-size:10px; }
+.stat-budget-foot button,.stat-budget-foot a { font:inherit; border:0; background:transparent; padding:4px 0; color:var(--accent); font-size:10px; font-weight:700; cursor:pointer; text-decoration:none; }
+.stat-budget-uncovered,.stat-data-note { color:var(--text-3); font-size:10px; line-height:1.5; }
+.stat-budget-uncovered a { color:var(--accent); }
+.stat-month-list,.stat-income-list { display:grid; gap:3px; margin-top:10px; }
+.stat-month-line,.stat-income-source { border-bottom:1px solid var(--border); border-radius:0; }
+.stat-month-line > span { flex:1; }
+.stat-income-header { display:flex; justify-content:space-between; gap:12px; padding:13px; border-radius:12px; background:var(--surface-2); font-size:12px; }
+.stat-income-header strong { font-size:17px; }
+.stat-positive { color:var(--positive); }
+.stat-negative { color:var(--negative); }
+.stat-empty { color:var(--text-3); font-size:11px; line-height:1.6; padding:12px 0; }
+.stat-empty a { color:var(--accent); }
+@media(max-width:660px){
+  .stat-month-balance { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .stat-month-tile { padding:13px; min-height:90px; }
+  .stat-month-tile:last-child { grid-column:1/-1; }
+  .stat-month-tile strong { font-size:18px; }
+  .stat-section-header { margin:12px 0; }
+  .stat-section-header h3 { font-size:15px; }
+  .stat-income-source small,.stat-month-line small { display:none; }
+  .stat-subcategory { flex-wrap:wrap; }
+  .stat-subcategory small { flex:0 0 100%; }
+}
