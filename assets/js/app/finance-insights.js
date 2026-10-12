@@ -339,14 +339,20 @@ export function categorySpending({
     const parent = category?.parent_id ? parentById.get(category.parent_id) : category;
     const key = parent?.id || 'uncategorized';
     const label = parent?.name || 'Ohne Kategorie';
-    const existing=totals.get(key)||{key,label,value:0,categoryIds:new Set()};
+    const existing=totals.get(key)||{key,label,value:0,categoryIds:new Set(),transactionIds:[],subcategories:new Map()};
     existing.value+=value;
+    existing.transactionIds.push(tx.id);
     if(category?.id) existing.categoryIds.add(category.id);
     if(parent?.id) existing.categoryIds.add(parent.id);
+    const leafKey=category?.id||'uncategorized';
+    const leaf=existing.subcategories.get(leafKey)||{key:leafKey,label:category?.name||'Ohne Kategorie',value:0,transactionIds:[]};
+    leaf.value+=value;
+    leaf.transactionIds.push(tx.id);
+    existing.subcategories.set(leafKey,leaf);
     totals.set(key,existing);
   }
 
-  const allRows=[...totals.values()].map((row)=>({...row,categoryIds:[...row.categoryIds]})).sort((a,b)=>b.value-a.value);
+  const allRows=[...totals.values()].map((row)=>({...row,categoryIds:[...row.categoryIds}],subcategories:[...row.subcategories.values()].sort((a,b)=>b.value-a.value)})).sort((a,b)=>b.value-a.value);
   const total=allRows.reduce((sum,row)=>sum+row.value,0);
   const visible=allRows.slice(0,Math.max(1,limit));
   const hidden=allRows.slice(visible.length);
@@ -356,6 +362,8 @@ export function categorySpending({
       label:'Sonstiges',
       value:hidden.reduce((sum,row)=>sum+row.value,0),
       categoryIds:[...new Set(hidden.flatMap((row)=>row.categoryIds||[]))],
+      transactionIds:hidden.flatMap((row)=>row.transactionIds||[]),
+      subcategories:hidden.flatMap((row)=>row.subcategories||[]),
     });
   }
 
