@@ -22,7 +22,10 @@ function fixedCostFields({ accounts = [], categories = [], merchants = [], edit 
   const categoryOptions = expenseCategoryOptions;
   const incomeLabel=countryCode==='DE'?'Feste Einnahme / Gehalt':'Feste Einnahme / Lohn';
   const positionHint=countryCode==='DE'?'z. B. Miete, Krankenversicherung oder Sparen':'z. B. Miete, Krankenkasse oder Sparen';
-  const merchantDatalist = merchants.map((m)=>`<option value="${escapeHtml(m.name)}"></option>`).join('');
+  const merchantDatalist = merchants
+    .slice()
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de',{sensitivity:'base'}))
+    .map((m)=>`<option value="${escapeHtml(m.name)}"></option>`).join('');
   return `
     ${edit?'<input type="hidden" name="ruleId" id="fixedCostEditId">':''}
     <label class="field"><span>Art</span><select class="text-control" name="direction" id="fixedCost${suffix}Direction"><option value="expense">Fixe Ausgabe</option><option value="income">${incomeLabel}</option><option value="transfer">Umbuchung / Topf</option></select></label>

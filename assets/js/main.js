@@ -1272,6 +1272,18 @@ function formValue(data, key) { return String(data.get(key) ?? '').trim(); }
 function numberValue(data, key, fallback = 0) { const n = Number(data.get(key)); return Number.isFinite(n) ? n : fallback; }
 function nullValue(data, key) { const v = formValue(data,key); return v || null; }
 
+function filterMerchantSelect(searchInput,select) {
+  if(!searchInput||!select) return;
+  const query=String(searchInput.value||'').trim().toLocaleLowerCase('de');
+  for(const option of [...select.options]){
+    if(!option.value){ option.hidden=false; continue; }
+    const haystack=String(option.dataset.search||option.textContent||'').toLocaleLowerCase('de');
+    option.hidden=Boolean(query&&!haystack.includes(query));
+  }
+  const selected=select.options[select.selectedIndex];
+  if(selected?.hidden) select.value='';
+}
+
 async function seedStarterCategoriesForHousehold(householdId, countryCode, existingCategories = []) {
   const cfg = countryConfig(countryCode || 'CH');
   let changed = 0;
@@ -2634,6 +2646,8 @@ function openTransactionEditor(tx, { recurring = false } = {}) {
   if (next) next.value=linkedRule?.next_date||addMonthsToDate(tx.occurred_at,1);
   const otherAccount=document.querySelector('#transactionEditOtherAccount'); if(otherAccount) otherAccount.value='';
   const otherAmount=document.querySelector('#transactionEditOtherAmount'); if(otherAmount) otherAmount.value='';
+  const merchantSearch=document.querySelector('#transactionEditMerchantSearch'); if(merchantSearch) merchantSearch.value='';
+  filterMerchantSelect(merchantSearch,document.querySelector('#transactionEditMerchant'));
   const form=document.querySelector('#transaction-edit'); form?.removeAttribute('hidden'); syncTransactionDirectionUI(form); syncTransactionTransferEditor(); form?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -5322,6 +5336,21 @@ async function handleAction(target) {
     goToRoute('transactions');
     return;
   }
+  if (action === 'overview-drilldown-budget') {
+    const transactionIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
+    const categoryId=target.dataset.categoryId||'';
+    const merchantId=target.dataset.merchantId||'';
+    const label=target.dataset.label||'';
+    resetTransactionDrilldownFilters();
+    uiState.transactionDirection='expense';
+    uiState.transactionIds=transactionIds;
+    if(!transactionIds.length){
+      if(categoryId) uiState.transactionCategory=categoryId;
+      else if(merchantId||label) uiState.transactionQuery=label;
+    }
+    goToRoute('transactions');
+    return;
+  }
   if (action === 'overview-drilldown-expense') {
     const key=target.dataset.key||'';
     const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
@@ -6379,6 +6408,14 @@ pageContent.addEventListener('input', (event) => {
   if (target.id === 'merchantSearch') {
     uiState.merchantQuery = target.value; uiState.merchantPage = 1; render();
     const next = document.querySelector('#merchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if (target.id === 'transactionCreateMerchantSearch') {
+    filterMerchantSelect(target,document.querySelector('#transactionCreateMerchant'));
+    return;
+  }
+  if (target.id === 'transactionEditMerchantSearch') {
+    filterMerchantSelect(target,document.querySelector('#transactionEditMerchant'));
     return;
   }
   if (target.id === 'globalSearchInput') {
