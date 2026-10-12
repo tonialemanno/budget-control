@@ -5325,19 +5325,16 @@ async function handleAction(target) {
   if (action === 'overview-drilldown-expense') {
     const key=target.dataset.key||'';
     const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
-    uiState.transactionQuery='';
+    const exactIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
+    resetTransactionDrilldownFilters();
     uiState.transactionDirection='expense';
     uiState.transactionSemantic='all';
-    uiState.transactionAccount='all';
-    uiState.transactionFrom='';
-    uiState.transactionTo='';
-    uiState.transactionPeriod='all';
-    uiState.transactionView='details';
-    uiState.transactionPage=1;
-    uiState.transactionCategoryIds=[];
-    uiState.transactionSourceSet=[];
-    uiState.transactionIds=[];
-    if(key==='uncategorized') uiState.transactionCategory='uncategorized';
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=uiState.transactionFrom||uiState.transactionTo?'custom':'all';
+    uiState.transactionIds=exactIds;
+    if(exactIds.length) uiState.transactionCategory='all';
+    else if(key==='uncategorized') uiState.transactionCategory='uncategorized';
     else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
     goToRoute('transactions');
@@ -5347,10 +5344,13 @@ async function handleAction(target) {
     const transactionIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
     const merchantId=target.dataset.merchantId||'';
     const categoryIds=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
+    if(!transactionIds.length){ goToRoute('budget'); return; }
     resetTransactionDrilldownFilters();
     uiState.transactionDirection='expense';
     uiState.transactionSemantic='variable';
-    uiState.transactionPeriod='all';
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=uiState.transactionFrom||uiState.transactionTo?'custom':'all';
     if(transactionIds.length){
       uiState.transactionIds=transactionIds;
     } else if(merchantId){

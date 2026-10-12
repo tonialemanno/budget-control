@@ -319,7 +319,7 @@ export function renderOverview({
           <div><h3 class="card-title">Wofür du Geld ausgibst</h3><p class="card-subtitle">Echte Konsumausgaben im aktuellen Finanzmonat.</p></div>
           <a class="card-link" href="/statistics">Statistik</a>
         </div>
-        ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
+        ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled,rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive})}
       </article>
 
       <article class="card card-padding finance-chart-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${seriesFrom}" data-to="${cycleTo}" data-direction="all" role="link" tabindex="0" aria-label="Buchungen der letzten sechs Finanzmonate öffnen">
