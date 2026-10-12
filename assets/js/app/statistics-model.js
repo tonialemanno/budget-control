@@ -83,6 +83,7 @@ export function buildStatisticsModel({
         rawPercent,
         percent:Math.max(0,Math.min(100,rawPercent)),
         transactionCount:Number(row.transactionCount||0),
+        transactionIds:Array.isArray(row.transactionIds)?row.transactionIds:[],
         categoryIds:categoryIdsForBudget(row,categories),
         merchantId:row.merchant_id||null,
       };
