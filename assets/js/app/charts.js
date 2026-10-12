@@ -137,8 +137,14 @@ export function renderExpenseDonut({
   currency='CHF',
   locale='de-CH',
   privacy=false,
+  rangeStart=null,
+  rangeEnd=null,
 }={}) {
   const value=Math.max(0,finite(total));
+  const from=rangeStart?localDateKey(rangeStart):'';
+  const end=rangeEnd?new Date(rangeEnd):null;
+  if(end) end.setDate(end.getDate()-1);
+  const to=end?localDateKey(end):'';
   if (!(value>0) || !rows.length) {
     return `<div class="donut-empty"><div class="donut-empty-ring"></div><p>${escapeHtml(t('Keine Ausgaben in diesem Finanzmonat.',locale))}</p></div>`;
   }
@@ -156,13 +162,15 @@ export function renderExpenseDonut({
       ? `${displayLabel}: ${Math.round(share)}%`
       : `${displayLabel}: ${moneyText(row.value,{currency,locale})} · ${Math.round(share)}%`;
     const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
-    return `<circle class="donut-segment donut-segment--${index%6} donut-segment--interactive" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}" tabindex="0" role="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}"><title>${escapeHtml(title)}</title></circle>`;
+    const transactionIds=Array.isArray(row.transactionIds)?row.transactionIds.join(','):'';
+    return `<circle class="donut-segment donut-segment--${index%6} donut-segment--interactive" cx="70" cy="70" r="${radius}" pathLength="${circumference}" stroke-dasharray="${length} ${Math.max(0,circumference-length)}" stroke-dashoffset="${dashOffset}" tabindex="0" role="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}" data-transaction-ids="${escapeHtml(transactionIds)}" data-from="${from}" data-to="${to}" aria-label="${escapeHtml(title)}"><title>${escapeHtml(title)}</title></circle>`;
   }).join('');
 
   const legend=rows.map((row,index)=>{
     const displayLabel=row.key==='uncategorized' ? t('Ohne Kategorie',locale) : row.key==='other' ? t('Sonstiges',locale) : row.label;
     const categoryIds=Array.isArray(row.categoryIds)?row.categoryIds.join(','):'';
-    return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}">
+    const transactionIds=Array.isArray(row.transactionIds)?row.transactionIds.join(','):'';
+    return `<button class="donut-legend-row donut-legend-button" type="button" data-action="overview-drilldown-expense" data-key="${escapeHtml(row.key)}" data-category-ids="${escapeHtml(categoryIds)}" data-transaction-ids="${escapeHtml(transactionIds)}" data-from="${from}" data-to="${to}">
       <span class="donut-legend-dot donut-segment-bg--${index%6}"></span>
       <strong>${escapeHtml(displayLabel)}</strong>
       <span>${privacy?'•••':money(row.value,{currency,locale})}</span>
