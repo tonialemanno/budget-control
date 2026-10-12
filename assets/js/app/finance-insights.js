@@ -352,7 +352,11 @@ export function categorySpending({
     totals.set(key,existing);
   }
 
-  const allRows=[...totals.values()].map((row)=>({...row,categoryIds:[...row.categoryIds}],subcategories:[...row.subcategories.values()].sort((a,b)=>b.value-a.value)})).sort((a,b)=>b.value-a.value);
+  const allRows=[...totals.values()].map((row)=>({
+    ...row,
+    categoryIds:[...row.categoryIds],
+    subcategories:[...row.subcategories.values()].sort((a,b)=>b.value-a.value),
+  })).sort((a,b)=>b.value-a.value);
   const total=allRows.reduce((sum,row)=>sum+row.value,0);
   const visible=allRows.slice(0,Math.max(1,limit));
   const hidden=allRows.slice(visible.length);
