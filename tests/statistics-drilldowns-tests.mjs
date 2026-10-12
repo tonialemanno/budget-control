@@ -36,7 +36,7 @@ const budgets=[{id:'budget',month_start:`${cycle.budgetMonth}-01`,category_id:'f
 const accounts=[{account_id:'cash',name:'Cash',account_type:'checking',currency:'CHF',current_balance:1000}];
 const model=buildStatisticsModel({accounts,transactions,categories,budgets,recurringRules:[],debtPayments:[],merchants:[],household,profile:{locale:'de-CH'},fxRates,now,cycles:6});
 assert.equal(model.budgetRows.length,1);
-assert.ok(Math.abs(model.budgetRows[0].amount-(100/0.95))<0.001,'budget limit must be converted to household currency');
+assert.ok(Math.abs(model.budgetRows[0].amount-(100*0.95))<0.001,'budget limit must be converted to household currency');
 assert.deepEqual(new Set(model.budgetRows[0].transactionIds),new Set(['super','cafe']));
 const rendered=renderStatistics({accounts,transactions,categories,budgets,recurringRules:[],debtPayments:[],merchants:[],household,profile:{locale:'de-CH'},fxRates});
 assert.match(rendered,/Unterkategorien und Buchungen anzeigen/);
