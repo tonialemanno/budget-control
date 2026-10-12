@@ -1,6 +1,5 @@
 import { pageHeader } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
-import { icon } from '../app/icons.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { buildStatisticsModel } from '../app/statistics-model.js';
