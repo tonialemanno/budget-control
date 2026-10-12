@@ -37,6 +37,7 @@ import { merchantSimilarity, similarMerchantCandidates, preferredTransactionToKe
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js';
 
 import { renderOverview } from './views/overview.js';
+import { renderStatistics } from './views/statistics.js';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
 import { renderSetupGuide } from './views/setup.js';
@@ -76,6 +77,7 @@ let lastRenderedHref=`${location.pathname}${location.search}`;
 
 const views = {
   overview: renderOverview,
+  statistics: renderStatistics,
   review: renderReview,
   search: renderSearch,
   projects: renderProjects,
@@ -5320,22 +5322,33 @@ async function handleAction(target) {
     goToRoute('transactions');
     return;
   }
+  if (action === 'overview-drilldown-period') {
+    resetTransactionDrilldownFilters();
+    uiState.transactionDirection=target.dataset.direction||'all';
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=(uiState.transactionFrom||uiState.transactionTo)?'custom':'all';
+    goToRoute('transactions');
+    return;
+  }
   if (action === 'overview-drilldown-expense') {
     const key=target.dataset.key||'';
     const ids=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
+    const exactIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
     uiState.transactionQuery='';
     uiState.transactionDirection='expense';
     uiState.transactionSemantic='all';
     uiState.transactionAccount='all';
-    uiState.transactionFrom='';
-    uiState.transactionTo='';
-    uiState.transactionPeriod='all';
+    uiState.transactionFrom=target.dataset.from||'';
+    uiState.transactionTo=target.dataset.to||'';
+    uiState.transactionPeriod=(uiState.transactionFrom||uiState.transactionTo)?'custom':'all';
     uiState.transactionView='details';
     uiState.transactionPage=1;
     uiState.transactionCategoryIds=[];
     uiState.transactionSourceSet=[];
-    uiState.transactionIds=[];
-    if(key==='uncategorized') uiState.transactionCategory='uncategorized';
+    uiState.transactionIds=exactIds;
+    if(exactIds.length) uiState.transactionCategory='all';
+    else if(key==='uncategorized') uiState.transactionCategory='uncategorized';
     else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
     goToRoute('transactions');
@@ -5937,6 +5950,13 @@ pageContent.addEventListener('click',(event)=>{
 
 pageContent.addEventListener('keydown',(event)=>{
   if(event.key!=='Enter'&&event.key!==' ') return;
+  const chartControl=event.target.closest?.('rect[data-action],circle[data-action]');
+  if(chartControl && event.target===chartControl){
+    event.preventDefault();
+    try { void handleAction(chartControl).catch((error)=>showToast(humanError(error),'error')); }
+    catch(error){ showToast(humanError(error),'error'); }
+    return;
+  }
   const drilldown=event.target.closest?.('[data-drilldown]');
   if(!drilldown||event.target!==drilldown) return;
   event.preventDefault();
