@@ -115,6 +115,12 @@ export function renderStatistics({
   const net=Number(current.savings||0);
   const currentRange=periodRange({start:current.cycle.start,endExclusive:current.cycle.endExclusive});
   const year=annualIncome.year;
+  const liquidBalance=(model.accounts||[]).reduce((sum,row)=>sum+Number(row.value||0),0);
+  const budgetRemaining=Math.max(0,Number(model.budget?.remaining||0));
+  const budgetOver=Math.max(0,Number(model.budget?.overBy||0));
+  const budgetAvailableLabel=model.budget?.count
+    ? budgetOver>0?'Budget überschritten':'Variables Budget offen'
+    : 'Variables Budget';
 
   return `
     ${pageHeader({
@@ -130,6 +136,37 @@ export function renderStatistics({
       ${metric(net>=0?'Überschuss':'Defizit',privacyMoney(Math.abs(net),{currency,locale,privacyEnabled}),currentLabel,net>=0?'positive':'negative')}
       ${metric('Sparquote',`${Math.round(current.savingsRate||0)}%`,`${current.transactionCount} gebuchte Bewegungen`,current.savingsRate>=0?'positive':'negative')}
     </section>
+
+    <article class="card card-padding statistics-balance-card">
+      <div class="card-heading">
+        <div><h3 class="card-title">Monatsbilanz auf einen Blick</h3><p class="card-subtitle">Ein Finanzbild für den aktuellen Finanzmonat. Jede Position führt direkt zur passenden Detailansicht.</p></div>
+        <button class="card-link card-link--button" type="button" data-drilldown="transactions-range" data-from="${currentRange.from}" data-to="${currentRange.to}" data-direction="all">Alle Bewegungen</button>
+      </div>
+      <div class="statistics-balance-layout">
+        <button type="button" class="statistics-balance-total ${net<0?'statistics-balance-total--negative':'statistics-balance-total--positive'}" data-drilldown="transactions-range" data-from="${currentRange.from}" data-to="${currentRange.to}" data-direction="all">
+          <span>${net<0?'Defizit':'Überschuss'}</span>
+          <strong>${privacyMoney(Math.abs(net),{currency,locale,privacyEnabled})}</strong>
+          <small>${escapeHtml(currentLabel)}</small>
+        </button>
+        <div class="statistics-balance-rows">
+          <button type="button" data-drilldown="transactions-range" data-from="${currentRange.from}" data-to="${currentRange.to}" data-direction="income">
+            <span>Einnahmen</span><strong class="positive">${privacyMoney(current.income,{currency,locale,privacyEnabled})}</strong>
+          </button>
+          <button type="button" data-drilldown="transactions-range" data-from="${currentRange.from}" data-to="${currentRange.to}" data-direction="expense">
+            <span>Ausgaben</span><strong class="negative">${privacyMoney(current.expenses,{currency,locale,privacyEnabled})}</strong>
+          </button>
+          <a href="/planning/budget">
+            <span>${escapeHtml(budgetAvailableLabel)}</span>
+            <strong>${model.budget?.count
+              ? privacyMoney(budgetOver>0?budgetOver:budgetRemaining,{currency,locale,privacyEnabled})
+              : 'Noch nicht eingerichtet'}</strong>
+          </a>
+          <a href="/finance">
+            <span>Liquide Kontostände</span><strong>${privacyMoney(liquidBalance,{currency,locale,privacyEnabled})}</strong>
+          </a>
+        </div>
+      </div>
+    </article>
 
     <article class="card card-padding statistics-chart-card">
       <div class="card-heading">
