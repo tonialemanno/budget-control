@@ -5344,13 +5344,16 @@ async function handleAction(target) {
     return;
   }
   if (action === 'statistics-drilldown-budget') {
+    const transactionIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
     const merchantId=target.dataset.merchantId||'';
     const categoryIds=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
     resetTransactionDrilldownFilters();
     uiState.transactionDirection='expense';
     uiState.transactionSemantic='variable';
     uiState.transactionPeriod='all';
-    if(merchantId){
+    if(transactionIds.length){
+      uiState.transactionIds=transactionIds;
+    } else if(merchantId){
       const merchant=runtime.merchants.find((row)=>row.id===merchantId);
       uiState.transactionQuery=merchant?.name||'';
     } else if(categoryIds.length){

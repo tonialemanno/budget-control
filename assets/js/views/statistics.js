@@ -1,6 +1,5 @@
 import { pageHeader } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
-import { icon } from '../app/icons.js';
 import { renderCashflowChart, renderExpenseDonut } from '../app/charts.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { buildStatisticsModel } from '../app/statistics-model.js';
@@ -68,7 +67,7 @@ function budgetRowsHtml(rows,{currency,locale,privacyEnabled}){
   if(!rows.length) return '<div class="table-empty">Noch keine variablen Budgetrahmen vorhanden.</div>';
   return rows.map((row)=>{
     const tone=row.rawPercent>100?'negative':row.rawPercent>=80?'warning':'positive';
-    return `<button class="statistics-budget-row" type="button" data-action="statistics-drilldown-budget" data-merchant-id="${escapeHtml(row.merchantId||'')}" data-category-ids="${escapeHtml(row.categoryIds.join(','))}">
+    return `<button class="statistics-budget-row" type="button" data-action="statistics-drilldown-budget" data-merchant-id="${escapeHtml(row.merchantId||'')}" data-category-ids="${escapeHtml(row.categoryIds.join(','))}" data-transaction-ids="${escapeHtml((row.transactionIds||[]).join(','))}">
       <div class="statistics-budget-head">
         <div><strong>${escapeHtml(row.label)}</strong><small>${row.transactionCount} Buchung${row.transactionCount===1?'':'en'}</small></div>
         <div><strong>${privacyMoney(row.spent,{currency,locale,privacyEnabled})} / ${privacyMoney(row.amount,{currency,locale,privacyEnabled})}</strong><small>${Math.round(row.rawPercent)}%</small></div>
