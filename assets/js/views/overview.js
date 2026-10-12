@@ -126,6 +126,23 @@ export function renderOverview({
   const actualTransactions=transactions.filter((tx)=>tx.status==='booked'&&new Date(tx.occurred_at)<=now);
   const hasForeign=accounts.some((row)=>row.currency!==currency)||transactions.some((row)=>row.currency!==currency);
   const budget=coach.budget;
+  const budgetProgressRows=(budget.variableRows||[])
+    .map((row)=>{
+      const merchant=merchants.find((item)=>item.id===row.merchant_id)||row.merchants||null;
+      const category=categories.find((item)=>item.id===row.category_id)||row.categories||null;
+      const amount=Math.max(0,Number(row.amount||0));
+      const spent=Math.max(0,Number(row.spent||0));
+      const rawPercent=amount>0?spent/amount*100:0;
+      return {
+        ...row,
+        label:merchant?.name||category?.name||'Budget',
+        amount,
+        spent,
+        remaining:Math.max(0,amount-spent),
+        rawPercent,
+      };
+    })
+    .sort((a,b)=>b.rawPercent-a.rawPercent||b.spent-a.spent);
   const daysLabel=coach.daysRemaining===1?'1 Tag':`${coach.daysRemaining} Tage`;
   const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
   const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
@@ -317,6 +334,25 @@ export function renderOverview({
         ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budgetrahmen festlegen</a>':''}
       </article>
     </div>
+
+    ${budgetProgressRows.length?`<article class="card card-padding dashboard-budget-detail-card">
+      <div class="card-heading">
+        <div><h3 class="card-title">Budget nach Bereichen</h3><p class="card-subtitle">Wie viel deines Rahmens pro Kategorie oder Händler bereits verbraucht ist. Jede Zeile öffnet die zugehörigen Buchungen.</p></div>
+        <a class="card-link" href="#/budget">Budget bearbeiten</a>
+      </div>
+      <div class="insight-list">
+        ${budgetProgressRows.slice(0,8).map((row)=>{
+          const pct=Math.max(0,Math.min(100,row.rawPercent||0));
+          const ids=Array.isArray(row.transactionIds)?row.transactionIds.join(','):'';
+          return `<button class="insight-row insight-row--interactive" type="button" data-action="overview-drilldown-budget" data-transaction-ids="${escapeHtml(ids)}" data-category-id="${escapeHtml(row.category_id||'')}" data-merchant-id="${escapeHtml(row.merchant_id||'')}" data-label="${escapeHtml(row.label)}">
+            <div class="insight-row-head"><strong>${escapeHtml(row.label)}</strong><span>${privacyEnabled?'•••':money(row.spent,{currency,locale})} / ${privacyEnabled?'•••':money(row.amount,{currency,locale})}</span></div>
+            <div class="insight-track"><span style="--insight-progress:${pct}%"></span></div>
+            <small>${Math.round(row.rawPercent||0)} % verbraucht · ${privacyEnabled?'•••':money(row.remaining,{currency,locale})} verfügbar · ${Number(row.transactionCount||0)} Buchung${Number(row.transactionCount||0)===1?'':'en'}</small>
+          </button>`;
+        }).join('')}
+      </div>
+      ${budgetProgressRows.length>8?'<div class="card-footer-actions"><a class="table-action" href="#/budget">Alle Budgetbereiche anzeigen</a></div>':''}
+    </article>`:''}
 
     <div class="dashboard-chart-grid">
       <article class="card card-padding dashboard-donut-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${cycleFrom}" data-to="${cycleTo}" data-direction="expense" role="link" tabindex="0" aria-label="Ausgaben dieses Finanzmonats öffnen">
