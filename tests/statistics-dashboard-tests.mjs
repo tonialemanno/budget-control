@@ -17,7 +17,7 @@ assert.ok(model.annualIncome);
 const html=renderStatistics(base);
 assert.match(html,/Statistik/);
 assert.match(html,/statistics-metric-grid/);
-assert.match(html,/Einnahmen &amp; Ausgaben/);
+assert.match(html,/Einnahmen & Ausgaben/);
 assert.match(html,/Ausgaben nach Kategorien/);
 assert.match(html,/Budgetfortschritt/);
 assert.match(html,/Kontostände/);
