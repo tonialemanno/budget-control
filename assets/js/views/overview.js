@@ -11,6 +11,8 @@ import {
 import { financeMonthMode, primaryAccountPreferenceId } from '../app/user-preferences.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { renderCashflowChart, renderExpenseDonut, renderIncomePlan } from '../app/charts.js?v=20261008-r60';
+import { budgetSummary } from '../app/finance-insights.js';
+import { renderFinanceMonthSummary, renderCategoryDetails, renderBudgetProgress } from './statistics-panels.js';
 
 function privacyMoney(value,{currency,locale,privacyEnabled=false,decimals=2}={}){
   return privacyEnabled?'•••':money(value,{currency,locale,decimals});
@@ -117,6 +119,10 @@ export function renderOverview({
     rangeStart:financeCycle.start,rangeEnd:financeCycle.endExclusive,
   });
   const categoryTotal=categoriesSpent[0]?.total||0;
+  const budgetDetail=budgetSummary({
+    budgets,transactions,debtPayments,categories,merchants,recurringRules,accounts,
+    baseCurrency:currency,fxRates,now,financeMonthMode:selectedFinanceMonthMode,
+  });
   const annualIncome=annualIncomeBreakdown({
     transactions,categories,recurringRules,baseCurrency:currency,fxRates,year:now.getFullYear(),limit:5,
   });
@@ -167,6 +173,9 @@ export function renderOverview({
     })}
 
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>Mehrere Währungen aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben auf den Konten erhalten.</span></div>`:''}
+
+    <div class="stat-section-header stat-overview-heading"><div><h3>Dein Finanzmonat</h3><p>${escapeHtml(cycleLabel)} · echte Einnahmen und Ausgaben</p></div><a href="/finance/statistics">Alle Statistiken →</a></div>
+    ${renderFinanceMonthSummary({totals:cycleTotals,currency,locale,privacy:privacyEnabled})}
 
     <section class="coach-cockpit">
       <article class="card coach-hero coach-hero--${coachTone} dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung für frei verfügbares Geld öffnen">
@@ -315,21 +324,27 @@ export function renderOverview({
           </div>
         </div>
         ${!budget.count?'<a class="action-button action-button--primary action-button--block" href="#/budget">Budgetrahmen festlegen</a>':''}
+        <details class="stat-overview-expand"><summary>Budgetfortschritt nach Kategorie anzeigen</summary>
+          ${renderBudgetProgress({budget:budgetDetail,currency,locale,privacy:privacyEnabled,fxRates,cycle:financeCycle})}
+        </details>
       </article>
     </div>
 
     <div class="dashboard-chart-grid">
-      <article class="card card-padding dashboard-donut-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${cycleFrom}" data-to="${cycleTo}" data-direction="expense" role="link" tabindex="0" aria-label="Ausgaben dieses Finanzmonats öffnen">
+      <article class="card card-padding dashboard-donut-card">
         <div class="card-heading">
           <div><h3 class="card-title">Wofür du Geld ausgibst</h3><p class="card-subtitle">Echte Konsumausgaben im aktuellen Finanzmonat.</p></div>
           <a class="card-link" href="#/transactions">Details</a>
         </div>
         ${renderExpenseDonut({rows:categoriesSpent,total:categoryTotal,currency,locale,privacy:privacyEnabled})}
+        <details class="stat-overview-expand"><summary>Kategorien und Unterkategorien aufklappen</summary>
+          ${renderCategoryDetails({rows:categoriesSpent,currency,locale,privacy:privacyEnabled,cycle:financeCycle})}
+        </details>
       </article>
 
-      <article class="card card-padding finance-chart-card dashboard-drilldown" data-drilldown="transactions-range" data-from="${seriesFrom}" data-to="${cycleTo}" data-direction="all" role="link" tabindex="0" aria-label="Buchungen der letzten sechs Finanzmonate öffnen">
+      <article class="card card-padding finance-chart-card">
         <div class="card-heading">
-          <div><h3 class="card-title">Deine Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Finanzmonate.</p></div>
+          <div><h3 class="card-title">Deine Entwicklung</h3><p class="card-subtitle">Einnahmen und Ausgaben der letzten sechs Finanzmonate. Balken antippen für Buchungen.</p></div>
           <a class="card-link" href="#/transactions">Buchungen</a>
         </div>
         ${renderCashflowChart({series:months,currency,locale,privacy:privacyEnabled})}
