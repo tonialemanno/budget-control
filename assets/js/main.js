@@ -37,6 +37,7 @@ import { merchantSimilarity, similarMerchantCandidates, preferredTransactionToKe
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js';
 
 import { renderOverview } from './views/overview.js';
+import { renderStatistics } from './views/statistics.js';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
 import { renderSetupGuide } from './views/setup.js';
@@ -76,6 +77,7 @@ let lastRenderedHref=`${location.pathname}${location.search}`;
 
 const views = {
   overview: renderOverview,
+  statistics: renderStatistics,
   review: renderReview,
   search: renderSearch,
   projects: renderProjects,
@@ -378,7 +380,7 @@ function renderNavigation() {
 
   mobileNav.innerHTML = `
     <a href="${routeHref('overview')}" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
-    <a href="${routeHref('review')}" data-route="review" data-section="review">${icon('check-circle')}<span>${escapeHtml(t('Prüfen'))}</span></a>
+    <a href="${routeHref('statistics')}" data-route="statistics" data-section="statistics">${icon('chart')}<span>${escapeHtml(t('Statistik'))}</span></a>
     <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
     <a href="${routeHref('money')}" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
     <a href="${routeHref('planning')}" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
@@ -5338,6 +5340,22 @@ async function handleAction(target) {
     if(key==='uncategorized') uiState.transactionCategory='uncategorized';
     else if(key==='other'){ uiState.transactionCategory='all'; uiState.transactionCategoryIds=ids; }
     else uiState.transactionCategory=ids[0]||key||'all';
+    goToRoute('transactions');
+    return;
+  }
+  if (action === 'statistics-drilldown-budget') {
+    const merchantId=target.dataset.merchantId||'';
+    const categoryIds=String(target.dataset.categoryIds||'').split(',').filter(Boolean);
+    resetTransactionDrilldownFilters();
+    uiState.transactionDirection='expense';
+    uiState.transactionSemantic='variable';
+    uiState.transactionPeriod='all';
+    if(merchantId){
+      const merchant=runtime.merchants.find((row)=>row.id===merchantId);
+      uiState.transactionQuery=merchant?.name||'';
+    } else if(categoryIds.length){
+      uiState.transactionCategoryIds=categoryIds;
+    }
     goToRoute('transactions');
     return;
   }
