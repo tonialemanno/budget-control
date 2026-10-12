@@ -100,7 +100,9 @@ export function renderCashflowChart({
       ? `${t('Ausgaben',locale)} · ${period}`
       : `${t('Ausgaben',locale)} · ${period}: ${moneyText(row.expenses,{currency,locale})}`;
     const from=localDateKey(row.start||row.date);
-    const to=localDateKey(new Date(new Date(row.endExclusive||row.date).getTime()-(row.endExclusive?86400000:0)));
+    const inclusiveEnd=new Date(row.endExclusive||row.date);
+    if(row.endExclusive) inclusiveEnd.setDate(inclusiveEnd.getDate()-1);
+    const to=localDateKey(inclusiveEnd);
     const incomeAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="income"`:'';
     const expenseAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="expense"`:'';
     return `<g class="cashflow-month">
