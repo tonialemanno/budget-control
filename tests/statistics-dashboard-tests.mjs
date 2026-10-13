@@ -25,7 +25,7 @@ assert.equal(kpiButtons.filter((button)=>button.includes('data-direction="expens
 assert.equal(kpiButtons.filter((button)=>button.includes('data-direction="all"')).length,2);
 assert.ok(kpiButtons.every((button)=>/data-from="\\d{4}-\\d{2}-\\d{2}"/.test(button)));
 assert.ok(kpiButtons.every((button)=>/data-to="\\d{4}-\\d{2}-\\d{2}"/.test(button)));
-assert.ok(kpiButtons.every((button)=>button.includes('aria-label=')));
+assert.ok(kpiButtons.every((button)=>button.includes('type="button"')));
 assert.match(html,/Einnahmen & Ausgaben/);
 assert.match(html,/Ausgaben nach Kategorien/);
 assert.match(html,/Budgetfortschritt/);
