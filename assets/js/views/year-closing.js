@@ -1,5 +1,6 @@
 import { pageHeader } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
+import { t } from '../app/i18n.js';
 
 export function yearCloseBlockers(overview){
   if(!overview)return ['Die Datenbank für den Jahresabschluss ist noch nicht verfügbar.'];
@@ -26,7 +27,7 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
   const summary=(yearClosures||[]).slice().sort((a,b)=>b.tax_year-a.tax_year).map(row=>
     `<a class="table-action" href="/planning/year-closing?year=${Number(row.tax_year)}">${Number(row.tax_year)} · ${row.status==='closed'?'Abgeschlossen':'In Prüfung'} · Version ${Number(row.revision||0)}</a>`
   ).join(' · ');
-  if(!canAdminHousehold)return `${pageHeader({title:'Jahrescenter',subtitle:'Jahresabschlüsse sind nur für Haushaltsadministratoren zugänglich.'})}<div class="inline-alert">Keine Berechtigung für diesen Jahresabschluss.</div>`;
+  if(!canAdminHousehold)return `${pageHeader({title:t('Jahrescenter',locale),subtitle:t('Jahresabschlüsse sind nur für Haushaltsadministratoren zugänglich.',locale)})}<div class="inline-alert">${escapeHtml(t('Keine Berechtigung für diesen Jahresabschluss.',locale))}</div>`;
   return `
   ${pageHeader({title:'Jahrescenter',subtitle:'Bankauszüge abstimmen, vergangenes Kalenderjahr abschliessen und unveränderlich für die Steuerdokumentation sichern.'})}
   <section class="card card-padding" aria-label="Jahresabschluss wählen">
