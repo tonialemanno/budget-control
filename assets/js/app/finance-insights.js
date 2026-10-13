@@ -490,8 +490,17 @@ export function accountShare(accounts = [], baseCurrency='CHF', fxRates=null) {
   const eligible=accounts.filter((a)=>['checking','savings','cash','wallet'].includes(a.account_type));
   const rows=eligible.map((account)=>({
     account,
-    value:base(Number(account.current_balance||0),account.currency,baseCurrency,fxRates),
+    // Missing FX must remain unknown, not silently become zero in the liquidity overview.
+    value:convertAmount(Number(account.current_balance||0),account.currency,baseCurrency,fxRates),
   }));
-  const total=rows.reduce((sum,row)=>sum+Math.max(0,row.value),0);
-  return rows.map((row)=>({...row,share:total>0?Math.max(0,row.value)/total*100:0})).sort((a,b)=>b.value-a.value);
+  const complete=rows.every((row)=>row.value!==null);
+  const total=rows.reduce((sum,row)=>sum+Math.max(0,Number(row.value)||0),0);
+  return rows.map((row)=>({
+    ...row,
+    share:complete?(total>0?Math.max(0,row.value)/total*100:0):null,
+  })).sort((a,b)=>{
+    if(a.value===null) return b.value===null?String(a.account.name||'').localeCompare(String(b.account.name||'')):1;
+    if(b.value===null) return -1;
+    return b.value-a.value;
+  });
 }

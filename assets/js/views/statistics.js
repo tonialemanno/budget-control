@@ -95,7 +95,7 @@ function budgetRowsHtml(rows,{currency,locale,privacyEnabled,range}){
 function accountRowsHtml(rows,{locale,privacyEnabled}){
   if(!rows.length) return '<div class="table-empty">Noch keine liquiden Konten vorhanden.</div>';
   return rows.map((row)=>`<button class="statistics-account-row" type="button" data-drilldown="account-edit" data-id="${escapeHtml(row.account.account_id)}">
-    <div><strong>${escapeHtml(row.account.name)}</strong><small>${escapeHtml(row.account.currency)} · ${Math.round(row.share)}% der liquiden Mittel</small></div>
+    <div><strong>${escapeHtml(row.account.name)}</strong><small>${escapeHtml(row.account.currency)} · ${row.share===null?'Anteil nicht berechenbar':`${Math.round(row.share)}% der liquiden Mittel`}</small></div>
     <strong>${privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale})}</strong>
   </button>`).join('');
 }
@@ -115,7 +115,8 @@ export function renderStatistics({
   const net=Number(current.savings||0);
   const currentRange=periodRange({start:current.cycle.start,endExclusive:current.cycle.endExclusive});
   const year=annualIncome.year;
-  const liquidBalance=(model.accounts||[]).reduce((sum,row)=>sum+Number(row.value||0),0);
+  const accountFxIncomplete=(model.accounts||[]).some((row)=>row.value===null);
+  const liquidBalance=accountFxIncomplete?null:(model.accounts||[]).reduce((sum,row)=>sum+Number(row.value||0),0);
   const budgetRemaining=Math.max(0,Number(model.budget?.remaining||0));
   const budgetOver=Math.max(0,Number(model.budget?.overBy||0));
   const budgetAvailableLabel=model.budget?.count
@@ -162,7 +163,7 @@ export function renderStatistics({
               : 'Noch nicht eingerichtet'}</strong>
           </a>
           <a href="/finance">
-            <span>Liquide Kontostände</span><strong>${privacyMoney(liquidBalance,{currency,locale,privacyEnabled})}</strong>
+            <span>Liquide Kontostände</span><strong>${liquidBalance===null?'Nicht berechenbar':privacyMoney(liquidBalance,{currency,locale,privacyEnabled})}</strong>
           </a>
         </div>
       </div>
@@ -219,7 +220,7 @@ export function renderStatistics({
 
       <article class="card card-padding">
         <div class="card-heading">
-          <div><h3 class="card-title">Kontostände</h3><p class="card-subtitle">Liquide Mittel nach Konto. Tippen öffnet das jeweilige Konto.</p></div>
+          <div><h3 class="card-title">Kontostände</h3><p class="card-subtitle">${accountFxIncomplete?'Für mindestens ein Konto fehlt ein Wechselkurs. Die Gesamtsumme und Kontoanteile können nicht korrekt berechnet werden.':'Liquide Mittel nach Konto. Tippen öffnet das jeweilige Konto.'}</p></div>
           <a class="card-link" href="/finance">Geld öffnen</a>
         </div>
         <div class="statistics-account-list">${accountRowsHtml(model.accounts,{locale,privacyEnabled})}</div>
