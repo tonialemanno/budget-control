@@ -80,7 +80,7 @@ function accountProgress(label,value,percent,meta='',accountId=''){
   const close=accountId?'</button>':'</div>';
   return `${open}
     <div class="insight-row-head"><strong>${escapeHtml(label)}</strong><span>${value}</span></div>
-    <div class="insight-track"><span style="--insight-progress:${pct}%"></span></div>
+    ${percent===null?'':`<div class="insight-track"><span style="--insight-progress:${pct}%"></span></div>`}
     ${meta?`<small>${escapeHtml(meta)}</small>`:''}
   ${close}`;
 }
@@ -116,8 +116,9 @@ export function renderOverview({
   const categoryTotal=statistics.categoryTotal;
   const annualIncome=statistics.annualIncome;
   const accountRows=statistics.accounts;
+  const accountFxIncomplete=accountRows.some((row)=>row.value===null);
   const primaryRow=accountRows.find((row)=>row.account.account_id===primaryAccount?.account_id)||null;
-  const otherLiquid=snapshot.cash-(primaryRow?.value||0);
+  const otherLiquid=accountFxIncomplete?null:snapshot.cash-(primaryRow?.value||0);
   const actualTransactions=transactions.filter((tx)=>tx.status==='booked'&&new Date(tx.occurred_at)<=now);
   const hasForeign=accounts.some((row)=>row.currency!==currency)||transactions.some((row)=>row.currency!==currency);
   const budget=coach.budget;
@@ -388,12 +389,13 @@ export function renderOverview({
       <div class="card-heading"><div><h3 class="card-title">Deine Geldtöpfe</h3><p class="card-subtitle">Hauptkonto, Sparkonten und Bargeld bleiben getrennt. Nur das Hauptkonto bestimmt den täglichen freien Rahmen.</p></div><a class="card-link" href="#/money">Geld öffnen</a></div>
       <div class="insight-list insight-list--accounts">
         ${accountRows.length
-          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale}),row.share,row.account.currency,row.account.account_id)).join('')
+          ? accountRows.map((row)=>accountProgress(row.account.name,privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale}),row.share,row.share===null?`${row.account.currency} · Anteil nicht berechenbar`:row.account.currency,row.account.account_id)).join('')
           : '<div class="table-empty">Noch keine liquiden Konten.</div>'}
       </div>
+      ${accountFxIncomplete?'<p class="cashflow-data-note">Für mindestens ein Konto fehlt ein Wechselkurs. Die Gesamtwerte und Anteile sind nicht vollständig berechenbar.</p>':''}
       <div class="coach-account-summary">
-        <span>Andere liquide Konten <strong>${privacyMoney(otherLiquid,{currency,locale,privacyEnabled})}</strong></span>
-        <span>Nettovermögen <strong>${privacyMoney(snapshot.netWorth,{currency,locale,privacyEnabled})}</strong></span>
+        <span>Andere liquide Konten <strong>${otherLiquid===null?'Nicht berechenbar':privacyMoney(otherLiquid,{currency,locale,privacyEnabled})}</strong></span>
+        <span>Nettovermögen <strong>${accountFxIncomplete?'Nicht berechenbar':privacyMoney(snapshot.netWorth,{currency,locale,privacyEnabled})}</strong></span>
         <span>Sparquote Finanzmonat <strong>${Math.round(cycleTotals.savingsRate)}%</strong></span>
       </div>
     </article>
