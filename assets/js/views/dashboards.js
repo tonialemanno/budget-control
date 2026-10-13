@@ -159,7 +159,13 @@ export function renderDashboards({
   const liquidComplete=model.accounts.every(row=>row.value!==null);
   const holdingsComplete=liquidComplete&&fxComplete(assets,currency,fxRates,'current_value')&&fxComplete(properties,currency,fxRates,'current_value')&&fxComplete(vehicles,currency,fxRates,'current_value')&&fxComplete(investments,currency,fxRates,'current_value')&&fxComplete(pensions,currency,fxRates,'current_value')&&fxComplete(debts,currency,fxRates,'outstanding_amount')&&fxComplete(receivables,currency,fxRates,'outstanding_amount');
   const liquid=liquidComplete?model.accounts.reduce((sum,row)=>sum+row.value,0):null;
-  const hasMissingTransactionFx=transactions.some(tx=>tx.status==='booked'&&!tx.transfer_group_id&&convertAmount(tx.amount,tx.currency||currency,currency,fxRates)===null);
+  const hasMissingTransactionFx=transactions.some(tx=>{
+    const date=new Date(tx.occurred_at);
+    return tx.status==='booked'&&!tx.transfer_group_id&&!Number.isNaN(date.getTime())
+      &&date<=now&&date>=current.cycle.start&&date<current.cycle.endExclusive
+      &&convertAmount(tx.amount,tx.currency||currency,currency,fxRates)===null;
+  });
+  const budgetFxIncomplete=model.budgetRows.some(row=>row.amount===null)||hasMissingTransactionFx;
   const emptyHistory=model.series.every(row=>row.coverage==='none');
 
   const tiles=`<section class="dash-kpis" aria-label="${escapeHtml(t('Finanzkennzahlen',locale))}">
@@ -200,11 +206,15 @@ export function renderDashboards({
         ${card('Grösste Ausgabenkategorien',categoriesRows(model,range,opts),'',locale)}</div>`;
   }else if(panel==='budget'){
     const b=model.budget||{};
+    const budgetTotal=(b.count>0&&!budgetFxIncomplete)?b.total:null;
+    const budgetRemaining=(b.count>0&&!budgetFxIncomplete)?b.remaining:null;
+    const budgetDisplay=(amount)=>b.count>0?safeMoney(amount,opts):escapeHtml(t('Noch nicht eingerichtet',locale));
     body=`<section class="dash-kpis"><a class="dash-kpi dash-kpi--link" href="/planning/budget">
-      <span>${escapeHtml(t('Variables Budget',locale))}</span><strong>${safeMoney(b.total??null,opts)}</strong>
+      <span>${escapeHtml(t('Variables Budget',locale))}</span><strong>${budgetDisplay(budgetTotal)}</strong>
       <small>${escapeHtml(t('Budget bearbeiten',locale))} →</small></a>
       <a class="dash-kpi dash-kpi--link" href="/planning/budget"><span>${escapeHtml(t('Noch verfügbar',locale))}</span>
-      <strong>${safeMoney(b.remaining??null,opts)}</strong><small>${escapeHtml(t('Budget öffnen',locale))} →</small></a></section>
+      <strong>${budgetDisplay(budgetRemaining)}</strong><small>${escapeHtml(t('Budget öffnen',locale))} →</small></a></section>
+      ${budgetFxIncomplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.',locale))}</p>`:''}
       ${card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget bearbeiten',locale))} →</a>`,locale)}`;
   }else if(panel==='wealth'){
     body=`<section class="dash-kpis">
