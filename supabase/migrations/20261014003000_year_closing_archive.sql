@@ -52,6 +52,12 @@ alter table public.year_closure_account_checks enable row level security;
 alter table public.year_closure_versions enable row level security;
 alter table public.year_closure_events enable row level security;
 
+-- Idempotent even if remote migration history and repository baseline were imported separately.
+drop policy if exists year_closures_admin_read on public.year_closures;
+drop policy if exists year_checks_admin_read on public.year_closure_account_checks;
+drop policy if exists year_versions_admin_read on public.year_closure_versions;
+drop policy if exists year_events_admin_read on public.year_closure_events;
+
 -- Snapshots may include bank-account identifiers and balances: admin-only access.
 create policy year_closures_admin_read on public.year_closures
   for select to authenticated using (private.can_admin_household(household_id));
