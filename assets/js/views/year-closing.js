@@ -12,7 +12,7 @@ export function yearCloseBlockers(overview){
   if(!(overview.accounts||[]).length)reasons.push('Es sind keine abschliessbaren Konten vorhanden.');
   return reasons;
 }
-export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCloseYear,household,canAdminHousehold=false,profile}={}){
+export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCloseYear,yearCloseError='',household,canAdminHousehold=false,profile}={}){
   const locale=profile?.locale||'de-CH';
   const year=Number(yearCloseYear)||new Date().getFullYear()-1;
   const status=yearCloseOverview?.status||'open';
@@ -35,6 +35,7 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
     <div class="inline-alert"><strong>Kein finanzieller Reset.</strong><span>Kontoguthaben, Schulden und Sparziele laufen unverändert weiter. Nur die Jahresauswertung beginnt am 1. Januar wieder bei null.</span></div>
     ${summary?`<p class="table-meta">Jahreshistorie: ${summary}</p>`:''}
   </section>
+  ${yearCloseError?`<div class="inline-alert"><strong>Datenbankfehler:</strong> ${escapeHtml(yearCloseError)}</div>`:''}
   ${!yearCloseOverview?'<div class="inline-alert">Abschlussdaten werden geladen bzw. sind noch nicht migriert. Kein Abschluss möglich.</div>':''}
   <section class="card card-padding" style="margin-top:16px">
     <div class="card-heading"><div><h3 class="card-title">Bankkonten abstimmen</h3><p class="card-subtitle">Jedes Konto benötigt einen bestätigten Schlussstand per 31.12.${year}. Auch Konten ohne Jahresend-Buchung werden bestätigt.</p></div></div>
