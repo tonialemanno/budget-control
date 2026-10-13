@@ -370,7 +370,7 @@ function householdRoleLabel(role) {
 }
 
 function enabledNavItems() {
-  return NAV_ITEMS.filter((item) => moduleEnabled(item.module) && (!item.adminOnly || Boolean(runtime.adminRole)));
+  return NAV_ITEMS.filter((item) => moduleEnabled(item.module) && (!item.adminOnly || Boolean(runtime.adminRole)) && (item.route!=='year-closing'||canAdminHousehold()));
 }
 
 function renderNavigation() {
