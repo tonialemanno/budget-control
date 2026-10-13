@@ -31,6 +31,11 @@ assert.match(cockpit,/cashflow-svg/);
 assert.match(cockpit,/donut-svg/);
 assert.match(cockpit,/data-action="overview-drilldown-expense"/);
 assert.match(cockpit,/data-action="statistics-drilldown-budget"/);
+const withoutBudget=renderDashboards({...base,budgets:[],dashboardView:'budget'});
+assert.match(withoutBudget,/Noch nicht eingerichtet/);
+const missingBudgetFx=renderDashboards({...base,budgets:[{...currentBudget,currency:'EUR',amount:100}],fxRates:null,dashboardView:'budget'});
+assert.match(missingBudgetFx,/Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein/);
+assert.match(missingBudgetFx,/Nicht berechenbar/);
 
 const cashflow=renderDashboards({...base,dashboardView:'cashflow'});
 assert.match(cashflow,/data-direction="income"/);
