@@ -171,7 +171,7 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
-  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false,
+  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false,
   yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
