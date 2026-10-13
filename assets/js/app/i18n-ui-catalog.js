@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.": "Manca un tasso di cambio. I valori del budget potrebbero essere incompleti.",
   "Dashboards": "Cruscotti",
   "Cockpit": "Panoramica finanziaria",
   "Geldfluss": "Flussi di cassa",
@@ -1391,6 +1392,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.": "An exchange rate is missing. Budget values may be incomplete.",
   "Dashboards": "Dashboards",
   "Cockpit": "Financial overview",
   "Geldfluss": "Cash flow",
