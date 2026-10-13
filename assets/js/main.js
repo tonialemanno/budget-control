@@ -38,6 +38,7 @@ import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-plannin
 
 import { renderOverview } from './views/overview.js';
 import { renderStatistics } from './views/statistics.js';
+import { renderDashboards } from './views/dashboards.js';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
 import { renderSetupGuide } from './views/setup.js';
@@ -78,6 +79,7 @@ let lastRenderedHref=`${location.pathname}${location.search}`;
 const views = {
   overview: renderOverview,
   statistics: renderStatistics,
+  dashboards: renderDashboards,
   review: renderReview,
   search: renderSearch,
   projects: renderProjects,
@@ -380,7 +382,7 @@ function renderNavigation() {
 
   mobileNav.innerHTML = `
     <a href="${routeHref('overview')}" data-route="overview" data-section="overview">${icon('home')}<span>${escapeHtml(t('Übersicht'))}</span></a>
-    <a href="${routeHref('statistics')}" data-route="statistics" data-section="statistics">${icon('chart')}<span>${escapeHtml(t('Statistik'))}</span></a>
+    <a href="${routeHref('dashboards')}" data-route="dashboards" data-section="dashboards">${icon('layout-dashboard')}<span>${escapeHtml(t('Dashboards'))}</span></a>
     <button class="mobile-quick-add" id="mobileQuickAddButton" type="button" aria-label="${escapeHtml(t('Hinzufügen'))}" ${canWriteHousehold() ? '' : 'disabled'}>${icon('plus')}</button>
     <a href="${routeHref('money')}" data-route="money" data-section="money">${icon('wallet')}<span>${escapeHtml(t('Geld'))}</span></a>
     <a href="${routeHref('planning')}" data-route="planning" data-section="planning">${icon('target')}<span>${escapeHtml(t('Planung'))}</span></a>
