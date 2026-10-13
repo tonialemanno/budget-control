@@ -1686,6 +1686,20 @@ button.search-result-row { cursor:pointer; }
   border-radius:16px;
   background:var(--surface);
 }
+button.statistics-metric {
+  width:100%;
+  color:var(--text);
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  transition:border-color .15s var(--ease), background .15s var(--ease);
+}
+button.statistics-metric:hover,
+button.statistics-metric:focus-visible {
+  border-color:var(--accent);
+  background:var(--surface-2);
+}
+button.statistics-metric:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .statistics-metric > span,
 .statistics-metric small { color:var(--text-3); font-size:10px; }
 .statistics-metric strong { font-size:23px; line-height:1.05; letter-spacing:-.025em; overflow-wrap:anywhere; }
