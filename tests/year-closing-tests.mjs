@@ -24,6 +24,11 @@ assert.match(pending,/type="submit" class="action-button action-button--primary"
 assert.match(pending,/type="checkbox" name="confirmed" required/);
 assert.deepEqual(yearCloseBlockers(base.yearCloseOverview).length,2);
 
+const historical=renderYearClosing({...base,yearCloseOverview:{...base.yearCloseOverview,
+  accounts:[{...base.yearCloseOverview.accounts[0],calculated_balance:null}]}});
+assert.match(historical,/Historischer Saldo nicht automatisch berechenbar/);
+assert.match(historical,/data-form="year-close-account"/,'Historical accounts must remain signable from a statement');
+
 const ready={...base,yearCloseOverview:{...base.yearCloseOverview,can_close:true,unconfirmed_accounts:0,unclassified_transactions:0,
   accounts:[{...base.yearCloseOverview.accounts[0],matches:true,statement_balance:4500,statement_through:'2025-12-31'}]}};
 const open=renderYearClosing(ready);
