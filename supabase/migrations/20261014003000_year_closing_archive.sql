@@ -215,6 +215,8 @@ begin
     raise exception 'Ein laufendes Jahr kann nicht abgeschlossen werden';
   end if;
   perform pg_advisory_xact_lock(hashtext(p_household_id::text),p_year);
+  -- Keep account inserts/anchor edits out of the critical snapshot interval.
+  lock table public.accounts in share mode;
   insert into public.year_closures(household_id,tax_year) values(p_household_id,p_year)
     on conflict(household_id,tax_year) do nothing;
   select * into v_close from public.year_closures
@@ -338,6 +340,10 @@ drop trigger if exists year_closure_account_guard on public.accounts;
 create trigger year_closure_account_guard before insert or update or delete on public.accounts
   for each row execute function private.reject_closed_year_account_anchor();
 
+revoke all on function private.year_close_cutoff(integer),
+  private.year_end_balance(uuid,integer),
+  private.reject_closed_year_transaction(),
+  private.reject_closed_year_account_anchor() from public,anon,authenticated;
 revoke all on function public.year_close_overview(uuid,integer) from public,anon;
 revoke all on function public.year_confirm_account(uuid,integer,uuid,numeric,date) from public,anon;
 revoke all on function public.year_close_finalize(uuid,integer) from public,anon;
