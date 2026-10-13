@@ -7,7 +7,7 @@ import { renderStatistics } from '../assets/js/views/statistics.js';
 import { resolveFinanceCycle } from '../assets/js/app/finance-cycle.js';
 
 const now=new Date();
-now.setHours(12,0,0,0);
+// Use the current instant, never noon in the future: the rendered view uses its own current time.
 const date=now.toISOString();
 const cycle=resolveFinanceCycle({now,fallbackDay:25,mode:'day_25'});
 const categories=[
