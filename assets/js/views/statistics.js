@@ -31,7 +31,7 @@ function privacyMoney(value,{currency,locale,privacyEnabled=false}={}){
 function metric(label,value,note='',tone='',drilldown=null){
   const classes=`statistics-metric ${tone?`statistics-metric--${tone}`:''}`;
   const attrs=drilldown
-    ? ` type="button" data-drilldown="transactions-range" data-from="${escapeHtml(drilldown.from)}" data-to="${escapeHtml(drilldown.to)}" data-direction="${escapeHtml(drilldown.direction)}" aria-label="${escapeHtml(label)}: zugehörige Transaktionen öffnen"`
+    ? ` type="button" data-drilldown="transactions-range" data-from="${escapeHtml(drilldown.from)}" data-to="${escapeHtml(drilldown.to)}" data-direction="${escapeHtml(drilldown.direction)}"`
     : '';
   const tag=drilldown?'button':'article';
   return `<${tag} class="${classes}"${attrs}>
