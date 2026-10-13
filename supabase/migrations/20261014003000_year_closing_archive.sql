@@ -126,18 +126,21 @@ begin
     and t.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
     and t.occurred_at<private.year_close_cutoff(p_year);
   select count(*) filter (where c.account_id is not null
+      and a.balance_anchor_at<private.year_close_cutoff(p_year)
       and c.statement_balance is distinct from private.year_end_balance(a.id,p_year)),
     count(*) filter (where c.account_id is null or c.statement_through<v_year_end
-      or a.balance_anchor_at>=private.year_close_cutoff(p_year)
       or exists (select 1 from public.transactions changed
         where changed.account_id=a.id and changed.occurred_at<private.year_close_cutoff(p_year)
-          and changed.occurred_at>a.balance_anchor_at
+          and changed.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
           and coalesce(changed.updated_at,changed.created_at)>c.checked_at))
     into v_mismatched,v_unchecked
   from public.accounts a
   left join public.year_closure_account_checks c on c.household_id=a.household_id and c.tax_year=p_year and c.account_id=a.id
   where a.household_id=p_household_id
-    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year));
+    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year)
+      or exists(select 1 from public.transactions prior where prior.account_id=a.id
+        and prior.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
+        and prior.occurred_at<private.year_close_cutoff(p_year)));
   select coalesce(jsonb_agg(jsonb_build_object(
     'id',a.id,'name',a.name,'currency',a.currency,'archived',a.is_archived,
     'calculated_balance',case when a.balance_anchor_at<private.year_close_cutoff(p_year)
@@ -145,22 +148,28 @@ begin
     'statement_balance',c.statement_balance,'statement_through',c.statement_through,
     'confirmed_at',c.checked_at,'confirmed_by',c.checked_by,
     'matches',c.checked_at is not null and c.statement_through>=v_year_end
-      and a.balance_anchor_at<private.year_close_cutoff(p_year)
-      and c.statement_balance=private.year_end_balance(a.id,p_year)
+      and (a.balance_anchor_at>=private.year_close_cutoff(p_year)
+           or c.statement_balance=private.year_end_balance(a.id,p_year))
       and not exists (select 1 from public.transactions changed
         where changed.account_id=a.id and changed.occurred_at<private.year_close_cutoff(p_year)
-          and changed.occurred_at>a.balance_anchor_at
+          and changed.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
           and coalesce(changed.updated_at,changed.created_at)>c.checked_at)
   ) order by a.name), '[]'::jsonb) into v_accounts
   from public.accounts a left join public.year_closure_account_checks c
     on c.household_id=a.household_id and c.tax_year=p_year and c.account_id=a.id
   where a.household_id=p_household_id
-    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year))
+    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year)
+      or exists(select 1 from public.transactions prior where prior.account_id=a.id
+        and prior.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
+        and prior.occurred_at<private.year_close_cutoff(p_year)))
     and (a.visibility='household' or a.owner_user_id=(select auth.uid()));
   -- Never report the hidden account's identifying data or balance.
   select count(*) into v_hidden from public.accounts a
     where a.household_id=p_household_id
-    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year))
+    and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year)
+      or exists(select 1 from public.transactions prior where prior.account_id=a.id
+        and prior.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
+        and prior.occurred_at<private.year_close_cutoff(p_year)))
     and coalesce(a.visibility,'private')<>'household' and a.owner_user_id is distinct from (select auth.uid());
   return jsonb_build_object('year',p_year,'status',coalesce(v_close.status,'open'),
     'revision',coalesce(v_close.revision,0),'closed_at',v_close.closed_at,
@@ -189,9 +198,7 @@ begin
   if not found or not (v_account.visibility='household' or v_account.owner_user_id=(select auth.uid())) then
     raise exception 'Konto nicht verfügbar' using errcode='42501';
   end if;
-  if v_account.balance_anchor_at>=private.year_close_cutoff(p_year) then
-    raise exception 'Historischer Kontosaldo ist nicht rekonstruierbar. Bitte zuerst den Kontoanker prüfen.';
-  end if;
+  -- For backdated imports made after the historic year, rely on explicit bank statement attestation.
   if p_statement_through<>make_date(p_year,12,31) then
     raise exception 'Bitte den bestätigten Kontostand per 31.12. eingeben';
   end if;
@@ -199,7 +206,8 @@ begin
     on conflict(household_id,tax_year) do nothing;
   select * into v_close from public.year_closures where household_id=p_household_id and tax_year=p_year for update;
   if v_close.status='closed' then raise exception 'Das Jahr ist abgeschlossen'; end if;
-  if p_statement_balance is distinct from private.year_end_balance(p_account_id,p_year) then
+  if v_account.balance_anchor_at<private.year_close_cutoff(p_year)
+     and p_statement_balance is distinct from private.year_end_balance(p_account_id,p_year) then
     raise exception 'Bankauszug und berechneter Saldo stimmen nicht überein';
   end if;
   insert into public.year_closure_account_checks(household_id,tax_year,account_id,statement_through,statement_balance,checked_by,checked_at)
