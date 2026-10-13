@@ -77,6 +77,6 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
         <label class="field"><input type="checkbox" name="accept" required ${blockers.length?'disabled':''}/> Ich bestätige, dass alle Kontoauszüge bis 31.12. vollständig sind und das Jahr endgültig gesperrt werden soll.</label>
         <div class="form-actions"><button type="submit" class="action-button action-button--primary" ${blockers.length?'disabled':''}>Jahr ${year} verbindlich abschliessen</button></div>
       </form>`}
-    <p class="table-meta">Steuerfreigabe: ${taxAvailable?'Archivierter Buchungsstand verfügbar':'Erst nach erfolgreichem Abschluss'}. Steuerliche Prüfung und Steuererklärung erfolgen separat.</p>
+    <p class="table-meta">Steuerarchiv: ${taxAvailable?'Buchungen unveränderlich archiviert':'Noch kein Abschluss'}. Vermögens- und Schuldenstände per 31.12. sowie alle übrigen Steuerangaben müssen gesondert geprüft werden.</p>
   </section>`;
 }
