@@ -1,5 +1,9 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.": "Manca un tasso di cambio. Le categorie di spesa non sono calcolabili.",
+  "Ein Wechselkurs fehlt. Historische Finanzmonate sind teilweise nicht berechenbar.": "Manca un tasso di cambio. Alcuni mesi finanziari precedenti non sono calcolabili.",
+  "Ein Wechselkurs fehlt. Der Monatsplan ist nicht berechenbar.": "Manca un tasso di cambio. Il piano mensile non è calcolabile.",
+  "Dieses Modul ist nicht aktiviert.": "Questo modulo non è attivo.",
   "Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.": "Manca un tasso di cambio. I valori del budget potrebbero essere incompleti.",
   "Dashboards": "Cruscotti",
   "Cockpit": "Panoramica finanziaria",
@@ -1392,6 +1396,10 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.": "An exchange rate is missing. Expense categories cannot be calculated.",
+  "Ein Wechselkurs fehlt. Historische Finanzmonate sind teilweise nicht berechenbar.": "An exchange rate is missing. Some historical financial months cannot be calculated.",
+  "Ein Wechselkurs fehlt. Der Monatsplan ist nicht berechenbar.": "An exchange rate is missing. The monthly plan cannot be calculated.",
+  "Dieses Modul ist nicht aktiviert.": "This module is not enabled.",
   "Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.": "An exchange rate is missing. Budget values may be incomplete.",
   "Dashboards": "Dashboards",
   "Cockpit": "Financial overview",
