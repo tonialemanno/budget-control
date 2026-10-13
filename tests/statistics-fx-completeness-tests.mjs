@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { accountShare } from '../assets/js/app/finance-insights.js';
 import { renderStatistics } from '../assets/js/views/statistics.js';
+import { renderOverview } from '../assets/js/views/overview.js';
 
 const accounts=[
   {account_id:'ch',name:'Lohnkonto',account_type:'checking',currency:'CHF',current_balance:100},
@@ -32,4 +33,19 @@ const completeHtml=renderStatistics({
 });
 assert.doesNotMatch(completeHtml,/Für mindestens ein Konto fehlt ein Wechselkurs/);
 assert.doesNotMatch(completeHtml,/Anteil nicht berechenbar/);
-console.log('Statistics FX completeness tests passed');
+const incompleteDashboard=renderOverview({
+  accounts,household:{id:'h1',base_currency:'CHF',country_code:'CH'},
+  profile:{locale:'de-CH'},fxRates:null,
+});
+assert.match(incompleteDashboard,/Für mindestens ein Konto fehlt ein Wechselkurs/);
+assert.match(incompleteDashboard,/Andere liquide Konten <strong>Nicht berechenbar/);
+assert.match(incompleteDashboard,/Nettovermögen <strong>Nicht berechenbar/);
+assert.match(incompleteDashboard,/Anteil nicht berechenbar/);
+
+const completeDashboard=renderOverview({
+  accounts,household:{id:'h1',base_currency:'CHF',country_code:'CH'},
+  profile:{locale:'de-CH'},fxRates:validFx,
+});
+assert.doesNotMatch(completeDashboard,/Für mindestens ein Konto fehlt ein Wechselkurs/);
+
+console.log('Statistics and overview FX completeness tests passed');
