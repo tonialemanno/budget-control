@@ -7,6 +7,8 @@ import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { financeCycleLabel } from '../app/finance-cycle.js';
 import { financeMonthMode } from '../app/user-preferences.js';
 import { convertAmount } from '../app/fx.js';
+import { dashboardPeriodEvidence, recurringPlanComplete } from '../app/dashboard-integrity.js';
+import { goalPlan } from './goals.js';
 
 const PANELS=Object.freeze([
   {key:'cockpit',title:'Cockpit'},
@@ -31,9 +33,9 @@ function bounds(cycle){
   end.setDate(end.getDate()-1);
   return {from:shortKey(cycle.start),to:shortKey(end)};
 }
-function txButton(label,value,range,direction,opts){
+function txButton(label,value,range,direction,opts,ids=null){
   const {locale,currency,privacyEnabled}=opts;
-  return `<button class="dash-kpi" type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="${direction}">
+  return `<button class="dash-kpi" type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="${direction}"${Array.isArray(ids)?` data-transaction-ids="${escapeHtml(ids.join(","))}"`:""}>
     <span>${escapeHtml(t(label,locale))}</span>
     <strong>${safeMoney(value,{locale,currency,privacyEnabled})}</strong>
     <small>${escapeHtml(t('Buchungen öffnen',locale))} →</small>
@@ -59,14 +61,14 @@ function rangeRows(rows,opts){
       const range=bounds({start:row.start,endExclusive:row.endExclusive});
       return `<div class="dash-history-row">
         <span>${escapeHtml(financeCycleLabel({start:row.start,endExclusive:row.endExclusive},locale))}</span>
-        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="income">${safeMoney(row.income,opts)}</button>
-        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="expense">${safeMoney(row.expenses,opts)}</button>
-        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="all" class="${row.net<0?'negative':'positive'}">${safeMoney(row.net,opts)}</button>
+        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="income" data-transaction-ids="${escapeHtml((row.incomeIds||[]).join(","))}">${safeMoney(row.income,opts)}</button>
+        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="expense" data-transaction-ids="${escapeHtml((row.expenseIds||[]).join(","))}">${safeMoney(row.expenses,opts)}</button>
+        <button type="button" data-drilldown="transactions-range" data-from="${range.from}" data-to="${range.to}" data-direction="all" data-transaction-ids="${escapeHtml((row.allIds||[]).join(","))}" class="${row.net<0?'negative':'positive'}">${safeMoney(row.net,opts)}</button>
       </div>`;
     }).join('')}
   </div>`;
 }
-function categoriesRows(model,range,opts){
+function categoryRanking{
   const {locale,currency,privacyEnabled}=opts;
   if(!model.categories?.length)return `<p class="dash-empty">${escapeHtml(t('Keine Ausgaben in diesem Finanzmonat.',locale))}</p>`;
   return `<div class="dash-ranking">
@@ -117,17 +119,18 @@ function accountRows(model,opts){
     <strong>${privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale})}</strong>
   </button>`).join('')}</div>`;
 }
-function goalsRows(goals,opts){
+function goalsRows(goals,opts,{accounts=[],goalSources=[],recurringRules=[],transactions=[],fxRates,baseCurrency='CHF'}={}){
   const {locale,privacyEnabled}=opts;
   const rows=(goals||[]).filter(g=>g.status==='active');
   if(!rows.length)return `<p class="dash-empty">${escapeHtml(t('Noch keine Sparziele vorhanden.',locale))} <a href="/planning/goals">${escapeHtml(t('Sparziele öffnen',locale))} →</a></p>`;
   return `<div class="dash-goals">${rows.map(goal=>{
     const target=Math.max(0,Number(goal.target_amount)||0);
-    const balance=Math.max(0,Number(goal.current_amount)||0);
-    const monthly=Math.max(0,Number(goal.monthly_amount)||0);
+    const plan=goalPlan(goal,{goalSources,recurringRules,transactions,accounts,baseCurrency,fxRates});
+    const balance=Math.max(0,Number(plan.account?.current_balance??goal.current_amount??0));
+    const monthly=plan.total;
     const progress=target>0?Math.min(100,balance/target*100):0;
-    const cash=(amount)=>safeMoney(amount,{currency:goal.currency||opts.currency,locale,privacyEnabled});
-    return `<a class="dash-goal" href="/planning/goals">
+    const cash=(amount)=>safeMoney(amount,{currency:plan.targetCurrency,locale,privacyEnabled});
+    return `<a class="dash-goal" href="/planning/goals?goal=${encodeURIComponent(goal.id)}">
       <span class="dash-goal-top"><strong>${escapeHtml(goal.name)}</strong><b>${Math.round(progress)} %</b></span>
       <span class="dash-track"><span style="width:${progress}%"></span></span>
       <span class="dash-goal-stats"><span>${escapeHtml(t('Bisher gespart',locale))}<strong>${cash(balance)}</strong></span><span>${escapeHtml(t('Zielbetrag',locale))}<strong>${cash(target)}</strong></span><span>${escapeHtml(t('Monatlicher Plan',locale))}<strong>${cash(monthly)}</strong></span></span>
@@ -140,8 +143,8 @@ function fxComplete(rows,currency,fxRates,field){
 
 export function renderDashboards({
   dashboardView,accounts=[],transactions=[],debtPayments=[],recurringRules=[],budgets=[],categories=[],merchants=[],
-  goals=[],bills=[],debts=[],receivables=[],assets=[],properties=[],vehicles=[],investments=[],pensions=[],
-  household,profile,fxRates,privacyEnabled=false,
+  goals=[],goalSources=[],bills=[],debts=[],receivables=[],assets=[],properties=[],vehicles=[],investments=[],pensions=[],
+  household,profile,fxRates,privacyEnabled=false,moduleAccess={},hiddenModules=[],canWrite=false,
 }={}){
   const locale=profile?.locale||'de-CH';
   const currency=household?.base_currency||'CHF';
@@ -153,37 +156,47 @@ export function renderDashboards({
   const snap=buildFinanceSnapshot({accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,bills,
     debts,receivables,assets,properties,vehicles,investments,pensions,household,fxRates,now,financeMonthMode:financeMonthMode(profile)});
   const opts={currency,locale,privacyEnabled};
+  const enabled=(key)=>['core','money'].includes(key)||(moduleAccess[key]===true&&!hiddenModules.includes(key));
   const current=model.current;
   const range=bounds(current.cycle);
+  const currentEvidence=dashboardPeriodEvidence({transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,
+    start:current.cycle.start,endExclusive:current.cycle.endExclusive,now});
+  const series=model.series.map(row=>{
+    const evidence=dashboardPeriodEvidence({transactions,debtPayments,categories,recurringRules,baseCurrency:currency,fxRates,
+      start:row.start,endExclusive:row.endExclusive,now});
+    return {...row,...evidence,coverage:evidence.complete?row.coverage:'partial'};
+  });
   const period=financeCycleLabel(current.cycle,locale);
   const liquidComplete=model.accounts.every(row=>row.value!==null);
   const holdingsComplete=liquidComplete&&fxComplete(assets,currency,fxRates,'current_value')&&fxComplete(properties,currency,fxRates,'current_value')&&fxComplete(vehicles,currency,fxRates,'current_value')&&fxComplete(investments,currency,fxRates,'current_value')&&fxComplete(pensions,currency,fxRates,'current_value')&&fxComplete(debts,currency,fxRates,'outstanding_amount')&&fxComplete(receivables,currency,fxRates,'outstanding_amount');
   const liquid=liquidComplete?model.accounts.reduce((sum,row)=>sum+row.value,0):null;
-  const hasMissingTransactionFx=transactions.some(tx=>{
-    const date=new Date(tx.occurred_at);
-    return tx.status==='booked'&&!tx.transfer_group_id&&!Number.isNaN(date.getTime())
-      &&date<=now&&date>=current.cycle.start&&date<current.cycle.endExclusive
-      &&convertAmount(tx.amount,tx.currency||currency,currency,fxRates)===null;
-  });
-  const budgetFxIncomplete=model.budgetRows.some(row=>row.amount===null)||hasMissingTransactionFx;
+  const hasMissingTransactionFx=!currentEvidence.complete;
+  const planFxComplete=recurringPlanComplete({recurringRules,baseCurrency:currency,fxRates,now})&&currentEvidence.complete;
+  const budgetFxIncomplete=model.budgetRows.some(row=>row.amount===null)||!currentEvidence.expenseComplete;
+  const historyFxMissing=series.some(row=>!row.complete);
   const emptyHistory=model.series.every(row=>row.coverage==='none');
 
   const tiles=`<section class="dash-kpis" aria-label="${escapeHtml(t('Finanzkennzahlen',locale))}">
-    ${txButton('Einnahmen',current.income,range,'income',opts)}
-    ${txButton('Ausgaben',current.expenses,range,'expense',opts)}
-    ${txButton(current.savings<0?'Defizit':'Überschuss',Math.abs(current.savings),range,'all',opts)}
+    ${txButton('Einnahmen',currentEvidence.incomeComplete?current.income:null,range,'income',opts,currentEvidence.incomeIds)}
+    ${txButton('Ausgaben',currentEvidence.expenseComplete?current.expenses:null,range,'expense',opts,currentEvidence.expenseIds)}
+    ${txButton(current.savings<0?'Defizit':'Überschuss',currentEvidence.complete?Math.abs(current.savings):null,range,'all',opts,currentEvidence.allIds)}
     <a class="dash-kpi dash-kpi--link" href="/finance">
       <span>${escapeHtml(t('Liquide Kontostände',locale))}</span><strong>${safeMoney(liquid,opts)}</strong><small>${escapeHtml(t('Konten öffnen',locale))} →</small>
     </a>
   </section>`;
 
-  const chart=card('Einnahmen & Ausgaben',renderCashflowChart({series:model.series,currency,locale,privacy:privacyEnabled,interactive:true}),
+  const chart=card('Einnahmen & Ausgaben',renderCashflowChart({series,currency,locale,privacy:privacyEnabled,interactive:true}),
     `<span class="dash-period">${escapeHtml(t('Zwölf Finanzmonate',locale))}</span>`,locale);
   const donut=card('Ausgaben nach Kategorien',
-    renderExpenseDonut({rows:model.categories,total:model.categoryTotal,currency,locale,privacy:privacyEnabled,
-      rangeStart:current.cycle.start,rangeEnd:current.cycle.endExclusive}), '',locale);
+    currentEvidence.expenseComplete
+      ? renderExpenseDonut({rows:model.categories,total:model.categoryTotal,currency,locale,privacy:privacyEnabled,
+          rangeStart:current.cycle.start,rangeEnd:current.cycle.endExclusive})
+      : `<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.',locale))}</p>`, '',locale);
+  const categoryRanking=currentEvidence.expenseComplete?categoriesRows(model,range,opts)
+    : `<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.',locale))}</p>`;
   const notices=[
     hasMissingTransactionFx?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Geldflusswerte können unvollständig sein.',locale))}</p>`:'',
+    historyFxMissing?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Historische Finanzmonate sind teilweise nicht berechenbar.',locale))}</p>`:'',
     !liquidComplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Kontosummen sind nicht berechenbar.',locale))}</p>`:'',
     emptyHistory?`<p class="dash-notice">${escapeHtml(t('Noch keine gebuchten Transaktionen vorhanden.',locale))}</p>`:'',
   ].filter(Boolean).join('');
@@ -193,11 +206,11 @@ export function renderDashboards({
     body=`${tiles}<div class="dash-layout dash-layout--split">${chart}${donut}</div>
       <div class="dash-layout dash-layout--split">
         ${card('Grösste Ausgabenkategorien',categoriesRows(model,range,opts),`<a href="/dashboards?view=expenses">${escapeHtml(t('Alle ansehen',locale))} →</a>`,locale)}
-        ${card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget öffnen',locale))} →</a>`,locale)}
+        ${enabled('budget')?card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget öffnen',locale))} →</a>`,locale):''}
       </div>`;
   }else if(panel==='cashflow'){
     body=`${tiles}${chart}
-      ${card('Finanzmonate im Vergleich',rangeRows(model.series,opts),`<a href="/finance/transactions">${escapeHtml(t('Alle Buchungen',locale))} →</a>`,locale)}`;
+      ${card('Finanzmonate im Vergleich',rangeRows(series,opts),`<a href="/finance/transactions">${escapeHtml(t('Alle Buchungen',locale))} →</a>`,locale)}`;
   }else if(panel==='expenses'){
     body=`<section class="dash-kpis">${txButton('Ausgaben',current.expenses,range,'expense',opts)}
       <a class="dash-kpi dash-kpi--link" href="/selfservice/categories"><span>${escapeHtml(t('Kategorien',locale))}</span>
@@ -205,6 +218,9 @@ export function renderDashboards({
       <div class="dash-layout dash-layout--split">${donut}
         ${card('Grösste Ausgabenkategorien',categoriesRows(model,range,opts),'',locale)}</div>`;
   }else if(panel==='budget'){
+    if(!enabled('budget')){
+      body=card('Budget',`<p class="dash-empty">${escapeHtml(t('Dieses Modul ist nicht aktiviert.',locale))}</p>`,'',locale);
+    }else{
     const b=model.budget||{};
     const budgetTotal=(b.count>0&&!budgetFxIncomplete)?b.total:null;
     const budgetRemaining=(b.count>0&&!budgetFxIncomplete)?b.remaining:null;
@@ -216,22 +232,23 @@ export function renderDashboards({
       <strong>${budgetDisplay(budgetRemaining)}</strong><small>${escapeHtml(t('Budget öffnen',locale))} →</small></a></section>
       ${budgetFxIncomplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.',locale))}</p>`:''}
       ${card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget bearbeiten',locale))} →</a>`,locale)}`;
+    }
   }else if(panel==='wealth'){
     body=`<section class="dash-kpis">
       <a class="dash-kpi dash-kpi--link" href="/finance"><span>${escapeHtml(t('Liquide Kontostände',locale))}</span><strong>${safeMoney(liquid,opts)}</strong><small>${escapeHtml(t('Konten öffnen',locale))} →</small></a>
-      <a class="dash-kpi dash-kpi--link" href="/planning/wealth"><span>${escapeHtml(t('Nettovermögen',locale))}</span><strong>${safeMoney(holdingsComplete?snap.netWorth:null,opts)}</strong><small>${escapeHtml(t('Vermögen öffnen',locale))} →</small></a>
-      <a class="dash-kpi dash-kpi--link" href="/finance/debts"><span>${escapeHtml(t('Restschuld gesamt',locale))}</span><strong>${safeMoney(holdingsComplete?snap.debtValue:null,opts)}</strong><small>${escapeHtml(t('Schulden öffnen',locale))} →</small></a>
+      ${enabled("wealth")?`<a class="dash-kpi dash-kpi--link" href="/planning/wealth"><span>${escapeHtml(t("Nettovermögen",locale))}</span><strong>${safeMoney(holdingsComplete?snap.netWorth:null,opts)}</strong><small>${escapeHtml(t("Vermögen öffnen",locale))} →</small></a>`:""}
+      ${enabled("debts")?`<a class="dash-kpi dash-kpi--link" href="/finance/debts"><span>${escapeHtml(t("Restschuld gesamt",locale))}</span><strong>${safeMoney(holdingsComplete?snap.debtValue:null,opts)}</strong><small>${escapeHtml(t("Schulden öffnen",locale))} →</small></a>`:""}
     </section>
     ${!holdingsComplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Vermögenswerte sind nicht berechenbar.',locale))}</p>`:''}
     ${card('Kontostände',accountRows(model,opts),`<a href="/finance/accounts">${escapeHtml(t('Konten öffnen',locale))} →</a>`,locale)}`;
   }else{
-    body=`<section class="dash-kpis"><a class="dash-kpi dash-kpi--link" href="/planning/goals"><span>${escapeHtml(t('Sparziele',locale))}</span>
-      <strong>${goals.filter(g=>g.status==='active').length}</strong><small>${escapeHtml(t('Sparziele öffnen',locale))} →</small></a>
+    body=`<section class="dash-kpis">${enabled("goals")?`<a class="dash-kpi dash-kpi--link" href="/planning/goals"><span>${escapeHtml(t("Sparziele",locale))}</span>
+      <strong>${goals.filter(g=>g.status==='active').length}</strong><small>${escapeHtml(t("Sparziele öffnen",locale))} →</small></a>`:""}
       <a class="dash-kpi dash-kpi--link" href="/planning/fixed-costs"><span>${escapeHtml(t('Fixkosten',locale))}</span>
-      <strong>${safeMoney(snap.fixedExpensesMonthly,opts)}</strong><small>${escapeHtml(t('Feste Zahlungen öffnen',locale))} →</small></a></section>
+      <strong>${safeMoney(planFxComplete?snap.fixedExpensesMonthly:null,opts)}</strong><small>${escapeHtml(t('Feste Zahlungen öffnen',locale))} →</small></a></section>
       <div class="dash-layout dash-layout--split">
-      ${card('Sparziele',goalsRows(goals,opts),`<a href="/planning/goals">${escapeHtml(t('Sparziele öffnen',locale))} →</a>`,locale)}
-      ${card('Monatsplan',renderIncomePlan({flow:{income:snap.incomePlanMonthly,fixed:snap.fixedExpensesMonthly,reserves:snap.fixedTransfersMonthly,variable:snap.plannedVariableMonthly},currency,locale,privacy:privacyEnabled}),
+      ${enabled('goals')?card('Sparziele',goalsRows(goals,opts,{accounts,goalSources,recurringRules,transactions,fxRates,baseCurrency:currency}),`<a href="/planning/goals">${escapeHtml(t('Sparziele öffnen',locale))} →</a>`,locale):''}
+      ${card('Monatsplan',planFxComplete?renderIncomePlan({flow:{income:snap.incomePlanMonthly,fixed:snap.fixedExpensesMonthly,reserves:snap.fixedTransfersMonthly,variable:snap.plannedVariableMonthly},currency,locale,privacy:privacyEnabled}):`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Der Monatsplan ist nicht berechenbar.',locale))}</p>`,
         `<a href="/planning">${escapeHtml(t('Planung öffnen',locale))} →</a>`,locale)}
       </div>`;
   }
