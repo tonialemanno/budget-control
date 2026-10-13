@@ -68,7 +68,7 @@ function rangeRows(rows,opts){
     }).join('')}
   </div>`;
 }
-function categoryRanking{
+function categoriesRows(model,range,opts){
   const {locale,currency,privacyEnabled}=opts;
   if(!model.categories?.length)return `<p class="dash-empty">${escapeHtml(t('Keine Ausgaben in diesem Finanzmonat.',locale))}</p>`;
   return `<div class="dash-ranking">
@@ -205,14 +205,14 @@ export function renderDashboards({
   if(panel==='cockpit'){
     body=`${tiles}<div class="dash-layout dash-layout--split">${chart}${donut}</div>
       <div class="dash-layout dash-layout--split">
-        ${card('Grösste Ausgabenkategorien',categoriesRows(model,range,opts),`<a href="/dashboards?view=expenses">${escapeHtml(t('Alle ansehen',locale))} →</a>`,locale)}
+        ${card('Grösste Ausgabenkategorien',categoryRanking,`<a href="/dashboards?view=expenses">${escapeHtml(t('Alle ansehen',locale))} →</a>`,locale)}
         ${enabled('budget')?card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget öffnen',locale))} →</a>`,locale):''}
       </div>`;
   }else if(panel==='cashflow'){
     body=`${tiles}${chart}
       ${card('Finanzmonate im Vergleich',rangeRows(series,opts),`<a href="/finance/transactions">${escapeHtml(t('Alle Buchungen',locale))} →</a>`,locale)}`;
   }else if(panel==='expenses'){
-    body=`<section class="dash-kpis">${txButton('Ausgaben',current.expenses,range,'expense',opts)}
+    body=`<section class="dash-kpis">${txButton('Ausgaben',currentEvidence.expenseComplete?current.expenses:null,range,'expense',opts,currentEvidence.expenseIds)}
       <a class="dash-kpi dash-kpi--link" href="/selfservice/categories"><span>${escapeHtml(t('Kategorien',locale))}</span>
         <strong>${model.categories.length}</strong><small>${escapeHtml(t('Kategorien öffnen',locale))} →</small></a></section>
       <div class="dash-layout dash-layout--split">${donut}
