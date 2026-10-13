@@ -1,5 +1,12 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Jahresabschluss gesichert": "Chiusura annuale archiviata",
+  "Version": "Versione",
+  "Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.": "Le registrazioni di quest'anno sono bloccate e archiviate. Il fascicolo fiscale può ancora essere completato.",
+  "Abschluss ansehen": "Visualizza chiusura",
+  "Jahresabschluss noch offen": "Chiusura annuale ancora aperta",
+  "Die Steuerdaten sind vorläufig. Erst nach dem Jahresabschluss steht ein eingefrorener Buchungsstand bereit.": "I dati fiscali sono provvisori. Un archivio delle registrazioni bloccato sarà disponibile solo dopo la chiusura annuale.",
+  "Jahrescenter öffnen": "Apri il centro annuale",
   "Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.": "Manca un tasso di cambio. Le categorie di spesa non sono calcolabili.",
   "Ein Wechselkurs fehlt. Historische Finanzmonate sind teilweise nicht berechenbar.": "Manca un tasso di cambio. Alcuni mesi finanziari precedenti non sono calcolabili.",
   "Ein Wechselkurs fehlt. Der Monatsplan ist nicht berechenbar.": "Manca un tasso di cambio. Il piano mensile non è calcolabile.",
@@ -1396,6 +1403,13 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Jahresabschluss gesichert": "Year-end close archived",
+  "Version": "Version",
+  "Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.": "This year's transactions are locked and archived. You can still complete the tax dossier.",
+  "Abschluss ansehen": "View year-end close",
+  "Jahresabschluss noch offen": "Year-end close still open",
+  "Die Steuerdaten sind vorläufig. Erst nach dem Jahresabschluss steht ein eingefrorener Buchungsstand bereit.": "Tax data is provisional. A frozen transaction record will only be available after year-end closing.",
+  "Jahrescenter öffnen": "Open year center",
   "Ein Wechselkurs fehlt. Ausgabenkategorien sind nicht berechenbar.": "An exchange rate is missing. Expense categories cannot be calculated.",
   "Ein Wechselkurs fehlt. Historische Finanzmonate sind teilweise nicht berechenbar.": "An exchange rate is missing. Some historical financial months cannot be calculated.",
   "Ein Wechselkurs fehlt. Der Monatsplan ist nicht berechenbar.": "An exchange rate is missing. The monthly plan cannot be calculated.",
