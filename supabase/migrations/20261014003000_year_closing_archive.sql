@@ -314,7 +314,7 @@ create trigger year_closure_tx_guard before insert or update or delete on public
   for each row execute function private.reject_closed_year_transaction();
 
 create or replace function private.reject_closed_year_account_anchor()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $$
 begin
   if tg_op='INSERT' then
     if exists(select 1 from public.year_closures where household_id=new.household_id
