@@ -490,10 +490,22 @@ function closeQuickAdd() {
 }
 
 function applyRouteIntent(route) {
-  if (!canWriteHousehold()) return;
   const routeLocation=currentRouteLocation();
   const params=routeLocation.params;
   if(!params || [...params.keys()].length===0) return;
+  const goalId=params.get('goal');
+  if(route==='goals'&&goalId){
+    const goal=runtime.goals.find(row=>String(row.id)===goalId);
+    if(goal){
+      requestAnimationFrame(()=>{
+        const item=[...pageContent.querySelectorAll('[data-goal-id]')].find(el=>el.dataset.goalId===goalId);
+        item?.scrollIntoView({behavior:'smooth',block:'center'});
+        item?.classList.add('dashboard-goal-focused');
+      });
+    }
+    return;
+  }
+  if (!canWriteHousehold()) return;
   const create = params.get('create');
   const accountId = params.get('account');
   const contextId = params.get('context');
@@ -1215,7 +1227,7 @@ function applyPermissionUI(route) {
     pageContent.prepend(notice);
     pageContent.querySelectorAll('form[data-form] input, form[data-form] select, form[data-form] textarea, form[data-form] button').forEach((el)=>{ el.disabled = true; });
     pageContent.querySelectorAll('[data-action]').forEach((el)=>{
-      if (!['document-download','document-preview','tax-export-csv','profile-close','receivable-history','receivable-history-close','budget-suggestion-toggle'].includes(el.dataset.action)) el.disabled = true;
+      if (!['document-download','document-preview','tax-export-csv','profile-close','receivable-history','receivable-history-close','budget-suggestion-toggle','overview-drilldown-expense','overview-drilldown-income','statistics-drilldown-budget'].includes(el.dataset.action)) el.disabled = true;
     });
   }
   if (route === 'family' && !canAdminHousehold()) {
@@ -4613,6 +4625,10 @@ function activateDashboardDrilldown(target){
     uiState.transactionFrom=target.dataset.from||'';
     uiState.transactionTo=target.dataset.to||'';
     uiState.transactionPeriod=(uiState.transactionFrom||uiState.transactionTo)?'custom':'all';
+    if(Object.prototype.hasOwnProperty.call(target.dataset,'transactionIds')){
+      uiState.transactionIds=String(target.dataset.transactionIds||'').split(',').filter(Boolean);
+      if(!uiState.transactionIds.length) uiState.transactionIds=['__dashboard_no_matching_transactions__'];
+    }
     goToRoute('transactions');
     return;
   }
