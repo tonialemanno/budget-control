@@ -50,7 +50,7 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
         ${account.archived?'<span class="status-pill">Archiviertes Konto</span>':''}
         <p>Berechneter Schlussstand: <strong>${balance===null?'Nicht rekonstruierbar':money(balance,{currency:account.currency||household?.base_currency||'CHF',locale})}</strong></p>
         <p class="table-meta">${confirmed?'Abgeglichen · 31.12. bestätigt':'Noch nicht bestätigt oder nach Import verändert'}</p>
-        ${!locked && balance!==null?`<form data-form="year-close-account" class="form-grid">
+        ${!locked?`<form data-form="year-close-account" class="form-grid">
           <input type="hidden" name="accountId" value="${escapeHtml(account.id)}"/>
           <input type="hidden" name="year" value="${year}"/>
           <label class="field"><span>Bank-Schlusssaldo am 31.12.${year} (${escapeHtml(account.currency)})</span><input class="text-control" name="statementBalance" type="number" step="0.01" required value="${account.statement_balance??''}" placeholder="Saldo laut Kontoauszug"/></label>
