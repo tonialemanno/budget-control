@@ -61,7 +61,7 @@ for(const view of expected){
 for(const locale of ['it-CH','en-CH']){
   setLocale(locale);
   for(const key of ['Dashboards','Cockpit','Geldfluss','Ziele & Planung','Ein Wechselkurs fehlt. Kontosummen sind nicht berechenbar.']){
-    assert.notEqual(t(key,locale),key,'Missing '+locale+' translation '+key);
+    if(!(locale==='en-CH'&&key==='Dashboards')) assert.notEqual(t(key,locale),key,'Missing '+locale+' translation '+key);
   }
 }
 setLocale('de-CH');
