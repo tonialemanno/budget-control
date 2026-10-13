@@ -306,8 +306,15 @@ create trigger year_closure_tx_guard before insert or update or delete on public
   for each row execute function private.reject_closed_year_transaction();
 
 create or replace function private.reject_closed_year_account_anchor()
-returns trigger language plpgsql security definer set search_path='' as $$
+returns trigger language plpgsql security definer set search_path='' as $
 begin
+  if tg_op='INSERT' then
+    if exists(select 1 from public.year_closures where household_id=new.household_id
+      and status='closed' and private.year_close_cutoff(tax_year)>new.balance_anchor_at for share) then
+      raise exception 'Kontoanker liegt in einem abgeschlossenen Jahr. Zuerst wiedereröffnen.' using errcode='23514';
+    end if;
+    return new;
+  end if;
   if tg_op='DELETE' then
     if exists(select 1 from public.year_closures where household_id=old.household_id
       and status='closed' and private.year_close_cutoff(tax_year)>old.balance_anchor_at for share) then
@@ -328,7 +335,7 @@ begin
 end;
 $$;
 drop trigger if exists year_closure_account_guard on public.accounts;
-create trigger year_closure_account_guard before update or delete on public.accounts
+create trigger year_closure_account_guard before insert or update or delete on public.accounts
   for each row execute function private.reject_closed_year_account_anchor();
 
 revoke all on function public.year_close_overview(uuid,integer) from public,anon;
