@@ -28,12 +28,17 @@ function privacyMoney(value,{currency,locale,privacyEnabled=false}={}){
   return privacyEnabled?'•••':money(value,{currency,locale});
 }
 
-function metric(label,value,note='',tone=''){
-  return `<article class="statistics-metric ${tone?`statistics-metric--${tone}`:''}">
+function metric(label,value,note='',tone='',drilldown=null){
+  const classes=`statistics-metric ${tone?`statistics-metric--${tone}`:''}`;
+  const attrs=drilldown
+    ? ` type="button" data-drilldown="transactions-range" data-from="${escapeHtml(drilldown.from)}" data-to="${escapeHtml(drilldown.to)}" data-direction="${escapeHtml(drilldown.direction)}"`
+    : '';
+  const tag=drilldown?'button':'article';
+  return `<${tag} class="${classes}"${attrs}>
     <span>${escapeHtml(label)}</span>
     <strong>${value}</strong>
     ${note?`<small>${escapeHtml(note)}</small>`:''}
-  </article>`;
+  </${tag}>`;
 }
 
 function periodRow(row,{currency,locale,privacyEnabled}){
@@ -132,10 +137,10 @@ export function renderStatistics({
     })}
 
     <section class="statistics-metric-grid">
-      ${metric('Einnahmen · aktueller Finanzmonat',privacyMoney(current.income,{currency,locale,privacyEnabled}),currentLabel,'income')}
-      ${metric('Ausgaben · aktueller Finanzmonat',privacyMoney(current.expenses,{currency,locale,privacyEnabled}),currentLabel,'expense')}
-      ${metric(net>=0?'Überschuss':'Defizit',privacyMoney(Math.abs(net),{currency,locale,privacyEnabled}),currentLabel,net>=0?'positive':'negative')}
-      ${metric('Sparquote',`${Math.round(current.savingsRate||0)}%`,`${current.transactionCount} gebuchte Bewegungen`,current.savingsRate>=0?'positive':'negative')}
+      ${metric('Einnahmen · aktueller Finanzmonat',privacyMoney(current.income,{currency,locale,privacyEnabled}),currentLabel,'income',{...currentRange,direction:'income'})}
+      ${metric('Ausgaben · aktueller Finanzmonat',privacyMoney(current.expenses,{currency,locale,privacyEnabled}),currentLabel,'expense',{...currentRange,direction:'expense'})}
+      ${metric(net>=0?'Überschuss':'Defizit',privacyMoney(Math.abs(net),{currency,locale,privacyEnabled}),currentLabel,net>=0?'positive':'negative',{...currentRange,direction:'all'})}
+      ${metric('Sparquote',`${Math.round(current.savingsRate||0)}%`,`${current.transactionCount} gebuchte Bewegungen`,current.savingsRate>=0?'positive':'negative',{...currentRange,direction:'all'})}
     </section>
 
     <article class="card card-padding statistics-balance-card">
