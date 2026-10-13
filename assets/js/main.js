@@ -41,6 +41,7 @@ import { renderStatistics } from './views/statistics.js';
 import { renderDashboards } from './views/dashboards.js';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
+import { renderYearClosing } from './views/year-closing.js';
 import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
@@ -85,6 +86,7 @@ const views = {
   projects: renderProjects,
   money: renderMoney,
   planning: renderPlanning,
+  'year-closing': renderYearClosing,
   setup: renderSetupGuide,
   accounts: renderAccounts,
   transactions: renderTransactions,
@@ -132,6 +134,8 @@ const runtime = {
   categorizationRules: [],
   transactions: [],
   importBatches: [],
+  yearClosures: [],
+  yearCloseOverview: null,
   merchants: [],
   merchantAliases: [],
   counterparties: [],
@@ -180,7 +184,8 @@ const runtime = {
 };
 
 const importState = { items: [] };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const yearPromptSeen = new Set();
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
 
 let sessionGeneration=0;
 
@@ -205,6 +210,10 @@ function clearUserRuntimeState({keepIdentity=false}={}){
   runtime.session=session;
   runtime.user=user;
   importState.items=[];
+  yearPromptSeen.clear();
+  uiState.yearCloseLoadedYear=null;
+  uiState.yearClosePending=false;
+  uiState.yearCloseError='';
   uiState.demoCredentials=null;
   uiState.merchantQuery='';
   uiState.merchantFilter='all';
@@ -408,6 +417,30 @@ function resolveRoute() {
   return allowed.has(requested) ? requested : 'overview';
 }
 
+async function loadYearCloseData(year=uiState.yearCloseYear){
+  const userId=runtime.user?.id, householdId=runtime.household?.id;
+  if(!userId||!householdId||!canAdminHousehold())return;
+  uiState.yearClosePending=true;
+  try{
+    const [years,overview]=await Promise.all([
+      financeApi.listYearClosures(householdId),financeApi.yearCloseOverview(householdId,year)
+    ]);
+    if(runtime.user?.id!==userId||runtime.household?.id!==householdId||uiState.yearCloseYear!==year)return;
+    runtime.yearClosures=years||[];
+    runtime.yearCloseOverview=overview;
+    uiState.yearCloseError='';
+  }catch(error){
+    if(runtime.user?.id!==userId)return;
+    runtime.yearCloseOverview=null;
+    uiState.yearCloseError=humanError(error);
+  }finally{
+    if(runtime.user?.id===userId&&uiState.yearCloseYear===year){
+      uiState.yearCloseLoadedYear=year;
+      uiState.yearClosePending=false;
+      if(currentRouteLocation().route==='year-closing')render();
+    }
+  }
+}
 function goToRoute(route,params=null,{replace=false}={}) {
   navigateToRoute(route,params,{replace});
   if(runtime.user){
@@ -1128,6 +1161,12 @@ function render() {
   renderNavigation();
   const routeLocation=currentRouteLocation();
   const route = resolveRoute();
+  if(route==='year-closing'){
+    const fromUrl=Number(routeLocation.params.get('year'));
+    if(Number.isInteger(fromUrl)&&fromUrl>=2000&&fromUrl<new Date().getFullYear()){
+      uiState.yearCloseYear=fromUrl;
+    }
+  }
   if(routeLocation.route!==route) navigateToRoute(route,null,{replace:true});
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
@@ -1178,6 +1217,8 @@ function render() {
     receivableExpandedId: uiState.receivableExpandedId,
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
     taxYear: uiState.taxYear,
+    yearCloseYear: uiState.yearCloseYear,
+    yearCloseError: uiState.yearCloseError,
   });
   rewriteLegacyRouteLinks(pageContent);
   lastRenderedHref=`${location.pathname}${location.search}`;
@@ -1186,6 +1227,9 @@ function render() {
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   translateElement(pageContent);
+  if(route==='year-closing'&&canAdminHousehold()&&!uiState.yearClosePending&&uiState.yearCloseLoadedYear!==uiState.yearCloseYear){
+    void loadYearCloseData(uiState.yearCloseYear);
+  }
   applyInformationDepth();
   closeMobileNav();
   closeQuickAdd();
