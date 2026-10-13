@@ -1282,6 +1282,8 @@ function applyPermissionUI(route) {
 }
 
 async function refresh(message = '') {
+  uiState.yearCloseLoadedYear=null;
+  runtime.yearCloseOverview=null;
   showLoading('Daten werden aktualisiert …');
   const generation=sessionGeneration; const userId=runtime.user?.id;
   await loadContext({generation,userId});
