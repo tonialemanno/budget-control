@@ -35,6 +35,7 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
     <label class="field"><span>Jahr auswählen</span><select id="yearCloseYear" class="text-control" data-year-close-select>${years.map(n=>`<option value="${n}" ${n===year?'selected':''}>${n}</option>`).join('')}</select></label>
     <div class="inline-alert"><strong>Kein finanzieller Reset.</strong><span>Kontoguthaben, Schulden und Sparziele laufen unverändert weiter. Nur die Jahresauswertung beginnt am 1. Januar wieder bei null.</span></div>
     ${summary?`<p class="table-meta">Jahreshistorie: ${summary}</p>`:''}
+    ${Number(yearCloseOverview?.revision||0)>0?`<button type="button" class="table-action" data-action="year-close-export" data-year="${year}">Archivierte Abschlussversion (JSON) exportieren</button>`:''}
   </section>
   ${yearCloseError?`<div class="inline-alert"><strong>Datenbankfehler:</strong> ${escapeHtml(yearCloseError)}</div>`:''}
   ${!yearCloseOverview?'<div class="inline-alert">Abschlussdaten werden geladen bzw. sind noch nicht migriert. Kein Abschluss möglich.</div>':''}
