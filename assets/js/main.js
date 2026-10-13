@@ -1071,6 +1071,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     () => financeApi.listTaxObligations(h).catch(()=>[]),
     () => financeApi.listTaxPayments(h).catch(()=>[]),
     () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
+    () => financeApi.listYearClosures(h).catch(()=>[]),
   ];
   const results = await runLimited(tasks, 5);
   assertActiveSession(generation,userId);
@@ -1085,6 +1086,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     runtime.changeHistory,
     runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
     runtime.transactionDuplicateIgnores,
+    runtime.yearClosures,
   ] = results.map((value) => value || (value === null ? null : []));
   runtime.changeHistory=(runtime.changeHistory||[]).map((row)=>({
     id:row.id,
