@@ -4,6 +4,7 @@ import { renderDashboards, DASHBOARD_PANELS } from '../assets/js/views/dashboard
 import { base } from './render-rich.mjs';
 import { routeDefinition, routeFromPath } from '../assets/js/app/router.js';
 import { setLocale, t } from '../assets/js/app/i18n.js';
+import { resolveFinanceCycle } from '../assets/js/app/finance-cycle.js';
 
 const expected=['cockpit','cashflow','expenses','budget','wealth','goals'];
 assert.deepEqual(DASHBOARD_PANELS.map(row=>row.key),expected);
@@ -23,7 +24,9 @@ for(const view of expected){
   assert.equal((html.match(/class="dash-tab /g)||[]).length,6);
   assert.match(html,/Finanzmonat/);
 }
-const cockpit=renderDashboards({...base,dashboardView:'cockpit'});
+const cycle=resolveFinanceCycle({now:new Date(),mode:'day_25',fallbackDay:25});
+const currentBudget={...base.budgets[0],month_start:cycle.budgetMonth+'-01'};
+const cockpit=renderDashboards({...base,budgets:[currentBudget],dashboardView:'cockpit'});
 assert.match(cockpit,/cashflow-svg/);
 assert.match(cockpit,/donut-svg/);
 assert.match(cockpit,/data-action="overview-drilldown-expense"/);
