@@ -4739,6 +4739,21 @@ async function handleAction(target) {
   const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
+  if(action==='year-close-export'){
+    if(!canAdminHousehold())throw new Error('Keine Berechtigung für den Jahresabschluss.');
+    const year=Number(target.dataset.year);
+    const records=await financeApi.listYearCloseVersions(runtime.household.id,year);
+    if(!records?.length)throw new Error('Keine archivierte Abschlussversion gefunden.');
+    const latest=records[0];
+    const blob=new Blob([JSON.stringify({year,revision:latest.revision,closedAt:latest.closed_at,snapshot:latest.snapshot},null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    try{
+      const link=document.createElement('a');
+      link.href=url;link.download=`aione-jahresabschluss-${year}-v${latest.revision}.json`;
+      document.body.appendChild(link);link.click();link.remove();
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    return;
+  }
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
   if (action === 'sales-document-add-item') {
     const items=document.querySelector('#salesDocumentItems');
