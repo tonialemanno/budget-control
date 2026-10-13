@@ -122,7 +122,11 @@ begin
   select count(*) filter (where c.account_id is not null
       and c.statement_balance is distinct from private.year_end_balance(a.id,p_year)),
     count(*) filter (where c.account_id is null or c.statement_through<v_year_end
-      or a.balance_anchor_at>=private.year_close_cutoff(p_year))
+      or a.balance_anchor_at>=private.year_close_cutoff(p_year)
+      or exists (select 1 from public.transactions changed
+        where changed.account_id=a.id and changed.occurred_at<private.year_close_cutoff(p_year)
+          and changed.occurred_at>a.balance_anchor_at
+          and coalesce(changed.updated_at,changed.created_at)>c.checked_at))
     into v_mismatched,v_unchecked
   from public.accounts a
   left join public.year_closure_account_checks c on c.household_id=a.household_id and c.tax_year=p_year and c.account_id=a.id
@@ -137,6 +141,10 @@ begin
     'matches',c.checked_at is not null and c.statement_through>=v_year_end
       and a.balance_anchor_at<private.year_close_cutoff(p_year)
       and c.statement_balance=private.year_end_balance(a.id,p_year)
+      and not exists (select 1 from public.transactions changed
+        where changed.account_id=a.id and changed.occurred_at<private.year_close_cutoff(p_year)
+          and changed.occurred_at>a.balance_anchor_at
+          and coalesce(changed.updated_at,changed.created_at)>c.checked_at)
   ) order by a.name), '[]'::jsonb) into v_accounts
   from public.accounts a left join public.year_closure_account_checks c
     on c.household_id=a.household_id and c.tax_year=p_year and c.account_id=a.id
@@ -206,6 +214,7 @@ begin
   if p_year>=extract(year from current_date)::integer or p_year<2000 then
     raise exception 'Ein laufendes Jahr kann nicht abgeschlossen werden';
   end if;
+  perform pg_advisory_xact_lock(hashtext(p_household_id::text),p_year);
   insert into public.year_closures(household_id,tax_year) values(p_household_id,p_year)
     on conflict(household_id,tax_year) do nothing;
   select * into v_close from public.year_closures
@@ -282,8 +291,9 @@ begin
     if v_side='old' then v_hh=old.household_id;v_date=old.occurred_at;
     else v_hh=new.household_id;v_date=new.occurred_at;end if;
     v_year=extract(year from v_date at time zone 'Europe/Zurich')::integer;
-    if exists(select 1 from public.year_closures
-      where household_id=v_hh and tax_year=v_year and status='closed' for share) then
+    perform pg_advisory_xact_lock(hashtext(v_hh::text),v_year);
+    if (select status from public.year_closures
+      where household_id=v_hh and tax_year=v_year for share)='closed' then
       raise exception 'Das Jahr % ist abgeschlossen. Vor Änderungen zuerst wiedereröffnen.',v_year using errcode='23514';
     end if;
   end loop;
