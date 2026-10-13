@@ -103,8 +103,8 @@ export function renderCashflowChart({
     const inclusiveEnd=new Date(row.endExclusive||row.date);
     if(row.endExclusive) inclusiveEnd.setDate(inclusiveEnd.getDate()-1);
     const to=localDateKey(inclusiveEnd);
-    const incomeAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="income"`:'';
-    const expenseAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="expense"`:'';
+    const incomeAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="income"${Array.isArray(row.incomeIds)?` data-transaction-ids="${escapeHtml(row.incomeIds.join(","))}"`:``}`:'';
+    const expenseAttrs=interactive?` class="cashflow-hit" tabindex="0" role="button" data-drilldown="transactions-range" data-from="${from}" data-to="${to}" data-direction="expense"${Array.isArray(row.expenseIds)?` data-transaction-ids="${escapeHtml(row.expenseIds.join(","))}"`:``}`:'';
     return `<g class="cashflow-month">
       <g${incomeAttrs}><rect class="cashflow-bar cashflow-bar--income" x="${incomeX}" y="${incomeY}" width="${barWidth}" height="${incomeH}" rx="5"><title>${escapeHtml(incomeTitle)}</title></rect></g>
       <g${expenseAttrs}><rect class="cashflow-bar cashflow-bar--expense" x="${expenseX}" y="${expenseY}" width="${barWidth}" height="${expenseH}" rx="5"><title>${escapeHtml(expenseTitle)}</title></rect></g>
