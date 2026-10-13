@@ -108,7 +108,7 @@ begin
   where a.household_id=p_household_id
     and (a.created_at < private.year_close_cutoff(p_year)
       or a.balance_anchor_at < private.year_close_cutoff(p_year))
-    and a.visibility<>'household' and a.owner_user_id is distinct from (select auth.uid());
+    and coalesce(a.visibility,'private')<>'household' and a.owner_user_id is distinct from (select auth.uid());
   select count(*) into v_pending from public.transactions t where t.household_id=p_household_id
     and t.status<>'booked'
     and t.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
@@ -155,7 +155,7 @@ begin
   select count(*) into v_hidden from public.accounts a
     where a.household_id=p_household_id
     and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year))
-    and a.visibility<>'household' and a.owner_user_id is distinct from (select auth.uid());
+    and coalesce(a.visibility,'private')<>'household' and a.owner_user_id is distinct from (select auth.uid());
   return jsonb_build_object('year',p_year,'status',coalesce(v_close.status,'open'),
     'revision',coalesce(v_close.revision,0),'closed_at',v_close.closed_at,
     'accounts',v_accounts,'hidden_accounts',v_hidden,
@@ -173,8 +173,8 @@ create or replace function public.year_confirm_account(
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_account public.accounts%rowtype;v_close public.year_closures%rowtype;
 begin
-  if (select auth.uid()) is null or not private.can_write_household(p_household_id) then
-    raise exception 'Keine Schreibberechtigung' using errcode='42501';
+  if (select auth.uid()) is null or not private.can_admin_household(p_household_id) then
+    raise exception 'Keine Administratorberechtigung' using errcode='42501';
   end if;
   if p_year>=extract(year from current_date)::integer or p_year<2000 then
     raise exception 'Es können nur vergangene Kalenderjahre bestätigt werden';
