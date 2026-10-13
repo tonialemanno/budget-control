@@ -1,5 +1,8 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Jahrescenter": "Centro annuale",
+  "Jahresabschlüsse sind nur für Haushaltsadministratoren zugänglich.": "Le chiusure annuali sono accessibili solo agli amministratori del nucleo familiare.",
+  "Keine Berechtigung für diesen Jahresabschluss.": "Nessuna autorizzazione per questa chiusura annuale.",
   "Jahresabschluss gesichert": "Chiusura annuale archiviata",
   "Version": "Versione",
   "Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.": "Le registrazioni di quest'anno sono bloccate e archiviate. Il fascicolo fiscale può ancora essere completato.",
@@ -1403,6 +1406,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Jahrescenter": "Year center",
+  "Jahresabschlüsse sind nur für Haushaltsadministratoren zugänglich.": "Year-end closings are accessible only to household administrators.",
+  "Keine Berechtigung für diesen Jahresabschluss.": "You do not have permission to access this year-end close.",
   "Jahresabschluss gesichert": "Year-end close archived",
   "Version": "Version",
   "Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.": "This year's transactions are locked and archived. You can still complete the tax dossier.",
