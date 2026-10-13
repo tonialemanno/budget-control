@@ -113,7 +113,10 @@ begin
   select count(*) into v_hidden from public.accounts a
   where a.household_id=p_household_id
     and (a.created_at < private.year_close_cutoff(p_year)
-      or a.balance_anchor_at < private.year_close_cutoff(p_year))
+      or a.balance_anchor_at < private.year_close_cutoff(p_year)
+      or exists(select 1 from public.transactions prior where prior.account_id=a.id
+        and prior.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
+        and prior.occurred_at<private.year_close_cutoff(p_year)))
     and coalesce(a.visibility,'private')<>'household' and a.owner_user_id is distinct from (select auth.uid());
   select count(*) into v_pending from public.transactions t where t.household_id=p_household_id
     and t.status<>'booked'
