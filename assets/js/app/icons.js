@@ -1,6 +1,7 @@
 const paths = {
   alemanno: '<path d="M5.5 19 10.8 5h2.4L18.5 19M8.2 13h7.6"/><path d="M17.5 6.5h2.5M18.2 10h1.8M18.2 13.5h1.8" opacity=".72"/>',
   home: '<path d="M3.5 10.5 12 3.8l8.5 6.7v8.7a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8Z"/><path d="M9 21v-6h6v6"/>',
+  'layout-dashboard': '<rect x="3" y="3" width="7" height="9" rx="1.3"/><rect x="14" y="3" width="7" height="5" rx="1.3"/><rect x="14" y="12" width="7" height="9" rx="1.3"/><rect x="3" y="16" width="7" height="5" rx="1.3"/>',
   wallet: '<path d="M4 6.5h14.5A1.5 1.5 0 0 1 20 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6.8A2.8 2.8 0 0 1 5.8 4H17"/><path d="M15 11h6v5h-6a2.5 2.5 0 0 1 0-5Z"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
   chart: '<path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/>',
