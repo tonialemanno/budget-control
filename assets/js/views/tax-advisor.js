@@ -172,12 +172,13 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
   insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false,
-  taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
+  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
   const year=Number(taxYear)||2026;
   const taxCase=caseForYear(taxCases,year);
+  const closedYear=(yearClosures||[]).find(row=>Number(row.tax_year)===year&&row.status==='closed');
   const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year);
   const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y)]));
   const yearCards=TAX_YEARS.map((y)=>{
