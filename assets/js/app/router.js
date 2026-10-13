@@ -23,6 +23,7 @@ const DEFINITIONS = [
   { route:'bills', path:'/planning/bills', title:'Zu zahlende Rechnungen & Verträge', eyebrow:'Planung', label:'Zu zahlende Rechnungen & Verträge', icon:'receipt', group:'Planung', module:'bills', section:'planning' },
   { route:'sales-documents', path:'/planning/invoices', aliases:['/planning/sales-documents'], title:'Rechnungen / Offerten', eyebrow:'Planung', label:'Rechnungen / Offerten', icon:'receipt', group:'Planung', module:'bills', section:'planning' },
   { route:'goals', path:'/planning/goals', title:'Sparziele', eyebrow:'Planung', label:'Sparziele', icon:'target', group:'Planung', module:'goals', section:'planning' },
+  { route:'year-closing', path:'/planning/year-closing', aliases:['/planning/year-end'], title:'Jahrescenter', eyebrow:'Planung', label:'Jahrescenter', icon:'calendar-check', group:'Planung', module:'core', section:'planning' },
   { route:'tax-advisor', path:'/planning/taxes', aliases:['/planning/tax-advisor'], title:'Steuern', eyebrow:'Planung', label:'Steuern', icon:'receipt', group:'Planung', module:'tax', section:'planning' },
   { route:'family', path:'/planning/family', title:'Familie & Haushalt', eyebrow:'Planung', label:'Familie & Haushalt', icon:'heart-pulse', group:'Weitere Bereiche', module:'family', section:'planning' },
   { route:'wealth', path:'/planning/wealth', title:'Vermögen', eyebrow:'Planung', label:'Vermögen', icon:'sparkles', group:'Weitere Bereiche', module:'wealth', section:'planning' },
