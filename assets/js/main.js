@@ -4226,6 +4226,30 @@ async function handleForm(form) {
     await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH', password:formValue(data,'password') });
     await refresh('Benutzer erstellt.'); return;
   }
+  if(['year-close-account','year-close-finalize','year-close-reopen'].includes(id)){
+    if(!canAdminHousehold())throw new Error('Nur Haushalt-Administratoren dürfen Jahresabschlüsse bearbeiten.');
+    const year=Number(formValue(data,'year'));
+    if(!Number.isInteger(year)||year>=new Date().getFullYear()||year<2000)throw new Error('Nur vergangene Kalenderjahre können abgeschlossen werden.');
+    if(id==='year-close-account'){
+      if(data.get('confirmed')!=='on')throw new Error('Bitte bestätige zuerst die Vollständigkeit des Kontoauszugs.');
+      const amount=Number(formValue(data,'statementBalance'));
+      if(!Number.isFinite(amount))throw new Error('Bitte den Schlusssaldo laut Bankauszug eingeben.');
+      await financeApi.yearConfirmAccount({householdId:runtime.household.id,year,accountId:formValue(data,'accountId'),statementBalance:amount});
+    }else if(id==='year-close-finalize'){
+      if(data.get('accept')!=='on')throw new Error('Bitte den verbindlichen Abschluss ausdrücklich bestätigen.');
+      if(!confirm(`Willst du das Kalenderjahr ${year} verbindlich abschliessen? Alle Buchungen dieses Jahres werden danach schreibgeschützt.`))return;
+      await financeApi.yearCloseFinalize(runtime.household.id,year);
+    }else{
+      const reason=formValue(data,'reason')?.trim()||'';
+      if(reason.length<12)throw new Error('Bitte eine nachvollziehbare Begründung angeben (mindestens 12 Zeichen).');
+      if(!confirm(`Jahr ${year} wiedereröffnen? Die bisherigen Abschlussversionen bleiben archiviert.`))return;
+      await financeApi.yearCloseReopen(runtime.household.id,year,reason);
+    }
+    uiState.yearCloseLoadedYear=null;
+    await loadYearCloseData(year);
+    showToast(id==='year-close-account'?'Kontostand geprüft und bestätigt.':id==='year-close-finalize'?'Jahresabschluss gesichert.':'Jahr wiedereröffnet; alle Konten müssen erneut abgestimmt werden.');
+    return;
+  }
   if (id === 'bank-import') {
     if (!importState.items.length) throw new Error('Bitte zuerst mindestens eine CSV- oder PDF-Datei auswählen.');
     const accountId = formValue(data,'accountId');
@@ -4262,6 +4286,7 @@ async function handleForm(form) {
     let semanticDuplicates=0;
     const importDuplicatePool=[...runtime.transactions];
     const failedFiles=[];
+    const importedClosedYearCandidates=new Set();
 
     for (const item of importState.items) {
       const mapping=importMappingForParsed(item.parsed,preferredMapping);
@@ -4369,6 +4394,10 @@ async function handleForm(form) {
         linkedCashWithdrawals+=cashResult.linked;
         cashWithdrawalsToReview+=cashResult.review;
         importDuplicatePool.push(...inserted);
+        for(const tx of inserted){
+          const importYear=new Date(tx.occurred_at).getFullYear();
+          if(importYear>=2000&&importYear<new Date().getFullYear())importedClosedYearCandidates.add(importYear);
+        }
         const skippedCount=Math.max(0,item.parsed.rows.length-inserted.length);
         await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
         importedTotal+=inserted.length;
@@ -4385,6 +4414,18 @@ async function handleForm(form) {
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
     await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${semanticDuplicates?` Davon ${semanticDuplicates} bereits vorhandene Bankbuchung${semanticDuplicates===1?'':'en'} aus einem anderen Importformat erkannt.`:''}${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}${linkedCashWithdrawals?` ${linkedCashWithdrawals} Bargeldbezug${linkedCashWithdrawals===1?'':'e'} automatisch als Umbuchung verbunden.`:''}${cashWithdrawalsToReview?` ${cashWithdrawalsToReview} Auslands-Bargeldbezug${cashWithdrawalsToReview===1?'':'e'} ohne eindeutigen Originalbetrag bitte prüfen.`:''}`);
     if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
+    if(importedClosedYearCandidates.size&&canAdminHousehold()){
+      const candidate=Math.max(...importedClosedYearCandidates);
+      const key=`${h}:${candidate}`;
+      if(!yearPromptSeen.has(key)){
+        yearPromptSeen.add(key);
+        const existing=await financeApi.listYearClosures(h).catch(()=>[]);
+        if(!existing.some(row=>Number(row.tax_year)===candidate&&row.status==='closed')
+          &&confirm(`Es wurden Buchungen aus ${candidate} importiert. Sind damit möglicherweise die letzten Kontoauszüge dieses Jahres erfasst? Jetzt den Jahresabschluss prüfen? (Das Jahr wird noch nicht abgeschlossen.)`)){
+          goToRoute('year-closing',{year:candidate});
+        }
+      }
+    }
     return;
   }
 }
@@ -6109,6 +6150,15 @@ pageContent.addEventListener('input', (event) => {
 
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
+  if(target?.matches?.('[data-year-close-select]')){
+    const year=Number(target.value);
+    if(!Number.isInteger(year)||year>=new Date().getFullYear())return;
+    uiState.yearCloseYear=year;
+    uiState.yearCloseLoadedYear=null;
+    runtime.yearCloseOverview=null;
+    goToRoute('year-closing',{year});
+    return;
+  }
   markDeferredSettingsDirty(target);
   if (target?.id === 'merchantFilter') {
     uiState.merchantFilter=target.value||'all';
