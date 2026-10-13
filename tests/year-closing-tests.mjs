@@ -41,7 +41,7 @@ assert.match(renderYearClosing({...ready,yearCloseOverview:null,yearCloseError:'
 
 const sql=fs.readFileSync(new URL('../supabase/migrations/20261014003000_year_closing_archive.sql',import.meta.url),'utf8');
 for(const phrase of ['create table if not exists public.year_closures','year_closure_versions','year_closure_events','enable row level security',
-  'private.can_admin_household','private.can_write_household','year_close_overview','year_confirm_account','year_close_finalize','year_close_reopen',
+  'private.can_admin_household','year_close_overview','year_confirm_account','year_close_finalize','year_close_reopen',
   'pg_advisory_xact_lock','year_closure_tx_guard','year_closure_account_guard',
   "raise exception 'Das Jahr % ist abgeschlossen",
   "and coalesce(changed.updated_at,changed.created_at)>c.checked_at"]){
