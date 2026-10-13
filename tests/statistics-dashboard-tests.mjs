@@ -23,8 +23,8 @@ assert.equal(kpiButtons.length,4,'All four statistic KPI tiles must be actionabl
 assert.equal(kpiButtons.filter((button)=>button.includes('data-direction="income"')).length,1);
 assert.equal(kpiButtons.filter((button)=>button.includes('data-direction="expense"')).length,1);
 assert.equal(kpiButtons.filter((button)=>button.includes('data-direction="all"')).length,2);
-assert.ok(kpiButtons.every((button)=>/data-from="\\d{4}-\\d{2}-\\d{2}"/.test(button)));
-assert.ok(kpiButtons.every((button)=>/data-to="\\d{4}-\\d{2}-\\d{2}"/.test(button)));
+assert.ok(kpiButtons.every((button)=>/data-from="[0-9]{4}-[0-9]{2}-[0-9]{2}"/.test(button)));
+assert.ok(kpiButtons.every((button)=>/data-to="[0-9]{4}-[0-9]{2}-[0-9]{2}"/.test(button)));
 assert.ok(kpiButtons.every((button)=>button.includes('type="button"')));
 assert.match(html,/Einnahmen & Ausgaben/);
 assert.match(html,/Ausgaben nach Kategorien/);
