@@ -10,6 +10,7 @@ export function yearCloseBlockers(overview){
   if(Number(overview.pending_transactions)>0)reasons.push('Es gibt noch nicht gebuchte Transaktionen im Abschlussjahr.');
   if(Number(overview.unclassified_transactions)>0)reasons.push('Es gibt noch nicht klassifizierte Buchungen im Abschlussjahr.');
   if(!(overview.accounts||[]).length)reasons.push('Es sind keine abschliessbaren Konten vorhanden.');
+  if(!reasons.length&&overview.can_close!==true&&overview.status!=='closed')reasons.push('Die verbindliche Datenbankprüfung hat den Abschluss noch nicht freigegeben.');
   return reasons;
 }
 export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCloseYear,yearCloseError='',household,canAdminHousehold=false,profile}={}){
