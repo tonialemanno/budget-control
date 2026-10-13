@@ -35,6 +35,12 @@ async function listByHousehold(table, householdId, { select = '*', order = 'crea
 }
 
 export const financeApi = Object.freeze({
+  listYearClosures(householdId) { return listByHousehold('year_closures',householdId,{select:'id,tax_year,status,revision,closed_at,created_at',order:'tax_year.desc'}); },
+  yearCloseOverview(householdId,year) { return backend.rpc('year_close_overview',{p_household_id:householdId,p_year:Number(year)}); },
+  yearConfirmAccount({householdId,year,accountId,statementBalance}) { return backend.rpc('year_confirm_account',{p_household_id:householdId,p_year:Number(year),p_account_id:accountId,p_statement_balance:Number(statementBalance),p_statement_through:`${Number(year)}-12-31`}); },
+  yearCloseFinalize(householdId,year) { return backend.rpc('year_close_finalize',{p_household_id:householdId,p_year:Number(year)}); },
+  yearCloseReopen(householdId,year,reason) { return backend.rpc('year_close_reopen',{p_household_id:householdId,p_year:Number(year),p_reason:reason}); },
+  listYearCloseVersions(householdId,year) { return listByHousehold('year_closure_versions',householdId,{select:'tax_year,revision,snapshot,closed_at',order:'revision.desc',extra:{tax_year:`eq.${Number(year)}`}}); },
   async getProfile(userId) { const rows = await backend.rest(buildQuery('profiles', { select: '*', user_id: `eq.${userId}`, limit: '1' })); return rows?.[0] || null; },
   async updateProfile(userId, patch) { const rows = await backend.rest(buildQuery('profiles', { user_id: `eq.${userId}` }), { method: 'PATCH', body: patch, headers: { Prefer: 'return=representation' } }); return rows?.[0] || null; },
   setMyLocale: (locale) => backend.rpc('set_my_locale_v1',{ p_locale: locale }),

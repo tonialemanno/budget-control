@@ -41,6 +41,7 @@ import { renderStatistics } from './views/statistics.js';
 import { renderDashboards } from './views/dashboards.js';
 import { renderMoney } from './views/money.js';
 import { renderPlanning } from './views/planning.js';
+import { renderYearClosing } from './views/year-closing.js';
 import { renderSetupGuide } from './views/setup.js';
 import { renderAccounts } from './views/accounts.js';
 import { renderTransactions } from './views/transactions.js';
@@ -85,6 +86,7 @@ const views = {
   projects: renderProjects,
   money: renderMoney,
   planning: renderPlanning,
+  'year-closing': renderYearClosing,
   setup: renderSetupGuide,
   accounts: renderAccounts,
   transactions: renderTransactions,
@@ -132,6 +134,8 @@ const runtime = {
   categorizationRules: [],
   transactions: [],
   importBatches: [],
+  yearClosures: [],
+  yearCloseOverview: null,
   merchants: [],
   merchantAliases: [],
   counterparties: [],
@@ -180,7 +184,8 @@ const runtime = {
 };
 
 const importState = { items: [] };
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null };
+const yearPromptSeen = new Set();
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
 
 let sessionGeneration=0;
 
@@ -205,6 +210,10 @@ function clearUserRuntimeState({keepIdentity=false}={}){
   runtime.session=session;
   runtime.user=user;
   importState.items=[];
+  yearPromptSeen.clear();
+  uiState.yearCloseLoadedYear=null;
+  uiState.yearClosePending=false;
+  uiState.yearCloseError='';
   uiState.demoCredentials=null;
   uiState.merchantQuery='';
   uiState.merchantFilter='all';
@@ -361,7 +370,7 @@ function householdRoleLabel(role) {
 }
 
 function enabledNavItems() {
-  return NAV_ITEMS.filter((item) => moduleEnabled(item.module) && (!item.adminOnly || Boolean(runtime.adminRole)));
+  return NAV_ITEMS.filter((item) => moduleEnabled(item.module) && (!item.adminOnly || Boolean(runtime.adminRole)) && (item.route!=='year-closing'||canAdminHousehold()));
 }
 
 function renderNavigation() {
@@ -408,6 +417,30 @@ function resolveRoute() {
   return allowed.has(requested) ? requested : 'overview';
 }
 
+async function loadYearCloseData(year=uiState.yearCloseYear){
+  const userId=runtime.user?.id, householdId=runtime.household?.id;
+  if(!userId||!householdId||!canAdminHousehold())return;
+  uiState.yearClosePending=true;
+  try{
+    const [years,overview]=await Promise.all([
+      financeApi.listYearClosures(householdId),financeApi.yearCloseOverview(householdId,year)
+    ]);
+    if(runtime.user?.id!==userId||runtime.household?.id!==householdId||uiState.yearCloseYear!==year)return;
+    runtime.yearClosures=years||[];
+    runtime.yearCloseOverview=overview;
+    uiState.yearCloseError='';
+  }catch(error){
+    if(runtime.user?.id!==userId)return;
+    runtime.yearCloseOverview=null;
+    uiState.yearCloseError=humanError(error);
+  }finally{
+    if(runtime.user?.id===userId&&uiState.yearCloseYear===year){
+      uiState.yearCloseLoadedYear=year;
+      uiState.yearClosePending=false;
+      if(currentRouteLocation().route==='year-closing')render();
+    }
+  }
+}
 function goToRoute(route,params=null,{replace=false}={}) {
   navigateToRoute(route,params,{replace});
   if(runtime.user){
@@ -1038,6 +1071,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     () => financeApi.listTaxObligations(h).catch(()=>[]),
     () => financeApi.listTaxPayments(h).catch(()=>[]),
     () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
+    () => financeApi.listYearClosures(h).catch(()=>[]),
   ];
   const results = await runLimited(tasks, 5);
   assertActiveSession(generation,userId);
@@ -1052,6 +1086,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     runtime.changeHistory,
     runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
     runtime.transactionDuplicateIgnores,
+    runtime.yearClosures,
   ] = results.map((value) => value || (value === null ? null : []));
   runtime.changeHistory=(runtime.changeHistory||[]).map((row)=>({
     id:row.id,
@@ -1128,6 +1163,12 @@ function render() {
   renderNavigation();
   const routeLocation=currentRouteLocation();
   const route = resolveRoute();
+  if(route==='year-closing'){
+    const fromUrl=Number(routeLocation.params.get('year'));
+    if(Number.isInteger(fromUrl)&&fromUrl>=2000&&fromUrl<new Date().getFullYear()){
+      uiState.yearCloseYear=fromUrl;
+    }
+  }
   if(routeLocation.route!==route) navigateToRoute(route,null,{replace:true});
   const meta = PAGE_META[route] || PAGE_META.overview;
   pageTitle.textContent = t(meta.title);
@@ -1178,6 +1219,8 @@ function render() {
     receivableExpandedId: uiState.receivableExpandedId,
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
     taxYear: uiState.taxYear,
+    yearCloseYear: uiState.yearCloseYear,
+    yearCloseError: uiState.yearCloseError,
   });
   rewriteLegacyRouteLinks(pageContent);
   lastRenderedHref=`${location.pathname}${location.search}`;
@@ -1186,6 +1229,9 @@ function render() {
   mobileNav.querySelectorAll('[data-section]').forEach((el) => el.dataset.section === section ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
   applyPermissionUI(route);
   translateElement(pageContent);
+  if(route==='year-closing'&&canAdminHousehold()&&!uiState.yearClosePending&&uiState.yearCloseLoadedYear!==uiState.yearCloseYear){
+    void loadYearCloseData(uiState.yearCloseYear);
+  }
   applyInformationDepth();
   closeMobileNav();
   closeQuickAdd();
@@ -1236,6 +1282,8 @@ function applyPermissionUI(route) {
 }
 
 async function refresh(message = '') {
+  uiState.yearCloseLoadedYear=null;
+  runtime.yearCloseOverview=null;
   showLoading('Daten werden aktualisiert …');
   const generation=sessionGeneration; const userId=runtime.user?.id;
   await loadContext({generation,userId});
@@ -4182,6 +4230,30 @@ async function handleForm(form) {
     await backend.adminCreateUser({ displayName:formValue(data,'displayName'), email:formValue(data,'email'), locale:formValue(data,'locale')||'de-CH', password:formValue(data,'password') });
     await refresh('Benutzer erstellt.'); return;
   }
+  if(['year-close-account','year-close-finalize','year-close-reopen'].includes(id)){
+    if(!canAdminHousehold())throw new Error('Nur Haushalt-Administratoren dürfen Jahresabschlüsse bearbeiten.');
+    const year=Number(formValue(data,'year'));
+    if(!Number.isInteger(year)||year>=new Date().getFullYear()||year<2000)throw new Error('Nur vergangene Kalenderjahre können abgeschlossen werden.');
+    if(id==='year-close-account'){
+      if(data.get('confirmed')!=='on')throw new Error('Bitte bestätige zuerst die Vollständigkeit des Kontoauszugs.');
+      const amount=Number(formValue(data,'statementBalance'));
+      if(!Number.isFinite(amount))throw new Error('Bitte den Schlusssaldo laut Bankauszug eingeben.');
+      await financeApi.yearConfirmAccount({householdId:runtime.household.id,year,accountId:formValue(data,'accountId'),statementBalance:amount});
+    }else if(id==='year-close-finalize'){
+      if(data.get('accept')!=='on')throw new Error('Bitte den verbindlichen Abschluss ausdrücklich bestätigen.');
+      if(!confirm(`Willst du das Kalenderjahr ${year} verbindlich abschliessen? Alle Buchungen dieses Jahres werden danach schreibgeschützt.`))return;
+      await financeApi.yearCloseFinalize(runtime.household.id,year);
+    }else{
+      const reason=formValue(data,'reason')?.trim()||'';
+      if(reason.length<12)throw new Error('Bitte eine nachvollziehbare Begründung angeben (mindestens 12 Zeichen).');
+      if(!confirm(`Jahr ${year} wiedereröffnen? Die bisherigen Abschlussversionen bleiben archiviert.`))return;
+      await financeApi.yearCloseReopen(runtime.household.id,year,reason);
+    }
+    uiState.yearCloseLoadedYear=null;
+    await loadYearCloseData(year);
+    showToast(id==='year-close-account'?'Kontostand geprüft und bestätigt.':id==='year-close-finalize'?'Jahresabschluss gesichert.':'Jahr wiedereröffnet; alle Konten müssen erneut abgestimmt werden.');
+    return;
+  }
   if (id === 'bank-import') {
     if (!importState.items.length) throw new Error('Bitte zuerst mindestens eine CSV- oder PDF-Datei auswählen.');
     const accountId = formValue(data,'accountId');
@@ -4218,6 +4290,7 @@ async function handleForm(form) {
     let semanticDuplicates=0;
     const importDuplicatePool=[...runtime.transactions];
     const failedFiles=[];
+    const importedClosedYearCandidates=new Set();
 
     for (const item of importState.items) {
       const mapping=importMappingForParsed(item.parsed,preferredMapping);
@@ -4325,6 +4398,10 @@ async function handleForm(form) {
         linkedCashWithdrawals+=cashResult.linked;
         cashWithdrawalsToReview+=cashResult.review;
         importDuplicatePool.push(...inserted);
+        for(const tx of inserted){
+          const importYear=new Date(tx.occurred_at).getFullYear();
+          if(importYear>=2000&&importYear<new Date().getFullYear())importedClosedYearCandidates.add(importYear);
+        }
         const skippedCount=Math.max(0,item.parsed.rows.length-inserted.length);
         await financeApi.updateImportBatch(batch.id,{ imported_count:inserted.length, skipped_count:skippedCount, status:'completed' });
         importedTotal+=inserted.length;
@@ -4341,6 +4418,18 @@ async function handleForm(form) {
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
     await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${semanticDuplicates?` Davon ${semanticDuplicates} bereits vorhandene Bankbuchung${semanticDuplicates===1?'':'en'} aus einem anderen Importformat erkannt.`:''}${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}${linkedCashWithdrawals?` ${linkedCashWithdrawals} Bargeldbezug${linkedCashWithdrawals===1?'':'e'} automatisch als Umbuchung verbunden.`:''}${cashWithdrawalsToReview?` ${cashWithdrawalsToReview} Auslands-Bargeldbezug${cashWithdrawalsToReview===1?'':'e'} ohne eindeutigen Originalbetrag bitte prüfen.`:''}`);
     if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
+    if(importedClosedYearCandidates.size&&canAdminHousehold()){
+      const candidate=Math.max(...importedClosedYearCandidates);
+      const key=`${h}:${candidate}`;
+      if(!yearPromptSeen.has(key)){
+        yearPromptSeen.add(key);
+        const existing=await financeApi.listYearClosures(h).catch(()=>[]);
+        if(!existing.some(row=>Number(row.tax_year)===candidate&&row.status==='closed')
+          &&confirm(`Es wurden Buchungen aus ${candidate} importiert. Sind damit möglicherweise die letzten Kontoauszüge dieses Jahres erfasst? Jetzt den Jahresabschluss prüfen? (Das Jahr wird noch nicht abgeschlossen.)`)){
+          goToRoute('year-closing',{year:candidate});
+        }
+      }
+    }
     return;
   }
 }
@@ -4650,6 +4739,21 @@ async function handleAction(target) {
   const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
+  if(action==='year-close-export'){
+    if(!canAdminHousehold())throw new Error('Keine Berechtigung für den Jahresabschluss.');
+    const year=Number(target.dataset.year);
+    const records=await financeApi.listYearCloseVersions(runtime.household.id,year);
+    if(!records?.length)throw new Error('Keine archivierte Abschlussversion gefunden.');
+    const latest=records[0];
+    const blob=new Blob([JSON.stringify({year,revision:latest.revision,closedAt:latest.closed_at,snapshot:latest.snapshot},null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    try{
+      const link=document.createElement('a');
+      link.href=url;link.download=`aione-jahresabschluss-${year}-v${latest.revision}.json`;
+      document.body.appendChild(link);link.click();link.remove();
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+    return;
+  }
   if (action === 'sales-document-new') { openSalesDocumentForm(target.dataset.documentType||'invoice'); return; }
   if (action === 'sales-document-add-item') {
     const items=document.querySelector('#salesDocumentItems');
@@ -6065,6 +6169,15 @@ pageContent.addEventListener('input', (event) => {
 
 pageContent.addEventListener('change', async (event) => {
   const target = event.target;
+  if(target?.matches?.('[data-year-close-select]')){
+    const year=Number(target.value);
+    if(!Number.isInteger(year)||year>=new Date().getFullYear())return;
+    uiState.yearCloseYear=year;
+    uiState.yearCloseLoadedYear=null;
+    runtime.yearCloseOverview=null;
+    goToRoute('year-closing',{year});
+    return;
+  }
   markDeferredSettingsDirty(target);
   if (target?.id === 'merchantFilter') {
     uiState.merchantFilter=target.value||'all';

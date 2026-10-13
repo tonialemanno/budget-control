@@ -171,13 +171,14 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
-  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false,
-  taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
+  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false,
+  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
   const year=Number(taxYear)||2026;
   const taxCase=caseForYear(taxCases,year);
+  const closedYear=(yearClosures||[]).find(row=>Number(row.tax_year)===year&&row.status==='closed');
   const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year);
   const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y)]));
   const yearCards=TAX_YEARS.map((y)=>{
@@ -366,6 +367,7 @@ export function renderTaxAdvisor({
 
   return `
     ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
+    ${!canAdminHousehold?'':closedYear?`<div class="inline-alert inline-alert--success"><strong>${escapeHtml(t('Jahresabschluss gesichert',locale))} · ${year} (${escapeHtml(t('Version',locale))} ${Number(closedYear.revision||0)})</strong><span>${escapeHtml(t('Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Abschluss ansehen',locale))} →</a></span></div>`:`<div class="inline-alert"><strong>${escapeHtml(t('Jahresabschluss noch offen',locale))} · ${year}</strong><span>${escapeHtml(t('Die Steuerdaten sind vorläufig. Erst nach dem Jahresabschluss steht ein eingefrorener Buchungsstand bereit.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Jahrescenter öffnen',locale))} →</a></span></div>`}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
     <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
 
