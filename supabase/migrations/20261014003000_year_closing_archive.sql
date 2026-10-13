@@ -108,7 +108,7 @@ begin
   where a.household_id=p_household_id
     and (a.created_at < private.year_close_cutoff(p_year)
       or a.balance_anchor_at < private.year_close_cutoff(p_year))
-    and a.visibility='private' and a.owner_user_id is distinct from (select auth.uid());
+    and a.visibility<>'household' and a.owner_user_id is distinct from (select auth.uid());
   select count(*) into v_pending from public.transactions t where t.household_id=p_household_id
     and t.status<>'booked'
     and t.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
@@ -119,10 +119,11 @@ begin
     and coalesce(t.exclude_from_reports,false)=false
     and t.occurred_at>=make_timestamptz(p_year,1,1,0,0,0,'Europe/Zurich')
     and t.occurred_at<private.year_close_cutoff(p_year);
-  select count(*),count(*) filter (where c.account_id is null or c.statement_through<v_year_end
-    or a.balance_anchor_at>=private.year_close_cutoff(p_year)),
-    count(*) filter (where c.account_id is not null and c.statement_balance<>private.year_end_balance(a.id,p_year))
-    into v_mismatched,v_unchecked,v_hidden -- temporary recycled; recompute hidden separately below
+  select count(*) filter (where c.account_id is not null
+      and c.statement_balance is distinct from private.year_end_balance(a.id,p_year)),
+    count(*) filter (where c.account_id is null or c.statement_through<v_year_end
+      or a.balance_anchor_at>=private.year_close_cutoff(p_year))
+    into v_mismatched,v_unchecked
   from public.accounts a
   left join public.year_closure_account_checks c on c.household_id=a.household_id and c.tax_year=p_year and c.account_id=a.id
   where a.household_id=p_household_id
@@ -146,7 +147,7 @@ begin
   select count(*) into v_hidden from public.accounts a
     where a.household_id=p_household_id
     and (a.created_at<private.year_close_cutoff(p_year) or a.balance_anchor_at<private.year_close_cutoff(p_year))
-    and a.visibility='private' and a.owner_user_id is distinct from (select auth.uid());
+    and a.visibility<>'household' and a.owner_user_id is distinct from (select auth.uid());
   return jsonb_build_object('year',p_year,'status',coalesce(v_close.status,'open'),
     'revision',coalesce(v_close.revision,0),'closed_at',v_close.closed_at,
     'accounts',v_accounts,'hidden_accounts',v_hidden,
@@ -297,7 +298,14 @@ create trigger year_closure_tx_guard before insert or update or delete on public
 create or replace function private.reject_closed_year_account_anchor()
 returns trigger language plpgsql security definer set search_path='' as $$
 begin
-  if tg_op='DELETE' or (new.balance_anchor_amount,new.balance_anchor_at,new.currency,new.household_id)
+  if tg_op='DELETE' then
+    if exists(select 1 from public.year_closures where household_id=old.household_id
+      and status='closed' and private.year_close_cutoff(tax_year)>old.balance_anchor_at for share) then
+      raise exception 'Konto gehört zu einem abgeschlossenen Jahr. Zuerst wiedereröffnen.' using errcode='23514';
+    end if;
+    return old;
+  end if;
+  if (new.balance_anchor_amount,new.balance_anchor_at,new.currency,new.household_id)
         is distinct from (old.balance_anchor_amount,old.balance_anchor_at,old.currency,old.household_id) then
     if exists(select 1 from public.year_closures
       where household_id=old.household_id and status='closed'
