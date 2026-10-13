@@ -48,7 +48,7 @@ export function renderYearClosing({yearCloseOverview=null,yearClosures=[],yearCl
       return `<div class="card card-padding" style="margin-top:8px">
         <strong>${escapeHtml(account.name)}</strong> · ${escapeHtml(account.currency||'')}
         ${account.archived?'<span class="status-pill">Archiviertes Konto</span>':''}
-        <p>Berechneter Schlussstand: <strong>${balance===null?'Nicht rekonstruierbar':money(balance,{currency:account.currency||household?.base_currency||'CHF',locale})}</strong></p>
+        <p>${balance===null?'Historischer Saldo nicht automatisch berechenbar. Bitte anhand des Kontoauszugs per 31.12. bestätigen.':'Berechneter Schlussstand:'} <strong>${balance===null?'Manuelle Bestätigung erforderlich':money(balance,{currency:account.currency||household?.base_currency||'CHF',locale})}</strong></p>
         <p class="table-meta">${confirmed?'Abgeglichen · 31.12. bestätigt':'Noch nicht bestätigt oder nach Import verändert'}</p>
         ${!locked?`<form data-form="year-close-account" class="form-grid">
           <input type="hidden" name="accountId" value="${escapeHtml(account.id)}"/>
