@@ -23,7 +23,7 @@ assert.match(incompleteHtml,/Anteil nicht berechenbar/);
 
 const validFx={rates:{CHF:1,EUR:1.1}};
 const converted=accountShare(accounts,'CHF',validFx);
-assert.equal(converted.find((row)=>row.account.account_id==='de').value,110);
+assert.ok(Math.abs(converted.find((row)=>row.account.account_id==='de').value-110)<0.0001);
 assert.ok(converted.every((row)=>typeof row.share==='number'));
 assert.ok(Math.abs(converted.reduce((sum,row)=>sum+row.share,0)-100)<0.0001);
 
