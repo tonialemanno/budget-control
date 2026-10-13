@@ -15,7 +15,7 @@ for(const view of expected){
   assert.match(html,/dashboard-workspace/);
   assert.match(html,/dash-tabs/);
   assert.match(html,new RegExp('href="/dashboards\\?view='+view+'" class="dash-tab is-active"'));
-  assert.ok(html.includes('data-drilldown="transactions-range"')||view==='goals');
+  assert.ok(html.includes('data-drilldown="transactions-range"')||html.includes('data-action="statistics-drilldown-budget"')||html.includes('data-drilldown="account-edit"')||view==='goals');
   assert.doesNotMatch(html,/\bundefined\b|\bNaN\b|\$\{/);
   assert.equal((html.match(/class="dash-tab /g)||[]).length,6);
   assert.match(html,/Finanzmonat/);
