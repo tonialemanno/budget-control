@@ -111,13 +111,13 @@ function incomeRows(model,opts){
     </button>`).join('')}
   </div>`;
 }
-function accountRows(model,opts){
+function accountRows(model,opts,{canWrite=false}={}){
   const {locale,privacyEnabled}=opts;
   if(!model.accounts.length)return `<p class="dash-empty">${escapeHtml(t('Noch keine liquiden Konten vorhanden.',locale))}</p>`;
-  return `<div class="dash-ranking">${model.accounts.map((row)=>`<button type="button" class="dash-account" data-drilldown="account-edit" data-id="${escapeHtml(row.account.account_id||row.account.id)}">
+  return `<div class="dash-ranking">${model.accounts.map((row)=>`<${canWrite?"button":"a"} ${canWrite?`type="button" data-drilldown="account-edit" data-id="${escapeHtml(row.account.account_id||row.account.id)}"`:`href="/finance/accounts"`} class="dash-account">
     <span><strong>${escapeHtml(row.account.name)}</strong><small>${escapeHtml(row.account.currency)} · ${row.share===null?escapeHtml(t('Anteil nicht berechenbar',locale)) : `${Math.round(row.share)} %`}</small></span>
     <strong>${privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale})}</strong>
-  </button>`).join('')}</div>`;
+  </${canWrite?'button':'a'}>`).join('')}</div>`;
 }
 function goalsRows(goals,opts,{accounts=[],goalSources=[],recurringRules=[],transactions=[],fxRates,baseCurrency='CHF'}={}){
   const {locale,privacyEnabled}=opts;
@@ -127,7 +127,11 @@ function goalsRows(goals,opts,{accounts=[],goalSources=[],recurringRules=[],tran
     const target=Math.max(0,Number(goal.target_amount)||0);
     const plan=goalPlan(goal,{goalSources,recurringRules,transactions,accounts,baseCurrency,fxRates});
     const balance=Math.max(0,Number(plan.account?.current_balance??goal.current_amount??0));
-    const monthly=plan.total;
+    const linkedRules=new Set(goalSources.filter(row=>row.goal_id===goal.id&&row.source_type==='recurring_rule'&&row.active!==false).map(row=>row.recurring_rule_id));
+    const monthlyComplete=recurringRules.filter(row=>row.active!==false&&(
+      linkedRules.has(row.id)||(plan.account&&(row.account_id===plan.account.account_id||row.destination_account_id===plan.account.account_id))
+    )).every(row=>convertAmount(row.amount,row.currency||baseCurrency,plan.targetCurrency,fxRates)!==null);
+    const monthly=monthlyComplete?plan.total:null;
     const progress=target>0?Math.min(100,balance/target*100):0;
     const cash=(amount)=>safeMoney(amount,{currency:plan.targetCurrency,locale,privacyEnabled});
     return `<a class="dash-goal" href="/planning/goals?goal=${encodeURIComponent(goal.id)}">
@@ -173,6 +177,7 @@ export function renderDashboards({
   const hasMissingTransactionFx=!currentEvidence.complete;
   const planFxComplete=recurringPlanComplete({recurringRules,baseCurrency:currency,fxRates,now})&&currentEvidence.complete;
   const budgetFxIncomplete=model.budgetRows.some(row=>row.amount===null)||!currentEvidence.expenseComplete;
+  const budgetRanking=budgetFxIncomplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.',locale))}</p>`:budgetRows(model,range,opts);
   const historyFxMissing=series.some(row=>!row.complete);
   const emptyHistory=model.series.every(row=>row.coverage==='none');
 
@@ -206,7 +211,7 @@ export function renderDashboards({
     body=`${tiles}<div class="dash-layout dash-layout--split">${chart}${donut}</div>
       <div class="dash-layout dash-layout--split">
         ${card('Grösste Ausgabenkategorien',categoryRanking,`<a href="/dashboards?view=expenses">${escapeHtml(t('Alle ansehen',locale))} →</a>`,locale)}
-        ${enabled('budget')?card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget öffnen',locale))} →</a>`,locale):''}
+        ${enabled('budget')?card('Budgetfortschritt',budgetRanking,`<a href="/planning/budget">${escapeHtml(t('Budget öffnen',locale))} →</a>`,locale):''}
       </div>`;
   }else if(panel==='cashflow'){
     body=`${tiles}${chart}
@@ -240,7 +245,7 @@ export function renderDashboards({
       ${enabled("debts")?`<a class="dash-kpi dash-kpi--link" href="/finance/debts"><span>${escapeHtml(t("Restschuld gesamt",locale))}</span><strong>${safeMoney(holdingsComplete?snap.debtValue:null,opts)}</strong><small>${escapeHtml(t("Schulden öffnen",locale))} →</small></a>`:""}
     </section>
     ${!holdingsComplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Vermögenswerte sind nicht berechenbar.',locale))}</p>`:''}
-    ${card('Kontostände',accountRows(model,opts),`<a href="/finance/accounts">${escapeHtml(t('Konten öffnen',locale))} →</a>`,locale)}`;
+    ${card('Kontostände',accountRows(model,opts,{canWrite}),`<a href="/finance/accounts">${escapeHtml(t('Konten öffnen',locale))} →</a>`,locale)}`;
   }else{
     body=`<section class="dash-kpis">${enabled("goals")?`<a class="dash-kpi dash-kpi--link" href="/planning/goals"><span>${escapeHtml(t("Sparziele",locale))}</span>
       <strong>${goals.filter(g=>g.status==='active').length}</strong><small>${escapeHtml(t("Sparziele öffnen",locale))} →</small></a>`:""}
