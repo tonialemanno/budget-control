@@ -367,6 +367,7 @@ export function renderTaxAdvisor({
 
   return `
     ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
+    ${closedYear?`<div class="inline-alert inline-alert--success"><strong>Jahresabschluss ${year} gesichert (Version ${Number(closedYear.revision||0)})</strong><span>Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden. <a href="/planning/year-closing?year=${year}">Abschluss ansehen →</a></span></div>`:`<div class="inline-alert"><strong>Jahresabschluss ${year} noch offen</strong><span>Die Steuerdaten sind vorläufig. Erst nach Kontoabgleich und Jahresabschluss steht ein eingefrorener Buchungsstand bereit. <a href="/planning/year-closing?year=${year}">Jahrescenter öffnen →</a></span></div>`}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
     <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
 
