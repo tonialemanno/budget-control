@@ -113,7 +113,7 @@ function accountRows(model,opts){
   const {locale,privacyEnabled}=opts;
   if(!model.accounts.length)return `<p class="dash-empty">${escapeHtml(t('Noch keine liquiden Konten vorhanden.',locale))}</p>`;
   return `<div class="dash-ranking">${model.accounts.map((row)=>`<button type="button" class="dash-account" data-drilldown="account-edit" data-id="${escapeHtml(row.account.account_id||row.account.id)}">
-    <span><strong>${escapeHtml(row.account.name)}</strong><small>${escapeHtml(row.account.currency)} · ${row.share===null?escapeHtml(t('Anteil nicht berechenbar',locale)) : ${Math.round(row.share)} + ' %'}</small></span>
+    <span><strong>${escapeHtml(row.account.name)}</strong><small>${escapeHtml(row.account.currency)} · ${row.share===null?escapeHtml(t('Anteil nicht berechenbar',locale)) : `${Math.round(row.share)} %`}</small></span>
     <strong>${privacyEnabled?'•••':money(row.account.current_balance,{currency:row.account.currency,locale})}</strong>
   </button>`).join('')}</div>`;
 }
