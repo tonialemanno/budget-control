@@ -1,5 +1,8 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Mögliche Fahrzeugzahlungen": "Possibili spese per il veicolo",
+  "Diese Buchungen sehen nach Autokosten aus, sind aber noch keinem Fahrzeug zugeordnet. Du entscheidest pro Zahlung.": "Questi movimenti sembrano spese per il veicolo, ma non sono ancora assegnati. Decidi tu per ogni pagamento.",
+  "Diesem Fahrzeug zuordnen": "Assegna a questo veicolo",
   "Bisherige Betriebskosten": "Costi operativi sostenuti",
   "Dieser Monat": "Questo mese",
   "Tanken / Laden": "Rifornimento / ricarica",
@@ -1430,6 +1433,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Mögliche Fahrzeugzahlungen": "Possible vehicle payments",
+  "Diese Buchungen sehen nach Autokosten aus, sind aber noch keinem Fahrzeug zugeordnet. Du entscheidest pro Zahlung.": "These transactions look like vehicle expenses but are not yet assigned. You decide for each payment.",
+  "Diesem Fahrzeug zuordnen": "Assign to this vehicle",
   "Bisherige Betriebskosten": "Operating costs to date",
   "Dieser Monat": "This month",
   "Tanken / Laden": "Fuel / charging",
