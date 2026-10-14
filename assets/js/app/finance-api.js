@@ -178,6 +178,7 @@ export const financeApi = Object.freeze({
   deleteMerchantAlias: (id) => remove('merchant_aliases', id),
   mergeMerchants: ({householdId,canonicalMerchantId,duplicateMerchantId}) => backend.rpc('merge_merchants_v2',{p_household_id:householdId,p_canonical_merchant_id:canonicalMerchantId,p_duplicate_merchant_id:duplicateMerchantId}),
   mergeMerchantsBulk: ({householdId,canonicalMerchantId,duplicateMerchantIds}) => backend.rpc('merge_merchants_bulk_v1',{p_household_id:householdId,p_canonical_merchant_id:canonicalMerchantId,p_duplicate_merchant_ids:duplicateMerchantIds}),
+  reviewMerchantDecisionsBatch: ({householdId,decisions}) => backend.rpc('review_merchants_batch_v1',{p_household_id:householdId,p_decisions:decisions}),
   listCounterparties(householdId) { return listByHousehold('counterparties', householdId, { order: 'kind.asc,name.asc', limit: 2000 }); },
   async upsertCounterparty(payload) { const rows=await backend.rest(buildQuery('counterparties',{on_conflict:'household_id,kind,normalized_key'}),{method:'POST',body:payload,headers:{Prefer:'resolution=merge-duplicates,return=representation'}}); return rows?.[0]||null; },
   listTransactionContexts(householdId) { return listByHousehold('transaction_contexts', householdId, { select: '*,vehicles(name,vehicle_type)', order: 'is_archived.asc,starts_on.desc.nullslast,name.asc', limit: 1000 }); },
