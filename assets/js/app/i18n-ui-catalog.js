@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Wofür noch Budget übrig ist": "Dove resta budget da spendere",
   "Noch verpflichtet und reserviert": "Ancora impegnato e riservato",
   "Noch nicht berechenbar": "Non ancora calcolabile",
   "Mein Sparplan": "Il mio piano di risparmio",
@@ -1483,6 +1484,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Wofür noch Budget übrig ist": "Where spending budget remains",
   "Noch verpflichtet und reserviert": "Still committed and reserved",
   "Noch nicht berechenbar": "Not calculable yet",
   "Mein Sparplan": "My savings plan",
