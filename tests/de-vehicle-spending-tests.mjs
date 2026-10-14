@@ -62,4 +62,16 @@ assert.match(html,/Tanken \/ Laden/);
 assert.match(html,/Anas Auto/);
 assert.match(html,/\/finance\/transactions\?vehicle=auto-1/);
 assert.match(html,/Planwert/);
+const unlinked={...tx('suggestion',-30,'tank'),vehicle_id:null,description:'ARAL Freiburg'};
+const suggestionHtml=renderVehicles({vehicles:[vehicle],transactions:[unlinked],categories,
+  household:{base_currency:'EUR'},profile:{locale:'de-DE'},canWrite:true});
+assert.match(suggestionHtml,/Mögliche Fahrzeugzahlungen/);
+assert.match(suggestionHtml,/data-action="vehicle-assign-transaction"/);
+assert.match(suggestionHtml,/data-vehicle-id="auto-1"/);
+const readonlyHtml=renderVehicles({vehicles:[vehicle],transactions:[unlinked],categories,
+  household:{base_currency:'EUR'},profile:{locale:'de-DE'},canWrite:false});
+assert.doesNotMatch(readonlyHtml,/data-action="vehicle-assign-transaction"/);
+const main= (await import('node:fs')).readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
+assert.match(main,/action==='vehicle-assign-transaction'/);
+assert.match(main,/financeApi\.updateTransaction\(tx\.id,\{vehicle_id:vehicle\.id\}\)/);
 console.log('DE vehicle spending, tank station matching and drilldown contracts OK');
