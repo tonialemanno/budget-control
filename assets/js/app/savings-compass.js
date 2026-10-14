@@ -1,4 +1,5 @@
 import { convertAmount } from './fx.js';
+import { semanticType } from './finance-semantics.js';
 
 const roundMoney=(value)=>Math.round((Number(value)||0)*100)/100;
 const validMoney=(value)=>typeof value==='number'&&Number.isFinite(value);
@@ -6,7 +7,7 @@ const active=(row)=>row?.active!==false;
 
 export function buildSavingsCompass({
   snapshot,coach,primaryAccount,accounts=[],transactions=[],recurringRules=[],
-  budgets=[],bills=[],vehicles=[],fxRates=null,now=new Date(),
+  budgets=[],bills=[],vehicles=[],categories=[],fxRates=null,now=new Date(),
 }={}) {
   const currency=snapshot?.currency||'CHF';
   const daysRemaining=Math.max(1,Number(coach?.daysRemaining)||1);
@@ -32,12 +33,14 @@ export function buildSavingsCompass({
   const fxComplete=sources.every(from=>convertAmount(1,from,currency,fxRates)!==null);
   const balance=primaryAccount&&validMoney(Number(primaryAccount.current_balance))
     ?convertAmount(Number(primaryAccount.current_balance),primaryAccount.currency||currency,currency,fxRates):null;
-  const expensePlan=relevantRules.some(row=>row.direction==='expense'||row.direction==='transfer')||dueBills.length>0;
-  const incomeEvidence=relevantRules.some(row=>row.direction==='income')
-    || relevantTransactions.some(row=>Number(row.amount)>0&&!row.transfer_group_id);
+  const expensePlan=relevantRules.some(row=>(row.direction==='expense'||row.direction==='transfer')&&Number(row.amount)>0)||dueBills.length>0;
+  const incomeEvidence=relevantRules.some(row=>row.direction==='income'&&Number(row.amount)>0)
+    || relevantTransactions.some(row=>Number(row.amount)>0&&!row.transfer_group_id
+      && ['earned_income','other_income'].includes(semanticType(row,{categories,recurringRules})));
+  const inappropriateAccount=Boolean(primaryAccount&&['savings','investment','pension'].includes(primaryAccount.account_type));
   const hasBudget=Boolean(coach?.budget?.count>0 && Number(coach?.budget?.total)>0);
   let reason=null;
-  if(!primaryAccount||!validMoney(Number(primaryAccount.current_balance))) reason='account';
+  if(!primaryAccount||!validMoney(Number(primaryAccount.current_balance))||inappropriateAccount) reason='account';
   else if(!fxComplete||balance===null)reason='fx';
   else if(!expensePlan)reason='fixed';
   else if(!incomeEvidence)reason='income';
