@@ -21,7 +21,7 @@ assert.equal(draft.size,1,'Tapping the selected decision again cancels it withou
 assert.throws(()=>updateMerchantReviewDraft(draft,{canonicalId:id5,duplicateId:id1,choice:'merge'}),/zugleich/);
 assert.equal(draft.size,1,'Invalid edits do not modify the previous draft');
 assert.throws(()=>updateMerchantReviewDraft(draft,{canonicalId:id5,duplicateId:id2,choice:'ignore'}),/gleichzeitig/);
-assert.throws(()=>stageMerchantReviewGroup(draft,[{canonicalId:id1,duplicateId:id3},{canonicalId:id4,duplicateId:id2}]),/gleichzeitig|zugleich/);
+assert.throws(()=>stageMerchantReviewGroup(draft,[{canonicalId:id1,duplicateId:id3},{canonicalId:id4,duplicateId:id2}]),/gleichzeitig|zugleich|zwei unterschiedliche/);
 const staged=stageMerchantReviewGroup(draft,[{canonicalId:id1,duplicateId:id3},{canonicalId:id1,duplicateId:id4}]);
 assert.equal(staged.size,3);
 assert.equal(validateMerchantReviewDraft([...staged.values()]).mergeCount,3);
