@@ -37,8 +37,8 @@ export function buildSavingsCompass({
     || relevantTransactions.some(row=>Number(row.amount)>0&&!row.transfer_group_id);
   const hasBudget=Boolean(coach?.budget?.count>0 && Number(coach?.budget?.total)>0);
   let reason=null;
-  if(!primaryAccount||balance===null||!Number.isFinite(balance)) reason='account';
-  else if(!fxComplete)reason='fx';
+  if(!primaryAccount||!validMoney(Number(primaryAccount.current_balance))) reason='account';
+  else if(!fxComplete||balance===null)reason='fx';
   else if(!expensePlan)reason='fixed';
   else if(!incomeEvidence)reason='income';
   else if(!hasBudget)reason='budget';
