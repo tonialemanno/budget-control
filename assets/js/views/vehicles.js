@@ -1,6 +1,8 @@
 import { dataTable, formShell, metricCard, pageHeader, deleteButton } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
 import { convertAmount } from '../app/fx.js';
+import { routeHref } from '../app/router.js';
+import { vehicleSpendingSnapshot } from '../app/vehicle-costs.js';
 import { icon } from '../app/icons.js';
 
 function fields({ edit=false }={}) {
@@ -16,12 +18,64 @@ function fields({ edit=false }={}) {
     <label class="field"><span>Kennzeichen</span><input class="text-control" name="licensePlate" ${edit?`id="${p}Plate"`:''} placeholder="optional"></label>`;
 }
 
-export function renderVehicles({ vehicles = [], debts = [], transactions = [], household, profile, fxRates, canWrite=false } = {}) {
+export function renderVehicles({ vehicles = [], debts = [], transactions = [], categories = [], debtPayments = [], household, profile, fxRates, canWrite=false } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const total = vehicles.reduce((s,v)=>s+(convertAmount(v.current_value,v.currency||currency,currency,fxRates)??0),0);
   const monthly = vehicles.reduce((s,v)=>s+(convertAmount(v.monthly_cost,v.currency||currency,currency,fxRates)??0),0);
 
+  // Only suggest clearly vehicle-related categories; never associate transactions automatically.
+  const vehicleExpenseCategories=new Set(['tanken','laden / strom','parken','wartung & reparatur',
+    'kfz-versicherung','kfz-steuer','autowäsche','maut & vignette']);
+  const categoryMap=new Map(categories.map(category=>[category.id,category]));
+  const suggestions=canWrite&&vehicles.length===1
+    ? transactions.filter(tx=>{
+        if(tx.status!=='booked'||Number(tx.amount)>=0||tx.vehicle_id||tx.transfer_group_id||
+          tx.exclude_from_reports||tx.analytics_excluded||
+          ['debt_payment','receivable_principal'].includes(tx.cashflow_type)) return false;
+        const category=categoryMap.get(tx.category_id);
+        return Boolean(category&&vehicleExpenseCategories.has(String(category.name||'').toLowerCase()));
+      }).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,5)
+    : [];
+  const suggestedTransactions=suggestions.length
+    ? '<article class="card card-padding" style="margin-bottom:16px"><h3 class="card-title">Mögliche Fahrzeugzahlungen</h3>'
+      +'<p class="card-subtitle">Diese Buchungen sehen nach Autokosten aus, sind aber noch keinem Fahrzeug zugeordnet. Du entscheidest pro Zahlung.</p>'
+      +'<div class="mini-detail-list">'+suggestions.map(tx=>{
+        const title=escapeHtml(tx.merchants?.name||tx.counterparty||tx.description||'Buchung');
+        const amount=money(Math.abs(Number(tx.amount)),{currency:tx.currency||currency,locale});
+        return '<div class="row" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'
+          +'<span>'+title+' · '+dateLabel(tx.occurred_at,locale)+' · '+amount+'</span>'
+          +'<button class="table-action" type="button" data-action="vehicle-assign-transaction" data-id="'+escapeHtml(tx.id)+'" data-vehicle-id="'+escapeHtml(vehicles[0].id)+'">Diesem Fahrzeug zuordnen</button></div>';
+      }).join('')+'</div></article>'
+    : '';
+
+  const spendingCards=vehicles.map(v=>{
+    const summary=vehicleSpendingSnapshot({vehicle:v,transactions,categories,debtPayments,fxRates});
+    const m=(amount)=>money(amount,{currency:summary.currency,locale});
+    const breakdown=summary.categories.slice(0,6)
+      .map(row=>'<span>'+escapeHtml(row.name)+' <strong>'+m(row.amount)+'</strong></span>').join('');
+    const link=escapeHtml(routeHref('transactions',{vehicle:v.id}));
+    const incomplete=summary.missingFx
+      ? '<p class="card-subtitle">Achtung: '+summary.missingFx+' Buchung(en) ohne verfügbaren Wechselkurs nicht eingerechnet.</p>'
+      : '';
+    return '<article class="card card-padding" style="margin-bottom:16px">'
+      +'<div class="card-heading"><div><h3 class="card-title">'+escapeHtml(v.name||'Fahrzeug')+' · Tatsächliche Kosten</h3>'
+      +'<p class="card-subtitle">Nur gebuchte Zahlungen, die diesem Fahrzeug ausdrücklich zugeordnet sind. Kauf und Kredittilgung zählen nicht als Betriebskosten.</p></div></div>'
+      +'<div class="metric-grid" style="margin:12px 0">'
+      +metricCard('Bisherige Betriebskosten',m(summary.spent),'ohne Kauf / Tilgung')
+      +metricCard('Dieser Monat',m(summary.thisMonth),'tatsächlich angefallen')
+      +metricCard('Tanken / Laden',m(summary.fuel),'kategorisierte Fahrzeugbuchungen')
+      +metricCard('Geldabfluss gesamt',m(summary.cashPaid),'inkl. Kauf / Tilgung')
+      +'</div>'
+      +(summary.linkedCount
+        ? '<div class="mini-detail-list">'+breakdown+'</div>'
+        : '<p class="card-subtitle">Noch keine Fahrzeugbuchungen zugeordnet. Bei einer Tank- oder Werkstattbuchung unter „Zusätzliche Zuordnung“ das Fahrzeug wählen.</p>')
+      +(Number(v.monthly_cost||0)>0?'<p class="card-subtitle">Manueller Planwert: '+m(Number(v.monthly_cost))+' / Monat. Wird nicht nochmals zu den echten Zahlungen addiert.</p>':'')
+      +incomplete
+      +'<div class="card-footer-actions"><a class="action-button action-button--secondary" href="'+link+'">Fahrzeugbuchungen anzeigen / bearbeiten</a></div>'
+      +'</article>';
+  }).join('');
+  
   const paymentCards = vehicles.map(v=>{
     const name=String(v.name||'').toLowerCase();
     const token=name.split(/\s+/)[0];
@@ -60,6 +114,8 @@ export function renderVehicles({ vehicles = [], debts = [], transactions = [], h
     ${canWrite?formShell('vehicle-create','Neues Fahrzeug','Wert und laufende Kosten',fields(),{hidden:true,submitLabel:'Fahrzeug speichern'}):''}
     ${canWrite?formShell('vehicle-edit','Fahrzeug bearbeiten','Wert, Kosten und Kilometerstand aktualisieren',fields({edit:true}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
     <div class="metric-grid" style="margin-bottom:16px">${metricCard('Fahrzeugwert',money(total,{currency,locale}),`${vehicles.length} Fahrzeuge`)}${metricCard('Kosten / Monat',money(monthly,{currency,locale}),'laufende Kosten')}${metricCard('Positionen',String(vehicles.length),'Mobilitätsobjekte')}</div>
+    ${spendingCards}
+    ${suggestedTransactions}
     ${paymentCards}
     <article class="card card-padding">${dataTable({headers:['Fahrzeug','Wert','Kosten/Monat','KM','Kaufdatum',''],rows,emptyText:'Noch keine Fahrzeuge.'})}</article>`;
 }

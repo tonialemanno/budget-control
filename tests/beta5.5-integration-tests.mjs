@@ -16,7 +16,7 @@ assert.match(read('assets/js/main.js'), /fixed-cost-create/);
 assert.match(read('assets/js/main.js'), /fixed-cost-edit/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Umbuchung \/ Topf/);
 assert.match(read('assets/js/views/fixed-costs.js'), /Rücklagen & Umbuchungen \/ Monat/);
-assert.match(read('assets/js/views/overview.js'), /Bis zum nächsten Lohn frei/);
+assert.match(read('assets/js/views/overview.js'), /Noch flexibel ausgeben/);
 assert.match(read('assets/js/views/overview.js'), /ALEMANNO BUCHHALTUNG hat bemerkt/);
 assert.match(read('assets/js/views/overview.js'), /renderIncomePlan/);
 assert.match(read('assets/js/views/overview.js'), /renderCashflowChart/);

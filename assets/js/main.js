@@ -541,6 +541,15 @@ function applyRouteIntent(route) {
     }
     return;
   }
+  // Vehicle drilldowns are read-only navigation and must work for viewers too.
+  const vehicleId=params.get('vehicle');
+  if(route==='transactions' && vehicleId && runtime.vehicles.some(row=>row.id===vehicleId)){
+    resetTransactionDrilldownFilters();
+    uiState.transactionVehicle=vehicleId;
+    navigateToRoute(route,null,{replace:true});
+    render();
+    return;
+  }
   if (!canWriteHousehold()) return;
   const create = params.get('create');
   const accountId = params.get('account');
@@ -4775,7 +4784,7 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -5313,6 +5322,20 @@ async function handleAction(target) {
     const accountId=target.dataset.id||'';
     goToRoute('accounts');
     requestAnimationFrame(()=>openAccountEditorById(accountId));
+    return;
+  }
+  if(action==='vehicle-assign-transaction'){
+    const tx=runtime.transactions.find(row=>row.id===target.dataset.id);
+    const vehicle=runtime.vehicles.find(row=>row.id===target.dataset.vehicleId);
+    if(!vehicle||!tx||tx.vehicle_id||tx.transfer_group_id||tx.status!=='booked'||Number(tx.amount)>=0)
+      throw new Error('Die Fahrzeugzuordnung ist nicht mehr gültig. Bitte Buchungen aktualisieren.');
+    const allowed=new Set(['tanken','laden / strom','parken','wartung & reparatur',
+      'kfz-versicherung','kfz-steuer','autowäsche','maut & vignette']);
+    const category=runtime.categories.find(row=>row.id===tx.category_id);
+    if(!category||!allowed.has(String(category.name||'').toLowerCase()))
+      throw new Error('Die Buchung ist nicht eindeutig als Fahrzeugkosten erkennbar.');
+    await financeApi.updateTransaction(tx.id,{vehicle_id:vehicle.id});
+    await refresh('Fahrzeugbuchung zugeordnet.');
     return;
   }
   if (action === 'vehicle-edit') {

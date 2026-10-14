@@ -15,7 +15,7 @@ export const DE = Object.freeze({
   starterSubcategories: [
     ['Miete','Wohnen','expense'],['Nebenkosten','Wohnen','expense'],['Strom & Energie','Wohnen','expense'],['Rundfunkbeitrag','Wohnen','expense'],['Haushaltsabgaben','Wohnen','expense'],
     ['Supermarkt','Lebensmittel','expense'],['Restaurant & Take-away','Lebensmittel','expense'],
-    ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Parken','Mobilität','expense'],
+    ['ÖV','Mobilität','expense'],['Tanken','Mobilität','expense'],['Laden / Strom','Mobilität','expense'],['Kfz-Steuer','Mobilität','expense'],['Parken','Mobilität','expense'],
     ['Mietfahrzeug','Mobilität','expense'],['Wartung & Reparatur','Mobilität','expense'],['Fahrzeugkauf','Mobilität','expense'],
     ['Unterhaltung','Freizeit','expense'],['Geschenke & Gedenken','Freizeit','expense'],['Urlaub','Freizeit','expense'],
     ['Streaming','Abos & Verträge','expense'],['Telefon & Internet','Abos & Verträge','expense'],
@@ -27,7 +27,7 @@ export const DE = Object.freeze({
   starterMerchantCategories: [
     ['REWE','Supermarkt'],['EDEKA','Supermarkt'],['Aldi','Supermarkt'],['Lidl','Supermarkt'],['Kaufland','Supermarkt'],
     ["McDonald's",'Restaurant & Take-away'],['Burger King','Restaurant & Take-away'],
-    ['Deutsche Bahn','ÖV'],['Aral','Tanken'],['Shell','Tanken'],
+    ['Deutsche Bahn','ÖV'],['Aral','Tanken'],['Shell','Tanken'],['Aral pulse','Laden / Strom'],['Shell Recharge','Laden / Strom'],
     ['ARD ZDF Deutschlandradio Beitragsservice','Rundfunkbeitrag'],
     ['Netflix','Streaming'],['Spotify','Streaming'],
   ],
