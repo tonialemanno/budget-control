@@ -61,7 +61,7 @@ export function buildSavingsCompass({
   const budgetSlices=(coach?.budget?.variableRows||[]).map(row=>({
     id:row.id,
     name:String(row.merchants?.name||row.categories?.name||'Budget'),
-    remaining:roundMoney(Math.max(0,Number(row.amount||0)-Number(row.spent||0))),
+    remaining:roundMoney(Math.max(0,(convertAmount(Number(row.amount||0),row.currency||currency,currency,fxRates)||0)-Number(row.spent||0))),
   })).filter(row=>row.remaining>0).sort((a,b)=>b.remaining-a.remaining).slice(0,4);
   const tips=[];
   const risk=coach?.insights?.find(row=>row.type==='budget_risk');
