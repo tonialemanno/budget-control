@@ -36,7 +36,7 @@ assert.equal(make({recurringRules:[recurringRules[1]]}).reason,'income');
 assert.equal(make({primaryAccount:null}).reason,'account');
 assert.equal(make({transactions:[{status:'booked',currency:'CHF',amount:-20,occurred_at:'2026-10-09T12:00:00'}]}).reason,'fx');
 assert.equal(make({primaryAccount:{...primaryAccount,currency:'CHF',current_balance:1000},fxRates:null}).reason,'fx');
-assert.equal(make({coach:{...coach,protectedUntilCycleEnd:900,budget:{count:1,total:400,remaining:300}}}).remainingAfterPlan,0);
+assert.equal(make({coach:{...coach,protectedUntilCycleEnd:900,budget:{count:1,total:400,remaining:300}}}).remainingAfterPlan,18,'remaining liquidity includes the 20% scenario saving on a constrained budget');
 const subscription=make({coach:{...coach,subscriptions:{count:2,monthly:33},insights:[]}});
 assert.equal(subscription.tips[0].type,'subscriptions');
 assert.match(renderSavingsCompass({plan:subscription}),/Abos überprüfen/);
