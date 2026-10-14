@@ -343,6 +343,11 @@ function canonicalMerchantIdentity(name) {
   if(/migros\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*migros/i.test(text)) return {name:'Migros Restaurant',key:'migros restaurant'};
   if(/coop\s+(?:restaurant|take\s*away|gastronomie)|(?:restaurant|take\s*away|gastronomie).*coop/i.test(text)) return {name:'Coop Restaurant',key:'coop restaurant'};
   if(/\bsbb\b|\bcff\b|\bffs\b/i.test(text)) return {name:'SBB',key:'sbb'};
+  // EV charging is intentionally distinct from fuel; place before generic fuel brands.
+  if(/\bshell\s+recharge\b/i.test(text)) return {name:'Shell Recharge',key:'shell recharge'};
+  if(/\baral\s+pulse\b/i.test(text)) return {name:'Aral pulse',key:'aral pulse'};
+  if(/\baral\b/i.test(text)) return {name:'Aral',key:'aral'};
+  if(/\bshell\b/i.test(text)) return {name:'Shell',key:'shell'};
   if(/\bedeka\b|\bedk\*/i.test(text)) return {name:'EDEKA',key:'edeka'};
   if(/\brewe\b/i.test(text)) return {name:'REWE',key:'rewe'};
   if(/\bkaufland\b/i.test(text)) return {name:'Kaufland',key:'kaufland'};
@@ -453,6 +458,10 @@ const KNOWN_MERCHANT_LIBRARY = Object.freeze([
   { pattern:/\bkaufland\b/i, name:'Kaufland', key:'kaufland', category:'Lebensmittel' },
   { pattern:/\b(?:deutsche\s+bahn|db\s+vertrieb|db\s+fernverkehr|db\s+regio)\b/i, name:'Deutsche Bahn', key:'deutsche bahn', category:'ÖV' },
   { pattern:/(?:ard\s+zdf\s+deutschlandradio|beitragsservice|rundfunkbeitrag)/i, name:'ARD ZDF Deutschlandradio Beitragsservice', key:'ard zdf deutschlandradio beitragsservice', category:'Rundfunkbeitrag' },
+  { pattern:/\bshell\s+recharge\b/i, name:'Shell Recharge', key:'shell recharge', category:'Laden / Strom' },
+  { pattern:/\baral\s+pulse\b/i, name:'Aral pulse', key:'aral pulse', category:'Laden / Strom' },
+  { pattern:/\baral\b/i, name:'Aral', key:'aral', category:'Tanken' },
+  { pattern:/\bshell\b/i, name:'Shell', key:'shell', category:'Tanken' },
   { pattern:/\bserafe\b/i, name:'Serafe', key:'serafe', category:'Haushaltsabgaben' },
   { pattern:/\bsp\s+motori\b/i, name:'SP Motori', key:'sp motori', category:'Mietfahrzeug' },
   { pattern:/\b(?:restaurant|ristorante|pizzeria|kebab|imbiss|cafe|café|smashburger|barliner|take\s*away|burger\s*king|autogrill|pret\s+a\s+manger|irish\s+pub|braceria|pizza)\b/i, name:null, key:null, category:'Restaurant & Café' },
