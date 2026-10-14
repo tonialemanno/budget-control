@@ -213,13 +213,13 @@ assert.equal(guide.remaining,250);
 assert.equal(Math.round(guide.percent),29);
 
 const overview=fs.readFileSync(new URL('../assets/js/views/overview.js',import.meta.url),'utf8');
-assert.match(overview,/Bis zum nächsten Lohn frei/);
+assert.match(overview,/Noch flexibel ausgeben/);
 assert.match(overview,/ALEMANNO BUCHHALTUNG hat bemerkt/);
 assert.match(overview,/renderIncomePlan/);
 assert.match(overview,/Was von deinem Einkommen bleibt/);
 assert.doesNotMatch(overview,/Wo dein Einkommen hingeht/);
 assert.match(overview,/Frei pro Tag/);
-assert.match(overview,/Zusätzliches Sparpotenzial/);
+assert.match(overview,/Mein Sparplan/);
 assert.match(overview,/Auf dem Weg zum Monatsüberschuss/);
 assert.match(overview,/Sobald dieser Wert bei null ist/);
 assert.match(overview,/Deine Motivation/);
