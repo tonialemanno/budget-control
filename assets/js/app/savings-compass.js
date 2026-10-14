@@ -58,6 +58,11 @@ export function buildSavingsCompass({
   const overdue=dueBills.some(row=>row.status==='overdue');
   const hasUnbudgeted=Number(snapshot?.unbudgetedActualVariableExpensesMonth||0)>0;
 
+  const budgetSlices=(coach?.budget?.variableRows||[]).map(row=>({
+    id:row.id,
+    name:String(row.merchants?.name||row.categories?.name||'Budget'),
+    remaining:roundMoney(Math.max(0,Number(row.amount||0)-Number(row.spent||0))),
+  })).filter(row=>row.remaining>0).sort((a,b)=>b.remaining-a.remaining).slice(0,4);
   const tips=[];
   const risk=coach?.insights?.find(row=>row.type==='budget_risk');
   if(risk)tips.push({type:'budget_risk',label:risk.label,href:'/planning/budget'});
@@ -73,7 +78,7 @@ export function buildSavingsCompass({
     ready:!reason,reason,currency,balance,cycle,daysRemaining,
     commitments,uncommitted,cushion,budgetRemaining,
     spendable,recommendedSpend,extraByReducing,remainingAfterPlan,daily,
-    overdue,hasUnbudgeted,tips:tips.slice(0,3),
+    overdue,hasUnbudgeted,budgetSlices,tips:tips.slice(0,3),
     assumption:'10% safety cushion, 20% below the remaining flexible allowance; no future income credited.',
   };
 }
