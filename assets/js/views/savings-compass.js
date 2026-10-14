@@ -74,6 +74,12 @@ export function renderSavingsCompass({plan,locale='de-CH',privacyEnabled=false}=
         +'<div class="card coach-mini-card"><span class="coach-mini-label">Möglicherweise frei am Monatsende</span>'
         +'<strong>'+m(plan.remainingAfterPlan)+'</strong><small>Auf dem Hauptkonto, nach angenommener Reserve</small></div>'
         +'</div>')
+    +(plan.budgetSlices?.length
+      ? '<div style="margin-top:14px"><h4 class="card-title">Wofür noch Budget übrig ist</h4>'
+        +'<div class="mini-detail-list" style="margin-top:8px">'
+        +plan.budgetSlices.map(row=>'<span>'+escapeHtml(row.name)+' <strong>'+m(row.remaining)+'</strong></span>').join('')
+        +'</div></div>'
+      : '')
     +'<details class="receipt-ocr-details" style="margin-top:14px"><summary>So wird gerechnet</summary>'
     +'<div class="mini-detail-list" style="margin-top:8px">'
     +'<span>Kontostand Hauptkonto <strong>'+m(plan.balance)+'</strong></span>'
