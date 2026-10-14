@@ -219,7 +219,7 @@ assert.match(overview,/renderIncomePlan/);
 assert.match(overview,/Was von deinem Einkommen bleibt/);
 assert.doesNotMatch(overview,/Wo dein Einkommen hingeht/);
 assert.match(overview,/Frei pro Tag/);
-assert.match(overview,/Mein Sparplan/);
+assert.match(overview,/renderSavingsCompass/,'overview must render the savings compass');
 assert.match(overview,/Auf dem Weg zum Monatsüberschuss/);
 assert.match(overview,/Sobald dieser Wert bei null ist/);
 assert.match(overview,/Deine Motivation/);
