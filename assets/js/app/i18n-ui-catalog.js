@@ -1,5 +1,18 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+  "Bisherige Betriebskosten": "Costi operativi sostenuti",
+  "Dieser Monat": "Questo mese",
+  "Tanken / Laden": "Rifornimento / ricarica",
+  "Geldabfluss gesamt": "Uscite totali",
+  "ohne Kauf / Tilgung": "esclusi acquisto / rimborso capitale",
+  "tatsächlich angefallen": "effettivamente sostenuti",
+  "kategorisierte Fahrzeugbuchungen": "movimenti categorizzati del veicolo",
+  "inkl. Kauf / Tilgung": "inclusi acquisto / rimborso capitale",
+  "Nur gebuchte Zahlungen, die diesem Fahrzeug ausdrücklich zugeordnet sind. Kauf und Kredittilgung zählen nicht als Betriebskosten.": "Solo pagamenti contabilizzati e assegnati esplicitamente a questo veicolo. L'acquisto e il rimborso del capitale non rientrano nei costi operativi.",
+  "Noch keine Fahrzeugbuchungen zugeordnet. Bei einer Tank- oder Werkstattbuchung unter „Zusätzliche Zuordnung“ das Fahrzeug wählen.": "Nessun movimento ancora assegnato a questo veicolo. Per un rifornimento o una riparazione, seleziona il veicolo in «Assegnazione aggiuntiva».",
+  "Fahrzeugbuchungen anzeigen / bearbeiten": "Visualizza / modifica i movimenti del veicolo",
+  "Finanzierungskosten": "Costi di finanziamento",
+  "Sonstige Fahrzeugkosten": "Altre spese per il veicolo",
   "Noch nicht entschieden": "Non ancora deciso",
   "Zusammenführen vorgemerkt": "Unione selezionata",
   "Nicht identisch vorgemerkt": "Contrassegnato come diverso",
@@ -1417,6 +1430,19 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+  "Bisherige Betriebskosten": "Operating costs to date",
+  "Dieser Monat": "This month",
+  "Tanken / Laden": "Fuel / charging",
+  "Geldabfluss gesamt": "Total cash outflow",
+  "ohne Kauf / Tilgung": "excluding purchase / principal",
+  "tatsächlich angefallen": "actually incurred",
+  "kategorisierte Fahrzeugbuchungen": "categorized vehicle transactions",
+  "inkl. Kauf / Tilgung": "including purchase / principal",
+  "Nur gebuchte Zahlungen, die diesem Fahrzeug ausdrücklich zugeordnet sind. Kauf und Kredittilgung zählen nicht als Betriebskosten.": "Only booked payments explicitly assigned to this vehicle. Purchase and loan principal are not operating costs.",
+  "Noch keine Fahrzeugbuchungen zugeordnet. Bei einer Tank- oder Werkstattbuchung unter „Zusätzliche Zuordnung“ das Fahrzeug wählen.": "No transactions have been assigned to this vehicle. For fuel or workshop payments, select the vehicle under “Additional assignment”.",
+  "Fahrzeugbuchungen anzeigen / bearbeiten": "View / edit vehicle transactions",
+  "Finanzierungskosten": "Financing costs",
+  "Sonstige Fahrzeugkosten": "Other vehicle expenses",
   "Noch nicht entschieden": "Not yet decided",
   "Zusammenführen vorgemerkt": "Merge queued",
   "Nicht identisch vorgemerkt": "Marked as different",
@@ -2837,6 +2863,9 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^(.+) · Tatsächliche Kosten$/, '$1 · Costi effettivi'],
+    [/^Manueller Planwert: (.+) \/ Monat\. Wird nicht nochmals zu den echten Zahlungen addiert\.$/, 'Valore mensile previsto: $1 / mese. Non viene sommato nuovamente ai pagamenti effettivi.'],
+    [/^Achtung: (\\d+) Buchung\\(en\\) ohne verfügbaren Wechselkurs nicht eingerechnet\\.$/, 'Attenzione: $1 movimenti senza tasso di cambio disponibile non sono inclusi.'],
     [/^(\d+) Kategorien aktuell im Haushalt\. Länderstandard und geprüfte Händler werden ergänzt; eigene Zuordnungen werden nicht überschrieben\.$/, '$1 categorie attualmente nel nucleo domestico. Lo standard nazionale e gli esercenti verificati vengono aggiunti; le assegnazioni personali non vengono sovrascritte.'],
     [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Nucleo domestico condiviso · $1/5 accessi all’app. I conti possono essere privati o condivisi.'],
     [/^(.+) · Kosten und Zahlungen$/, '$1 · Costi e pagamenti'],
@@ -2941,6 +2970,9 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^(.+) · Tatsächliche Kosten$/, '$1 · Actual costs'],
+    [/^Manueller Planwert: (.+) \/ Monat\. Wird nicht nochmals zu den echten Zahlungen addiert\.$/, 'Manual planned amount: $1 / month. It is not added again to actual payments.'],
+    [/^Achtung: (\\d+) Buchung\\(en\\) ohne verfügbaren Wechselkurs nicht eingerechnet\\.$/, 'Warning: $1 transactions without an available exchange rate are excluded.'],
     [/^(\d+) Kategorien aktuell im Haushalt\. Länderstandard und geprüfte Händler werden ergänzt; eigene Zuordnungen werden nicht überschrieben\.$/, '$1 categories currently in the household. The country standard and verified merchants are added; your own assignments are not overwritten.'],
     [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Shared household · $1/5 app logins. Accounts can be private or shared.'],
     [/^(.+) · Kosten und Zahlungen$/, '$1 · Costs and payments'],
