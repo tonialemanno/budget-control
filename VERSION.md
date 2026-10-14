@@ -1,3 +1,10 @@
+# R93 – Sparkompass und Fahrzeugkosten für Deutschland
+- Verständlicher Sparplan in der Übersicht: verfügbare variable Ausgaben, 10 % Sicherheitspuffer, optionales 20-%-Sparszenario und vorsichtige Endbestandschätzung des Hauptkontos.
+- Keine geschätzten Ausgabengrenzen ohne Kontostand, Einnahmen, wiederkehrende Verpflichtungen, Budget und vollständig verfügbare FX-Kurse. Zukünftige Einnahmen werden nicht vorweggenommen.
+- Hinweise zu auffälligen Ausgaben, Abos, Budgetüberschreitungen und verknüpften Autokosten. Alle Hinweise gelten für sämtliche Haushalte und enthalten keine persönlichen Anreden.
+- DE-Autokosten: Aral/Shell plus E-Ladestationen, deutsche Fahrzeugkategorien, echte Kosten nach Fahrzeug und ausdrücklich bestätigte Zuordnung möglicher Fahrzeugbuchungen.
+- Neues Release 2.4.37 · 2026.10.14-r93, Schema unverändert 2026100802; Beta-Branch, Stable bleibt unangetastet.
+
 # Finance 2.4.6
 
 ## R60 – Echter persönlicher Überschuss-Rekord
