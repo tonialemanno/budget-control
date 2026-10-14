@@ -2865,7 +2865,7 @@ export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
     [/^(.+) · Tatsächliche Kosten$/, '$1 · Costi effettivi'],
     [/^Manueller Planwert: (.+) \/ Monat\. Wird nicht nochmals zu den echten Zahlungen addiert\.$/, 'Valore mensile previsto: $1 / mese. Non viene sommato nuovamente ai pagamenti effettivi.'],
-    [/^Achtung: (\\d+) Buchung\\(en\\) ohne verfügbaren Wechselkurs nicht eingerechnet\\.$/, 'Attenzione: $1 movimenti senza tasso di cambio disponibile non sono inclusi.'],
+    [/^Achtung: (\d+) Buchung\(en\) ohne verfügbaren Wechselkurs nicht eingerechnet\.$/, 'Attenzione: $1 movimenti senza tasso di cambio disponibile non sono inclusi.'],
     [/^(\d+) Kategorien aktuell im Haushalt\. Länderstandard und geprüfte Händler werden ergänzt; eigene Zuordnungen werden nicht überschrieben\.$/, '$1 categorie attualmente nel nucleo domestico. Lo standard nazionale e gli esercenti verificati vengono aggiunti; le assegnazioni personali non vengono sovrascritte.'],
     [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Nucleo domestico condiviso · $1/5 accessi all’app. I conti possono essere privati o condivisi.'],
     [/^(.+) · Kosten und Zahlungen$/, '$1 · Costi e pagamenti'],
@@ -2972,7 +2972,7 @@ export const UI_PATTERNS = Object.freeze({
   en: Object.freeze([
     [/^(.+) · Tatsächliche Kosten$/, '$1 · Actual costs'],
     [/^Manueller Planwert: (.+) \/ Monat\. Wird nicht nochmals zu den echten Zahlungen addiert\.$/, 'Manual planned amount: $1 / month. It is not added again to actual payments.'],
-    [/^Achtung: (\\d+) Buchung\\(en\\) ohne verfügbaren Wechselkurs nicht eingerechnet\\.$/, 'Warning: $1 transactions without an available exchange rate are excluded.'],
+    [/^Achtung: (\d+) Buchung\(en\) ohne verfügbaren Wechselkurs nicht eingerechnet\.$/, 'Warning: $1 transactions without an available exchange rate are excluded.'],
     [/^(\d+) Kategorien aktuell im Haushalt\. Länderstandard und geprüfte Händler werden ergänzt; eigene Zuordnungen werden nicht überschrieben\.$/, '$1 categories currently in the household. The country standard and verified merchants are added; your own assignments are not overwritten.'],
     [/^Gemeinsamer Haushalt · (\d+)\/5 App-Zugänge\. Konten können privat oder gemeinsam sein\.$/, 'Shared household · $1/5 app logins. Accounts can be private or shared.'],
     [/^(.+) · Kosten und Zahlungen$/, '$1 · Costs and payments'],
