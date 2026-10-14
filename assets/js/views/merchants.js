@@ -2,6 +2,7 @@ import { dataTable, formShell, pageHeader } from '../app/components.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { merchantFamilyKey, merchantSimilarity } from '../app/duplicate-intelligence.js';
+import { merchantReviewPairKey,validateMerchantReviewDraft } from '../app/merchant-review-draft.js';
 
 function usageLabel(merchant, transactions, recurringRules, budgets) {
   const txCount=transactions.filter((tx)=>tx.merchant_id===merchant.id).length;
@@ -105,6 +106,7 @@ export function renderMerchants({
   household = null,
   countryMasterMerchants = [],
   merchantDuplicateIgnores = [],
+  merchantReviewChoices = [],
 } = {}) {
   const expenseCategories=categories.filter((category)=>category.kind==='expense');
   const categoryOptions=expenseCategories.map((category)=>`<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('');
@@ -117,6 +119,8 @@ export function renderMerchants({
   }
   const duplicateGroups=duplicateSuggestions(merchants,transactions,recurringRules,budgets,merchantDuplicateIgnores);
   const duplicateClustersList=duplicateClusters(duplicateGroups);
+  const stagedByPair=new Map((merchantReviewChoices||[]).map((row)=>[merchantReviewPairKey(row.canonicalId,row.duplicateId),row]));
+  const stagingSummary=validateMerchantReviewDraft([...stagedByPair.values()]);
 
   const createFields=`
     <label class="field"><span>Name</span><input class="text-control" name="name" required placeholder="z. B. Uzon Immobilien AG"></label>
@@ -179,25 +183,52 @@ export function renderMerchants({
   });
 
   const duplicateClusterCard=(cluster)=>`
-    <div class="suggestion-card">
+    <div class="suggestion-card merchant-review-card" data-merchant-review-cluster>
       <div><strong>${escapeHtml(cluster.canonical.name)}</strong><span>${cluster.duplicates.length} mögliche Variante${cluster.duplicates.length===1?'':'n'} · höchste Ähnlichkeit ${Math.round(cluster.similarity*100)}%</span></div>
-      <div class="merchant-duplicate-variants">${cluster.duplicates.map((row)=>`<span>${escapeHtml(row.merchant.name)} · ${Math.round(row.similarity*100)}%</span>`).join('')}</div>
-      ${canWrite?`<div class="row-actions" style="margin-top:10px">
-        ${cluster.duplicates.length===1
-          ? `<button class="table-action" type="button" data-action="merchant-merge" data-canonical-id="${cluster.canonical.id}" data-duplicate-id="${cluster.duplicates[0].merchant.id}">Zusammenführen</button>`
-          : `<button class="table-action" type="button" data-action="merchant-merge-cluster" data-canonical-id="${cluster.canonical.id}" data-duplicate-ids="${escapeHtml(cluster.duplicates.map((row)=>row.merchant.id).join(','))}">Alle Varianten zusammenführen</button>`}
-        ${cluster.duplicates.length===1?`<button class="table-action" type="button" data-action="merchant-duplicate-ignore" data-pair-key="${escapeHtml(cluster.duplicates[0].pairKey)}">Nicht identisch</button>`:''}
+      <div class="merchant-duplicate-variants">${cluster.duplicates.map((row)=>{
+        const pairKey=merchantReviewPairKey(cluster.canonical.id,row.merchant.id);
+        const selected=stagedByPair.get(pairKey)?.choice||'';
+        const buttons=canWrite?`<div class="row-actions merchant-review-actions">
+          <button class="table-action merchant-review-choice ${selected==='merge'?'is-selected':''}" type="button"
+            data-action="merchant-review-choice" data-choice="merge" data-canonical-id="${cluster.canonical.id}"
+            data-duplicate-id="${row.merchant.id}" data-pair-key="${escapeHtml(pairKey)}"
+            aria-pressed="${selected==='merge'}">Zusammenführen</button>
+          <button class="table-action merchant-review-choice ${selected==='ignore'?'is-selected':''}" type="button"
+            data-action="merchant-review-choice" data-choice="ignore" data-canonical-id="${cluster.canonical.id}"
+            data-duplicate-id="${row.merchant.id}" data-pair-key="${escapeHtml(pairKey)}"
+            aria-pressed="${selected==='ignore'}">Nicht identisch</button>
+        </div>`:'';
+        return `<div class="merchant-review-variant" data-merchant-review-pair="${escapeHtml(pairKey)}">
+          <span>${escapeHtml(row.merchant.name)} · ${Math.round(row.similarity*100)}%</span>
+          ${buttons}
+          ${canWrite?`<small class="merchant-review-status" data-merchant-review-status="${escapeHtml(pairKey)}">${selected==='merge'?'Zusammenführen vorgemerkt':selected==='ignore'?'Nicht identisch vorgemerkt':'Noch nicht entschieden'}</small>`:''}
+        </div>`;
+      }).join('')}</div>
+      ${canWrite&&cluster.duplicates.length>1?`<div class="row-actions" style="margin-top:8px">
+        <button class="table-action" type="button" data-action="merchant-review-group"
+          data-canonical-id="${cluster.canonical.id}"
+          data-duplicate-ids="${escapeHtml(cluster.duplicates.map(row=>row.merchant.id).join(','))}">Alle Varianten zum Zusammenführen vormerken</button>
       </div>`:''}
     </div>`;
   const primaryDuplicateClusters=duplicateClustersList.slice(0,12);
   const moreDuplicateClusters=duplicateClustersList.slice(12);
-  const duplicateHtml=duplicateGroups.length?`
+  const duplicateHtml=(duplicateGroups.length||stagingSummary.total)?`
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
         <div><h3 class="card-title">Ähnliche Händler prüfen</h3><p class="card-subtitle">Varianten desselben Händlers werden gebündelt. Du entscheidest einmal; danach bleiben frühere Banktexte als Aliase erhalten.</p></div>
         <span class="status-pill">${duplicateGroups.length} Vergleich${duplicateGroups.length===1?'':'e'}</span>
       </div>
-      <div class="inline-alert"><strong>${duplicateClustersList.length} Händlergruppen brauchen deine Entscheidung.</strong><span>Die wahrscheinlichsten Gruppen stehen zuerst. Ein Zusammenführen löscht keine Buchungen; frühere Namen werden als Alias gelernt.</span></div>
+      <div class="inline-alert"><strong>${duplicateClustersList.length} Händlergruppen brauchen deine Entscheidung.</strong><span>Markiere nacheinander die gewünschten Entscheidungen. Nichts wird sofort gespeichert oder neu geladen; Buchungen und frühere Namen bleiben beim Zusammenführen erhalten.</span></div>
+      ${canWrite?`<div class="merchant-review-toolbar" data-merchant-review-root role="region" aria-label="Händlerentscheidungen sammeln">
+        <div class="merchant-review-toolbar-copy">
+          <strong><span data-merchant-review-count>${stagingSummary.total}</span> Entscheidungen vorgemerkt</strong>
+          <small><span data-merchant-review-merges>${stagingSummary.mergeCount}</span> zusammenführen · <span data-merchant-review-ignores>${stagingSummary.ignoreCount}</span> nicht identisch</small>
+        </div>
+        <div class="row-actions">
+          <button class="action-button action-button--secondary" type="button" data-action="merchant-review-clear" ${stagingSummary.total?'':'disabled'}>Auswahl verwerfen</button>
+          <button class="action-button action-button--primary" type="button" data-action="merchant-review-save" ${stagingSummary.total?'':'disabled'}>Alle Entscheidungen speichern</button>
+        </div>
+      </div>`:''}
       <div class="suggestion-grid">
         ${primaryDuplicateClusters.map(duplicateClusterCard).join('')}
       </div>

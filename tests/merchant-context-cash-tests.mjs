@@ -114,7 +114,8 @@ const merchantHtml=renderMerchants({
 });
 assert.match(merchantHtml,/Ähnliche Händler prüfen/);
 assert.match(merchantHtml,/Nicht identisch/);
-assert.match(merchantHtml,/data-action="merchant-merge"/);
+assert.match(merchantHtml,/data-action="merchant-review-choice"/);
+assert.match(merchantHtml,/data-action="merchant-review-save"/);
 
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Haushaltsabgaben'&&parent==='Wohnen'));
 assert.ok(CH.starterSubcategories.some(([name,parent])=>name==='Lotterie & Gewinnspiele'&&parent==='Freizeit'));

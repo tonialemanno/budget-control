@@ -34,6 +34,7 @@ import { financeMonthMode, withPrimaryAccountPreference } from './app/user-prefe
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, similarMerchantCandidates, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
+import { merchantReviewPairKey,updateMerchantReviewDraft,stageMerchantReviewGroup,validateMerchantReviewDraft } from './app/merchant-review-draft.js';
 import { calculateGoalTargetDate, resolveGoalSchedule } from './app/goal-planning.js';
 
 import { renderOverview } from './views/overview.js';
@@ -185,7 +186,7 @@ const runtime = {
 
 const importState = { items: [] };
 const yearPromptSeen = new Set();
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, merchantReviewChoices: new Map(), merchantReviewSaving: false, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
 
 let sessionGeneration=0;
 
@@ -216,6 +217,8 @@ function clearUserRuntimeState({keepIdentity=false}={}){
   uiState.yearCloseError='';
   uiState.demoCredentials=null;
   uiState.merchantQuery='';
+  uiState.merchantReviewChoices=new Map();
+  uiState.merchantReviewSaving=false;
   uiState.merchantFilter='all';
   uiState.merchantPage=1;
   uiState.searchQuery='';
@@ -1192,6 +1195,7 @@ function render() {
     merchantQuery: uiState.merchantQuery,
     merchantFilter: uiState.merchantFilter,
     merchantPage: uiState.merchantPage,
+    merchantReviewChoices:[...uiState.merchantReviewChoices.values()],
     merchantDuplicateIgnores: Array.isArray(profilePreferences().merchant_duplicate_ignores)?profilePreferences().merchant_duplicate_ignores:[],
     searchQuery: uiState.searchQuery,
     previousVisitAt: runtime.previousVisitAt,
@@ -4733,10 +4737,45 @@ function activateDashboardDrilldown(target){
   }
 }
 
+
+function syncMerchantReviewUi() {
+  const root=pageContent.querySelector('[data-merchant-review-root]');
+  if(!root)return;
+  const choices=uiState.merchantReviewChoices;
+  const summary=validateMerchantReviewDraft([...choices.values()]);
+  const summaryFields=[
+    ['[data-merchant-review-count]',summary.total],
+    ['[data-merchant-review-merges]',summary.mergeCount],
+    ['[data-merchant-review-ignores]',summary.ignoreCount],
+  ];
+  for(const [selector,value] of summaryFields){
+    const span=root.querySelector(selector);
+    if(span)span.textContent=String(value);
+  }
+  for(const button of pageContent.querySelectorAll('[data-action="merchant-review-choice"]')){
+    const key=merchantReviewPairKey(button.dataset.canonicalId,button.dataset.duplicateId);
+    const active=choices.get(key)?.choice===button.dataset.choice;
+    button.classList.toggle('is-selected',active);
+    button.setAttribute('aria-pressed',String(active));
+    button.disabled=uiState.merchantReviewSaving;
+  }
+  for(const status of pageContent.querySelectorAll('[data-merchant-review-status]')){
+    const choice=choices.get(status.dataset.merchantReviewStatus)?.choice;
+    status.textContent=t(choice==='merge'?'Zusammenführen vorgemerkt':choice==='ignore'?'Nicht identisch vorgemerkt':'Noch nicht entschieden');
+  }
+  for(const button of pageContent.querySelectorAll('[data-action="merchant-review-group"]')){
+    button.disabled=uiState.merchantReviewSaving;
+  }
+  for(const action of ['merchant-review-clear','merchant-review-save']){
+    const button=root.querySelector(`[data-action="${action}"]`);
+    if(button)button.disabled=uiState.merchantReviewSaving||summary.total===0;
+  }
+}
+
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -4936,6 +4975,53 @@ async function handleAction(target) {
     await refresh(changed>0
       ? `${runtime.household.country_code}-Stammdaten aktualisiert: ${changed} Ergänzungen vorgenommen.`
       : `${runtime.household.country_code}-Stammdaten sind bereits aktuell.`);
+    return;
+  }
+
+  if (action === 'merchant-review-choice') {
+    if(uiState.merchantReviewSaving)return;
+    const canonicalId=String(target.dataset.canonicalId||'');
+    const duplicateId=String(target.dataset.duplicateId||'');
+    const choice=String(target.dataset.choice||'');
+    if(!runtime.merchants.some(row=>row.id===canonicalId)||!runtime.merchants.some(row=>row.id===duplicateId)){
+      throw new Error('Händler wurden geändert. Bitte die Seite aktualisieren.');
+    }
+    uiState.merchantReviewChoices=updateMerchantReviewDraft(uiState.merchantReviewChoices,{canonicalId,duplicateId,choice});
+    syncMerchantReviewUi();
+    return;
+  }
+  if (action === 'merchant-review-group') {
+    if(uiState.merchantReviewSaving)return;
+    const canonicalId=String(target.dataset.canonicalId||'');
+    const duplicateIds=String(target.dataset.duplicateIds||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(!canonicalId||!duplicateIds.length)throw new Error('Händlergruppe wurde nicht gefunden.');
+    const items=duplicateIds.map(duplicateId=>({canonicalId,duplicateId}));
+    uiState.merchantReviewChoices=stageMerchantReviewGroup(uiState.merchantReviewChoices,items,'merge');
+    syncMerchantReviewUi();
+    return;
+  }
+  if (action === 'merchant-review-clear') {
+    if(uiState.merchantReviewSaving)return;
+    uiState.merchantReviewChoices=new Map();
+    syncMerchantReviewUi();
+    return;
+  }
+  if (action === 'merchant-review-save') {
+    if(uiState.merchantReviewSaving)return;
+    const decisions=[...uiState.merchantReviewChoices.values()];
+    const summary=validateMerchantReviewDraft(decisions);
+    if(!summary.total)throw new Error('Bitte erst Händlerentscheidungen auswählen.');
+    if(!confirm(`${summary.mergeCount} Zusammenführungen und ${summary.ignoreCount} Entscheidungen «Nicht identisch» jetzt gemeinsam speichern? Die Änderung erfolgt einmalig; bei einem Fehler bleibt alles unverändert.`))return;
+    uiState.merchantReviewSaving=true;
+    syncMerchantReviewUi();
+    try{
+      const saved=await financeApi.reviewMerchantDecisionsBatch({householdId:runtime.household.id,decisions});
+      uiState.merchantReviewChoices=new Map();
+      await refresh(`${Number(saved?.merged||0)} Händler zusammengeführt und ${Number(saved?.ignored||0)} Vergleiche als nicht identisch gespeichert.`);
+    }finally{
+      uiState.merchantReviewSaving=false;
+      syncMerchantReviewUi();
+    }
     return;
   }
   if (action === 'merchant-page') {
@@ -6632,7 +6718,7 @@ window.addEventListener('popstate',()=>{
   void pulsePresence();
 });
 window.addEventListener('beforeunload',(event)=>{
-  if(!hasDeferredSettingsChanges(pageContent)) return;
+  if(!hasDeferredSettingsChanges(pageContent) && !uiState.merchantReviewChoices.size)return;
   event.preventDefault();
   event.returnValue='';
 });
