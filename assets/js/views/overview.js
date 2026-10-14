@@ -107,7 +107,7 @@ export function renderOverview({
     household,fxRates,now,
   });
   const compass=buildSavingsCompass({
-    snapshot,coach,primaryAccount,accounts,transactions,recurringRules,budgets,bills,vehicles,fxRates,now,
+    snapshot,coach,primaryAccount,accounts,transactions,recurringRules,budgets,bills,vehicles,categories,fxRates,now,
   });
   const statistics=buildStatisticsModel({
     accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,
@@ -146,9 +146,8 @@ export function renderOverview({
   const daysLabel=coach.daysRemaining===1?'1 Tag':`${coach.daysRemaining} Tage`;
   const compassMoney=(value)=>compass.ready
     ? privacyMoney(value,{currency,locale,privacyEnabled}) : 'Noch nicht berechenbar';
-  const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
+  const coachTone=!compass.ready?'warning':compass.uncommitted<=0?'negative':'positive';
   const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
-  const savingsPotentialTone=coach.additionalSavingsPotential>0?'positive':'warning';
   const surplusRecord=historicalFinanceSurplusRecord({
     transactions,debtPayments,recurringRules,categories,baseCurrency:currency,fxRates,now,fallbackDay:25,financeMonthMode:selectedFinanceMonthMode,
   });
@@ -158,8 +157,6 @@ export function renderOverview({
     ? Math.max(0,bestCompletedSurplus-currentRecordCandidate)
     : null;
   const recordDate=surplusRecord?.start?shortDate(new Date(surplusRecord.start),locale):null;
-  const halfBudgetSpend=Math.max(0,Number(coach.variableRemaining||0))/2;
-  const halfBudgetPotential=Math.max(0,Number(coach.zeroSpendEndBalance||0)-halfBudgetSpend);
   const dateKey=(value)=>value instanceof Date&&!Number.isNaN(value.getTime())?value.toISOString().slice(0,10):'';
   const cycleFrom=dateKey(financeCycle.start);
   const cycleTo=dateKey(new Date(financeCycle.endExclusive.getTime()-86400000));
