@@ -4,6 +4,8 @@ import { icon } from '../app/icons.js';
 import { fxLabel } from '../app/fx.js';
 import { buildFinanceSnapshot } from '../app/finance-model.js';
 import { buildFinanceCoach } from '../app/finance-coach.js?v=20261008-r60';
+import { buildSavingsCompass } from '../app/savings-compass.js';
+import { renderSavingsCompass } from './savings-compass.js';
 import {
   historicalFinanceSurplusRecord, primaryOperatingAccount,
 } from '../app/finance-insights.js?v=20261008-r60';
@@ -104,6 +106,9 @@ export function renderOverview({
     snapshot,primaryAccount,accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,bills,
     household,fxRates,now,
   });
+  const compass=buildSavingsCompass({
+    snapshot,coach,primaryAccount,accounts,transactions,recurringRules,budgets,bills,vehicles,fxRates,now,
+  });
   const statistics=buildStatisticsModel({
     accounts,transactions,debtPayments,recurringRules,budgets,categories,merchants,
     household,profile,fxRates,now,cycles:6,categoryLimit:5,
@@ -139,6 +144,8 @@ export function renderOverview({
     })
     .sort((a,b)=>b.rawPercent-a.rawPercent||b.spent-a.spent);
   const daysLabel=coach.daysRemaining===1?'1 Tag':`${coach.daysRemaining} Tage`;
+  const compassMoney=(value)=>compass.ready
+    ? privacyMoney(value,{currency,locale,privacyEnabled}) : 'Noch nicht berechenbar';
   const coachTone=coach.status==='negative'?'negative':coach.status==='warning'?'warning':'positive';
   const cycleLastDay=new Date(financeCycle.endExclusive.getTime()-24*60*60*1000);
   const savingsPotentialTone=coach.additionalSavingsPotential>0?'positive':'warning';
@@ -175,7 +182,7 @@ export function renderOverview({
     ${pageHeader({
       kicker:shortDate(now,locale),
       title:`Hallo ${profile?.display_name?.split(' ')[0]||''}`.trim(),
-      subtitle:'ALEMANNO BUCHHALTUNG zeigt zuerst, was bis zum nächsten Lohn wirklich frei verfügbar ist.'
+      subtitle:'Wie viel ist bis zum Ende des Finanzmonats noch verfügbar – und was könnte zurückgelegt werden?'
     })}
 
     ${hasForeign?`<div class="inline-alert inline-alert--success"><strong>Mehrere Währungen aktiv.</strong><span>${fxLabel(fxRates,currency)}. Originalbeträge bleiben auf den Konten erhalten.</span></div>`:''}
@@ -184,8 +191,8 @@ export function renderOverview({
       <article class="card coach-hero coach-hero--${coachTone} dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung für frei verfügbares Geld öffnen">
         <div class="coach-hero-head">
           <div>
-            <span class="coach-eyebrow">Bis zum nächsten Lohn frei</span>
-            <div class="coach-free-value">${privacyMoney(coach.freeUntilIncome,{currency,locale,privacyEnabled})}</div>
+            <span class="coach-eyebrow">Noch flexibel ausgeben</span>
+            <div class="coach-free-value">${compassMoney(compass.spendable)}</div>
             <p class="coach-status-copy">
               <span>Hauptkonto</span> <strong>${escapeHtml(primaryAccount?.name||'Operatives Konto')}</strong>
               <span>· Finanzmonat</span> <strong>${escapeHtml(cycleLabel)}</strong>
@@ -195,7 +202,7 @@ export function renderOverview({
         </div>
         <div class="coach-commitment-row">
           <div><span>Aktueller Kontostand</span><strong>${privacyEnabled?'•••':money(primaryAccount?.current_balance||0,{currency:primaryAccount?.currency||currency,locale})}</strong></div>
-          <div><span>Noch verplant</span><strong>${privacyMoney(coach.commitmentsRemaining,{currency,locale,privacyEnabled})}</strong></div>
+          <div><span>Noch verpflichtet und reserviert</span><strong>${compassMoney(compass.commitments+compass.cushion)}</strong></div>
         </div>
         <div class="coach-primary-actions">
           <a class="action-button action-button--primary" href="#/transactions?create=expense">${icon('plus')} Ausgabe</a>
@@ -214,8 +221,8 @@ export function renderOverview({
         <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Planung für frei verfügbares Tagesbudget öffnen">
           <span class="coach-mini-icon">${icon('wallet')}</span>
           <span class="coach-mini-label">Frei pro Tag</span>
-          <strong>${privacyMoney(coach.dailyAllowance,{currency,locale,privacyEnabled})}</strong>
-          <small>Wochenrahmen ${privacyMoney(coach.weeklyAllowance,{currency,locale,privacyEnabled})}</small>
+          <strong>${compassMoney(compass.daily)}</strong>
+          <small>${compass.ready?`Woche höchstens ${compassMoney(Math.min(compass.spendable,compass.daily*7))}`:'Erst Einnahmen, Fixkosten und Budget erfassen'}</small>
         </article>
         <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="planning" role="link" tabindex="0" aria-label="Fixkosten, Reserven und geplante Umbuchungen öffnen">
           <span class="coach-mini-icon">${icon('shield')}</span>
@@ -232,28 +239,7 @@ export function renderOverview({
       </div>
     </section>
 
-    <article class="card card-padding coach-hero coach-hero--${savingsPotentialTone} dashboard-drilldown" data-drilldown="route" data-route="goals" role="link" tabindex="0" aria-label="Sparziele und Sparpotenzial öffnen">
-      <div class="coach-hero-head">
-        <div>
-          <span class="coach-eyebrow">${coach.additionalSavingsPotential>0?'Zusätzliches Sparpotenzial':'Auf dem Weg zum Monatsüberschuss'}</span>
-          <h3 class="card-title">${coach.additionalSavingsPotential>0?'Wenn du ab jetzt nichts mehr zusätzlich ausgibst':'Erst zurück auf null, dann wird jeder freie Franken Sparpotenzial'}</h3>
-          <div class="coach-free-value">${privacyMoney(coach.additionalSavingsPotential>0?coach.additionalSavingsPotential:coach.recoveryToZero,{currency,locale,privacyEnabled})}</div>
-          <p class="coach-status-copy"><span>${coach.additionalSavingsPotential>0?'Zusätzlich zurücklegbar am':'Noch bis zum Nullpunkt am'}</span> <strong>${dateLabel(cycleLastDay,locale)}</strong></p>
-        </div>
-        <span class="coach-hero-icon">${icon(coach.additionalSavingsPotential>0?'piggy-bank':'target')}</span>
-      </div>
-      <div class="coach-commitment-row">
-        <div><span>Hauptkonto heute</span><strong>${privacyMoney(coach.primaryBalance,{currency,locale,privacyEnabled})}</strong></div>
-        <div><span>Noch geschützt / verplant</span><strong>${privacyMoney(coach.protectedUntilCycleEnd,{currency,locale,privacyEnabled})}</strong></div>
-      </div>
-      <p class="card-subtitle">${coach.additionalSavingsPotential>0
-        ? 'Jede weitere variable Ausgabe reduziert diesen Betrag direkt. Wenn du nichts mehr ausgibst, bleibt genau dieses Potenzial für dein Sparen.'
-        : 'Sobald dieser Wert bei null ist, wird jeder weitere freie Franken zu zusätzlichem Sparpotenzial.'}</p>
-      <div class="card-footer-actions">
-        <a class="table-action" href="/planning/goals">Sparziele öffnen</a>
-        <a class="table-action" href="/planning">Planung prüfen</a>
-      </div>
-    </article>
+    ${renderSavingsCompass({plan:compass,locale,privacyEnabled})}
 
     <section class="coach-notice-section">
       <div class="coach-section-head">
@@ -287,8 +273,8 @@ export function renderOverview({
         <article class="card coach-mini-card dashboard-drilldown" data-drilldown="route" data-route="budget" role="link" tabindex="0" aria-label="Budget für Was-wäre-wenn-Szenario öffnen">
           <span class="coach-mini-icon">${icon('piggy-bank')}</span>
           <span class="coach-mini-label">Was wäre wenn?</span>
-          <strong>${privacyMoney(halfBudgetPotential,{currency,locale,privacyEnabled})}</strong>
-          <small>${coach.variableRemaining>0?'wenn du nur die Hälfte des offenen variablen Budgets noch nutzt':'ohne weiteres variables Budget bleibt dein aktuelles Sparpotenzial'}</small>
+          <strong>${compassMoney(compass.extraByReducing)}</strong>
+          <small>${compass.ready?'Szenario: 20 % weniger flexible Ausgaben':'Sparplan zuerst vervollständigen'}</small>
         </article>
       </div>
     </section>
