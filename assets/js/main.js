@@ -541,6 +541,15 @@ function applyRouteIntent(route) {
     }
     return;
   }
+  // Vehicle drilldowns are read-only navigation and must work for viewers too.
+  const vehicleId=params.get('vehicle');
+  if(route==='transactions' && vehicleId && runtime.vehicles.some(row=>row.id===vehicleId)){
+    resetTransactionDrilldownFilters();
+    uiState.transactionVehicle=vehicleId;
+    navigateToRoute(route,null,{replace:true});
+    render();
+    return;
+  }
   if (!canWriteHousehold()) return;
   const create = params.get('create');
   const accountId = params.get('account');
