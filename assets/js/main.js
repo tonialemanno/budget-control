@@ -1366,7 +1366,8 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
   const masterResult = await financeApi.installCountryMasterData(householdId).catch(()=>null);
   changed += Number(masterResult?.categories_created||0) + Number(masterResult?.merchants_created||0) + Number(masterResult?.merchants_linked||0);
 
-  let categories = existingCategories.length ? existingCategories : await financeApi.listCategories(householdId);
+  // Archive tombstones are included so a user's hidden starter category is not recreated.
+  let categories = await financeApi.listCategoriesIncludingArchived(householdId);
   const parentKeys = new Set(categories.filter((category)=>!category.parent_id).map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
   const missingParents = (cfg.starterCategories || []).filter(([name,kind])=>!parentKeys.has(`${kind}:${name.toLowerCase()}`));
   if (missingParents.length) {
@@ -1374,15 +1375,15 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
       household_id:householdId, name, kind, sort_order:(index+1)*10,
     })));
     changed += missingParents.length;
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   } else if (masterResult) {
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   }
 
   const childKeys = new Set(categories.filter((category)=>category.parent_id).map((category)=>`${category.parent_id}:${String(category.name||'').toLowerCase()}`));
   const childRows = [];
   for (const [name,parentName,kind] of (cfg.starterSubcategories || [])) {
-    const parent = categories.find((category)=>!category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
+    const parent = categories.find((category)=>!category.is_archived && !category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
     if (!parent) continue;
     const key=`${parent.id}:${name.toLowerCase()}`;
     if (childKeys.has(key)) continue;
@@ -1392,12 +1393,12 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
   if (childRows.length) {
     await financeApi.createCategories(childRows);
     changed += childRows.length;
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   }
 
   const merchants = await financeApi.listMerchants(householdId);
   for (const [merchantName,targetCategoryName] of (cfg.starterMerchantCategories || [])) {
-    const target = categories.find((category)=>category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
+    const target = categories.find((category)=>!category.is_archived && category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
     if (!target) continue;
     const normalizedKey=normalizeMerchantKey(merchantName);
     const current=merchants.find((merchant)=>merchant.normalized_key===normalizedKey);
@@ -3218,6 +3219,25 @@ async function handleForm(form) {
     await financeApi.createCategory({ household_id:h, parent_id:id==='category-create'?nullValue(data,'parentId'):null, name:formValue(data,'name'), kind:formValue(data,'kind'), icon:id==='category-create'?nullValue(data,'icon'):null });
     await refresh('Kategorie gespeichert.'); return;
   }
+  if(id==='category-edit'){
+    const categoryId=formValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const name=formValue(data,'name').trim().replace(/\\s+/g,' ');
+    if(!name) throw new Error('Bitte einen Namen eingeben.');
+    const conflict=runtime.categories.find((row)=>row.id!==categoryId&&row.kind===category.kind
+      &&(row.parent_id||null)===(category.parent_id||null)
+      &&String(row.name||'').trim().toLocaleLowerCase('de')===name.toLocaleLowerCase('de'));
+    if(conflict) throw new Error('Unter dieser Hauptkategorie gibt es bereits eine Kategorie mit diesem Namen.');
+    if(category.name!==name){
+      await financeApi.updateCategory(category.id,{name});
+      await refresh('Kategorie umbenannt. Buchungen und Händlerzuordnungen bleiben erhalten.');
+    }else{
+      document.querySelector('#category-edit')?.setAttribute('hidden','');
+      showToast('Der Name ist unverändert.');
+    }
+    return;
+  }
   if (id === 'rule-create') {
     await financeApi.createCategorizationRule({ household_id:h, category_id:formValue(data,'categoryId'), field_name:formValue(data,'fieldName'), match_type:formValue(data,'matchType'), match_value:formValue(data,'matchValue'), priority:100, active:true });
     await refresh('Kategorisierungsregel gespeichert.'); return;
@@ -4784,7 +4804,7 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -5136,6 +5156,45 @@ async function handleAction(target) {
     return;
   }
 
+  if(action==='category-edit'){
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const form=document.querySelector('#category-edit');
+    if(!form) throw new Error('Der Bearbeitungsdialog ist nicht verfügbar.');
+    form.querySelector('#categoryEditId').value=category.id;
+    form.querySelector('#categoryEditName').value=category.name||'';
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    form.querySelector('#categoryEditName')?.focus({preventScroll:true});
+    return;
+  }
+  if(action==='category-archive'){
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const descendantIds=new Set([category.id]);
+    let expanded=true;
+    while(expanded){
+      expanded=false;
+      for(const row of runtime.categories){
+        if(row.parent_id&&descendantIds.has(row.parent_id)&&!descendantIds.has(row.id)){
+          descendantIds.add(row.id);
+          expanded=true;
+        }
+      }
+    }
+    const count=descendantIds.size;
+    if(!confirm(t(count>1
+      ? `«${category.name}» und ${count-1} Unterkategorien ausblenden? Bestehende Buchungen bleiben unverändert.`
+      : `«${category.name}» ausblenden? Bestehende Buchungen bleiben unverändert.`)))return;
+    // Hide descendants first to preserve the hierarchy even if an update fails.
+    const rows=[...runtime.categories].filter(row=>descendantIds.has(row.id)).sort((a,b)=>{
+      const depth=row=>{let count=0,current=row;while(current?.parent_id&&count<20){count++;current=runtime.categories.find(r=>r.id===current.parent_id);}return count;};
+      return depth(b)-depth(a);
+    });
+    for(const row of rows) await financeApi.updateCategory(row.id,{is_archived:true});
+    await refresh(`${count} Kategorie${count===1?'':'n'} ausgeblendet. Buchungen bleiben erhalten.`);
+    return;
+  }
   if (action === 'starter-categories') {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
     if (!created) { showToast('Die empfohlene Struktur ist bereits vorhanden.'); return; }
@@ -6643,6 +6702,16 @@ pageContent.addEventListener('input', (event) => {
   if (target.id === 'importMerchantSearch') {
     uiState.importQuery = target.value; render();
     const next = document.querySelector('#importMerchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if(target.id==='categorySearch'){
+    const query=target.value.trim().toLocaleLowerCase('de');
+    document.querySelectorAll('[data-category-tree]').forEach((card)=>{
+      const hit=!query||card.textContent.toLocaleLowerCase('de').includes(query);
+      card.hidden=!hit;
+      const children=card.querySelector('[data-category-children]');
+      if(query&&hit&&children)children.open=true;
+    });
     return;
   }
   if (target.id === 'merchantSearch') {
