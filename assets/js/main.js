@@ -1084,6 +1084,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     () => financeApi.listTaxPayments(h).catch(()=>[]),
     () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
     () => financeApi.listYearClosures(h).catch(()=>[]),
+    () => financeApi.listCategoriesIncludingArchived(h),
   ];
   const results = await runLimited(tasks, 5);
   assertActiveSession(generation,userId);
@@ -1099,7 +1100,9 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
     runtime.transactionDuplicateIgnores,
     runtime.yearClosures,
+    runtime.allCategories,
   ] = results.map((value) => value || (value === null ? null : []));
+  runtime.archivedCategories=(runtime.allCategories||[]).filter((row)=>row.is_archived===true);
   runtime.changeHistory=(runtime.changeHistory||[]).map((row)=>({
     id:row.id,
     type:row.action_type||row.type,
@@ -1366,7 +1369,8 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
   const masterResult = await financeApi.installCountryMasterData(householdId).catch(()=>null);
   changed += Number(masterResult?.categories_created||0) + Number(masterResult?.merchants_created||0) + Number(masterResult?.merchants_linked||0);
 
-  let categories = existingCategories.length ? existingCategories : await financeApi.listCategories(householdId);
+  // Archive tombstones are included so a user's hidden starter category is not recreated.
+  let categories = await financeApi.listCategoriesIncludingArchived(householdId);
   const parentKeys = new Set(categories.filter((category)=>!category.parent_id).map((category)=>`${category.kind}:${String(category.name||'').toLowerCase()}`));
   const missingParents = (cfg.starterCategories || []).filter(([name,kind])=>!parentKeys.has(`${kind}:${name.toLowerCase()}`));
   if (missingParents.length) {
@@ -1374,15 +1378,15 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
       household_id:householdId, name, kind, sort_order:(index+1)*10,
     })));
     changed += missingParents.length;
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   } else if (masterResult) {
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   }
 
   const childKeys = new Set(categories.filter((category)=>category.parent_id).map((category)=>`${category.parent_id}:${String(category.name||'').toLowerCase()}`));
   const childRows = [];
   for (const [name,parentName,kind] of (cfg.starterSubcategories || [])) {
-    const parent = categories.find((category)=>!category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
+    const parent = categories.find((category)=>!category.is_archived && !category.parent_id && category.kind===kind && String(category.name||'').toLowerCase()===parentName.toLowerCase());
     if (!parent) continue;
     const key=`${parent.id}:${name.toLowerCase()}`;
     if (childKeys.has(key)) continue;
@@ -1392,12 +1396,12 @@ async function seedStarterCategoriesForHousehold(householdId, countryCode, exist
   if (childRows.length) {
     await financeApi.createCategories(childRows);
     changed += childRows.length;
-    categories = await financeApi.listCategories(householdId);
+    categories = await financeApi.listCategoriesIncludingArchived(householdId);
   }
 
   const merchants = await financeApi.listMerchants(householdId);
   for (const [merchantName,targetCategoryName] of (cfg.starterMerchantCategories || [])) {
-    const target = categories.find((category)=>category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
+    const target = categories.find((category)=>!category.is_archived && category.kind==='expense' && String(category.name||'').toLowerCase()===targetCategoryName.toLowerCase());
     if (!target) continue;
     const normalizedKey=normalizeMerchantKey(merchantName);
     const current=merchants.find((merchant)=>merchant.normalized_key===normalizedKey);
@@ -3215,8 +3219,37 @@ async function handleForm(form) {
   }
 
   if (id === 'category-create' || id === 'category-create-inline') {
-    await financeApi.createCategory({ household_id:h, parent_id:id==='category-create'?nullValue(data,'parentId'):null, name:formValue(data,'name'), kind:formValue(data,'kind'), icon:id==='category-create'?nullValue(data,'icon'):null });
-    await refresh('Kategorie gespeichert.'); return;
+    const parentId=id==='category-create'?nullValue(data,'parentId'):null;
+    const parent=parentId?runtime.categories.find((row)=>row.id===parentId&&!row.parent_id):null;
+    if(parentId&&!parent) throw new Error('Die gewählte Hauptkategorie wurde nicht gefunden.');
+    const name=formValue(data,'name').trim().replace(/\s+/g,' ');
+    if(!name) throw new Error('Bitte einen Kategorienamen eingeben.');
+    const kind=parent?.kind||formValue(data,'kind');
+    const duplicate=runtime.categories.find((row)=>row.kind===kind&&(row.parent_id||null)===(parentId||null)
+      &&String(row.name||'').trim().toLocaleLowerCase('de')===name.toLocaleLowerCase('de'));
+    if(duplicate) throw new Error('Dieser Kategoriename ist an dieser Stelle bereits vorhanden.');
+    await financeApi.createCategory({household_id:h,parent_id:parentId,name,kind,
+      icon:id==='category-create'?nullValue(data,'icon'):null});
+    await refresh(parent?'Unterkategorie hinzugefügt.':'Kategorie gespeichert.'); return;
+  }
+  if(id==='category-edit'){
+    const categoryId=formValue(data,'categoryId');
+    const category=runtime.categories.find((row)=>row.id===categoryId);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const name=formValue(data,'name').trim().replace(/\\s+/g,' ');
+    if(!name) throw new Error('Bitte einen Namen eingeben.');
+    const conflict=runtime.categories.find((row)=>row.id!==categoryId&&row.kind===category.kind
+      &&(row.parent_id||null)===(category.parent_id||null)
+      &&String(row.name||'').trim().toLocaleLowerCase('de')===name.toLocaleLowerCase('de'));
+    if(conflict) throw new Error('Unter dieser Hauptkategorie gibt es bereits eine Kategorie mit diesem Namen.');
+    if(category.name!==name){
+      await financeApi.updateCategory(category.id,{name});
+      await refresh('Kategorie umbenannt. Buchungen und Händlerzuordnungen bleiben erhalten.');
+    }else{
+      document.querySelector('#category-edit')?.setAttribute('hidden','');
+      showToast('Der Name ist unverändert.');
+    }
+    return;
   }
   if (id === 'rule-create') {
     await financeApi.createCategorizationRule({ household_id:h, category_id:formValue(data,'categoryId'), field_name:formValue(data,'fieldName'), match_type:formValue(data,'matchType'), match_value:formValue(data,'matchValue'), priority:100, active:true });
@@ -4784,7 +4817,7 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -4978,7 +5011,44 @@ async function handleAction(target) {
     await refresh(context.is_archived?'Projekt reaktiviert.':'Projekt archiviert.');
     return;
   }
-  if (action === 'show-form') { document.getElementById(target.dataset.target)?.removeAttribute('hidden'); return; }
+  if(action==='show-form'){
+    const form=document.getElementById(target.dataset.target);
+    if(target.dataset.target==='category-create'&&form){
+      form.reset();
+      form.querySelector('.card-title').textContent='Kategorie hinzufügen';
+      const kind=form.querySelector('[name="kind"]');
+      const parent=form.querySelector('[name="parentId"]');
+      if(kind&&parent) [...parent.options].forEach((option)=>{
+        if(!option.value)return;
+        option.hidden=option.dataset.kind!==kind.value;
+        option.disabled=option.hidden;
+      });
+    }
+    form?.removeAttribute('hidden');
+    return;
+  }
+  if(action==='category-add-child'){
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id&&!row.parent_id);
+    if(!category) throw new Error('Hauptkategorie nicht gefunden.');
+    const form=document.querySelector('#category-create');
+    if(!form) throw new Error('Das Formular ist nicht verfügbar.');
+    form.reset();
+    const kind=form.querySelector('[name="kind"]');
+    const parent=form.querySelector('[name="parentId"]');
+    if(!kind||!parent)throw new Error('Kategorienformular ist unvollständig.');
+    kind.value=category.kind;
+    [...parent.options].forEach((option)=>{
+      if(!option.value)return;
+      option.hidden=option.dataset.kind!==category.kind;
+      option.disabled=option.hidden;
+    });
+    parent.value=category.id;
+    form.querySelector('.card-title').textContent=`Unterkategorie zu „${category.name}“ hinzufügen`;
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    form.querySelector('[name="name"]')?.focus({preventScroll:true});
+    return;
+  }
   if (action === 'masterdata-install-country') {
     const changed=await seedStarterCategoriesForHousehold(runtime.household.id,runtime.household.country_code,runtime.categories);
     await refresh(changed>0
@@ -5136,6 +5206,72 @@ async function handleAction(target) {
     return;
   }
 
+  if(action==='category-edit'){
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const form=document.querySelector('#category-edit');
+    if(!form) throw new Error('Der Bearbeitungsdialog ist nicht verfügbar.');
+    form.querySelector('#categoryEditId').value=category.id;
+    form.querySelector('#categoryEditName').value=category.name||'';
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    form.querySelector('#categoryEditName')?.focus({preventScroll:true});
+    return;
+  }
+  if(action==='category-restore'){
+    const hidden=runtime.archivedCategories||[];
+    const row=hidden.find((item)=>item.id===target.dataset.id);
+    if(!row)throw new Error('Die ausgeblendete Kategorie wurde nicht gefunden.');
+    const all=[...runtime.categories,...hidden];
+    const restoreIds=new Set([row.id]);
+    let ancestor=row;
+    while(ancestor?.parent_id){
+      ancestor=all.find((item)=>item.id===ancestor.parent_id);
+      if(!ancestor)break;
+      if(ancestor.is_archived)restoreIds.add(ancestor.id);
+    }
+    if(!row.parent_id){
+      let expanded=true;
+      while(expanded){
+        expanded=false;
+        for(const item of hidden){
+          if(item.parent_id&&restoreIds.has(item.parent_id)&&!restoreIds.has(item.id)){
+            restoreIds.add(item.id);expanded=true;
+          }
+        }
+      }
+    }
+    for(const id of restoreIds)await financeApi.updateCategory(id,{is_archived:false});
+    await refresh(`${restoreIds.size} Kategorie${restoreIds.size===1?'':'n'} wieder eingeblendet.`);
+    return;
+  }
+  if(action==='category-archive'){
+    const category=runtime.categories.find((row)=>row.id===target.dataset.id);
+    if(!category) throw new Error('Kategorie wurde nicht gefunden.');
+    const descendantIds=new Set([category.id]);
+    let expanded=true;
+    while(expanded){
+      expanded=false;
+      for(const row of runtime.categories){
+        if(row.parent_id&&descendantIds.has(row.parent_id)&&!descendantIds.has(row.id)){
+          descendantIds.add(row.id);
+          expanded=true;
+        }
+      }
+    }
+    const count=descendantIds.size;
+    if(!confirm(t(count>1
+      ? `«${category.name}» und ${count-1} Unterkategorien ausblenden? Bestehende Buchungen bleiben unverändert.`
+      : `«${category.name}» ausblenden? Bestehende Buchungen bleiben unverändert.`)))return;
+    // Hide descendants first to preserve the hierarchy even if an update fails.
+    const rows=[...runtime.categories].filter(row=>descendantIds.has(row.id)).sort((a,b)=>{
+      const depth=row=>{let count=0,current=row;while(current?.parent_id&&count<20){count++;current=runtime.categories.find(r=>r.id===current.parent_id);}return count;};
+      return depth(b)-depth(a);
+    });
+    for(const row of rows) await financeApi.updateCategory(row.id,{is_archived:true});
+    await refresh(`${count} Kategorie${count===1?'':'n'} ausgeblendet. Buchungen bleiben erhalten.`);
+    return;
+  }
   if (action === 'starter-categories') {
     const created = await seedStarterCategoriesForHousehold(runtime.household.id, runtime.household.country_code, runtime.categories);
     if (!created) { showToast('Die empfohlene Struktur ist bereits vorhanden.'); return; }
@@ -6643,6 +6779,16 @@ pageContent.addEventListener('input', (event) => {
   if (target.id === 'importMerchantSearch') {
     uiState.importQuery = target.value; render();
     const next = document.querySelector('#importMerchantSearch'); if (next) { next.focus(); next.setSelectionRange(next.value.length,next.value.length); }
+    return;
+  }
+  if(target.id==='categorySearch'){
+    const query=target.value.trim().toLocaleLowerCase('de');
+    document.querySelectorAll('[data-category-tree]').forEach((card)=>{
+      const hit=!query||card.textContent.toLocaleLowerCase('de').includes(query);
+      card.hidden=!hit;
+      const children=card.querySelector('[data-category-children]');
+      if(query&&hit&&children)children.open=true;
+    });
     return;
   }
   if (target.id === 'merchantSearch') {

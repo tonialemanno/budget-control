@@ -1,3 +1,11 @@
+# R94 – Kategorien & Händler verständlicher, Navigation bleibt sichtbar
+- Kategorien werden nur noch in einer Ansicht angezeigt; Unterkategorien sind einklappbar und durchsuchbar.
+- Kategorienamen können direkt bearbeitet werden, ohne IDs, Buchungen, Händler oder Kategorisierungsregeln zu verlieren.
+- «Ausblenden» ersetzt den Kategorie-Löschknopf, archiviert inklusive Unterkategorien und löscht keine historischen Daten. Standard-Seeding berücksichtigt archivierte Einträge.
+- Händlerbestand erscheint zuerst; mögliche Dubletten und Massen-Zusammenführung sind optionale, geschlossene Expertenbereiche.
+- Navigation und Profilmenü oben rechts bleiben auch beim Scrollen auf der Händler-Seite sichtbar (Desktop / Mobile, safe area).
+- Sprachtexte IT/EN und Regressionstests ergänzt; Release 2.4.38 / 2026.10.18-r94; Schema unverändert 2026100802. Stable unberührt.
+
 # R93 – Sparkompass und Fahrzeugkosten für Deutschland
 - Verständlicher Sparplan in der Übersicht: verfügbare variable Ausgaben, 10 % Sicherheitspuffer, optionales 20-%-Sparszenario und vorsichtige Endbestandschätzung des Hauptkontos.
 - Keine geschätzten Ausgabengrenzen ohne Kontostand, Einnahmen, wiederkehrende Verpflichtungen, Budget und vollständig verfügbare FX-Kurse. Zukünftige Einnahmen werden nicht vorweggenommen.
