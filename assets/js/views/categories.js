@@ -6,6 +6,10 @@ function categoryEditButton(id) {
   return `<button class="table-action" type="button" data-action="category-edit" data-id="${escapeHtml(id)}">Bearbeiten</button>`;
 }
 
+function categoryAddChildButton(id) {
+  return `<button class="table-action category-add-child" type="button" data-action="category-add-child" data-id="${escapeHtml(id)}">${icon('plus')} Unterkategorie hinzufügen</button>`;
+}
+
 function categoryHideButton(id) {
   return `<button class="table-action" type="button" data-action="category-archive" data-id="${escapeHtml(id)}">Ausblenden</button>`;
 }
@@ -25,20 +29,20 @@ function hierarchyCard(category,categories,canWrite,adminRole,household,countryM
     <div class="category-tree-head">
       <span class="hub-link-icon">${icon(category.kind==='income'?'arrow-down-left':'basket')}</span>
       <div><strong>${escapeHtml(category.name)}</strong><span>${category.kind==='income'?'Einnahme':'Ausgabe'}${standardLabel(category)}${count?` · ${count} Unterkategorie${count===1?'':'n'}`:''}</span></div>
-      ${canWrite?`<div class="table-actions">${categoryEditButton(category.id)}${categoryHideButton(category.id)}${adminTools(category)}</div>`:''}
+      ${canWrite?`<div class="table-actions category-tile-actions">${categoryAddChildButton(category.id)}${categoryEditButton(category.id)}${categoryHideButton(category.id)}</div>`:''}
     </div>
     ${count?`<details class="category-children-toggle" data-category-children>
       <summary>Unterkategorien anzeigen (${count})</summary>
       <div class="category-child-list">${children.map((child)=>`<div class="category-child-row">
         <div><strong>${escapeHtml(child.name)}</strong><span>Unterkategorie${standardLabel(child)}</span></div>
-        ${canWrite?`<div class="table-actions">${categoryEditButton(child.id)}${categoryHideButton(child.id)}${adminTools(child)}</div>`:''}
+        ${canWrite?`<div class="table-actions">${categoryEditButton(child.id)}${categoryHideButton(child.id)}</div>`:''}
       </div>`).join('')}</div>
     </details>`:''}
   </article>`;
 }
 
 export function renderCategories({
-  categories=[],categorizationRules=[],merchants=[],canWrite=false,adminRole=null,
+  categories=[],archivedCategories=[],categorizationRules=[],merchants=[],canWrite=false,adminRole=null,
   household=null,countryMasterCategories=[],
 }={}) {
   const ordered=categories.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'de',{sensitivity:'base'}));
@@ -71,13 +75,13 @@ export function renderCategories({
   return `
     ${pageHeader({
       title:'Kategorien',
-      subtitle:'Nur eine Übersicht. Unterkategorien öffnen und Namen direkt bearbeiten – die bisherigen Buchungen bleiben erhalten.',
+      subtitle:'Kategorien auswählen, umbenennen oder direkt in einer Kachel Unterkategorien hinzufügen.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="category-create">${icon('plus')} Kategorie hinzufügen</button><a class="action-button action-button--secondary" href="#/merchants">Händler</a>`:'<a class="action-button action-button--secondary" href="#/merchants">Händler ansehen</a>'
     })}
     ${canWrite?formShell('category-create','Kategorie hinzufügen','Nur anlegen, was für die eigene Übersicht gebraucht wird.',createFields,{hidden:true,submitLabel:'Kategorie speichern'}):''}
     ${canWrite?formShell('category-edit','Kategorie umbenennen','Der Name ändert sich überall, die Verknüpfungen bleiben bestehen.',editFields,{hidden:true,submitLabel:'Namen speichern'}):''}
     <div class="card card-padding" style="margin-bottom:14px">
-      <div class="card-heading"><div><h3 class="card-title">Meine Kategorien</h3><p class="card-subtitle">${expenseCount} Ausgaben · ${incomeCount} Einnahmen. Nicht benötigte Kategorien können ausgeblendet werden, ohne Buchungen zu löschen.</p></div></div>
+      <div class="card-heading"><div><h3 class="card-title">Aktive Kategorien</h3><p class="card-subtitle">${expenseCount} Ausgaben · ${incomeCount} Einnahmen. Hier stehen nur die aktuell auswählbaren Kategorien und Unterkategorien.</p></div></div>
       <label class="field"><span>Kategorie suchen</span><input class="text-control" type="search" id="categorySearch" placeholder="z. B. Gerichtskosten, Lebensmittel"></label>
       <small>Hauptkategorien sind sichtbar, Unterkategorien werden erst bei Bedarf aufgeklappt. Eine Kategorie erscheint hier nur einmal.</small>
     </div>
@@ -85,9 +89,30 @@ export function renderCategories({
       ${roots.length?roots.map((row)=>hierarchyCard(row,ordered,canWrite,adminRole,household,countryMasterCategories)).join(''):'<div class="card card-padding table-empty">Noch keine Kategorien. Bei Bedarf eine Kategorie hinzufügen.</div>'}
     </div>
     <p class="card-subtitle">«Ausblenden» entfernt die Kategorie aus deiner Auswahl, aber keine historischen Buchungen. Auch Unterkategorien einer ausgeblendeten Hauptkategorie werden nicht mehr angezeigt.</p>
-    <details class="card card-padding category-advanced">
-      <summary>Expertenbereich: automatische Textregeln</summary>
-      ${canWrite?formShell('rule-create','Kategorisierungsregel','Nur für Sonderfälle ohne Händlerzuordnung.',ruleFields,{hidden:false,submitLabel:'Regel speichern'}):''}
-      ${dataTable({headers:['Kategorie','Feld','Regel',''],rows:ruleRows,emptyText:'Noch keine Regeln.'})}
+    <details class="card card-padding category-advanced" id="category-settings">
+      <summary>Kategorie-Einstellungen</summary>
+      <p class="card-subtitle">Hier stehen ausgeblendete Kategorien, automatische Erkennungsregeln und erweiterte Einstellungen – nicht nochmals die aktiven Kategorien.</p>
+      <div class="card-heading" style="margin-top:16px"><div><h3 class="card-title">Ausgeblendete Kategorien</h3>
+        <p class="card-subtitle">Diese Kategorien erscheinen nicht mehr bei neuen Zuordnungen. Historische Buchungen bleiben erhalten.</p></div></div>
+      ${archivedCategories.length
+        ? `<div class="category-hidden-list">${archivedCategories
+          .slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de'))
+          .map((row)=>`<div class="category-child-row"><div><strong>${escapeHtml(row.name)}</strong><span>${row.parent_id?'Unterkategorie':'Hauptkategorie'}</span></div>
+            ${canWrite?`<button class="table-action" type="button" data-action="category-restore" data-id="${escapeHtml(row.id)}">Wieder einblenden</button>`:''}</div>`).join('')}</div>`
+        : '<p class="card-subtitle">Keine Kategorien ausgeblendet.</p>'}
+      <details class="category-advanced" style="margin-top:18px">
+        <summary>Automatische Textregeln</summary>
+        ${canWrite?formShell('rule-create','Kategorisierungsregel','Nur für Sonderfälle ohne Händlerzuordnung.',ruleFields,{hidden:false,submitLabel:'Regel speichern'}):''}
+        ${dataTable({headers:['Kategorie','Feld','Regel',''],rows:ruleRows,emptyText:'Noch keine Regeln.'})}
+      </details>
+      ${adminRole?`<details class="category-advanced" style="margin-top:18px">
+        <summary>Länderstandard verwalten</summary>
+        <p class="card-subtitle">Nur für Administratoren. Eigene Kategorien für ${escapeHtml(household?.country_code||'CH')} freigeben.</p>
+        ${ordered.filter((row)=>!countryMasterCategories.some((master)=>master.kind===row.kind
+          &&String(master.name||'').trim().toLowerCase()===String(row.name||'').trim().toLowerCase()))
+          .map((row)=>`<div class="category-child-row"><span>${escapeHtml(row.name)}</span>
+          <button class="table-action" type="button" data-action="category-promote-master" data-id="${escapeHtml(row.id)}">Für ${escapeHtml(household?.country_code||'CH')} freigeben</button></div>`).join('')||'<p class="card-subtitle">Alle aktiven Kategorien sind im Länderstandard vorhanden.</p>'}
+        <small>${escapeHtml(household?.country_code||'CH')}-Standard</small>
+      </details>`:''}
     </details>`;
 }
