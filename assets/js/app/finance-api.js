@@ -64,6 +64,7 @@ export const financeApi = Object.freeze({
   listAccounts(householdId) { return backend.rest(buildQuery('account_balances', { select: '*', household_id: `eq.${householdId}`, is_archived: 'eq.false', order: 'sort_order.asc,name.asc' })); },
   createAccount: (payload) => insert('accounts', payload), updateAccount: (id, patch) => update('accounts', id, patch), deleteAccount: (id) => remove('accounts', id),
   listCategories(householdId) { return listByHousehold('categories', householdId, { order: 'kind.asc,sort_order.asc,name.asc', extra: { is_archived: 'eq.false' } }); },
+  listCategoriesIncludingArchived(householdId) { return listByHousehold('categories', householdId, { order: 'kind.asc,sort_order.asc,name.asc' }); },
   createCategory: (payload) => insert('categories', payload), createCategories: (payload) => insertMany('categories', payload), updateCategory: (id, patch) => update('categories', id, patch), deleteCategory: (id) => remove('categories', id),
   listCategorizationRules(householdId) { return listByHousehold('categorization_rules', householdId, { select: '*,categories(name,kind)', order: 'priority.asc,created_at.asc' }); },
   createCategorizationRule: (payload) => insert('categorization_rules', payload), deleteCategorizationRule: (id) => remove('categorization_rules', id),
