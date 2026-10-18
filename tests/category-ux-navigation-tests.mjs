@@ -26,8 +26,10 @@ assert.doesNotMatch(readonly,/data-action="category-edit"/);
 assert.doesNotMatch(readonly,/data-action="category-archive"/);
 const merchants=renderMerchants({merchants:[{id:'m1',name:'EDEKA',normalized_key:'edeka'}],canWrite:true});
 const listPos=merchants.indexOf('Meine Händler');
-const dupPos=merchants.indexOf('Mögliche doppelte Händler prüfen');
-assert.ok(listPos>0&&dupPos>listPos,'merchant list before optional complex review');
+const merchantSource=fs.readFileSync(new URL('../assets/js/views/merchants.js',import.meta.url),'utf8');
+assert.ok(listPos>0,'merchant inventory appears first');
+assert.match(merchantSource,/Mögliche doppelte Händler prüfen/,'duplicate review is optionally shown when groups exist');
+assert.ok(merchantSource.lastIndexOf('${duplicateHtml?')>merchantSource.indexOf('Meine Händler'),'optional duplicate review is placed after inventory');
 assert.match(merchants,/Expertenbereich: mehrere Händler zusammenführen/);
 
 const main=fs.readFileSync(new URL('../assets/js/main.js',import.meta.url),'utf8');
