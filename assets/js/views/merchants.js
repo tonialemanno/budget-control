@@ -239,18 +239,16 @@ export function renderMerchants({
   return `
     ${pageHeader({
       title:'Händler',
-      subtitle:'Ein echter Händler pro Geschäft. Abweichende Banktexte und Zahlungsanbieter werden als Aliase geführt.',
+      subtitle:'Händler suchen, prüfen und bei Bedarf umbenennen. Ähnliche Banktexte werden im Hintergrund als Aliase geführt.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="merchant-create">${icon('plus')} Händler</button>`:''
     })}
     ${canWrite?formShell('merchant-create','Neuer Händler','Händler einmal zentral anlegen und künftig wiederverwenden',createFields,{hidden:true,submitLabel:'Händler speichern'}):''}
     ${canWrite?formShell('merchant-edit','Händler bearbeiten','Name und Standardkategorie zentral pflegen',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('merchant-merge-manual','Händler zusammenführen','Wähle, unter welchem Namen ALEMANNO BUCHHALTUNG beide Varianten künftig führen soll.',mergeFields,{hidden:true,submitLabel:'Zusammenführen'}):''}
 
-    ${duplicateHtml}
-
     <article class="card card-padding" style="margin-bottom:16px">
       <div class="card-heading">
-        <div><h3 class="card-title">Händlerbestand</h3><p class="card-subtitle">${merchants.length} Händler · ${merchantAliases.length} Aliase · ${duplicateMerchantIds.size} Händler mit möglicher Dublette</p></div>
+        <div><h3 class="card-title">Meine Händler</h3><p class="card-subtitle">${merchants.length} Händler · Suche nach Geschäft oder Kategorie. Dubletten stehen unten im aufklappbaren Bereich</p></div>
       </div>
       <div class="form-grid form-grid--2">
         <label class="field"><span>Händler, Alias oder Kategorie suchen</span><input class="text-control" id="merchantSearch" value="${escapeHtml(merchantQuery)}" placeholder="z. B. EDEKA, Aldi, Restaurant"></label>
@@ -262,16 +260,16 @@ export function renderMerchants({
       </div>
       <div class="table-meta">${filtered.length} Treffer · Seite ${safePage} von ${totalPages}</div>
     </article>
-    ${canWrite?`<article class="card card-padding" style="margin-bottom:16px">
-      <div class="card-heading">
-        <div><h3 class="card-title">Mehrere Händler zusammenführen</h3><p class="card-subtitle">Markiere beliebig viele Händler unten und wähle einmal, welcher Name bleiben soll.</p></div>
+    ${canWrite?`<details class="card card-padding category-advanced" style="margin-bottom:16px"><summary>Expertenbereich: mehrere Händler zusammenführen</summary>
+      <div class="card-heading" style="margin-top:12px">
+        <div><h3 class="card-title">Mehrere Händler zusammenführen</h3><p class="card-subtitle">Nur verwenden, wenn zwei Einträge dasselbe Geschäft bezeichnen.</p></div>
       </div>
       <div class="form-grid form-grid--2">
         <label class="field"><span>Zielhändler behalten</span><select class="text-control" id="merchantBulkCanonical"><option value="">Bitte wählen</option>${merchants.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de')).map((row)=>`<option value="${row.id}">${escapeHtml(row.name)}</option>`).join('')}</select></label>
         <div class="field"><span>Auswahl</span><div class="row-actions"><button class="table-action" type="button" data-action="merchant-select-visible">Alle sichtbaren markieren</button><button class="table-action" type="button" data-action="merchant-select-clear">Auswahl aufheben</button></div></div>
       </div>
       <div class="form-actions"><button class="action-button action-button--primary" type="button" data-action="merchant-bulk-merge">Ausgewählte zusammenführen</button></div>
-    </article>`:''}
+    </details>`:''}
 
     <article class="card card-padding">
       ${dataTable({
@@ -284,5 +282,6 @@ export function renderMerchants({
         <span class="table-meta">Seite ${safePage} / ${totalPages}</span>
         <button class="action-button action-button--secondary" type="button" data-action="merchant-page" data-page="${safePage+1}" ${safePage>=totalPages?'disabled':''}>Weiter</button>
       </div>`:''}
-    </article>`;
+    </article>
+    ${duplicateHtml?`<details class="card card-padding category-advanced" style="margin-top:16px"><summary>Mögliche doppelte Händler prüfen (${duplicateGroups.length})</summary>${duplicateHtml}</details>`:''}`;
 }
