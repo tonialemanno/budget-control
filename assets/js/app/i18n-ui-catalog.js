@@ -3021,7 +3021,7 @@ export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Nicht benötigte Kategorien können ausgeblendet werden, ohne Buchungen zu löschen\.$/, "$1 uscite · $2 entrate. Le categorie inutilizzate possono essere nascoste senza eliminare i movimenti."],
     [/^Unterkategorien anzeigen \((\d+)\)$/, "Mostra sottocategorie ($1)"],
-    [/^(\d+) Händler · Suche nach Geschäft oder Kategorie\. Dubletten stehen unten im aufklappbaren Bereich\.$/, "$1 esercenti · Cerca per negozio o categoria. I possibili duplicati sono nella sezione espandibile in basso."],
+    [/^(\d+) Händler · Suche nach Geschäft oder Kategorie\. Dubletten stehen unten im aufklappbaren Bereich$/, "$1 esercenti · Cerca per negozio o categoria. I possibili duplicati sono nella sezione espandibile in basso."],
     [/^Mögliche doppelte Händler prüfen \((\d+)\)$/, "Controlla possibili esercenti duplicati ($1)"],
     [/^Finanzmonat bis (.+) · Ein Vorschlag, kein garantiertes Guthaben\.$/, "Mese finanziario fino al $1 · Stima, non un saldo garantito."],
     [/^Für (\d+) Tage · höchstens (.+) pro Tag$/, "Per $1 giorni · massimo $2 al giorno"],
@@ -3138,7 +3138,7 @@ export const UI_PATTERNS = Object.freeze({
   en: Object.freeze([
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Nicht benötigte Kategorien können ausgeblendet werden, ohne Buchungen zu löschen\.$/, "$1 expenses · $2 income. Unused categories can be hidden without deleting transactions."],
     [/^Unterkategorien anzeigen \((\d+)\)$/, "Show subcategories ($1)"],
-    [/^(\d+) Händler · Suche nach Geschäft oder Kategorie\. Dubletten stehen unten im aufklappbaren Bereich\.$/, "$1 merchants · Search for merchant or category. Possible duplicates are in the expandable section below."],
+    [/^(\d+) Händler · Suche nach Geschäft oder Kategorie\. Dubletten stehen unten im aufklappbaren Bereich$/, "$1 merchants · Search for merchant or category. Possible duplicates are in the expandable section below."],
     [/^Mögliche doppelte Händler prüfen \((\d+)\)$/, "Review possible duplicate merchants ($1)"],
     [/^Finanzmonat bis (.+) · Ein Vorschlag, kein garantiertes Guthaben\.$/, "Financial month through $1 · An estimate, not a guaranteed balance."],
     [/^Für (\d+) Tage · höchstens (.+) pro Tag$/, "For $1 days · at most $2 per day"],
