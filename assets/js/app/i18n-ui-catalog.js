@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+
     "Aktive Kategorien": "Categorie attive",
     "Kategorie-Einstellungen": "Impostazioni categorie",
     "Unterkategorie hinzufügen": "Aggiungi sottocategoria",
@@ -1529,6 +1530,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+
     "Aktive Kategorien": "Active categories",
     "Kategorie-Einstellungen": "Category settings",
     "Unterkategorie hinzufügen": "Add subcategory",
@@ -3061,6 +3063,8 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^(\d+) Ausgaben · (\d+) Einnahmen\. Hier stehen nur die aktuell auswählbaren Kategorien und Unterkategorien\.$/, "$1 uscite · $2 entrate. Qui trovi solo categorie e sottocategorie disponibili."],
+    [/^Nur für Administratoren\. Eigene Kategorien für (CH|DE) freigeben\.$/, "Solo amministratori. Pubblica le categorie personalizzate per $1."],
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Hier stehen nur die aktuell auswählbaren Kategorien und Unterkategorien\.$/, "$1 uscite · $2 entrate. Qui sono visibili solo le categorie e le sottocategorie attive."],
     [/^Unterkategorie zu „(.+)“ hinzufügen$/, "Aggiungi sottocategoria a «$1»"],
     [/^Nur für Administratoren\. Eigene Kategorien für (.+) freigeben\.$/, "Solo per amministratori. Pubblica categorie personalizzate per $1."],
@@ -3182,6 +3186,8 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^(\d+) Ausgaben · (\d+) Einnahmen\. Hier stehen nur die aktuell auswählbaren Kategorien und Unterkategorien\.$/, "$1 expenses · $2 income. Only currently selectable categories and subcategories are shown."],
+    [/^Nur für Administratoren\. Eigene Kategorien für (CH|DE) freigeben\.$/, "Administrators only. Publish custom categories for $1."],
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Hier stehen nur die aktuell auswählbaren Kategorien und Unterkategorien\.$/, "$1 expenses · $2 income. Only currently selectable categories and subcategories appear here."],
     [/^Unterkategorie zu „(.+)“ hinzufügen$/, "Add subcategory under \"$1\""],
     [/^Nur für Administratoren\. Eigene Kategorien für (.+) freigeben\.$/, "Administrators only. Publish custom categories for $1."],
