@@ -3236,7 +3236,7 @@ async function handleForm(form) {
     const categoryId=formValue(data,'categoryId');
     const category=runtime.categories.find((row)=>row.id===categoryId);
     if(!category) throw new Error('Kategorie wurde nicht gefunden.');
-    const name=formValue(data,'name').trim().replace(/\\s+/g,' ');
+    const name=formValue(data,'name').trim().replace(/\s+/g,' ');
     if(!name) throw new Error('Bitte einen Namen eingeben.');
     const conflict=runtime.categories.find((row)=>row.id!==categoryId&&row.kind===category.kind
       &&(row.parent_id||null)===(category.parent_id||null)
@@ -5015,7 +5015,7 @@ async function handleAction(target) {
     const form=document.getElementById(target.dataset.target);
     if(target.dataset.target==='category-create'&&form){
       form.reset();
-      form.querySelector('.card-title').textContent='Kategorie hinzufügen';
+      form.querySelector('.card-title').textContent=t('Kategorie hinzufügen');
       const kind=form.querySelector('[name="kind"]');
       const parent=form.querySelector('[name="parentId"]');
       if(kind&&parent) [...parent.options].forEach((option)=>{
@@ -5043,7 +5043,7 @@ async function handleAction(target) {
       option.disabled=option.hidden;
     });
     parent.value=category.id;
-    form.querySelector('.card-title').textContent=`Unterkategorie zu „${category.name}“ hinzufügen`;
+    form.querySelector('.card-title').textContent=t(`Unterkategorie zu „${category.name}“ hinzufügen`);
     form.removeAttribute('hidden');
     form.scrollIntoView({behavior:'smooth',block:'start'});
     form.querySelector('[name="name"]')?.focus({preventScroll:true});

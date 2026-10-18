@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { renderCategories } from '../assets/js/views/categories.js';
 import { renderMerchants } from '../assets/js/views/merchants.js';
+import { t } from '../assets/js/app/i18n.js';
 
 const categories=[
  {id:'legal',name:'Rechts- & Gerichtskosten',kind:'expense',parent_id:null},
@@ -46,4 +47,12 @@ assert.match(api,/listCategoriesIncludingArchived/);
 assert.match(main,/await financeApi\.listCategoriesIncludingArchived\(householdId\)/);
 assert.match(layout,/position: fixed; inset: 0 0 auto var\(--sidebar-width\)/);
 assert.match(mobile,/\.topbar \{ left: 0; right: 0; \}/);
+
+assert.ok(main.includes(String.raw`const name=formValue(data,'name').trim().replace(/\s+/g,' ');`),
+  'editing a category must collapse whitespace rather than match literal \\s');
+assert.ok(main.includes('textContent=t(`Unterkategorie zu'), 'prefilled subcategory title must use UI translations');
+assert.ok(main.includes("textContent=t('Kategorie hinzufügen');"), 'new category form should use translated text');
+assert.equal(t('Unterkategorie zu „Lebensmittel“ hinzufügen','it-IT'), 'Aggiungi sottocategoria a «Lebensmittel»');
+assert.equal(t('Aktive Kategorien','it-IT'), 'Categorie attive');
+assert.equal(t('Kategorie-Einstellungen','it-IT'), 'Impostazioni categorie');
 console.log('Category editor, single tree, safe hide, non-resurrection and persistent menu tests OK');

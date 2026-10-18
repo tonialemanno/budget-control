@@ -1,3 +1,9 @@
+# R95 – Kategorien: Sprache und Umbenennung korrigiert
+- Der Kachel-Dialog «Unterkategorie hinzufügen» zeigt den dynamischen Titel auch auf Italienisch und Englisch.
+- Umbenennen normalisiert Leerzeichen korrekt, ohne Buchungen oder IDs zu verändern.
+- Neue Regressionstests für Bezeichnungen, übersetzte Dialoge und Namen; keine Datenbankmigration, Stable unverändert.
+- Version 2.4.39 · 2026.10.18-r95.
+
 # R94 – Kategorien & Händler verständlicher, Navigation bleibt sichtbar
 - Kategorien werden nur noch in einer Ansicht angezeigt; Unterkategorien sind einklappbar und durchsuchbar.
 - Kategorienamen können direkt bearbeitet werden, ohne IDs, Buchungen, Händler oder Kategorisierungsregeln zu verlieren.
