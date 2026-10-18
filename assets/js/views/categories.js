@@ -10,21 +10,28 @@ function categoryHideButton(id) {
   return `<button class="table-action" type="button" data-action="category-archive" data-id="${escapeHtml(id)}">Ausblenden</button>`;
 }
 
-function hierarchyCard(category,categories,canWrite) {
+function hierarchyCard(category,categories,canWrite,adminRole,household,countryMasterCategories) {
+  const standard=(row)=>countryMasterCategories.some((master)=>master.kind===row.kind
+    &&String(master.name||'').trim().toLowerCase()===String(row.name||'').trim().toLowerCase());
+  const adminTools=(row)=>adminRole&&!standard(row)
+    ?`<button class="table-action" type="button" data-action="category-promote-master" data-id="${escapeHtml(row.id)}">Für ${escapeHtml(household?.country_code||'CH')} freigeben</button>`:'';
+  const standardLabel=(row)=>standard(row)
+    ?` · ${escapeHtml(household?.country_code||'CH')}-Standard`:'';
+
   const children=categories.filter((row)=>row.parent_id===category.id)
     .sort((a,b)=>String(a.name).localeCompare(String(b.name),'de',{sensitivity:'base'}));
   const count=children.length;
   return `<article class="card category-tree-card" data-category-tree>
     <div class="category-tree-head">
       <span class="hub-link-icon">${icon(category.kind==='income'?'arrow-down-left':'basket')}</span>
-      <div><strong>${escapeHtml(category.name)}</strong><span>${category.kind==='income'?'Einnahme':'Ausgabe'}${count?` · ${count} Unterkategorie${count===1?'':'n'}`:''}</span></div>
-      ${canWrite?`<div class="table-actions">${categoryEditButton(category.id)}${categoryHideButton(category.id)}</div>`:''}
+      <div><strong>${escapeHtml(category.name)}</strong><span>${category.kind==='income'?'Einnahme':'Ausgabe'}${standardLabel(category)}${count?` · ${count} Unterkategorie${count===1?'':'n'}`:''}</span></div>
+      ${canWrite?`<div class="table-actions">${categoryEditButton(category.id)}${categoryHideButton(category.id)}${adminTools(category)}</div>`:''}
     </div>
     ${count?`<details class="category-children-toggle" data-category-children>
       <summary>Unterkategorien anzeigen (${count})</summary>
       <div class="category-child-list">${children.map((child)=>`<div class="category-child-row">
-        <div><strong>${escapeHtml(child.name)}</strong><span>Unterkategorie</span></div>
-        ${canWrite?`<div class="table-actions">${categoryEditButton(child.id)}${categoryHideButton(child.id)}</div>`:''}
+        <div><strong>${escapeHtml(child.name)}</strong><span>Unterkategorie${standardLabel(child)}</span></div>
+        ${canWrite?`<div class="table-actions">${categoryEditButton(child.id)}${categoryHideButton(child.id)}${adminTools(child)}</div>`:''}
       </div>`).join('')}</div>
     </details>`:''}
   </article>`;
@@ -75,7 +82,7 @@ export function renderCategories({
       <small>Hauptkategorien sind sichtbar, Unterkategorien werden erst bei Bedarf aufgeklappt. Eine Kategorie erscheint hier nur einmal.</small>
     </div>
     <div class="category-tree-grid">
-      ${roots.length?roots.map((row)=>hierarchyCard(row,ordered,canWrite)).join(''):'<div class="card card-padding table-empty">Noch keine Kategorien. Bei Bedarf eine Kategorie hinzufügen.</div>'}
+      ${roots.length?roots.map((row)=>hierarchyCard(row,ordered,canWrite,adminRole,household,countryMasterCategories)).join(''):'<div class="card card-padding table-empty">Noch keine Kategorien. Bei Bedarf eine Kategorie hinzufügen.</div>'}
     </div>
     <p class="card-subtitle">«Ausblenden» entfernt die Kategorie aus deiner Auswahl, aber keine historischen Buchungen. Auch Unterkategorien einer ausgeblendeten Hauptkategorie werden nicht mehr angezeigt.</p>
     <details class="card card-padding category-advanced">
