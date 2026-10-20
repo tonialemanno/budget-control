@@ -32,7 +32,7 @@ const settings=renderCategories({categories,canWrite:true,household,categoryView
   archivedCategories:[{id:'hidden',name:'Ehemalig',kind:'expense',is_archived:true}]});
 assert.match(settings,/Kategorie-Einstellungen/);
 assert.match(settings,/Hauptkategorie/);
-assert.match(settings,/Unterkategorie von Rechts- &amp; Gerichtskosten/);
+assert.match(settings,/Unterkategorie von <span data-category-parent-name="legal">Rechts- &amp; Gerichtskosten<\/span>/);
 assert.match(settings,/data-action="category-restore" data-id="hidden"/);
 assert.match(settings,/data-target="category-create"/);
 assert.ok(html.includes('Aktive Kategorien'),'active view does not open category management by default');
