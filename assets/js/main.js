@@ -3261,6 +3261,12 @@ async function handleForm(form) {
       for(const merchant of runtime.merchants||[]){
         if(merchant.default_category_id===id&&merchant.categories)merchant.categories.name=nextName;
       }
+      document.querySelectorAll('[data-category-parent-name]').forEach((label)=>{
+        if(label.dataset.categoryParentName===id)label.textContent=nextName;
+      });
+      document.querySelectorAll('select[name="categoryId"] option,select[name="parentId"] option').forEach(option=>{
+        if(option.value===id)option.textContent=nextName;
+      });
     }
     document.querySelectorAll('[data-category-entry]').forEach(node=>{
       if(node.dataset.categoryEntry!==id)return;
@@ -5081,6 +5087,10 @@ async function handleAction(target) {
       });
     }
     form?.removeAttribute('hidden');
+    if(target.dataset.target==='category-create'&&form){
+      form.scrollIntoView({behavior:'smooth',block:'start'});
+      form.querySelector('[name="name"]')?.focus({preventScroll:true});
+    }
     return;
   }
   if(action==='category-add-child'){
