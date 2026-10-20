@@ -69,7 +69,7 @@ export function renderCategories({
   const settingsList=parents.map(row=>`<div class="category-settings-group">
     <div class="category-child-row"><div><small>Hauptkategorie · ${row.kind==='income'?'Einnahme':'Ausgabe'}</small>${categoryInlineName(row)}</div>
       ${editActions(row,canWrite,{allowChild:true})}</div>
-    ${ordered(children.filter(child=>child.parent_id===row.id)).map(child=>`<div class="category-child-row category-settings-child"><div><small>Unterkategorie von ${escapeHtml(row.name)}</small>${categoryInlineName(child)}</div>
+    ${ordered(children.filter(child=>child.parent_id===row.id)).map(child=>`<div class="category-child-row category-settings-child"><div><small>Unterkategorie von <span data-category-parent-name="${escapeHtml(row.id)}">${escapeHtml(row.name)}</span></small>${categoryInlineName(child)}</div>
       ${editActions(child,canWrite)}</div>`).join('')}
   </div>`).join('');
   const hiddenList=archivedCategories.length
@@ -96,7 +96,7 @@ export function renderCategories({
     <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Unterkategorien</h3><p class="card-subtitle">Jede Unterkategorie zeigt ihre Hauptkategorie.</p></div></div>
       ${parents.map(parent=>`<div class="category-settings-group"><h4>${escapeHtml(parent.name)}</h4>
         ${canWrite?`<button class="table-action" type="button" data-action="category-add-child" data-id="${escapeHtml(parent.id)}">${icon('plus')} Unterkategorie hinzufügen</button>`:''}
-        ${ordered(children.filter(row=>row.parent_id===parent.id)).map(child=>`<div class="category-child-row"><div>${categoryInlineName(child)}<small>Hauptkategorie: ${escapeHtml(parent.name)}</small></div>${editActions(child,canWrite)}</div>`).join('')||'<p class="card-subtitle">Noch keine Unterkategorien.</p>'}
+        ${ordered(children.filter(row=>row.parent_id===parent.id)).map(child=>`<div class="category-child-row"><div>${categoryInlineName(child)}<small>Hauptkategorie: <span data-category-parent-name="${escapeHtml(parent.id)}">${escapeHtml(parent.name)}</span></small></div>${editActions(child,canWrite)}</div>`).join('')||'<p class="card-subtitle">Noch keine Unterkategorien.</p>'}
       </div>`).join('')}</article>`:''}
     ${view==='rules'?`<article class="card card-padding"><h3 class="card-title">Regeln</h3>
       <p class="card-subtitle">Automatische Textregeln sind optional. Händler werden normalerweise über ihre Standardkategorie erkannt.</p>
