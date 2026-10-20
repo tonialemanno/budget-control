@@ -1366,7 +1366,16 @@ function filterMerchantSelect(searchInput,select) {
   if(selected?.hidden) select.value='';
 }
 
-async function seedStarterCategoriesForHousehold(householdId, countryCode, existingCategories = []) {
+const starterInstallRuns=new Map();
+async function seedStarterCategoriesForHousehold(householdId,countryCode,existingCategories=[]){
+  if(starterInstallRuns.has(householdId))return starterInstallRuns.get(householdId);
+  const task=installStarterCategoriesOnce(householdId,countryCode,existingCategories);
+  starterInstallRuns.set(householdId,task);
+  try{return await task;}finally{
+    if(starterInstallRuns.get(householdId)===task)starterInstallRuns.delete(householdId);
+  }
+}
+async function installStarterCategoriesOnce(householdId, countryCode, existingCategories = []) {
   const cfg = countryConfig(countryCode || 'CH');
   let changed = 0;
 
@@ -3265,7 +3274,7 @@ async function handleForm(form) {
     const name=formValue(data,'name').trim().replace(/\s+/g,' ');
     if(!name) throw new Error('Bitte einen Kategorienamen eingeben.');
     const kind=parent?.kind||formValue(data,'kind');
-    const duplicate=runtime.categories.find((row)=>row.kind===kind&&(row.parent_id||null)===(parentId||null)
+    const duplicate=(runtime.allCategories||runtime.categories).find((row)=>!row.is_archived&&row.kind===kind&&(row.parent_id||null)===(parentId||null)
       &&String(row.name||'').trim().toLocaleLowerCase('de')===name.toLocaleLowerCase('de'));
     if(duplicate) throw new Error('Dieser Kategoriename ist an dieser Stelle bereits vorhanden.');
     await financeApi.createCategory({household_id:h,parent_id:parentId,name,kind,
@@ -5307,6 +5316,14 @@ async function handleAction(target) {
           }
         }
       }
+    }
+    for(const id of restoreIds){
+      const candidate=hidden.find(row=>row.id===id);
+      if(!candidate)continue;
+      const duplicate=runtime.categories.some(row=>row.kind===candidate.kind
+        &&(row.parent_id||null)===(candidate.parent_id||null)
+        &&String(row.name||'').trim().toLocaleLowerCase('de')===String(candidate.name||'').trim().toLocaleLowerCase('de'));
+      if(duplicate)throw new Error(`„${candidate.name}“ ist bereits aktiv. Bitte die vorhandene Kategorie verwenden.`);
     }
     for(const id of restoreIds)await financeApi.updateCategory(id,{is_archived:false});
     await refresh(`${restoreIds.size} Kategorie${restoreIds.size===1?'':'n'} wieder eingeblendet.`);
