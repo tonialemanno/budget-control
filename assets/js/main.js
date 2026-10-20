@@ -1141,6 +1141,7 @@ async function loadContext({generation=sessionGeneration,userId=runtime.user?.id
 }
 
 function renderSetup() {
+  document.body.classList.add('onboarding-mode');
   renderNavigation();
   pageTitle.textContent = t('Einrichtung');
   pageEyebrow.textContent = t('ALEMANNO BUCHHALTUNG Core');
@@ -4856,7 +4857,7 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['fixed-cost-open','category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -5086,6 +5087,23 @@ async function handleAction(target) {
     form.removeAttribute('hidden');
     form.scrollIntoView({behavior:'smooth',block:'start'});
     form.querySelector('[name="name"]')?.focus({preventScroll:true});
+    return;
+  }
+  if(action==='fixed-cost-open'){
+    const direction=target.dataset.direction;
+    if(!['income','expense','transfer'].includes(direction))throw new Error('Ungültige Art der festen Zahlung.');
+    const form=document.querySelector('#fixed-cost-create');
+    if(!form)throw new Error('Das Formular für feste Zahlungen fehlt.');
+    form.reset();
+    const directionSelect=form.querySelector('[name="direction"]');
+    if(!directionSelect)throw new Error('Das Formular ist unvollständig.');
+    directionSelect.value=direction;
+    syncFixedCostDirectionUI(false);
+    form.querySelector('.card-title').textContent=t(direction==='income'
+      ?'Neue feste Einnahme':direction==='expense'?'Neue fixe Ausgabe':'Neue feste Umbuchung');
+    form.removeAttribute('hidden');
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    form.querySelector('[name="description"]')?.focus({preventScroll:true});
     return;
   }
   if (action === 'masterdata-install-country') {
