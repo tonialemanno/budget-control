@@ -9,7 +9,7 @@ for(const table of ['transactions','merchants','recurring_rules','budgets','bill
  assert.ok(sql.includes('public.'+table),'cannot archive duplicates referenced by '+table);
 assert.match(sql,/CREATE UNIQUE INDEX IF NOT EXISTS categories_unique_active_siblings_v1/);
 assert.match(sql,/WHERE is_archived=false/);
-assert.doesNotMatch(sql,/\bDELETE\b|DROP TABLE|TRUNCATE/i);
+assert.doesNotMatch(sql.split('\n').filter(line=>!line.trim().startsWith('--')).join('\n'),/\bDELETE\b|DROP TABLE|TRUNCATE/i);
 const root={id:'legal',kind:'expense',name:'Rechts- & Gerichtskosten',parent_id:null};
 const child={id:'court',kind:'expense',name:'Gerichtskosten',parent_id:'legal'};
 const overview=renderCategories({categories:[root,child],categoryView:'main',canWrite:true});
