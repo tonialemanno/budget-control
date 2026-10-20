@@ -1242,6 +1242,13 @@ function render() {
     yearCloseYear: uiState.yearCloseYear,
     yearCloseError: uiState.yearCloseError,
   });
+  if(document.body.classList.contains('onboarding-mode') && route!=='setup'){
+    const back=document.createElement('nav');
+    back.className='onboarding-return';
+    back.setAttribute('aria-label',t('Einrichtung'));
+    back.innerHTML=`<a class="action-button action-button--secondary" href="/setup">${icon('arrow-left')} ${escapeHtml(t('Zur Einrichtung'))}</a>`;
+    pageContent.prepend(back);
+  }
   rewriteLegacyRouteLinks(pageContent);
   lastRenderedHref=`${location.pathname}${location.search}`;
   document.querySelectorAll('[data-route]').forEach((el) => el.dataset.route === route ? el.setAttribute('aria-current','page') : el.removeAttribute('aria-current'));
