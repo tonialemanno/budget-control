@@ -57,10 +57,10 @@ const setup=renderSetupGuide({
   budgets:[],goals:[],debts:[],receivables:[],taxCases:[],
   household,profile,canWrite:true,moduleAccess:{tax:true,budget:true},hiddenModules:[],
 });
-assert.match(setup,/Zahler \/ Quelle der Einnahme/);
-assert.match(setup,/Eingang auf Konto/);
-assert.match(setup,/Gehalt/);
-assert.match(setup,/Krankenversicherung/);
+assert.match(setup,/Feste Zahlungen/);
+assert.match(setup,/Alle festen Positionen öffnen|>Öffnen</);
+assert.doesNotMatch(setup,/id="setup-income-create"|id="setup-expense-create"/,'setup should contain only task links, not payment forms');
+
 assert.doesNotMatch(setup,/Krankenkasse/);
 assert.doesNotMatch(setup,/#\/tax-advisor/);
 assert.doesNotMatch(setup,/UBS/);
