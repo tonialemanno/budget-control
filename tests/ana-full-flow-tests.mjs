@@ -18,7 +18,7 @@ assert.match(overview,/data-action="category-edit" data-id="court"/);
 assert.match(overview,/data-action="category-add-child" data-id="legal"/);
 assert.doesNotMatch(overview,/data-action="category-add-child" data-id="court"/);
 const settings=renderCategories({categories:[root,child],categoryView:'settings',canWrite:true});
-assert.match(settings,/Unterkategorie von Rechts- &amp; Gerichtskosten/);
+assert.match(settings,/Unterkategorie von <span data-category-parent-name="legal">Rechts- &amp; Gerichtskosten<\/span>/);
 assert.match(settings,/data-target="category-create"/);
 const fixed=renderFixedCosts({canWrite:true,household:{country_code:'DE',base_currency:'EUR'}});
 for(const direction of ['income','expense','transfer'])assert.ok(fixed.includes('data-direction="'+direction+'"'));
