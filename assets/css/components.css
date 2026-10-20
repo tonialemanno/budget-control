@@ -2080,3 +2080,5 @@ button.statistics-metric:focus-visible { outline:2px solid var(--accent); outlin
 .category-hidden-list { margin:12px 0; }
 #category-create, #fixed-cost-create { scroll-margin-top:calc(var(--topbar-height) + 76px); }
 @media(max-width:660px){ .category-workspace-nav { top:calc(var(--topbar-height) + env(safe-area-inset-top)); overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none; } .category-workspace-tab { flex:0 0 auto; } .category-settings-child { padding-left:16px; } .category-inline-form label { min-width:120px; } }
+
+.onboarding-return { display:flex; margin:0 0 16px; }
