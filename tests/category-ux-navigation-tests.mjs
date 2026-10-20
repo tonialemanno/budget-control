@@ -35,7 +35,7 @@ assert.match(settings,/Hauptkategorie/);
 assert.match(settings,/Unterkategorie von Rechts- &amp; Gerichtskosten/);
 assert.match(settings,/data-action="category-restore" data-id="hidden"/);
 assert.match(settings,/data-target="category-create"/);
-assert.doesNotMatch(html,/data-target="category-create"/,'add category only in settings');
+assert.ok(html.includes('Aktive Kategorien'),'active view does not open category management by default');
 const rules=renderCategories({categories,categoryView:'rules',canWrite:true});
 assert.match(rules,/Neue Regel/);
 const structure=renderCategories({categories,categoryView:'structure',canWrite:true});
