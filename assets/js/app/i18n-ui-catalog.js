@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "Zur Einrichtung": "Torna alla configurazione",
     "Prüfe feste Einnahmen, Ausgaben und Umbuchungen auf der eigenen Seite. Hier werden keine Positionen erstellt oder bearbeitet.": "Controlla entrate fisse, uscite e trasferimenti nella pagina dedicata. Qui non si creano né modificano voci.",
     "Hauptkategorien, Unterkategorien, Regeln und Händler an einem Ort.": "Categorie principali, sottocategorie, regole ed esercenti in un unico posto.",
     "Neue Kategorien nur dort anlegen, wo sie wirklich gebraucht werden.": "Crea nuove categorie solo se necessarie.",
@@ -1564,6 +1565,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "Zur Einrichtung": "Back to setup",
     "Prüfe feste Einnahmen, Ausgaben und Umbuchungen auf der eigenen Seite. Hier werden keine Positionen erstellt oder bearbeitet.": "Review recurring income, expenses and transfers on their own page. Items cannot be edited here.",
     "Hauptkategorien, Unterkategorien, Regeln und Händler an einem Ort.": "Main categories, subcategories, rules and merchants in one place.",
     "Neue Kategorien nur dort anlegen, wo sie wirklich gebraucht werden.": "Only create new categories if needed.",
