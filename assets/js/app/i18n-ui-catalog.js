@@ -3131,6 +3131,8 @@ export const UI_TRANSLATIONS = Object.freeze({
 
 export const UI_PATTERNS = Object.freeze({
   it: Object.freeze([
+    [/^Ausgabe · (\d+) sottocategorie$/,"Uscita · $1 sottocategorie"],
+    [/^Einnahme · (\d+) sottocategorie$/,"Entrata · $1 sottocategorie"],
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Unterkategorien lassen sich in den Kacheln öffnen\.$/, "$1 uscite · $2 entrate. Apri le sottocategorie nei riquadri."],
     [/^(Einnahme|Ausgabe) · (\d+) Unterkategorien?$/, "$1 · $2 sottocategorie"],
     [/^Unterkategorie von (.+)$/, "Sottocategoria di $1"],
@@ -3259,6 +3261,8 @@ export const UI_PATTERNS = Object.freeze({
     [/^Variable Ausgaben für (.+) planen und nachvollziehen\. Fixkosten bleiben sichtbar, werden aber nicht in dein variables Budget eingerechnet\.$/, 'Pianifica e monitora le spese variabili per $1. I costi fissi restano visibili, ma non vengono inclusi nel budget variabile.']
   ]),
   en: Object.freeze([
+    [/^Ausgabe · (\d+) subcategories$/,"Expense · $1 subcategories"],
+    [/^Einnahme · (\d+) subcategories$/,"Income · $1 subcategories"],
     [/^(\d+) Ausgaben · (\d+) Einnahmen\. Unterkategorien lassen sich in den Kacheln öffnen\.$/, "$1 expenses · $2 income. Expand subcategories in the cards."],
     [/^(Einnahme|Ausgabe) · (\d+) Unterkategorien?$/, "$1 · $2 subcategories"],
     [/^Unterkategorie von (.+)$/, "Subcategory of $1"],
