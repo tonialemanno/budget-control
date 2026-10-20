@@ -28,3 +28,10 @@
 .mobile-scrim { display: none; }
 
 .nav-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 3px; scrollbar-width: thin; }
+
+/* During initial setup, keep the account menu but remove unrelated global navigation. */
+body.onboarding-mode .sidebar,
+body.onboarding-mode .mobile-tabbar,
+body.onboarding-mode .mobile-scrim { display:none !important; }
+body.onboarding-mode .main-column { margin-left:0; }
+body.onboarding-mode .topbar { left:0; right:0; }

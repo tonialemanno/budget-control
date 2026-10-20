@@ -96,6 +96,7 @@ const categoryHtml=renderCategories({
     {id:'c2',name:'Eigene Kategorie',kind:'expense',parent_id:null},
   ],
   countryMasterCategories:masterCategories,
+  categoryView:'settings',
 });
 assert.match(categoryHtml,/category-promote-master/);
 assert.match(categoryHtml,/CH-Standard/);

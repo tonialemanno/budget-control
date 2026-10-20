@@ -1,4 +1,5 @@
 import { dataTable, formShell, pageHeader } from '../app/components.js';
+import { renderCategoryWorkspaceNav } from './category-workspace.js';
 import { escapeHtml } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { merchantFamilyKey, merchantSimilarity } from '../app/duplicate-intelligence.js';
@@ -242,6 +243,7 @@ export function renderMerchants({
       subtitle:'Händler suchen, prüfen und bei Bedarf umbenennen. Ähnliche Banktexte werden im Hintergrund als Aliase geführt.',
       actions:canWrite?`<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="merchant-create">${icon('plus')} Händler</button>`:''
     })}
+    ${renderCategoryWorkspaceNav('merchants')}
     ${canWrite?formShell('merchant-create','Neuer Händler','Händler einmal zentral anlegen und künftig wiederverwenden',createFields,{hidden:true,submitLabel:'Händler speichern'}):''}
     ${canWrite?formShell('merchant-edit','Händler bearbeiten','Name und Standardkategorie zentral pflegen',editFields,{hidden:true,submitLabel:'Änderungen speichern'}):''}
     ${canWrite?formShell('merchant-merge-manual','Händler zusammenführen','Wähle, unter welchem Namen ALEMANNO BUCHHALTUNG beide Varianten künftig führen soll.',mergeFields,{hidden:true,submitLabel:'Zusammenführen'}):''}

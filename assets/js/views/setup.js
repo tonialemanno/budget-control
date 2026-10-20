@@ -185,11 +185,11 @@ export function renderSetupGuide({
       actions:actionLink('#/merchants',s.automation?'Händler prüfen':'Händler zuordnen',!s.automation),
     }),
     stepCard({
-      number:7,key:'recurring',title:'Monatseinnahmen & Fixkosten',
-      text:'Lege schon beim Start fest, was monatlich hereinkommt und welche festen Verpflichtungen du hast. So kennt ALEMANNO BUCHHALTUNG deinen echten Monatsrahmen vor dem ersten Import.',
+      number:7,key:'recurring',title:'Feste Zahlungen',
+      text:'Prüfe feste Einnahmen, Ausgaben und Umbuchungen auf der eigenen Seite. Hier werden keine Positionen erstellt oder bearbeitet.',
       done:s.recurring,current:firstOpen==='recurring',optional:true,iconName:'repeat',
       meta:`${status.recurringIncome} / ${status.recurringExpenses}`,
-      actions:`${setupMonthlyPlanForms({accounts,categories,recurringRules,canWrite,countryCode:household?.country_code||'CH'})}<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Alle festen Positionen öffnen',false)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
+      actions:`<div class="setup-wizard-actions-row">${actionLink('#/fixed-costs','Öffnen',true)}${!s.recurring&&canWrite?reviewButton('recurring','Später einrichten'):''}</div>`,
     }),
     stepCard({
       number:8,key:'modules',title:'Budget, Ziele, Schulden, Forderungen & Steuern',

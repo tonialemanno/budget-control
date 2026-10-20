@@ -1,3 +1,12 @@
+# R96 – Ana UX: geführte Einrichtung, Kategorien & feste Zahlungen
+- Einheitlicher Bereich „Kategorien & Regeln“ mit unveränderlicher Unternavigation zu Hauptkategorien, Unterkategorien, Regeln, Händlern und empfohlener Struktur.
+- Direkte Namensbearbeitung an Kategorien und Unterkategorien ohne Scrollsprung; Kategorie-ID und bestehende Finanzverknüpfungen bleiben erhalten.
+- Kategorie-Einstellungen getrennt von aktiven Kategorien. Hinzufügen dort oder direkt in der zugehörigen Hauptkategorie. Archivierte Kategorien können wieder eingeblendet werden, sofern keine aktive Dublette existiert.
+- Einrichtung zeigt eine Aufgabenliste ohne linke Hauptnavigation; „Zur Einrichtung“ führt aus Unterseiten zurück. Feste Zahlungen nur über „Öffnen“ erreichbar, nicht inline bearbeitbar.
+- Feste Zahlungen: separate Eingaben für Einnahmen, Ausgaben und Umbuchungen, eigene Anzahl-Zähler; bestehende Rücklagen und monatliche Verpflichtungen bleiben.
+- SQL-Migration: Nur vollständig unbenutzte Kategorie-Dubletten ausblenden, restriktiver Datenbankindex verhindert aktive Geschwisterdubletten auch bei parallelen Requests.
+- IT/EN ergänzt; auf Beta freigeben, Stable nicht verändern. 2.4.40 · 2026.10.20-r96.
+
 # R95 – Kategorien: Sprache und Umbenennung korrigiert
 - Der Kachel-Dialog «Unterkategorie hinzufügen» zeigt den dynamischen Titel auch auf Italienisch und Englisch.
 - Umbenennen normalisiert Leerzeichen korrekt, ohne Buchungen oder IDs zu verändern.
