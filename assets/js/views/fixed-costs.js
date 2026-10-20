@@ -104,7 +104,10 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
     ${pageHeader({
       title:'Feste Zahlungen',
       subtitle:'Der einfache Einstieg für Lohn, Miete, Krankenkasse, Abos, Rücklagen und feste Umbuchungen. ALEMANNO BUCHHALTUNG hält die technische Wiederholungslogik im Hintergrund zusammen.',
-      actions:`${canWrite?'<button class="action-button action-button--primary" type="button" data-action="show-form" data-target="fixed-cost-create">'+icon('plus')+' Position hinzufügen</button>':''}<a class="action-button action-button--secondary" href="#/bills">Einzelne Rechnungen</a>`
+      actions:canWrite?['income','expense','transfer'].map((direction)=>{
+        const name=direction==='income'?'Einnahmen':direction==='expense'?'Ausgaben':'Umbuchung';
+        return `<button class="action-button ${direction==='income'?'action-button--primary':'action-button--secondary'}" type="button" data-action="fixed-cost-open" data-direction="${direction}">${icon('plus')} ${name}</button>`;
+      }).join(''):''
     })}
     ${canWrite?formShell('fixed-cost-create','Neue feste Position',household?.country_code==='DE'?'Gehalt, andere Einnahme, Ausgabe oder feste Umbuchung mit optionalem Enddatum':'Lohn, andere Einnahme, Ausgabe oder feste Umbuchung mit optionalem Enddatum',fixedCostFields({accounts,categories,merchants,defaultAccountId,countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Speichern'}):''}
     ${canWrite?formShell('fixed-cost-edit','Feste Position bearbeiten','Betrag, Gegenpartei, Rhythmus, Laufzeit oder Status ändern',fixedCostFields({accounts,categories,merchants,edit:true,countryCode:household?.country_code||'CH'}),{hidden:true,submitLabel:'Änderungen speichern'}):''}
@@ -113,7 +116,9 @@ export function renderFixedCosts({ recurringRules = [], accounts = [], categorie
       ${metricCard('Feste Einnahmen / Monat',money(monthlyIncome,{currency,locale}),household?.country_code==='DE'?'Gehalt, Unterhalt, Kindergeld und andere planbare Einnahmen':'Lohn und andere planbare Einnahmen','positive')}
       ${metricCard('Fixe Ausgaben / Monat',money(monthlyExpenses,{currency,locale}),'echte regelmässige Kosten')}
       ${metricCard('Rücklagen & Umbuchungen / Monat',money(monthlyTransfers,{currency,locale}),monthlyReserve>0?`davon Rücklagen ${money(monthlyReserve,{currency,locale})}`:'Sparen, Überschuss und andere Töpfe')}
-      ${metricCard('Aktive Positionen',String(running.length),'Einnahmen, Ausgaben und Umbuchungen')}
+      ${metricCard('Feste Einnahmen',String(running.filter((r)=>r.direction==='income').length),'aktive Einnahme-Positionen')}
+      ${metricCard('Fixe Ausgaben',String(running.filter((r)=>r.direction==='expense').length),'aktive Ausgaben-Positionen')}
+      ${metricCard('Umbuchungen',String(running.filter((r)=>r.direction==='transfer').length),'aktive Umbuchungen')}
     </div>
 
     <article class="card card-padding">
