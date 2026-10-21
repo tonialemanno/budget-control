@@ -29,9 +29,9 @@ Exactly **291** tracked files matching source/test/config extensions are listed.
 
 ## EON memory status and project activation
 
-**Important current blocker:** AxiomSeal returns `REQUIRE_CONFIRM` and stores detailed source memories as `pending_confirm`. It excludes these records from searches and active project counts. The project `budget-control` therefore does not appear in `eon_projects` until memories are approved. As of this audit, **10 nonduplicate records** are awaiting review (IDs 4–7, 9–14). The accidental newer duplicate for `runtime-config.js` was deleted with an AxiomSeal audit certificate; the original remains.
+**Verified active and searchable:** AxiomSeal now lists the project `budget-control` and exactly **10 nonduplicate active memories** (IDs 4–7, 9–14). Verification used `eon_projects`, `eon_list(project_id='budget-control')`, `eon_search` for `assets/js/app/backend.js`, and `eon_get(memory_id=4)`. The accidental newer duplicate for `runtime-config.js` was deleted with an AxiomSeal audit certificate; the original remains.
 
-Review at https://app.axiomseal.com/quarantine . After approval, verify via `eon_projects`, `eon_list(project_id='budget-control')` and `eon_search(project_id='budget-control',query=<filename>)`. This repository scan does **not** create a new ChatGPT UI project; the user is already working within **App erstellungen**.
+Further context memories should be created one source file at a time after checking `eon_search` and `eon_list` for existing filename entries. This repository scan does **not** create a new ChatGPT UI project; the user is already working within **App erstellungen**.
 
 ## Priorities
 
