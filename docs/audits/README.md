@@ -31,6 +31,8 @@ Exactly **291** tracked files matching source/test/config extensions are listed.
 
 **Verified active and searchable:** AxiomSeal now lists the project `budget-control` and exactly **10 nonduplicate active memories** (IDs 4–7, 9–14). Verification used `eon_projects`, `eon_list(project_id='budget-control')`, `eon_search` for `assets/js/app/backend.js`, and `eon_get(memory_id=4)`. The accidental newer duplicate for `runtime-config.js` was deleted with an AxiomSeal audit certificate; the original remains.
 
+**Further processing:** 13 additional per-file context entries, IDs 15–27, were submitted after exact-filename search: household-members Edge API; finance-api; categories; category uniqueness migration; format; config; FX; transaction engine; finance semantics; setup; fixed costs; merchants; and receipt OCR. At last verification, 17 entries in this project were active and searchable, while 6 remained pending confirmation. These counts change asynchronously: check `eon_list(project_id='budget-control')` before asserting completion. There are not yet 291 detailed EON memories.
+
 Further context memories should be created one source file at a time after checking `eon_search` and `eon_list` for existing filename entries. This repository scan does **not** create a new ChatGPT UI project; the user is already working within **App erstellungen**.
 
 ## Priorities
