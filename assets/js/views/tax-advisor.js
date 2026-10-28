@@ -4,6 +4,7 @@ import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { t } from '../app/i18n.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
+import { taxInstallmentSchedule } from '../app/tax-installments.js';
 
 const TAX_YEARS=[2025,2026,2027];
 
@@ -73,10 +74,10 @@ function taxMovementBase(tx,targetCurrency,fxRates){
   const converted=convertAmount(Math.abs(num(tx?.amount)),tx?.currency||targetCurrency,targetCurrency,fxRates);
   return converted===null?0:Math.abs(converted);
 }
-function caseForYear(cases,year){ return (cases||[]).find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG')||null; }
-function ruleForYear(rules,year){ return (rules||[]).find((row)=>row.country_code==='CH'&&row.canton_code==='SG'&&Number(row.tax_year)===Number(year))||null; }
+function caseForYear(cases,year,region='SG'){ return (cases||[]).find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code===region)||null; }
+function ruleForYear(rules,year,region='SG'){ return (rules||[]).find((row)=>row.country_code==='CH'&&row.canton_code===region&&Number(row.tax_year)===Number(year))||null; }
 
-function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates){
+function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates,plans=[]){
   if(!taxCase) return {paid:0,refunds:0,due:0,open:0,known:false,transactionPaid:0,transactionRefunds:0};
   const caseObligations=(obligations||[]).filter((row)=>row.tax_case_id===taxCase.id&&row.status!=='cancelled');
   const casePayments=(payments||[]).filter((row)=>row.tax_case_id===taxCase.id);
@@ -97,6 +98,11 @@ function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates){
   const fallback=num(taxCase.assessed_tax_amount)||num(taxCase.expected_tax_amount);
   const due=obligationsTotal>0?obligationsTotal:fallback;
   const known=obligationsTotal>0||taxCase.assessed_tax_amount!==null&&taxCase.assessed_tax_amount!==undefined||taxCase.expected_tax_amount!==null&&taxCase.expected_tax_amount!==undefined;
+  const activePlans=(plans||[]).filter((p)=>p.tax_case_id===taxCase.id&&p.status==='active');
+  if(caseObligations.length===1&&activePlans.length===1&&activePlans[0].obligation_id===caseObligations[0].id){
+    const schedule=taxInstallmentSchedule(activePlans[0],casePayments);
+    return {paid,refunds,due,open:schedule.remaining,known:true,transactionPaid,transactionRefunds,balanceSnapshot:true};
+  }
   return {paid,refunds,due,open:Math.max(0,due-paid+refunds),known,transactionPaid,transactionRefunds};
 }
 
@@ -171,19 +177,20 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
-  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false,
-  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
+  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, taxMatchId=null, canWrite=false, canAdminHousehold=false,
+  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxInstallmentPlans = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
   const year=Number(taxYear)||2026;
-  const taxCase=caseForYear(taxCases,year);
+  const region=household?.tax_region_code || (taxCases||[]).find((c)=>c.country_code==='CH')?.canton_code || 'SG';
+  const taxCase=caseForYear(taxCases,year,region);
   const closedYear=(yearClosures||[]).find(row=>Number(row.tax_year)===year&&row.status==='closed');
-  const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year);
-  const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y)]));
+  const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year,region);
+  const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y,region)]));
   const yearCards=TAX_YEARS.map((y)=>{
-    const c=caseForYear(taxCases,y);
-    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments,transactions,fxRates),selected:y===year,locale});
+    const c=caseForYear(taxCases,y,region);
+    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments,transactions,fxRates,taxInstallmentPlans),selected:y===year,locale});
   }).join('');
 
   const taxTransactions=transactions.filter((tx)=>tx.tax_relevant&&effectiveTaxYear(tx)===year);
@@ -215,8 +222,9 @@ export function renderTaxAdvisor({
     tx.status==='booked' && !tx.transfer_group_id && tx.cashflow_type==='standard' &&
     tx.currency===taxPaymentCurrency &&
     !linkedTaxTransactionIds.has(tx.id) && !paidBillTransactionIds.has(tx.id) &&
-    (effectiveTaxYear(tx)===year || (!tx.tax_relevant && new Date(tx.occurred_at).getFullYear()===year))
-  );
+    !tx.tax_relevant && Number(tx.amount)<0 &&
+    (tx.categories?.name==='Steuern' || tx.id===taxMatchId || /steuer|tax|finanzamt/i.test(tx.description||''))
+  ).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,250);
   const taxPaymentAccounts=(accounts||[]).filter((account)=>account.currency===taxPaymentCurrency);
   const sourceOptions=[
     ...accounts.map((row)=>({value:`account:${row.account_id}`,label:`Konto · ${row.name}`})),
@@ -230,9 +238,12 @@ export function renderTaxAdvisor({
   ];
   const completeSections=TAX_SECTIONS.filter((section)=>['complete','not_applicable'].includes(sectionRows.get(section.key)?.status)).length;
   const completeness=Math.round((completeSections/TAX_SECTIONS.length)*100);
-  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments,transactions,fxRates);
+  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments,transactions,fxRates,taxInstallmentPlans);
   const selectedObligations=(taxObligations||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPayments=(taxPayments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
+  const selectedPlan=(taxInstallmentPlans||[]).find((p)=>p.tax_case_id===taxCase?.id&&p.status==='active')||null;
+  const installmentSchedule=selectedPlan?taxInstallmentSchedule(selectedPlan,selectedPayments):null;
+  const pendingBankPayment=taxMatchId?(transactions||[]).find((tx)=>tx.id===taxMatchId&&!tx.tax_relevant)||null;
   const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
   const selectedChildren=(taxChildren||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedEmployments=(taxEmployments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
@@ -366,7 +377,7 @@ export function renderTaxAdvisor({
   </form>`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">Noch nicht angelegt. Der Jahresstatus bleibt trotzdem in der Übersicht sichtbar.</p></div>${ruleStatus(rule)}</div>${canWrite?`<button class="action-button action-button--primary" type="button" data-action="tax-case-create" data-year="${year}">${icon('plus')} Steuerfall ${year} anlegen</button>`:''}</article>`;
 
   return `
-    ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
+    ${pageHeader({title:`Tax Center · ${region}`,subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
     ${!canAdminHousehold?'':closedYear?`<div class="inline-alert inline-alert--success"><strong>${escapeHtml(t('Jahresabschluss gesichert',locale))} · ${year} (${escapeHtml(t('Version',locale))} ${Number(closedYear.revision||0)})</strong><span>${escapeHtml(t('Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Abschluss ansehen',locale))} →</a></span></div>`:`<div class="inline-alert"><strong>${escapeHtml(t('Jahresabschluss noch offen',locale))} · ${year}</strong><span>${escapeHtml(t('Die Steuerdaten sind vorläufig. Erst nach dem Jahresabschluss steht ein eingefrorener Buchungsstand bereit.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Jahrescenter öffnen',locale))} →</a></span></div>`}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
     <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
@@ -493,7 +504,7 @@ export function renderTaxAdvisor({
       <div class="metric-grid">
         ${metricCard('Soll / Rechnungen',selectedLedger.known?money(selectedLedger.due,{currency:taxCase.currency,locale}):'—','provisorisch oder definitiv')}
         ${metricCard('Bezahlt',money(selectedLedger.paid,{currency:taxCase.currency,locale}),selectedLedger.refunds? `Rückerstattungen ${money(selectedLedger.refunds,{currency:taxCase.currency,locale})}`:'keine Rückerstattung')}
-        ${metricCard('Noch offen',selectedLedger.known?money(selectedLedger.open,{currency:taxCase.currency,locale}):'—',selectedLedger.known?'aus Soll minus Zahlungen':'Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
+        ${metricCard('Noch offen',selectedLedger.known?money(selectedLedger.open,{currency:taxCase.currency,locale}):'—',selectedLedger.known?(selectedLedger.balanceSnapshot?'Bestätigter Restbetrag laut Ratenplan':'aus Soll minus Zahlungen'):'Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
       </div>
       <div class="grid-main-aside" style="margin-top:14px">
         <form class="card card-padding" id="tax-obligation-create" data-form="tax-obligation-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
