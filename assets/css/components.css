@@ -2096,3 +2096,17 @@ button.statistics-metric:focus-visible { outline:2px solid var(--accent); outlin
 .topbar-import-shortcut:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .topbar-import-shortcut svg { width: 18px; height: 18px; }
 body.onboarding-mode .topbar-import-shortcut { display: none; }
+
+/* Main operating account and consolidated holdings must never be confused with spendable cash. */
+.wallet-total-comparison {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb,var(--surface) 86%,transparent);
+}
+.wallet-total-comparison > span { font-size: 12px; opacity: .85; }
+.wallet-total-comparison > strong { font-size: clamp(18px, 2.5vw, 23px); font-variant-numeric: tabular-nums; }
+.wallet-total-comparison > small { font-size: 11px; line-height: 1.45; opacity: .76; }
