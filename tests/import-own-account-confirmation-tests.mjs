@@ -32,7 +32,7 @@ assert.match(view,/IBAN bestätigen und umbuchen/);
 assert.match(view,/data-action="confirm-own-bank-transfer" data-id="source-23"/);
 assert.match(view,/Sparkonto/);
 assert.match(view,/525/);
-assert.match(view,/…M1M/);
+assert.match(view,/…5M1M/);
 assert.doesNotMatch(view,/CH11 0020 3203 8604 15M1 M/,'Do not display the full unconfirmed beneficiary account number');
 const readOnly=renderImports({
  accounts,household,profile:{locale:'de-CH'},canWrite:false,
