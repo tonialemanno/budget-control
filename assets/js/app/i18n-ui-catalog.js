@@ -1,5 +1,9 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "Eigene Umbuchungen prüfen": "Controlla i trasferimenti tra i tuoi conti",
+    "Die Bank nennt eine IBAN, die noch keinem deiner Konten zugeordnet ist. Bestätige einmal das Zielkonto; der bestehende Bankabgang wird dabei nicht doppelt gebucht.": "La banca indica un IBAN non ancora associato ai tuoi conti. Conferma il conto di destinazione una sola volta; l'addebito bancario esistente non verrà duplicato.",
+    "IBAN endet auf": "IBAN termina con",
+    "IBAN bestätigen und umbuchen": "Conferma IBAN e collega il trasferimento",
     "• UBS-Transaktionsnummern werden als eindeutige Bankbuchungs-IDs verwendet. Gleiche Beträge beim selben Händler bleiben erhalten, wenn die Bank-IDs verschieden sind.": "• I numeri di transazione UBS identificano le singole operazioni. Importi uguali presso lo stesso esercente rimangono separati se gli identificativi bancari sono diversi.",
     "• Die CSV-Spalte «Saldo» dient zur automatischen Kontrolle des Kontostands. Abweichungen werden mit Betrag und Stichtag sichtbar, statt den Kontostand stillschweigend zu überschreiben.": "• La colonna CSV «Saldo» verifica automaticamente il saldo. Le differenze sono visualizzate senza modificare il saldo in silenzio.",
     "Buchungssaldo Hauptkonto": "Saldo contabile del conto principale",
@@ -1603,6 +1607,10 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "Eigene Umbuchungen prüfen": "Review transfers between your accounts",
+    "Die Bank nennt eine IBAN, die noch keinem deiner Konten zugeordnet ist. Bestätige einmal das Zielkonto; der bestehende Bankabgang wird dabei nicht doppelt gebucht.": "The bank statement shows an IBAN not yet associated with your accounts. Confirm the destination account once; the existing bank debit will not be duplicated.",
+    "IBAN endet auf": "IBAN ends in",
+    "IBAN bestätigen und umbuchen": "Confirm IBAN and link transfer",
     "• UBS-Transaktionsnummern werden als eindeutige Bankbuchungs-IDs verwendet. Gleiche Beträge beim selben Händler bleiben erhalten, wenn die Bank-IDs verschieden sind.": "• UBS transaction numbers identify individual postings. Equal payments to the same merchant remain separate if their bank IDs differ.",
     "• Die CSV-Spalte «Saldo» dient zur automatischen Kontrolle des Kontostands. Abweichungen werden mit Betrag und Stichtag sichtbar, statt den Kontostand stillschweigend zu überschreiben.": "• The CSV balance column automatically verifies the account balance and flags differences without silently changing the balance.",
     "Buchungssaldo Hauptkonto": "Main account ledger balance",
