@@ -121,11 +121,11 @@ export function bankPostingId(tx) {
   const row=tx?.import_raw_data?.row || tx || {};
   const source=typeof row==='object'&&row!==null?row:{};
   const explicit=Object.entries(source).find(([key,value])=>
-    /^(?:transaktions[-\\s.]?nr\\.?|bank.?transaction.?id|transaction.?id)$/i.test(String(key).trim())
+    /^(?:transaktions[-\s.]?nr\\.?|bank.?transaction.?id|transaction.?id)$/i.test(String(key).trim())
     && String(value??'').trim()
   )?.[1];
   const fromText=String(tx?.bank_reference||'').match(/^UBS:([a-z0-9-]{8,64})$/i)?.[1];
-  return String(explicit||fromText||'').trim().replace(/\\s+/g,'')||'';
+  return String(explicit||fromText||'').trim().replace(/\s+/g,'')||'';
 }
 
 export function rowToTransaction(row, mapping) {
