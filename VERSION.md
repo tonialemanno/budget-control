@@ -1,3 +1,12 @@
+# R101 – UBS CSV-Banksaldo-Abgleich und sichere Buchungs-Identität
+- UBS-Bank-Transaktionsnummer (`Transaktions-Nr.`) als kanonische Buchungs-ID statt veränderlicher Beschreibung, Händler oder Betrag; das verhindert Dubletten bei veränderten Exporten und schützt unterschiedliche Buchungen mit identischem Betrag.
+- Die UBS-CSV-Spalte Saldo wird automatisch erkannt und mit dem gebuchten Kontosaldo per Bankauszugsdatum verglichen. Der Abgleich erzeugt nie selbst eine Kontobewegung oder ändert den Saldo-Anker.
+- Resultat (match/difference/unverifiable), Banksaldo, AIONE-Saldo, Differenz und Prüfdatum werden am Importlauf gespeichert und im Datenimport angezeigt.
+- Einmalige, geprüfte und archivierte Bereinigung von fünf exakten Dubletten im Privat-LohnKonto im Wert von CHF 2'881.00. Die Datenbank verhindert künftig doppelte Bank-IDs konto- und haushaltsbezogen.
+- Nach Bereinigung: AIONE-Saldo CHF -865.74 vs UBS-Banksaldo aus CSV CHF -878.67, noch CHF 12.93 Differenz. Keine erfundenen Ausgleichsbuchungen. Erneuter Import des überlappenden Bankauszugs nach R101 dient zur Wiederherstellung fehlender Originalbuchungen.
+- Migrationen `20261028162000_ubs_statement_bank_identity_repair.sql` und `20261028162500_statement_reconciliation.sql` wurden auf Finance-v1 angewendet; alte Datensätze privat auditiert. Kein Stable-Release.
+- Version 2.4.45 · 2026.10.28-r101.
+
 # R100 – Bankimport merkt sich Konto; Geldanzeige zeigt keine falsche Verfügbarkeit
 - CSV-/PDF-Import wählt das zuletzt erfolgreich importierte Konto im aktiven Haushalt; wenn noch keines existiert, das gespeicherte Hauptkonto bzw. ein Girokonto.
 - Nach erfolgreichem Import wird das gewählte Konto im Benutzerprofil je Haushalt dauerhaft gespeichert. Kein anderes Konto wird stillschweigend verwendet.

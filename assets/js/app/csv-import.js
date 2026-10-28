@@ -76,7 +76,7 @@ export function guessMapping(headers) {
     description: find(/beschreibung1/i, /beschreibung/i, /description/i, /text/i, /details/i),
     counterparty: find(/auftraggeber/i, /beguenst/i, /begünst/i, /counterparty/i, /empfaenger/i, /empfänger/i),
     counterpartyAccount: find(/gegenkonto/i, /gegen.*iban/i, /empfaenger.*iban/i, /empfänger.*iban/i, /auftraggeber.*iban/i, /^iban$/i, /account.*iban/i, /counterparty.*account/i),
-    bankReference: find(/referenz/i, /reference/i, /zahlungszweck/i, /mitteilung/i, /meldung/i, /purpose/i),
+    bankReference: find(/^transaktions[-\s.]?nr\.?$/i, /bank.*transaktion.*id/i, /referenz/i, /reference/i, /zahlungszweck/i, /mitteilung/i, /meldung/i, /purpose/i),
     sourcePage: find(/pdf.*seite/i, /^seite$/i, /source.*page/i),
     rawData: find(/original/i, /raw/i),
     debit: find(/belastung/i, /debit/i, /soll/i),
@@ -114,12 +114,28 @@ export function parseDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** A bank's posting identity must not depend on mutable descriptions or balances.
+ * In particular, payment QR references are NOT unique transaction identifiers.
+ */
+export function bankPostingId(tx) {
+  const row=tx?.import_raw_data?.row || tx || {};
+  const source=typeof row==='object'&&row!==null?row:{};
+  const explicit=Object.entries(source).find(([key,value])=>
+    /^(?:transaktions[-\s.]?nr\.?|bank.?transaction.?id|transaction.?id)$/i.test(String(key).trim())
+    && String(value??'').trim()
+  )?.[1];
+  const fromText=String(tx?.bank_reference||'').match(/^UBS:([a-z0-9-]{8,64})$/i)?.[1];
+  return String(explicit||fromText||'').trim().replace(/\s+/g,'')||'';
+}
+
 export function rowToTransaction(row, mapping) {
   const date = parseDate(row[mapping.date]);
   const description = String(row[mapping.description] || '').trim() || 'Importierte Transaktion';
   const counterparty = mapping.counterparty ? String(row[mapping.counterparty] || '').trim() : '';
   const counterpartyAccountRef = mapping.counterpartyAccount ? String(row[mapping.counterpartyAccount] || '').trim() : '';
-  const bankReference = mapping.bankReference ? String(row[mapping.bankReference] || '').trim() : '';
+  const bankReference = bankPostingId(row)
+    ? `UBS:${bankPostingId(row)}`
+    : mapping.bankReference ? String(row[mapping.bankReference] || '').trim() : '';
   const sourcePageRaw = mapping.sourcePage ? String(row[mapping.sourcePage] || '').trim() : '';
   const sourcePage = Number(sourcePageRaw);
   const importedRaw = mapping.rawData ? String(row[mapping.rawData] || '').trim() : '';
@@ -225,6 +241,20 @@ function strongImportDuplicate(incoming,existing){
   if(!incoming||!existing||existing.status!=='booked') return false;
   if(existing.source!=='import'&&!existing.import_batch_id&&!existing.external_reference&&!existing.bank_reference) return false;
   if(incoming.account_id!==existing.account_id||incoming.currency!==existing.currency) return false;
+  const leftId=bankPostingId(incoming),rightId=bankPostingId(existing);
+  // UBS transaction numbers are stable even when the export later enriches
+  // the counterparty or shifts the running balance shown for the same posting.
+  if(leftId&&rightId){
+    if(leftId!==rightId)return false;
+    if(Math.abs(Number(incoming.amount||0)-Number(existing.amount||0))>=0.005
+       ||importDay(incoming.occurred_at)!==importDay(existing.occurred_at)){
+      throw new Error('Bankreferenz '+leftId+' gehört zu widersprüchlichen Beträgen oder Daten. Bitte Bankauszug prüfen.');
+    }
+    return true;
+  }
+  // Never discard a second real same-day card payment because its merchant
+  // and amount happen to match an existing bank entry.
+  if(leftId||rightId)return false;
   if(importDay(incoming.occurred_at)!==importDay(existing.occurred_at)) return false;
   if(Math.abs(Number(incoming.amount||0)-Number(existing.amount||0))>=0.005) return false;
   if(incoming.bank_reference&&existing.bank_reference&&incoming.bank_reference===existing.bank_reference) return true;
@@ -237,14 +267,25 @@ function strongImportDuplicate(incoming,existing){
 
 export function filterImportDuplicates(incomingRows=[],existingRows=[]){
   const used=new Set();
-  const accepted=[];
-  const duplicates=[];
+  const accepted=[],duplicates=[],seenBankIds=new Map();
   for(const incoming of incomingRows){
-    const match=existingRows.find((existing)=>!used.has(existing.id)&&strongImportDuplicate(incoming,existing));
+    const bankId=bankPostingId(incoming);
+    const inBatch=bankId?seenBankIds.get(incoming.account_id+'|'+bankId):null;
+    if(inBatch){
+      if(!strongImportDuplicate(incoming,inBatch))throw new Error('Bankreferenz innerhalb derselben Datei widersprüchlich: '+bankId);
+      duplicates.push({incoming,existing:inBatch});
+      continue;
+    }
+    // A matching posted bank ID must always win. Legacy description heuristics
+    // only apply to exports with no bank-provided transaction identity.
+    const match=existingRows.find((existing)=>
+      (!used.has(existing.id)||Boolean(bankId))&&strongImportDuplicate(incoming,existing)
+    );
     if(match){
-      used.add(match.id);
+      if(!bankId)used.add(match.id);
       duplicates.push({incoming,existing:match});
     }else accepted.push(incoming);
+    if(bankId)seenBankIds.set(incoming.account_id+'|'+bankId,incoming);
   }
   return {accepted,duplicates};
 }
@@ -276,7 +317,10 @@ export function analyzeImportRows(rows=[],mapping={}){
 }
 
 export async function transactionFingerprint(accountId, tx) {
-  const raw = `${accountId}|${tx.occurred_at}|${Number(tx.amount).toFixed(2)}|${tx.description}|${tx.counterparty || ''}`;
+  const bankId=bankPostingId(tx);
+  const raw=bankId
+    ? `${accountId}|BANK_POSTING:${bankId}`
+    : `${accountId}|${tx.occurred_at}|${Number(tx.amount).toFixed(2)}|${tx.description}|${tx.counterparty || ''}`;
   const bytes = new TextEncoder().encode(raw);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
