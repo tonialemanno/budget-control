@@ -355,6 +355,28 @@ export function renderTaxAdvisor({
     ? `<div class="inline-alert ${rule.status==='official'?'inline-alert--success':''}"><strong>Regelversion ${escapeHtml(rule.version)}</strong><span>${escapeHtml(rule.notes||'')}${rule.source_url?` · <a href="${escapeHtml(rule.source_url)}" target="_blank" rel="noreferrer">Offizielle SG-Unterlagen</a>`:''}</span></div>`
     : '<div class="inline-alert"><strong>Kein Regelwerk hinterlegt.</strong><span>Für dieses Jahr dürfen keine automatischen steuerlichen Aussagen getroffen werden.</span></div>';
 
+  const taxPlanHtml=taxCase&&selectedObligations.length ? `
+  <article class="card card-padding" style="margin-top:16px">
+    <div class="card-heading"><div><h3 class="card-title">Steuer-Ratenplan · ${year}</h3><p class="card-subtitle">Eine Steuerforderung, automatisch berechnete Monatsraten. Keine doppelte Kontobuchung.</p></div></div>
+    ${installmentSchedule?`<div class="metric-grid">
+      ${metricCard('Noch offen',money(installmentSchedule.remaining,{currency:selectedPlan.currency,locale}),'Saldo gemäss Stichtag und zugeordneten Zahlungen',installmentSchedule.remaining<=0?'positive':'warning')}
+      ${metricCard('Nächste offene Rate',installmentSchedule.rows.find((r)=>r.open>0)?.dueDate?dateLabel(installmentSchedule.rows.find((r)=>r.open>0).dueDate,locale):'Abgeschlossen','Monatliche Fälligkeit')}
+      ${metricCard('Zahlungen ohne Ratentermin',money(installmentSchedule.unallocated,{currency:selectedPlan.currency,locale}),'Im Gesamtsaldo abgezogen; einer Rate noch nicht zugeordnet',installmentSchedule.unallocated>0?'warning':'')}
+    </div>
+    ${dataTable({headers:['Fällig','Rate','Bezahlt','Noch offen','Status'],rows:installmentSchedule.rows.map((r)=>`<tr><td>${dateLabel(r.dueDate,locale)}</td><td>${money(r.planned,{currency:selectedPlan.currency,locale})}</td><td>${money(r.paid,{currency:selectedPlan.currency,locale})}</td><td>${money(r.open,{currency:selectedPlan.currency,locale})}</td><td>${statusPill(r.status==='paid'?'active':r.status==='overdue'?'warning':'pending',({paid:'Bezahlt',overdue:'Überfällig',partial:'Teilbezahlt',open:'Offen'})[r.status])}</td></tr>`),emptyText:'Keine Raten.'})}`:'<p class="card-subtitle">Noch kein Ratenplan vorhanden.</p>'}
+    ${canWrite?`<form data-form="tax-plan-save" id="tax-plan-save">
+      <input type="hidden" name="taxCaseId" value="${taxCase.id}">
+      <div class="form-grid form-grid--2">
+        <label class="field"><span>Steuerforderung</span><select class="text-control" name="obligationId" required>${selectedObligations.filter((o)=>o.status!=='cancelled').map((o)=>`<option value="${o.id}" ${o.id===selectedPlan?.obligation_id?'selected':''}>${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label>
+        <label class="field"><span>Aktuell offener Betrag</span><input class="text-control" name="startingBalance" type="number" min="0.01" step="0.01" value="${selectedPlan?.starting_balance??''}" required></label>
+        <label class="field"><span>Saldo gilt ab</span><input class="text-control" name="balanceAsOf" type="date" value="${selectedPlan?.balance_as_of||dateInputValue()}" required></label>
+        <label class="field"><span>Erste Fälligkeit</span><input class="text-control" name="firstDueDate" type="date" value="${selectedPlan?.first_due_date||''}" required></label>
+        <label class="field"><span>Monatsrate</span><input class="text-control" name="installmentAmount" type="number" min="0.01" step="0.01" value="${selectedPlan?.installment_amount??''}" required></label>
+      </div>
+      <p class="card-subtitle">Die Schlussrate wird automatisch auf den Rappen korrigiert. Für bereits gebuchte Zahlungen bleibt die Bankbuchung unverändert.</p>
+      <div class="form-actions"><button class="action-button action-button--primary" type="submit">${selectedPlan?'Ratenplan aktualisieren':'Ratenplan erstellen'}</button></div>
+    </form>`:''}
+  </article>`:'';
   const caseForm=taxCase?`<form class="card card-padding" id="tax-case-settings" data-form="tax-case-settings">
     <div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">CH · St.Gallen · versioniert pro Steuerjahr</p></div>${ruleStatus(rule)}</div>
     <input type="hidden" name="taxYear" value="${year}">
@@ -500,6 +522,7 @@ export function renderTaxAdvisor({
       </article>
     </div>
 
+    ${taxPlanHtml}
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuerkonto ${year}</h3><p class="card-subtitle">Provisorische Rechnungen, Raten, definitive Veranlagung, Zahlungen und Rückerstattungen.</p></div></div>
       <div class="metric-grid">
         ${metricCard('Soll / Rechnungen',selectedLedger.known?money(selectedLedger.due,{currency:taxCase.currency,locale}):'—','provisorisch oder definitiv')}
