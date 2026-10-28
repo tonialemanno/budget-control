@@ -128,11 +128,29 @@ export function bankPostingId(tx) {
   return String(explicit||fromText||'').trim().replace(/\s+/g,'')||'';
 }
 
+/** Extract an explicit recipient IBAN from a bank's raw booking narrative.
+ * Never guess ownership: the importing household must already own an
+ * account whose verified identifier equals the parsed IBAN.
+ */
+export function bankCounterpartyIban(row={}) {
+  if(!row||typeof row!=='object')return '';
+  const fragments=Object.entries(row)
+    .filter(([key])=>/^(?:beschreibung\d+|verwendungszweck|details?|original|raw|mitteilung|buchungstext)$/i.test(String(key)))
+    .flatMap(([,value])=>String(value||'').split(/[;\r\n]/));
+  for(const fragment of fragments){
+    const match=fragment.match(/(?:^|\s)(?:konto[- ]?nr\.?\s*)?iban\s*:\s*(CH(?:[\s-]*[0-9A-Z]){19})\b/i);
+    if(!match)continue;
+    const iban=match[1].replace(/[^A-Z0-9]/gi,'').toUpperCase();
+    if(/^CH\d{2}[A-Z0-9]{17}$/.test(iban))return iban;
+  }
+  return '';
+}
+
 export function rowToTransaction(row, mapping) {
   const date = parseDate(row[mapping.date]);
   const description = String(row[mapping.description] || '').trim() || 'Importierte Transaktion';
   const counterparty = mapping.counterparty ? String(row[mapping.counterparty] || '').trim() : '';
-  const counterpartyAccountRef = mapping.counterpartyAccount ? String(row[mapping.counterpartyAccount] || '').trim() : '';
+  const counterpartyAccountRef = (mapping.counterpartyAccount ? String(row[mapping.counterpartyAccount] || '').trim() : '') || bankCounterpartyIban(row);
   const bankReference = bankPostingId(row)
     ? `UBS:${bankPostingId(row)}`
     : mapping.bankReference ? String(row[mapping.bankReference] || '').trim() : '';
