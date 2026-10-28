@@ -378,7 +378,7 @@ export function renderTaxAdvisor({
     </form>`:''}
   </article>`:'';
   const caseForm=taxCase?`<form class="card card-padding" id="tax-case-settings" data-form="tax-case-settings">
-    <div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">CH · St.Gallen · versioniert pro Steuerjahr</p></div>${ruleStatus(rule)}</div>
+    <div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">CH · ${region} · versioniert pro Steuerjahr</p></div>${ruleStatus(rule)}</div>
     <input type="hidden" name="taxYear" value="${year}">
     <div class="form-grid form-grid--2">
       <label class="field"><span>Land</span><input class="text-control" value="Schweiz" disabled></label>
