@@ -205,6 +205,7 @@ export function renderOverview({
           <a class="action-button action-button--primary" href="#/transactions?create=expense">${icon('plus')} Ausgabe</a>
           <a class="action-button action-button--secondary" href="#/transactions?create=income">Einnahme</a>
           <a class="action-button action-button--secondary" href="#/budget">Budget prüfen</a>
+          <a class="action-button action-button--secondary" href="/finance/imports">${icon('upload')} CSV hochladen</a>
         </div>
       </article>
 
