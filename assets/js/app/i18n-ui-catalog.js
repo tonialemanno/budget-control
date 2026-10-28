@@ -1,5 +1,7 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "• UBS-Transaktionsnummern werden als eindeutige Bankbuchungs-IDs verwendet. Gleiche Beträge beim selben Händler bleiben erhalten, wenn die Bank-IDs verschieden sind.": "• I numeri di transazione UBS identificano le singole operazioni. Importi uguali presso lo stesso esercente rimangono separati se gli identificativi bancari sono diversi.",
+    "• Die CSV-Spalte «Saldo» dient zur automatischen Kontrolle des Kontostands. Abweichungen werden mit Betrag und Stichtag sichtbar, statt den Kontostand stillschweigend zu überschreiben.": "• La colonna CSV «Saldo» verifica automaticamente il saldo. Le differenze sono visualizzate senza modificare il saldo in silenzio.",
     "Buchungssaldo Hauptkonto": "Saldo contabile del conto principale",
     "Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen": "Calcolato dai movimenti, non riconciliato con la banca",
     "Konten zusammen (inkl. Sparkonten & Bargeld)": "Totale dei conti (inclusi risparmi e contanti)",
@@ -1601,6 +1603,8 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "• UBS-Transaktionsnummern werden als eindeutige Bankbuchungs-IDs verwendet. Gleiche Beträge beim selben Händler bleiben erhalten, wenn die Bank-IDs verschieden sind.": "• UBS transaction numbers identify individual postings. Equal payments to the same merchant remain separate if their bank IDs differ.",
+    "• Die CSV-Spalte «Saldo» dient zur automatischen Kontrolle des Kontostands. Abweichungen werden mit Betrag und Stichtag sichtbar, statt den Kontostand stillschweigend zu überschreiben.": "• The CSV balance column automatically verifies the account balance and flags differences without silently changing the balance.",
     "Buchungssaldo Hauptkonto": "Main account ledger balance",
     "Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen": "Calculated from transactions; not reconciled with the bank",
     "Konten zusammen (inkl. Sparkonten & Bargeld)": "Combined accounts (including savings and cash)",
