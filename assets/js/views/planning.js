@@ -22,7 +22,7 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 
 export function renderPlanning({
   budgets=[], goals=[], bills=[], salesDocuments=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
-  transactions=[], debtPayments=[], categories=[], merchants=[], taxInstallmentPlans=[], taxPayments=[], taxCases=[], taxObligations=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard',
+  transactions=[], debtPayments=[], categories=[], merchants=[], taxInstallmentPlans=[], taxPayments=[], taxCases=[], taxObligations=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard', planningNow=new Date(),
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
@@ -36,8 +36,12 @@ export function renderPlanning({
   const installmentDebts=debts.filter((d)=>d.status!=='paid' && Number(d.installment_amount||0)>0);
   const isDE=household?.country_code==='DE';
   const duePlan=buildUpcomingPayments({
-    household,recurringRules,transactions,bills,contracts,debts,
-    taxInstallmentPlans,taxObligations,taxCases,taxPayments,
+    now:planningNow,household,recurringRules,transactions,
+    bills:enabled('bills',moduleAccess,hiddenModules)?bills:[],
+    contracts:enabled('bills',moduleAccess,hiddenModules)?contracts:[],
+    debts:enabled('debts',moduleAccess,hiddenModules)?debts:[],
+    taxInstallmentPlans:enabled('tax',moduleAccess,hiddenModules)?taxInstallmentPlans:[],
+    taxObligations,taxCases,taxPayments,
   });
   const dueRows=duePlan.rows.map((item)=>`<tr>
     <td>${dateLabel(item.due,locale)}${item.status==='overdue'?'<div class="table-meta">Überfällig</div>':''}</td>
