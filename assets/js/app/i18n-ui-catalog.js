@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "versioniert pro Steuerjahr": "versione per anno fiscale",
     "Verbrauch pro Kategorie oder Händler. Jede Zeile öffnet genau die zugehörigen Buchungen.": "Consumo per categoria o esercente. Ogni riga apre le relative transazioni.",
     "0 % verbraucht ·": "0 % utilizzato ·",
     "Steuer-Ratenplan": "Piano rateale delle imposte",
@@ -1582,6 +1583,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "versioniert pro Steuerjahr": "versioned by tax year",
     "Verbrauch pro Kategorie oder Händler. Jede Zeile öffnet genau die zugehörigen Buchungen.": "Spending by category or merchant. Each row opens its transactions.",
     "0 % verbraucht ·": "0% used ·",
     "Steuer-Ratenplan": "Tax installment plan",
