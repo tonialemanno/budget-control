@@ -6,9 +6,10 @@ import { financeApi } from './app/finance-api.js';
 import { dateInputValue, escapeHtml, dateTimeLocalValue, monthInputValue, financeEventTimestamp, moneyText } from './app/format.js';
 import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
-import { analyzeImportRows, cashWithdrawalInfo, filterImportDuplicates, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
+import { analyzeImportRows, bankCounterpartyIban, cashWithdrawalInfo, filterImportDuplicates, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { bankStatementCheckpoint, reconcileBankStatement } from './app/bank-statement-reconcile.js';
+import { detectOwnBankTransfer } from './app/own-bank-transfers.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
@@ -1942,13 +1943,26 @@ function normalizeAccountReference(value) {
   return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 }
 
-function ownAccountForReference(reference,currentAccountId=null) {
+function ownAccountForReference(reference,currentAccountId=null,tx=null) {
   const key=normalizeAccountReference(reference);
   if(!key) return null;
-  return runtime.accounts.find((account)=>{
-    if(account.account_id===currentAccountId) return false;
-    return normalizeAccountReference(account.external_account_ref)===key;
-  })||null;
+  const direct=runtime.accounts.find((account)=>
+    account.account_id!==currentAccountId
+    && account.is_archived!==true
+    && normalizeAccountReference(account.external_account_ref)===key
+  );
+  if(direct) return direct;
+  // Accounts configured before IBAN recognition may already have a recurring
+  // transfer and verified historical opposite-side postings. Learn safely
+  // from BOTH pieces of evidence rather than guessing from the payee name.
+  if(!tx) return null;
+  const detected=detectOwnBankTransfer({
+    transaction:{...tx,account_id:currentAccountId,counterparty_account_ref:reference},
+    accounts:runtime.accounts,
+    recurringRules:runtime.recurringRules,
+    transactions:runtime.transactions,
+  });
+  return detected?.requiresConfirmation ? null : detected?.account||null;
 }
 
 function importedTransferCounterpart(tx,otherAccountId,allTransactions=[]) {
@@ -2014,7 +2028,7 @@ async function reconcileImportedOwnTransfers(insertedRows=[]) {
   const known=[...runtime.transactions,...insertedRows];
   for(const tx of insertedRows){
     if(!tx||tx.transfer_group_id||!tx.counterparty_account_ref) continue;
-    const otherAccount=ownAccountForReference(tx.counterparty_account_ref,tx.account_id);
+    const otherAccount=ownAccountForReference(tx.counterparty_account_ref,tx.account_id,tx);
     if(!otherAccount) continue;
     const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
     if(!currentAccount||currentAccount.currency!==otherAccount.currency) continue;
@@ -2068,7 +2082,7 @@ function renderImportReview() {
       const tx = rowToTransaction(row,mapping);
       if (!tx) continue;
       validRows+=1;
-      const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId);
+      const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId,tx);
       const cashInfo=cashWithdrawalInfo(tx);
       const cashAccount=cashAccountForWithdrawal({...tx,account_id:importAccountId,currency:importAccount?.currency||currency},cashInfo);
       const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
@@ -4456,7 +4470,7 @@ async function handleForm(form) {
         for (const row of item.parsed.rows) {
           const tx = rowToTransaction(row,mapping);
           if (!tx) continue;
-          const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId);
+          const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId,tx);
           const cashInfo=cashWithdrawalInfo({...tx,account_id:accountId,currency:account.currency||currency});
           const cashAccount=cashAccountForWithdrawal({...tx,account_id:accountId,currency:account.currency||currency},cashInfo);
           const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
@@ -4949,9 +4963,58 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['fixed-cost-open','category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','transaction-tax-assign','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['fixed-cost-open','category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','transaction-tax-assign','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','confirm-own-bank-transfer','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
+  if (action === 'confirm-own-bank-transfer') {
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id
+      &&row.source==='import'&&row.status==='booked'&&!row.transfer_group_id
+      &&row.cashflow_type==='standard'&&Number(row.amount)<0);
+    if(!tx)throw new Error('Die Bankbewegung wurde bereits verarbeitet oder ist nicht mehr verfügbar.');
+    const proposed=detectOwnBankTransfer({
+      transaction:tx,accounts:runtime.accounts,
+      recurringRules:runtime.recurringRules,transactions:runtime.transactions,
+    });
+    if(!proposed?.requiresConfirmation||!proposed.account)
+      throw new Error('Die Gegenkonto-Zuordnung ist nicht mehr eindeutig. Bitte Konten prüfen.');
+    const destination=proposed.account;
+    const iban=bankCounterpartyIban(tx.import_raw_data?.row);
+    const normalized=(value)=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!iban || (destination.external_account_ref && normalized(destination.external_account_ref)!==iban))
+      throw new Error('Die IBAN stimmt nicht mit dem Zielkonto überein.');
+    if(runtime.accounts.some((account)=>account.account_id!==destination.account_id
+      &&normalized(account.external_account_ref)===iban))
+      throw new Error('Diese IBAN ist bereits einem anderen Konto zugeordnet.');
+    const counterpart=importedTransferCounterpart(tx,destination.account_id,runtime.transactions);
+    if(!counterpart&&runtime.transactions.some((row)=>row.account_id===destination.account_id
+      &&row.status==='booked'&&row.transfer_group_id
+      &&row.currency===tx.currency&&Math.abs(Number(row.amount)+Number(tx.amount))<0.005
+      &&Math.abs(new Date(row.occurred_at)-new Date(tx.occurred_at))<=3*86400000))
+      throw new Error('Auf dem Zielkonto existiert bereits eine passende Umbuchung. Bitte erst die Buchungen prüfen.');
+    const promptText=`Bestätigst du, dass die IBAN mit Endung ${iban.slice(-4)} zu deinem Konto „${destination.name}“ gehört?\n\nAIONE ordnet die Bankabbuchung vom ${dateInputValue(new Date(tx.occurred_at))} über CHF ${Math.abs(Number(tx.amount)).toFixed(2)} zu. Es wird KEINE zweite Belastung auf dem LohnKonto angelegt.`;
+    if(!confirm(promptText))return;
+    await financeApi.convertTransactionToTransferV2({
+      householdId:runtime.household.id,
+      transactionId:tx.id,
+      otherAccountId:destination.account_id,
+      amount:Math.abs(Number(tx.amount)),
+      otherAmount:null,
+      otherTransactionId:counterpart?.id||null,
+      occurredAt:tx.occurred_at,
+      description:tx.description||'Eigene Umbuchung',
+      note:tx.note||'Vom Besitzer anhand Bank-IBAN als eigene Umbuchung bestätigt.',
+    });
+    let saved=true;
+    try {
+      if(!destination.external_account_ref){
+        await financeApi.updateAccount(destination.account_id,{external_account_ref:iban});
+      }
+    }catch(error){saved=false;}
+    await refresh(saved
+      ? 'Eigene Umbuchung korrekt verknüpft und Kontozuordnung für künftige Importe gemerkt.'
+      : 'Umbuchung verknüpft, aber die Bank-IBAN konnte nicht dauerhaft gespeichert werden.');
+    return;
+  }
   if(action==='year-close-export'){
     if(!canAdminHousehold())throw new Error('Keine Berechtigung für den Jahresabschluss.');
     const year=Number(target.dataset.year);

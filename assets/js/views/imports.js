@@ -1,7 +1,8 @@
 import { dataTable, pageHeader, statusPill, filePicker } from '../app/components.js';
 import { dateLabel, escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
-import { merchantFromTransaction } from '../app/csv-import.js';
+import { merchantFromTransaction, bankCounterpartyIban } from '../app/csv-import.js';
+import { detectOwnBankTransfer } from '../app/own-bank-transfers.js';
 import { preferredImportAccountId } from '../app/user-preferences.js';
 
 function txMerchant(tx) {
@@ -41,7 +42,7 @@ function openMerchantGroups(transactions, categories, query, categoryFilter) {
 }
 
 export function renderImports({
-  accounts = [], importBatches = [], transactions = [], categories = [], household, profile,
+  accounts = [], importBatches = [], transactions = [], categories = [], recurringRules = [], household, profile,
   importQuery = '', importCategory = 'all', canWrite = false,
 } = {}) {
   const currency = household?.base_currency || 'CHF';
@@ -62,6 +63,29 @@ export function renderImports({
     : verified&&check==='matched'
     ? `<div class="inline-alert inline-alert--success"><strong>Bankabgleich erfolgreich.</strong><span>Die importierten Bankdaten stimmen mit dem AIONE-Kontostand vom ${escapeHtml(dateLabel(verified.statement_date,locale))} überein.</span></div>`
     : '';
+  const proposedOwnTransfers=canWrite?(transactions||[])
+    .filter(tx=>tx.source==='import'&&tx.status==='booked'&&!tx.transfer_group_id
+      &&tx.cashflow_type==='standard'&&Number(tx.amount)<0
+      &&bankCounterpartyIban(tx.import_raw_data?.row))
+    .map(tx=>({tx,match:detectOwnBankTransfer({
+      transaction:tx,accounts,recurringRules,transactions,
+    })}))
+    .filter(({match})=>match?.requiresConfirmation&&match.account)
+    .sort((a,b)=>String(b.tx.occurred_at).localeCompare(String(a.tx.occurred_at)))
+    .slice(0,20):[];
+  const ownTransferReview=proposedOwnTransfers.length?`
+    <article class="card card-padding" style="margin:16px 0">
+      <div class="card-heading"><div><h3 class="card-title">Eigene Umbuchungen prüfen</h3>
+      <p class="card-subtitle">Die Bank nennt eine IBAN, die noch keinem deiner Konten zugeordnet ist. Bestätige einmal das Zielkonto; der bestehende Bankabgang wird dabei nicht doppelt gebucht.</p></div></div>
+      ${proposedOwnTransfers.map(({tx,match})=>{
+        const iban=bankCounterpartyIban(tx.import_raw_data?.row);
+        return `<div class="list-row" style="gap:12px">
+          <div class="list-row-main"><strong>${escapeHtml(match.account.name)}</strong>
+            <span>${dateLabel(tx.occurred_at,locale)} · ${money(Math.abs(Number(tx.amount)),{currency:tx.currency,locale})} · <span>IBAN endet auf</span> …${escapeHtml(iban.slice(-4))}</span></div>
+          <button class="action-button action-button--secondary" type="button" data-action="confirm-own-bank-transfer" data-id="${escapeHtml(tx.id)}">IBAN bestätigen und umbuchen</button>
+        </div>`;
+      }).join('')}
+    </article>`:'';
   const groups = openMerchantGroups(latestTransactions,categories,importQuery,importCategory);
   const categoryOptions = categories.filter((c)=>c.kind==='expense').map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
 
@@ -79,6 +103,7 @@ export function renderImports({
   return `
     ${pageHeader({title:'Datenimport',subtitle:'CSV oder PDF einlesen. ALEMANNO BUCHHALTUNG fasst gleiche Händler und Zahler trotz Filiale, Datum, SBB-/TWINT-Zusätzen oder Schreibvarianten zusammen.'})}
     ${statementAlert}
+    ${ownTransferReview}
     <div class="grid-main-aside">
       <form class="card card-padding" id="bank-import" data-form="bank-import">
         <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">Eine oder mehrere CSV-/PDF-Dateien desselben Kontos gemeinsam einlesen</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
