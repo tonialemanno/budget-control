@@ -4,6 +4,7 @@ import { convertAmount, fxLabel } from '../app/fx.js';
 import { icon } from '../app/icons.js';
 import { t } from '../app/i18n.js';
 import { buildDebtPaymentTransactionMap, consumptionExpenseBase } from '../app/financial-effects.js';
+import { taxInstallmentSchedule } from '../app/tax-installments.js';
 
 const TAX_YEARS=[2025,2026,2027];
 
@@ -73,10 +74,10 @@ function taxMovementBase(tx,targetCurrency,fxRates){
   const converted=convertAmount(Math.abs(num(tx?.amount)),tx?.currency||targetCurrency,targetCurrency,fxRates);
   return converted===null?0:Math.abs(converted);
 }
-function caseForYear(cases,year){ return (cases||[]).find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG')||null; }
-function ruleForYear(rules,year){ return (rules||[]).find((row)=>row.country_code==='CH'&&row.canton_code==='SG'&&Number(row.tax_year)===Number(year))||null; }
+function caseForYear(cases,year,region='SG'){ return (cases||[]).find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code===region)||null; }
+function ruleForYear(rules,year,region='SG'){ return (rules||[]).find((row)=>row.country_code==='CH'&&row.canton_code===region&&Number(row.tax_year)===Number(year))||null; }
 
-function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates){
+function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates,plans=[]){
   if(!taxCase) return {paid:0,refunds:0,due:0,open:0,known:false,transactionPaid:0,transactionRefunds:0};
   const caseObligations=(obligations||[]).filter((row)=>row.tax_case_id===taxCase.id&&row.status!=='cancelled');
   const casePayments=(payments||[]).filter((row)=>row.tax_case_id===taxCase.id);
@@ -97,6 +98,11 @@ function taxLedgerSummary(taxCase,obligations,payments,transactions,fxRates){
   const fallback=num(taxCase.assessed_tax_amount)||num(taxCase.expected_tax_amount);
   const due=obligationsTotal>0?obligationsTotal:fallback;
   const known=obligationsTotal>0||taxCase.assessed_tax_amount!==null&&taxCase.assessed_tax_amount!==undefined||taxCase.expected_tax_amount!==null&&taxCase.expected_tax_amount!==undefined;
+  const activePlans=(plans||[]).filter((p)=>p.tax_case_id===taxCase.id&&p.status==='active');
+  if(caseObligations.length===1&&activePlans.length===1&&activePlans[0].obligation_id===caseObligations[0].id){
+    const schedule=taxInstallmentSchedule(activePlans[0],casePayments);
+    return {paid,refunds,due,open:schedule.remaining,known:true,transactionPaid,transactionRefunds,balanceSnapshot:true};
+  }
   return {paid,refunds,due,open:Math.max(0,due-paid+refunds),known,transactionPaid,transactionRefunds};
 }
 
@@ -171,19 +177,20 @@ function yearCard({year,taxCase,rule,summary,selected,locale}){
 
 export function renderTaxAdvisor({
   transactions = [], debtPayments = [], documents = [], accounts = [], pensions = [], debts = [], receivables = [],
-  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, canWrite=false, canAdminHousehold=false,
-  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxPayments = [],
+  insurance = [], investments = [], properties = [], vehicles = [], bills = [], household, profile, fxRates, taxYear, taxMatchId=null, canWrite=false, canAdminHousehold=false,
+  yearClosures = [], taxRuleVersions = [], taxCases = [], taxPeople = [], taxChildren = [], taxEmployments = [], taxCaseSections = [], taxItems = [], taxObligations = [], taxInstallmentPlans = [], taxPayments = [],
 } = {}) {
   const baseCurrency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
   const year=Number(taxYear)||2026;
-  const taxCase=caseForYear(taxCases,year);
+  const region=household?.tax_region_code || (taxCases||[]).find((c)=>c.country_code==='CH')?.canton_code || 'SG';
+  const taxCase=caseForYear(taxCases,year,region);
   const closedYear=(yearClosures||[]).find(row=>Number(row.tax_year)===year&&row.status==='closed');
-  const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year);
-  const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y)]));
+  const rule=taxCase?.tax_rule_versions||ruleForYear(taxRuleVersions,year,region);
+  const yearRules=new Map(TAX_YEARS.map((y)=>[y,ruleForYear(taxRuleVersions,y,region)]));
   const yearCards=TAX_YEARS.map((y)=>{
-    const c=caseForYear(taxCases,y);
-    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments,transactions,fxRates),selected:y===year,locale});
+    const c=caseForYear(taxCases,y,region);
+    return yearCard({year:y,taxCase:c,rule:c?.tax_rule_versions||yearRules.get(y),summary:taxLedgerSummary(c,taxObligations,taxPayments,transactions,fxRates,taxInstallmentPlans),selected:y===year,locale});
   }).join('');
 
   const taxTransactions=transactions.filter((tx)=>tx.tax_relevant&&effectiveTaxYear(tx)===year);
@@ -215,8 +222,9 @@ export function renderTaxAdvisor({
     tx.status==='booked' && !tx.transfer_group_id && tx.cashflow_type==='standard' &&
     tx.currency===taxPaymentCurrency &&
     !linkedTaxTransactionIds.has(tx.id) && !paidBillTransactionIds.has(tx.id) &&
-    (effectiveTaxYear(tx)===year || (!tx.tax_relevant && new Date(tx.occurred_at).getFullYear()===year))
-  );
+    !tx.tax_relevant && Number(tx.amount)<0 &&
+    (tx.categories?.name==='Steuern' || tx.id===taxMatchId || /steuer|tax|finanzamt/i.test(tx.description||''))
+  ).sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,250);
   const taxPaymentAccounts=(accounts||[]).filter((account)=>account.currency===taxPaymentCurrency);
   const sourceOptions=[
     ...accounts.map((row)=>({value:`account:${row.account_id}`,label:`Konto · ${row.name}`})),
@@ -230,9 +238,12 @@ export function renderTaxAdvisor({
   ];
   const completeSections=TAX_SECTIONS.filter((section)=>['complete','not_applicable'].includes(sectionRows.get(section.key)?.status)).length;
   const completeness=Math.round((completeSections/TAX_SECTIONS.length)*100);
-  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments,transactions,fxRates);
+  const selectedLedger=taxLedgerSummary(taxCase,taxObligations,taxPayments,transactions,fxRates,taxInstallmentPlans);
   const selectedObligations=(taxObligations||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPayments=(taxPayments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
+  const selectedPlan=(taxInstallmentPlans||[]).find((p)=>p.tax_case_id===taxCase?.id&&p.status==='active')||null;
+  const installmentSchedule=selectedPlan?taxInstallmentSchedule(selectedPlan,selectedPayments):null;
+  const pendingBankPayment=taxMatchId ? ((transactions||[]).find((tx)=>tx.id===taxMatchId&&!tx.tax_relevant)||null) : null;
   const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
   const selectedChildren=(taxChildren||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedEmployments=(taxEmployments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
@@ -344,8 +355,30 @@ export function renderTaxAdvisor({
     ? `<div class="inline-alert ${rule.status==='official'?'inline-alert--success':''}"><strong>Regelversion ${escapeHtml(rule.version)}</strong><span>${escapeHtml(rule.notes||'')}${rule.source_url?` · <a href="${escapeHtml(rule.source_url)}" target="_blank" rel="noreferrer">Offizielle SG-Unterlagen</a>`:''}</span></div>`
     : '<div class="inline-alert"><strong>Kein Regelwerk hinterlegt.</strong><span>Für dieses Jahr dürfen keine automatischen steuerlichen Aussagen getroffen werden.</span></div>';
 
+  const taxPlanHtml=taxCase&&selectedObligations.length ? `
+  <article class="card card-padding" style="margin-top:16px">
+    <div class="card-heading"><div><h3 class="card-title">Steuer-Ratenplan · ${year}</h3><p class="card-subtitle">Eine Steuerforderung, automatisch berechnete Monatsraten. Keine doppelte Kontobuchung.</p></div></div>
+    ${installmentSchedule?`<div class="metric-grid">
+      ${metricCard('Noch offen',money(installmentSchedule.remaining,{currency:selectedPlan.currency,locale}),'Saldo gemäss Stichtag und zugeordneten Zahlungen',installmentSchedule.remaining<=0?'positive':'warning')}
+      ${metricCard('Nächste offene Rate',installmentSchedule.rows.find((r)=>r.open>0)?.dueDate?dateLabel(installmentSchedule.rows.find((r)=>r.open>0).dueDate,locale):'Abgeschlossen','Monatliche Fälligkeit')}
+      ${metricCard('Zahlungen ohne Ratentermin',money(installmentSchedule.unallocated,{currency:selectedPlan.currency,locale}),'Im Gesamtsaldo abgezogen; einer Rate noch nicht zugeordnet',installmentSchedule.unallocated>0?'warning':'')}
+    </div>
+    ${dataTable({headers:['Fällig','Rate','Bezahlt','Noch offen','Status'],rows:installmentSchedule.rows.map((r)=>`<tr><td>${dateLabel(r.dueDate,locale)}</td><td>${money(r.planned,{currency:selectedPlan.currency,locale})}</td><td>${money(r.paid,{currency:selectedPlan.currency,locale})}</td><td>${money(r.open,{currency:selectedPlan.currency,locale})}</td><td>${statusPill(r.status==='paid'?'active':r.status==='overdue'?'warning':'pending',({paid:'Bezahlt',overdue:'Überfällig',partial:'Teilbezahlt',open:'Offen'})[r.status])}</td></tr>`),emptyText:'Keine Raten.'})}`:'<p class="card-subtitle">Noch kein Ratenplan vorhanden.</p>'}
+    ${canWrite?`<form data-form="tax-plan-save" id="tax-plan-save">
+      <input type="hidden" name="taxCaseId" value="${taxCase.id}">
+      <div class="form-grid form-grid--2">
+        <label class="field"><span>Steuerforderung</span><select class="text-control" name="obligationId" required>${selectedObligations.filter((o)=>o.status!=='cancelled').map((o)=>`<option value="${o.id}" ${o.id===selectedPlan?.obligation_id?'selected':''}>${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label>
+        <label class="field"><span>Aktuell offener Betrag</span><input class="text-control" name="startingBalance" type="number" min="0.01" step="0.01" value="${selectedPlan?.starting_balance??''}" required></label>
+        <label class="field"><span>Saldo gilt ab</span><input class="text-control" name="balanceAsOf" type="date" value="${selectedPlan?.balance_as_of||dateInputValue()}" required></label>
+        <label class="field"><span>Erste Fälligkeit</span><input class="text-control" name="firstDueDate" type="date" value="${selectedPlan?.first_due_date||''}" required></label>
+        <label class="field"><span>Monatsrate</span><input class="text-control" name="installmentAmount" type="number" min="0.01" step="0.01" value="${selectedPlan?.installment_amount??''}" required></label>
+      </div>
+      <p class="card-subtitle">Die Schlussrate wird automatisch auf den Rappen korrigiert. Für bereits gebuchte Zahlungen bleibt die Bankbuchung unverändert.</p>
+      <div class="form-actions"><button class="action-button action-button--primary" type="submit">${selectedPlan?'Ratenplan aktualisieren':'Ratenplan erstellen'}</button></div>
+    </form>`:''}
+  </article>`:'';
   const caseForm=taxCase?`<form class="card card-padding" id="tax-case-settings" data-form="tax-case-settings">
-    <div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">CH · St.Gallen · versioniert pro Steuerjahr</p></div>${ruleStatus(rule)}</div>
+    <div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">CH · ${region} · ${escapeHtml(t('versioniert pro Steuerjahr'))}</p></div>${ruleStatus(rule)}</div>
     <input type="hidden" name="taxYear" value="${year}">
     <div class="form-grid form-grid--2">
       <label class="field"><span>Land</span><input class="text-control" value="Schweiz" disabled></label>
@@ -366,7 +399,7 @@ export function renderTaxAdvisor({
   </form>`:`<article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Steuerfall ${year}</h3><p class="card-subtitle">Noch nicht angelegt. Der Jahresstatus bleibt trotzdem in der Übersicht sichtbar.</p></div>${ruleStatus(rule)}</div>${canWrite?`<button class="action-button action-button--primary" type="button" data-action="tax-case-create" data-year="${year}">${icon('plus')} Steuerfall ${year} anlegen</button>`:''}</article>`;
 
   return `
-    ${pageHeader({title:'Tax Center · St.Gallen',subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
+    ${pageHeader({title:`Tax Center · ${region}`,subtitle:'Steuerdossier statt einfacher Abzugsliste: Jahre, Personen, Einkommen, Vermögen, Schulden, Belege und Steuerkonto in einer Ansicht.',actions:`<button class="action-button action-button--primary" type="button" data-action="tax-export-csv" data-year="${year}">${icon('arrow-down-left')} Steuerdossier ${year} exportieren (CSV)</button>`})}
     ${!canAdminHousehold?'':closedYear?`<div class="inline-alert inline-alert--success"><strong>${escapeHtml(t('Jahresabschluss gesichert',locale))} · ${year} (${escapeHtml(t('Version',locale))} ${Number(closedYear.revision||0)})</strong><span>${escapeHtml(t('Die Buchungen dieses Jahres sind schreibgeschützt und archiviert. Das Steuerdossier kann weiterhin vervollständigt werden.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Abschluss ansehen',locale))} →</a></span></div>`:`<div class="inline-alert"><strong>${escapeHtml(t('Jahresabschluss noch offen',locale))} · ${year}</strong><span>${escapeHtml(t('Die Steuerdaten sind vorläufig. Erst nach dem Jahresabschluss steht ein eingefrorener Buchungsstand bereit.',locale))} <a href="/planning/year-closing?year=${year}">${escapeHtml(t('Jahrescenter öffnen',locale))} →</a></span></div>`}
     <input id="taxReceiptInput" type="file" accept="image/*,application/pdf" capture="environment" hidden>
     <input id="taxItemDocumentInput" type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls" capture="environment" hidden>
@@ -489,11 +522,12 @@ export function renderTaxAdvisor({
       </article>
     </div>
 
+    ${taxPlanHtml}
     <article class="card card-padding" style="margin-top:16px"><div class="card-heading"><div><h3 class="card-title">Steuerkonto ${year}</h3><p class="card-subtitle">Provisorische Rechnungen, Raten, definitive Veranlagung, Zahlungen und Rückerstattungen.</p></div></div>
       <div class="metric-grid">
         ${metricCard('Soll / Rechnungen',selectedLedger.known?money(selectedLedger.due,{currency:taxCase.currency,locale}):'—','provisorisch oder definitiv')}
         ${metricCard('Bezahlt',money(selectedLedger.paid,{currency:taxCase.currency,locale}),selectedLedger.refunds? `Rückerstattungen ${money(selectedLedger.refunds,{currency:taxCase.currency,locale})}`:'keine Rückerstattung')}
-        ${metricCard('Noch offen',selectedLedger.known?money(selectedLedger.open,{currency:taxCase.currency,locale}):'—',selectedLedger.known?'aus Soll minus Zahlungen':'Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
+        ${metricCard('Noch offen',selectedLedger.known?money(selectedLedger.open,{currency:taxCase.currency,locale}):'—',selectedLedger.known?(selectedLedger.balanceSnapshot?'Bestätigter Restbetrag laut Ratenplan':'aus Soll minus Zahlungen'):'Betrag noch nicht hinterlegt',selectedLedger.known&&selectedLedger.open<=0.005?'positive':'warning')}
       </div>
       <div class="grid-main-aside" style="margin-top:14px">
         <form class="card card-padding" id="tax-obligation-create" data-form="tax-obligation-create"><input type="hidden" name="taxCaseId" value="${taxCase.id}">
@@ -505,13 +539,14 @@ export function renderTaxAdvisor({
           <div class="card-heading"><div><h3 class="card-title">Zahlung / Rückerstattung</h3><p class="card-subtitle">Eine Zahlung wird mit dem Konto und dem Steuerdossier als derselbe wirtschaftliche Vorgang verknüpft.</p></div></div>
           <div class="form-grid">
             <label class="field"><span>Art</span><select class="text-control" id="taxPaymentType" name="paymentType"><option value="payment">Zahlung</option><option value="refund">Rückerstattung</option><option value="interest_payment">Zinszahlung</option><option value="interest_credit">Zinsgutschrift</option></select></label>
-            <label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}">${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label>
-            <label class="field"><span>Verbuchen über</span><select class="text-control" id="taxPaymentSource" name="source"><option value="created_transaction">Kontobuchung erstellen</option><option value="linked_transaction">Bestehende Kontobuchung verknüpfen</option><option value="history_only">Nur im Steuerdossier erfassen</option></select></label>
-            <label class="field" id="taxPaymentAccountField"><span>Zahlungskonto</span><select class="text-control" id="taxPaymentAccount" name="accountId"><option value="">Bitte wählen</option>${taxPaymentAccounts.map((account)=>`<option value="${account.account_id}">${escapeHtml(account.name)} · ${escapeHtml(account.currency)}</option>`).join('')}</select><small>ALEMANNO BUCHHALTUNG erstellt die Kontobewegung automatisch.</small></label>
-            <label class="field" id="taxPaymentTransactionField" hidden><span>Kontobuchung</span><select class="text-control" id="taxPaymentTransaction" name="transactionId"><option value="">Bitte wählen</option>${taxPaymentCandidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(num(tx.amount))}" data-type="${num(tx.amount)<0?'payment':'refund'}" data-date="${dateInputValue(new Date(tx.occurred_at))}">${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.description)} · ${money(tx.amount,{currency:tx.currency,locale})}</option>`).join('')}</select><small>Die vorhandene Bankbuchung wird steuerlich markiert und verknüpft.</small></label>
+            <label class="field"><span>Zugehörige Rechnung</span><select class="text-control" name="obligationId"><option value="">— optional —</option>${selectedObligations.map((o)=>`<option value="${o.id}" ${selectedPlan?.obligation_id===o.id?"selected":""}>${escapeHtml(o.label)} · ${money(o.amount,{currency:o.currency,locale})}</option>`).join('')}</select></label>
+            <label class="field"><span>Verbuchen über</span><select class="text-control" id="taxPaymentSource" name="source"><option value="created_transaction" ${pendingBankPayment?"":"selected"}>Kontobuchung erstellen</option><option value="linked_transaction" ${pendingBankPayment?"selected":""}>Bestehende Kontobuchung verknüpfen</option><option value="history_only">Nur im Steuerdossier erfassen</option></select></label>
+            <label class="field" id="taxPaymentAccountField" ${pendingBankPayment?"hidden":""}><span>Zahlungskonto</span><select class="text-control" id="taxPaymentAccount" name="accountId"><option value="">Bitte wählen</option>${taxPaymentAccounts.map((account)=>`<option value="${account.account_id}">${escapeHtml(account.name)} · ${escapeHtml(account.currency)}</option>`).join('')}</select><small>ALEMANNO BUCHHALTUNG erstellt die Kontobewegung automatisch.</small></label>
+            <label class="field" id="taxPaymentTransactionField" ${pendingBankPayment?"":"hidden"}><span>Kontobuchung</span><select class="text-control" id="taxPaymentTransaction" name="transactionId"><option value="">Bitte wählen</option>${taxPaymentCandidates.map((tx)=>`<option value="${tx.id}" data-amount="${Math.abs(num(tx.amount))}" data-type="${num(tx.amount)<0?'payment':'refund'}" data-date="${dateInputValue(new Date(tx.occurred_at))}" ${pendingBankPayment?.id===tx.id?"selected":""}>${escapeHtml(dateLabel(tx.occurred_at,locale))} · ${escapeHtml(tx.description)} · ${money(tx.amount,{currency:tx.currency,locale})}</option>`).join('')}</select><small>Die vorhandene Bankbuchung wird steuerlich markiert und verknüpft.</small></label>
             <div class="inline-alert" id="taxPaymentHistoryInfo" hidden><strong>Nur Verlauf.</strong><span>Es wird kein Kontostand verändert. Nutze das nur für Zahlungen, die ausserhalb von ALEMANNO BUCHHALTUNG bereits verbucht wurden.</span></div>
-            <label class="field"><span>Betrag</span><input class="text-control" id="taxPaymentAmount" type="number" step="0.01" min="0.01" name="amount" required></label>
-            <label class="field"><span>Bezahlt am</span><input class="text-control" id="taxPaymentDate" type="date" name="paidAt" value="${dateInputValue()}" required></label>
+            <label class="field"><span>Betrag</span><input class="text-control" id="taxPaymentAmount" type="number" step="0.01" min="0.01" name="amount" value="${pendingBankPayment?Math.abs(num(pendingBankPayment.amount)):""}" required></label>
+            <label class="field"><span>Bezahlt am</span><input class="text-control" id="taxPaymentDate" type="date" name="paidAt" value="${pendingBankPayment?dateInputValue(new Date(pendingBankPayment.occurred_at)):dateInputValue()}" required></label>
+            ${installmentSchedule?`<label class="field"><span>Für welchen Ratentermin?</span><select class="text-control" name="installmentDueDate"><option value="">Noch nicht zuordnen</option>${installmentSchedule.rows.map((r)=>`<option value="${r.dueDate}">${dateLabel(r.dueDate,locale)} · ${money(r.planned,{currency:selectedPlan.currency,locale})}</option>`).join('')}</select><small>Rate unabhängig vom tatsächlichen Abbuchungsdatum auswählen.</small></label>`:''}
             <label class="field"><span>Referenz</span><input class="text-control" name="reference"></label>
             <label class="field"><span>Notiz</span><input class="text-control" name="notes"></label>
             <input type="hidden" name="currency" value="${escapeHtml(taxPaymentCurrency)}">

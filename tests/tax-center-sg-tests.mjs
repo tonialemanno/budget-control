@@ -39,7 +39,9 @@ const html=renderTaxAdvisor({
   debtPayments:[],documents:[],accounts:[],pensions:[],debts:[],receivables:[],insurance:[],investments:[],properties:[],vehicles:[],bills:[],fxRates:null,
 });
 
-assert.match(html,/Tax Center · St\.Gallen/);
+assert.match(html,/Tax Center · SG/);
+const zugHtml=renderTaxAdvisor({household:{id:'demo',country_code:'CH',tax_region_code:'ZG',base_currency:'CHF'},profile,taxYear:2026,taxCases:[{id:'zug',tax_year:2026,country_code:'CH',canton_code:'ZG',status:'open',currency:'CHF'}],taxObligations:[],taxPayments:[]});
+assert.match(zugHtml,/Tax Center · ZG/);
 assert.match(html,/Steuerkonto 2025–2027/);
 assert.match(html,/Steuerjahr 2025/);
 assert.match(html,/Steuerjahr 2026/);

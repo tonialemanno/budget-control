@@ -47,7 +47,7 @@ function activityDateTime(value){
 function matchesUser(user,query){
   const needle=String(query||'').trim().toLowerCase();
   if(!needle) return true;
-  return [user.display_name,user.email].filter(Boolean).some((value)=>String(value).toLowerCase().includes(needle));
+  return [user.display_name,user.email,user.id].filter(Boolean).some((value)=>String(value).toLowerCase().includes(needle));
 }
 
 export function presenceState(user,now=Date.now()){
@@ -106,7 +106,7 @@ export function renderAdmin({user:currentUser=null,adminUsers=[],productModules=
     const recentActivity=(activity.recent||[]).slice(0,8);
     return `<article class="card admin-user-row ${expanded?'admin-user-row--expanded':''}">
       <div class="admin-user-summary">
-        <div class="admin-user-identity"><span class="profile-avatar">${escapeHtml((user.display_name||user.email||'B').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(user.display_name||'Ohne Anzeigename')}</strong><span>${escapeHtml(user.email||'')}</span></div></div>
+        <div class="admin-user-identity"><span class="profile-avatar">${escapeHtml((user.display_name||user.email||'B').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(user.display_name||'Ohne Anzeigename')}</strong><span>${escapeHtml(user.email||'')}</span><small class="table-meta" style="overflow-wrap:anywhere">Benutzer-ID: ${escapeHtml(user.id||'—')}</small></div></div>
         <div class="admin-user-meta"><span>Status <strong>${presence.active?statusPill('active','Aktiv'):presence.idle?statusPill('pending','Inaktiv'):escapeHtml(presence.label)}</strong><small class="table-meta">${escapeHtml(presence.detail)}</small></span><span>Letzter Login <strong>${user.last_sign_in_at?dateLabel(user.last_sign_in_at):'noch nie'}</strong></span><span>Letzte Eintragung <strong>${escapeHtml(lastActivity)}</strong><small class="table-meta">${escapeHtml(lastActivityModule)}</small></span>${statusPill(user.confirmed_at?'active':'pending',user.confirmed_at?'Aktiv':'Unbestätigt')}</div>
         <button class="table-action" type="button" data-action="admin-user-toggle-details" data-user-id="${user.id}">${expanded?'Schliessen':'Details'}</button>
       </div>
@@ -165,7 +165,7 @@ export function renderAdmin({user:currentUser=null,adminUsers=[],productModules=
         <div class="form-grid"><label class="field"><span>Name</span><input class="text-control" name="displayName" required placeholder="z. B. Ana"></label><label class="field"><span>E-Mail</span><input class="text-control" name="email" type="email" required></label><label class="field"><span>Region & Format</span><select class="text-control" name="locale"><option value="de-CH">Deutsch · Schweiz</option><option value="de-DE">Deutsch · Deutschland</option><option value="it-CH">Italiano · Svizzera</option><option value="it-IT">Italiano · Italia</option><option value="en-CH">English · Switzerland</option><option value="en-GB">English · United Kingdom</option></select></label><label class="field"><span>Temporäres Passwort</span><input class="text-control" name="password" type="password" minlength="8" required autocomplete="new-password"></label></div>
         <div class="form-actions"><button class="action-button action-button--primary" type="submit">${icon('plus')} Benutzer erstellen</button></div>
       </form>
-      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Benutzerübersicht</h3><p class="card-subtitle">${adminUsers.length} Benutzer · ${filtered.length} Treffer</p></div></div><label class="field"><span>Suche</span><input class="text-control" id="adminUserSearch" type="search" value="${escapeHtml(adminQuery)}" placeholder="Name, Vorname oder E-Mail" autocomplete="off"></label><p class="admin-search-hint">Ein Suchbegriff reicht. Es wird gleichzeitig in Anzeigename und E-Mail gesucht.</p></article>
+      <article class="card card-padding"><div class="card-heading"><div><h3 class="card-title">Benutzerübersicht</h3><p class="card-subtitle">${adminUsers.length} Benutzer · ${filtered.length} Treffer</p></div></div><label class="field"><span>Suche</span><input class="text-control" id="adminUserSearch" type="search" value="${escapeHtml(adminQuery)}" placeholder="Name, E-Mail oder Benutzer-ID" autocomplete="off"></label><p class="admin-search-hint">Ein Suchbegriff reicht. Es wird gleichzeitig in Anzeigename, E-Mail und Benutzer-ID gesucht.</p></article>
     </div>
     <div class="admin-user-list" style="margin-top:16px">${rows||'<div class="card empty-state empty-state--compact"><h3>Keine Benutzer gefunden</h3><p>Passe den Suchbegriff an.</p></div>'}${pager}</div>`;
 }

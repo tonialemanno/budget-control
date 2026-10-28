@@ -2,15 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { renderStatistics } from '../assets/js/views/statistics.js';
 
+const currentCycleDate=new Date();
+currentCycleDate.setHours(0,0,0,0);
+const currentCycleIso=currentCycleDate.toISOString();
+
 const html=renderStatistics({
   accounts:[
     {account_id:'ing',name:'ING',account_type:'checking',currency:'EUR',current_balance:2450,is_archived:false},
     {account_id:'cash',name:'Bargeld',account_type:'cash',currency:'EUR',current_balance:120,is_archived:false},
   ],
   transactions:[
-    {id:'income',status:'booked',occurred_at:'2026-10-01T08:00:00Z',amount:3200,currency:'EUR',category_id:'salary',semantic_type:'earned_income',cashflow_type:'standard',transfer_group_id:null,categories:{id:'salary',name:'Gehalt',kind:'income'}},
-    {id:'food',status:'booked',occurred_at:'2026-10-04T12:00:00Z',amount:-240,currency:'EUR',category_id:'food',semantic_type:'variable_expense',cashflow_type:'standard',transfer_group_id:null,categories:{id:'food',name:'Lebensmittel',kind:'expense'}},
-    {id:'rent',status:'booked',occurred_at:'2026-10-05T08:00:00Z',amount:-900,currency:'EUR',category_id:'rent',semantic_type:'fixed_expense',cashflow_type:'standard',transfer_group_id:null,categories:{id:'rent',name:'Miete',kind:'expense'}},
+    {id:'income',status:'booked',occurred_at:currentCycleIso,amount:3200,currency:'EUR',category_id:'salary',semantic_type:'earned_income',cashflow_type:'standard',transfer_group_id:null,categories:{id:'salary',name:'Gehalt',kind:'income'}},
+    {id:'food',status:'booked',occurred_at:currentCycleIso,amount:-240,currency:'EUR',category_id:'food',semantic_type:'variable_expense',cashflow_type:'standard',transfer_group_id:null,categories:{id:'food',name:'Lebensmittel',kind:'expense'}},
+    {id:'rent',status:'booked',occurred_at:currentCycleIso,amount:-900,currency:'EUR',category_id:'rent',semantic_type:'fixed_expense',cashflow_type:'standard',transfer_group_id:null,categories:{id:'rent',name:'Miete',kind:'expense'}},
   ],
   debtPayments:[],
   recurringRules:[],

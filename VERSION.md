@@ -1,3 +1,12 @@
+# R97 – Eindeutige Benutzer-IDs und Steuer-Ratenplan
+- Bestehende, eindeutige Auth-Benutzer-IDs in Administration und Profil sichtbar; Adminsuche berücksichtigt IDs.
+- Steuer-Ratenplan mit bestätigtem aktuellem Restsaldo, Datum des Saldo-Stichtags, Monatsrate und automatischer Schlussrate ohne Cent-Rest.
+- Steuerzahlungen können einer vorhandenen Bankbuchung, dem Steuerjahr und einem Ratentermin zugeordnet werden; keine zweite Ausgabe.
+- Steuerschulden und Raten bleiben getrennt, damit der Gesamtbetrag nicht zusätzlich zu den Monatsraten gezählt wird.
+- Steuercenter wählt den Kanton je Haushalt (ZG-Demo bleibt vom SG-Privathaushalt getrennt).
+- Migration 20261028144000_tax_installment_plans.sql mit RLS und atomarer Zahlungszuordnung; Beta zuerst, Stable unverändert.
+- Version 2.4.41 · 2026.10.28-r97 · Schema-Guard unverändert 2026100802.
+
 # R96 – Ana UX: geführte Einrichtung, Kategorien & feste Zahlungen
 - Einheitlicher Bereich „Kategorien & Regeln“ mit unveränderlicher Unternavigation zu Hauptkategorien, Unterkategorien, Regeln, Händlern und empfohlener Struktur.
 - Direkte Namensbearbeitung an Kategorien und Unterkategorien ohne Scrollsprung; Kategorie-ID und bestehende Finanzverknüpfungen bleiben erhalten.

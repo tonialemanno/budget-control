@@ -236,7 +236,7 @@ export function renderDashboards({
       <a class="dash-kpi dash-kpi--link" href="/planning/budget"><span>${escapeHtml(t('Noch verfügbar',locale))}</span>
       <strong>${budgetDisplay(budgetRemaining)}</strong><small>${escapeHtml(t('Budget öffnen',locale))} →</small></a></section>
       ${budgetFxIncomplete?`<p class="dash-notice">${escapeHtml(t('Ein Wechselkurs fehlt. Budgetwerte können unvollständig sein.',locale))}</p>`:''}
-      ${card('Budgetfortschritt',budgetRows(model,range,opts),`<a href="/planning/budget">${escapeHtml(t('Budget bearbeiten',locale))} →</a>`,locale)}`;
+      ${card('Budgetfortschritt',budgetRanking,`<a href="/planning/budget">${escapeHtml(t('Budget bearbeiten',locale))} →</a>`,locale)}`;
     }
   }else if(panel==='wealth'){
     body=`<section class="dash-kpis">

@@ -177,6 +177,7 @@ const runtime = {
   taxCaseSections: [],
   taxItems: [],
   taxObligations: [],
+  taxInstallmentPlans: [],
   taxPayments: [],
   fxRates: null,
   runtimeState: null,
@@ -186,7 +187,7 @@ const runtime = {
 
 const importState = { items: [] };
 const yearPromptSeen = new Set();
-const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, merchantReviewChoices: new Map(), merchantReviewSaving: false, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
+const uiState = { adminQuery: '', adminPage: 1, adminExpandedUserId: null, demoCredentials: null, importQuery: '', importCategory: 'all', merchantQuery: '', merchantFilter: 'all', merchantPage: 1, merchantReviewChoices: new Map(), merchantReviewSaving: false, searchQuery: '', transactionView: 'summary', transactionPeriod: 'month', transactionQuery: '', transactionCategory: 'all', transactionAccount: 'all', transactionContext: 'all', transactionVehicle: 'all', transactionDirection: 'all', transactionSemantic: 'all', transactionCategoryIds: [], transactionSourceSet: [], transactionIds: [], transactionFrom: '', transactionTo: '', transactionPage: 1, categorizationOpen: false, categorizationFilter: 'action', categorizationPage: 1, categorizationGroupKey: '', debtExpandedId: null, receivableExpandedId: null, budgetExpandedMerchantId: null, pendingTransactionEditId: null, taxYear: new Date().getFullYear(), taxMatchId: null, taxReceiptTxId: null, taxItemDocumentId: null, yearCloseYear: new Date().getFullYear()-1, yearCloseLoadedYear: null, yearClosePending: false, yearCloseError: '' };
 
 let sessionGeneration=0;
 
@@ -1082,6 +1083,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     () => financeApi.listTaxCaseSections(h).catch(()=>[]),
     () => financeApi.listTaxItems(h).catch(()=>[]),
     () => financeApi.listTaxObligations(h).catch(()=>[]),
+    () => financeApi.listTaxInstallmentPlans(h).catch(()=>[]),
     () => financeApi.listTaxPayments(h).catch(()=>[]),
     () => financeApi.listTransactionDuplicateIgnores(h).catch(()=>[]),
     () => financeApi.listYearClosures(h).catch(()=>[]),
@@ -1098,7 +1100,7 @@ async function loadFinanceData({generation=sessionGeneration,userId=runtime.user
     runtime.documents, runtime.householdMembers, runtime.fxRates,
     runtime.countryMasterCategories, runtime.countryMasterMerchants, runtime.masterDataHouseholds,
     runtime.changeHistory,
-    runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxPayments,
+    runtime.taxRuleVersions, runtime.taxCases, runtime.taxPeople, runtime.taxChildren, runtime.taxEmployments, runtime.taxCaseSections, runtime.taxItems, runtime.taxObligations, runtime.taxInstallmentPlans, runtime.taxPayments,
     runtime.transactionDuplicateIgnores,
     runtime.yearClosures,
     runtime.allCategories,
@@ -1239,6 +1241,7 @@ function render() {
     receivableExpandedId: uiState.receivableExpandedId,
     budgetExpandedMerchantId: uiState.budgetExpandedMerchantId,
     taxYear: uiState.taxYear,
+    taxMatchId: uiState.taxMatchId,
     yearCloseYear: uiState.yearCloseYear,
     yearCloseError: uiState.yearCloseError,
   });
@@ -2406,9 +2409,10 @@ function transactionTaxYear(txLike={}) {
 }
 async function ensureTransactionTaxCase(year) {
   if(!moduleEnabled('tax')||runtime.household?.country_code!=='CH') return null;
-  const existing=runtime.taxCases.find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG');
+  const region=runtime.household?.tax_region_code||'SG';
+  const existing=runtime.taxCases.find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code===region);
   if(existing) return existing;
-  return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
+  return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:region});
 }
 
 function findMatchingRecurringRule(txLike={}) {
@@ -4067,7 +4071,7 @@ async function handleForm(form) {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
     const year=numberValue(data,'taxYear',uiState.taxYear);
     let taxCase=runtime.taxCases.find((row)=>Number(row.tax_year)===year&&row.country_code==='CH'&&row.canton_code==='SG');
-    if(!taxCase) taxCase=await financeApi.ensureTaxCase({householdId:h,taxYear:year,countryCode:'CH',cantonCode:'SG'});
+    if(!taxCase) taxCase=await financeApi.ensureTaxCase({householdId:h,taxYear:year,countryCode:'CH',cantonCode:runtime.household.tax_region_code||'SG'});
     await financeApi.updateTaxCase(taxCase.id,{
       municipality:nullValue(data,'municipality'),
       tax_period_from:nullValue(data,'taxPeriodFrom'),
@@ -4174,6 +4178,33 @@ async function handleForm(form) {
     });
     await refresh('Steuerforderung gespeichert.'); return;
   }
+  if (id === 'tax-plan-save') {
+    if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
+    const taxCase=runtime.taxCases.find((row)=>row.id===formValue(data,'taxCaseId'));
+    if(!taxCase) throw new Error('Steuerfall wurde nicht gefunden.');
+    const obligation=runtime.taxObligations.find((row)=>row.id===formValue(data,'obligationId')&&row.tax_case_id===taxCase.id);
+    if(!obligation) throw new Error('Bitte eine Steuerforderung aus diesem Steuerfall auswählen.');
+    const balance=numberValue(data,'startingBalance');
+    const amount=numberValue(data,'installmentAmount');
+    if(!(balance>0 && amount>0)) throw new Error('Offener Betrag und Monatsrate müssen positiv sein.');
+    if(Math.ceil(balance/amount)>240) throw new Error('Maximal 240 Monatsraten.');
+    const asOf=formValue(data,'balanceAsOf');
+    const firstDue=formValue(data,'firstDueDate');
+    if(!asOf||!firstDue||firstDue<asOf) throw new Error('Der erste Ratentermin muss nach dem Saldo-Stichtag liegen.');
+    const existing=runtime.taxInstallmentPlans.find((row)=>row.obligation_id===obligation.id);
+    const payload={
+      household_id:h,tax_case_id:taxCase.id,obligation_id:obligation.id,
+      balance_as_of:asOf,first_due_date:firstDue,
+      starting_balance:balance,installment_amount:amount,
+      currency:taxCase.currency||'CHF',status:'active',
+    };
+    if(existing) {
+      await financeApi.updateTaxInstallmentPlan(existing.id,payload);
+    } else {
+      await financeApi.createTaxInstallmentPlan(payload);
+    }
+    await refresh('Ratenplan gespeichert. Es wurden keine zusätzlichen Bankbuchungen oder Steuerforderungen erzeugt.'); return;
+  }
   if (id === 'tax-payment-create') {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
     const caseId=formValue(data,'taxCaseId');
@@ -4184,10 +4215,12 @@ async function handleForm(form) {
     const transaction=runtime.transactions.find((row)=>row.id===nullValue(data,'transactionId'))||null;
     await recordTaxMovement({
       api:financeApi, householdId:h, taxCase, obligationId:nullValue(data,'obligationId'),
+      installmentDueDate:nullValue(data,'installmentDueDate'),
       paymentType:formValue(data,'paymentType')||'payment', amount:numberValue(data,'amount'),
       paidAt:formValue(data,'paidAt'), reference:nullValue(data,'reference'), notes:nullValue(data,'notes'),
       source, account, transaction,
     });
+    uiState.taxMatchId=null;
     await refresh(source==='history_only'?'Steuerzahlung im Dossier gespeichert.':'Steuerzahlung, Konto und Steuerdossier sind verknüpft.'); return;
   }
   if (id === 'tax-section-status') {
@@ -4879,7 +4912,7 @@ function syncMerchantReviewUi() {
 async function handleAction(target) {
   const action = target.dataset.action;
   if (!action) return;
-  const writeActions = new Set(['fixed-cost-open','category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
+  const writeActions = new Set(['fixed-cost-open','category-edit','category-inline-cancel','category-add-child','category-restore','merchant-review-choice','merchant-review-group','merchant-review-clear','merchant-review-save','review-link-transfer','review-undo-change','project-toggle-archive','starter-categories','categorization-open','categorization-apply-safe','categorization-apply-group','categorization-apply-selected-category','categorization-apply-selected-transfer','categorization-apply-selected-debt-repayment','account-edit','overview-account-edit','transaction-edit','transaction-merge-open','transaction-merge-suggested','transaction-duplicate-ignore','transaction-make-recurring','transaction-delete','transaction-to-transfer','transaction-cash-withdrawal','transaction-note','transaction-tax-toggle','transaction-tax-assign','delete','bill-edit','contract-edit','bill-payment-open','bill-payment-reverse','goal-progress','goal-apply-suggestion','goal-edit','goal-source-open','goal-source-delete','debt-edit','debt-payment-open','debt-payment-reverse','debt-recurring','debt-recurring-remove','contract-recurring-remove','insurance-recurring-remove','receivable-payment-open','receivable-payment-reverse','legal-event','import-group-assign','budget-suggestion','budget-transaction-edit','merchant-edit','merchant-merge-open','merchant-merge','merchant-merge-cluster','merchant-duplicate-ignore','merchant-bulk-merge','merchant-promote-master','category-promote-master','category-edit','category-archive','masterdata-install-country','recurring-edit','vehicle-edit','vehicle-assign-transaction','insurance-edit','insurance-recurring','insurance-document','contract-recurring','investment-edit','investment-trade','document-tax-toggle','tax-receipt','tax-case-create','tax-person-delete','tax-child-delete','tax-employment-delete','tax-item-delete','tax-item-document','tax-obligation-delete','tax-payment-delete','sales-document-new','sales-document-add-item','sales-document-remove-item','sales-document-status','sales-document-convert','sales-document-delete','sales-document-payment-link','sales-document-payment-unlink','sales-document-create-receipt','sales-template-delete']);
   if (writeActions.has(action) && !canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
 
   if(action==='year-close-export'){
@@ -5613,6 +5646,28 @@ async function handleAction(target) {
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
     const value=prompt(t('Wofür war diese Zahlung?'),tx.note||''); if(value===null) return; await financeApi.updateTransaction(tx.id,{note:value.trim()||null}); await refresh('Zweck gespeichert.'); return;
   }
+  if (action === 'transaction-tax-assign') {
+    if (!moduleEnabled('tax')) throw new Error('Das Steuermodul ist nicht freigeschaltet.');
+    const tx=runtime.transactions.find((row)=>row.id===target.dataset.id);
+    if(!tx||tx.status!=='booked'||tx.transfer_group_id) throw new Error('Nur gebuchte Bankbewegungen können zugeordnet werden.');
+    if(tx.tax_relevant) throw new Error('Diese Buchung ist bereits steuerrelevant. Prüfe die bestehende Steuerzuordnung.');
+    const proposed=transactionTaxYear(tx);
+    const raw=prompt('Für welches Steuerjahr ist diese Zahlung? (z. B. 2026)',String(proposed));
+    if(raw===null) return;
+    const year=Number(raw.trim());
+    if(!Number.isInteger(year)||year<2000||year>2100) throw new Error('Bitte ein gültiges Steuerjahr eingeben.');
+    const region=runtime.household.tax_region_code||'SG';
+    if(!runtime.taxCases.some((row)=>Number(row.tax_year)===year&&row.country_code==='CH'&&row.canton_code===region)) {
+      await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:region});
+      await loadFinanceData();
+    }
+    uiState.taxYear=year;
+    uiState.taxMatchId=tx.id;
+    navigateToRoute('tax-advisor');
+    render();
+    document.querySelector('#tax-payment-create')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
   if (action === 'transaction-tax-toggle') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const tx=runtime.transactions.find((row)=>row.id===target.dataset.id); if(!tx) throw new Error('Transaktion wurde nicht gefunden.');
@@ -5664,7 +5719,7 @@ async function handleAction(target) {
   if (action === 'tax-case-create') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const year=Number(target.dataset.year)||uiState.taxYear;
-    await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:'SG'});
+    await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:runtime.household.tax_region_code||'SG'});
     uiState.taxYear=year; await refresh(`Steuerfall ${year} angelegt.`); return;
   }
   if (action === 'tax-person-delete') {
