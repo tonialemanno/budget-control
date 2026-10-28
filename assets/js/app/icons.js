@@ -19,6 +19,7 @@ const paths = {
   'chevron-right': '<path d="m9 6 6 6-6 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   'arrow-up-right': '<path d="M7 17 17 7M9 7h8v8"/>',
+  upload: '<path d="M12 16V3m0 0L7 8m5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
   'arrow-down-left': '<path d="M17 7 7 17M15 17H7V9"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',

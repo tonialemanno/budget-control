@@ -1,5 +1,6 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "CSV hochladen": "Carica CSV",
     "Offene Rechnungen, wiederkehrende Ausgaben, Schulden- und Steuerraten · nächste 3 Monate. Bereits verbuchte Zahlungen werden nicht erneut verlangt.": "Fatture aperte, spese ricorrenti, rate di debiti e imposte · prossimi 3 mesi. I pagamenti già registrati non vengono richiesti nuovamente.",
     "Überfällig": "Scaduto",
     "Wiederkehrend": "Ricorrente",
@@ -1591,6 +1592,7 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "CSV hochladen": "Upload CSV",
     "Offene Rechnungen, wiederkehrende Ausgaben, Schulden- und Steuerraten · nächste 3 Monate. Bereits verbuchte Zahlungen werden nicht erneut verlangt.": "Open invoices, recurring expenses, loan and tax installments · next 3 months. Recorded payments are not due again.",
     "Überfällig": "Overdue",
     "Wiederkehrend": "Recurring",

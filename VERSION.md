@@ -1,3 +1,11 @@
+# R99 – CSV-Import jederzeit sichtbar
+- Direkter Link «CSV hochladen» in der globalen Kopfzeile für Desktop und Mobilgeräte, auch ohne Untermenü erreichbar.
+- Zweiter sichtbarer Schnellzugang direkt in der Startseiten-Aktionsleiste.
+- Beide Links verwenden ausschliesslich die bestehende Route /finance/imports, keine parallelen Importmodelle.
+- In der Einrichtung ausgeblendet, bis Konten angelegt werden können.
+- Responsive Darstellung, Icon und Übersetzung in IT und EN, Navigationstests ergänzt.
+- Nur Beta, Stable unverändert. Version 2.4.43 · 2026.10.28-r99.
+
 # R98 – Gemeinsame Zahlungsübersicht und Scheidungsrate
 - «Was muss ich wann bezahlen?» führt offene Rechnungen, wiederkehrende Ausgaben, bestehende Vertragszahlungen, Schuldenraten und Steuer-Raten aus einer gemeinsamen Berechnung zusammen.
 - Die aktive Regel «Scheidung» mit CHF 150 pro Monat erscheint automatisch; bereits passende importierte Buchungen werden nicht nochmals als offene Zahlung dargestellt.

@@ -821,3 +821,14 @@
     white-space: normal;
   }
 }
+
+/* Mobile: one unmistakable upload icon in the topbar, full text on the dashboard. */
+@media (max-width: 660px) {
+  .topbar-import-shortcut {
+    min-height: 40px; width: 40px; height: 40px; padding: 0;
+    border: 0; border-radius: 10px; background: transparent;
+  }
+  .topbar-import-shortcut:active { background: var(--surface-3); }
+  .topbar-import-shortcut svg { width: 21px; height: 21px; }
+  .topbar-import-label { display: none; }
+}
