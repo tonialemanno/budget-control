@@ -27,6 +27,8 @@ function hasKnownTransferPrecedent(rule,transactions){
  * amount, source account, destination account and currency.
  *
  * Unknown or conflicting matches are NOT automatically booked as transfers.
+ * A recurring-rule match is only a SUGGESTION until the user confirms that
+ * the recipient IBAN actually belongs to the proposed own account.
  */
 export function detectOwnBankTransfer({transaction,accounts=[],recurringRules=[],transactions=[]}={}){
   if(!transaction||!transaction.account_id||!transaction.currency||!(Number(transaction.amount)<0))
@@ -37,7 +39,7 @@ export function detectOwnBankTransfer({transaction,accounts=[],recurringRules=[]
   const eligible=accounts.filter(account=>account.account_id!==transaction.account_id
     &&account.is_archived!==true&&account.currency===transaction.currency);
   const direct=eligible.filter(account=>normalized(account.external_account_ref)===recipientRef);
-  if(direct.length===1)return {account:direct[0],reason:'iban'};
+  if(direct.length===1)return {account:direct[0],reason:'iban',requiresConfirmation:false};
   if(direct.length>1)return null;
 
   const raw=transaction.import_raw_data?.row||{};
@@ -54,5 +56,5 @@ export function detectOwnBankTransfer({transaction,accounts=[],recurringRules=[]
   );
   const unique=[...new Set(rules.map(rule=>rule.destination_account_id))];
   if(unique.length!==1)return null;
-  return {account:eligible.find(account=>account.account_id===unique[0]),reason:'verified-recurring-precedent'};
+  return {account:eligible.find(account=>account.account_id===unique[0]),reason:'verified-recurring-precedent',requiresConfirmation:true};
 }
