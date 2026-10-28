@@ -1,5 +1,8 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "Offene Rechnungen und Steuer-Raten aus einem Zahlungsplan. Bereits verknüpfte Zahlungen werden abgezogen.": "Fatture aperte e rate fiscali da un piano di pagamento. I pagamenti collegati sono già detratti.",
+    "Aktuell sind keine offenen Zahlungen mit Termin hinterlegt.": "Non ci sono pagamenti in scadenza registrati al momento.",
+    "Was muss ich wann bezahlen?": "Cosa devo pagare e quando?",
     "versioniert pro Steuerjahr": "versione per anno fiscale",
     "Verbrauch pro Kategorie oder Händler. Jede Zeile öffnet genau die zugehörigen Buchungen.": "Consumo per categoria o esercente. Ogni riga apre le relative transazioni.",
     "0 % verbraucht ·": "0 % utilizzato ·",
@@ -1583,6 +1586,9 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "Offene Rechnungen und Steuer-Raten aus einem Zahlungsplan. Bereits verknüpfte Zahlungen werden abgezogen.": "Open invoices and tax installments from one payment schedule. Linked payments are already deducted.",
+    "Aktuell sind keine offenen Zahlungen mit Termin hinterlegt.": "No outstanding payments with due dates are currently recorded.",
+    "Was muss ich wann bezahlen?": "What must I pay, and when?",
     "versioniert pro Steuerjahr": "versioned by tax year",
     "Verbrauch pro Kategorie oder Händler. Jede Zeile öffnet genau die zugehörigen Buchungen.": "Spending by category or merchant. Each row opens its transactions.",
     "0 % verbraucht ·": "0% used ·",
