@@ -68,13 +68,13 @@ export function renderMoney({
 
     <article class="card card--accent wallet-summary-card">
       <div>
-        <span class="hero-label">Buchungssaldo Hauptkonto · ${currency}</span>
+        <span class="hero-label"><span>Buchungssaldo Hauptkonto</span> · ${currency}</span>
         <div class="hero-value">${primaryBalanceText}</div>
-        <span class="hero-caption">${escapeHtml(primary?.name||'Kein Hauptkonto')} · aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen</span>
+        <span class="hero-caption">${escapeHtml(primary?.name||'Kein Hauptkonto')} · <span>Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen</span></span>
         <div class="wallet-total-comparison">
-          <span>Konten zusammen (inkl. Sparkonten &amp; Bargeld) · ${currency}</span>
+          <span><span>Konten zusammen (inkl. Sparkonten &amp; Bargeld)</span> · ${currency}</span>
           <strong>${totalLiquidText}</strong>
-          <small>Kein frei verfügbares Geld. ${liquid.complete?fxLabel(fxRates,currency):'Währungsumrechnung unvollständig.'}</small>
+          <small><span>Kein frei verfügbares Geld.</span> <span>${liquid.complete?fxLabel(fxRates,currency):'Währungsumrechnung unvollständig.'}</span></small>
         </div>
       </div>
       <div class="wallet-summary-actions">
