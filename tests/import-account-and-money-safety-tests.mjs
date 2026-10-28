@@ -32,7 +32,7 @@ assert.doesNotMatch(imports,/value="cash" selected>Bargeld CHF/);
 assert.match(imports,/Nach einem erfolgreichen Import merkt sich AIONE dein Konto/);
 
 const money=renderMoney({accounts,household,profile:profiles,fxRates:{rates:{EUR:1.0},as_of:'2026-09'},canWrite:true});
-assert.match(money,/Buchungssaldo Hauptkonto · CHF/);
+assert.match(money,/Buchungssaldo Hauptkonto<\/span> · CHF/);
 assert.match(money,/CHF(?:\s|&nbsp;|&#160;|\u00a0)*[−-]3['’]746\.74/);
 assert.match(money,/Konten zusammen \(inkl\. Sparkonten &amp; Bargeld\)/);
 assert.match(money,/Kein frei verfügbares Geld\./);
