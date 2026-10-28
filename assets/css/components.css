@@ -2082,3 +2082,17 @@ button.statistics-metric:focus-visible { outline:2px solid var(--accent); outlin
 @media(max-width:660px){ .category-workspace-nav { top:calc(var(--topbar-height) + env(safe-area-inset-top)); overflow-x:auto; flex-wrap:nowrap; scrollbar-width:none; } .category-workspace-tab { flex:0 0 auto; } .category-settings-child { padding-left:16px; } .category-inline-form label { min-width:120px; } }
 
 .onboarding-return { display:flex; margin:0 0 16px; }
+
+/* Permanent, visible import shortcut in the global navigation. */
+.topbar-import-shortcut {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; white-space: nowrap;
+  min-height: 40px; padding: 8px 13px; border-radius: 12px;
+  background: var(--surface-3); color: var(--text);
+  text-decoration: none; font-size: 13px; font-weight: 650;
+  flex: 0 0 auto;
+}
+.topbar-import-shortcut:hover { background: var(--surface); }
+.topbar-import-shortcut:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topbar-import-shortcut svg { width: 18px; height: 18px; }
+body.onboarding-mode .topbar-import-shortcut { display: none; }
