@@ -201,6 +201,7 @@ export async function recordTaxMovement({
   householdId,
   taxCase,
   obligationId = null,
+  installmentDueDate = null,
   paymentType = 'payment',
   amount,
   paidAt,
@@ -227,11 +228,13 @@ export async function recordTaxMovement({
     throw new Error('Unbekannte Zahlungsart.');
   }
 
-  if (typeof api.recordTaxPayment !== 'function') throw new Error('Die atomare Steuerbuchung ist nicht verfügbar.');
-  return api.recordTaxPayment({
+  const savePayment = installmentDueDate ? api.recordTaxInstallmentPayment : api.recordTaxPayment;
+  if (typeof savePayment !== 'function') throw new Error('Die atomare Steuerbuchung ist nicht verfügbar.');
+  return savePayment({
     householdId,
     taxCaseId:taxCase.id,
     obligationId,
+    installmentDueDate,
     paymentType,
     amount:value,
     paidAt,
