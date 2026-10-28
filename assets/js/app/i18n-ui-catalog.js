@@ -1,5 +1,10 @@
 export const UI_TRANSLATIONS = Object.freeze({
   it: Object.freeze({
+    "Offene Rechnungen, wiederkehrende Ausgaben, Schulden- und Steuerraten · nächste 3 Monate. Bereits verbuchte Zahlungen werden nicht erneut verlangt.": "Fatture aperte, spese ricorrenti, rate di debiti e imposte · prossimi 3 mesi. I pagamenti già registrati non vengono richiesti nuovamente.",
+    "Überfällig": "Scaduto",
+    "Wiederkehrend": "Ricorrente",
+    "Achtung:": "Attenzione:",
+    "Automatik prüfen": "Controlla automazione",
     "Offene Rechnungen und Steuer-Raten aus einem Zahlungsplan. Bereits verknüpfte Zahlungen werden abgezogen.": "Fatture aperte e rate fiscali da un piano di pagamento. I pagamenti collegati sono già detratti.",
     "Aktuell sind keine offenen Zahlungen mit Termin hinterlegt.": "Non ci sono pagamenti in scadenza registrati al momento.",
     "Was muss ich wann bezahlen?": "Cosa devo pagare e quando?",
@@ -1586,6 +1591,11 @@ export const UI_TRANSLATIONS = Object.freeze({
   "noch keine Eintragung": "nessuna registrazione",
   "noch kein Live-Signal": "nessun segnale live"}),
   en: Object.freeze({
+    "Offene Rechnungen, wiederkehrende Ausgaben, Schulden- und Steuerraten · nächste 3 Monate. Bereits verbuchte Zahlungen werden nicht erneut verlangt.": "Open invoices, recurring expenses, loan and tax installments · next 3 months. Recorded payments are not due again.",
+    "Überfällig": "Overdue",
+    "Wiederkehrend": "Recurring",
+    "Achtung:": "Attention:",
+    "Automatik prüfen": "Review automation",
     "Offene Rechnungen und Steuer-Raten aus einem Zahlungsplan. Bereits verknüpfte Zahlungen werden abgezogen.": "Open invoices and tax installments from one payment schedule. Linked payments are already deducted.",
     "Aktuell sind keine offenen Zahlungen mit Termin hinterlegt.": "No outstanding payments with due dates are currently recorded.",
     "Was muss ich wann bezahlen?": "What must I pay, and when?",

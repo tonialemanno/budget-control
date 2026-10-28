@@ -4,6 +4,7 @@ import { taxInstallmentSchedule } from '../app/tax-installments.js';
 import { icon } from '../app/icons.js';
 import { budgetSummary, goalSummaries } from '../app/finance-insights.js';
 import { financeMonthMode } from '../app/user-preferences.js';
+import { buildUpcomingPayments } from '../app/upcoming-payments.js';
 
 function enabled(key, moduleAccess, hiddenModules) {
   return moduleAccess?.[key] === true && !hiddenModules.includes(key);
@@ -21,7 +22,7 @@ function planCard({href,iconName,title,text,meta='',progress=null}) {
 
 export function renderPlanning({
   budgets=[], goals=[], bills=[], salesDocuments=[], recurringRules=[], contracts=[], investments=[], pensions=[], assets=[], debts=[],
-  transactions=[], debtPayments=[], categories=[], merchants=[], taxInstallmentPlans=[], taxPayments=[], taxCases=[], taxObligations=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard',
+  transactions=[], debtPayments=[], categories=[], merchants=[], taxInstallmentPlans=[], taxPayments=[], taxCases=[], taxObligations=[], household, profile, fxRates, moduleAccess={}, hiddenModules=[], depth='standard', planningNow=new Date(),
 }={}) {
   const currency=household?.base_currency||'CHF';
   const locale=profile?.locale||'de-CH';
@@ -34,24 +35,21 @@ export function renderPlanning({
   const fixedIncome=activeRecurring.filter((r)=>r.direction==='income');
   const installmentDebts=debts.filter((d)=>d.status!=='paid' && Number(d.installment_amount||0)>0);
   const isDE=household?.country_code==='DE';
-  const dueItems=[];
-  for(const bill of openBills){
-    if(!bill.due_date) continue;
-    dueItems.push({due:bill.due_date,label:bill.name||'Rechnung',amount:Number(bill.amount)||0,currency:bill.currency||currency,href:'#/bills',source:'Rechnung'});
-  }
-  if(enabled('tax',moduleAccess,hiddenModules)){
-    for(const plan of taxInstallmentPlans.filter((p)=>p.status==='active')){
-      const claim=taxObligations.find((row)=>row.id===plan.obligation_id&&row.household_id===household?.id);
-      if(!claim) continue;
-      const entries=taxInstallmentSchedule(plan,taxPayments);
-      const taxCase=taxCases.find((row)=>row.id===plan.tax_case_id);
-      for(const row of entries.rows.filter((r)=>r.open>0)){
-        dueItems.push({due:row.dueDate,label:(claim.label||'Steuern')+(taxCase?.tax_year?' · '+taxCase.tax_year:''),amount:row.open,currency:plan.currency||currency,href:'#/tax-advisor',source:'Steuerrate'});
-      }
-    }
-  }
-  dueItems.sort((a,b)=>String(a.due).localeCompare(String(b.due))||a.label.localeCompare(b.label));
-  const dueRows=dueItems.slice(0,15).map((item)=>`<tr><td>${dateLabel(item.due,locale)}</td><td><a href="${item.href}">${escapeHtml(item.label)}</a><div class="table-meta">${escapeHtml(item.source)}</div></td><td>${money(item.amount,{currency:item.currency,locale})}</td></tr>`);
+  const duePlan=buildUpcomingPayments({
+    now:planningNow,household,recurringRules,transactions,
+    bills:enabled('bills',moduleAccess,hiddenModules)?bills:[],
+    contracts:enabled('bills',moduleAccess,hiddenModules)?contracts:[],
+    debts:enabled('debts',moduleAccess,hiddenModules)?debts:[],
+    taxInstallmentPlans:enabled('tax',moduleAccess,hiddenModules)?taxInstallmentPlans:[],
+    taxObligations,taxCases,taxPayments,
+  });
+  const dueRows=duePlan.rows.map((item)=>`<tr>
+    <td>${dateLabel(item.due,locale)}${item.status==='overdue'?'<div class="table-meta">Überfällig</div>':''}</td>
+    <td><a href="${item.href}">${escapeHtml(item.label)}</a><div class="table-meta">${escapeHtml(item.source)}</div></td>
+    <td>${money(item.amount,{currency:item.currency,locale})}</td>
+  </tr>`);
+  const dueWarnings=duePlan.warnings.map((item)=>`
+    <p class="dash-notice">Achtung: Die bestehende Automatik „${escapeHtml(item.description)}“ (${money(item.amount,{currency:item.currency,locale})}) überschneidet sich mit dem Steuer-Ratenplan (${money(item.planRate,{currency:item.currency,locale})}). Nur der Steuer-Ratenplan wird in dieser Übersicht angezeigt. <a href="#/recurring">Automatik prüfen</a>.</p>`).join('');
   const cards=[];
 
   cards.push(planCard({
@@ -111,7 +109,8 @@ export function renderPlanning({
     })}
 
     <article class="card card-padding" style="margin-top:16px">
-      <div class="card-heading"><div><h3 class="card-title">Was muss ich wann bezahlen?</h3><p class="card-subtitle">Offene Rechnungen und Steuer-Raten aus einem Zahlungsplan. Bereits verknüpfte Zahlungen werden abgezogen.</p></div></div>
+      <div class="card-heading"><div><h3 class="card-title">Was muss ich wann bezahlen?</h3><p class="card-subtitle">Offene Rechnungen, wiederkehrende Ausgaben, Schulden- und Steuerraten · nächste 3 Monate. Bereits verbuchte Zahlungen werden nicht erneut verlangt.</p></div></div>
+      ${dueWarnings}
       ${dataTable({headers:['Fällig','Zahlung','Betrag'],rows:dueRows,emptyText:'Aktuell sind keine offenen Zahlungen mit Termin hinterlegt.'})}
     </article>
 

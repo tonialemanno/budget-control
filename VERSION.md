@@ -1,3 +1,12 @@
+# R98 – Gemeinsame Zahlungsübersicht und Scheidungsrate
+- «Was muss ich wann bezahlen?» führt offene Rechnungen, wiederkehrende Ausgaben, bestehende Vertragszahlungen, Schuldenraten und Steuer-Raten aus einer gemeinsamen Berechnung zusammen.
+- Die aktive Regel «Scheidung» mit CHF 150 pro Monat erscheint automatisch; bereits passende importierte Buchungen werden nicht nochmals als offene Zahlung dargestellt.
+- Abgleich nur für gebuchte, verknüpfte Zahlungen auf demselben Konto, mit passender Währung und Betrag innerhalb von drei Tagen; zweifelhafte Zuordnungen gelten nicht als bezahlt.
+- Bestehende Steuer-Automatik für das gleiche Jahr wird bei aktivem Steuer-Ratenplan in der Fälligkeitsübersicht nicht doppelt gezählt; Abweichungen im Betrag werden ausdrücklich zum Prüfen angezeigt.
+- Keine neue Schuld oder Ausgabe in Supabase, keine Änderungen an historischen Banktransaktionen.
+- Vollständige Regressionstests für Fälligkeiten, Überschneidungen, bereits bezahlte Raten, Einschränkungen bei der Sichtbarkeit sowie die Scheidung.
+- Nur Beta, Stable unverändert. Version 2.4.42 · 2026.10.28-r98.
+
 # R97 – Eindeutige Benutzer-IDs und Steuer-Ratenplan
 - Bestehende, eindeutige Auth-Benutzer-IDs in Administration und Profil sichtbar; Adminsuche berücksichtigt IDs.
 - Steuer-Ratenplan mit bestätigtem aktuellem Restsaldo, Datum des Saldo-Stichtags, Monatsrate und automatischer Schlussrate ohne Cent-Rest.
