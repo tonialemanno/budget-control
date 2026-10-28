@@ -1,3 +1,12 @@
+# R102 – Eigene UBS-Umbuchungen ohne doppelte Buchung erkennen
+- UBS Beschreibung3 «Konto-Nr. IBAN» wird beim Import als Gegenkonto-IBAN erkannt, auch wenn keine eigene Spalte existiert.
+- Konten mit zuvor bestätigter IBAN werden anhand exakter Empfänger-IBAN automatisch als interne Umbuchungen erkannt und mit der vorhandenen Bankbuchung über die bestehende sichere RPC verknüpft.
+- Für früher erfasste Konten ohne IBAN wird ein Vorschlag nur angezeigt, wenn ein aktiver gleich hoher Dauerauftrag und eine historisch bestätigte Gegenbuchung zum selben Zielkonto vorliegen. Der Benutzer muss die Empfänger-IBAN einmal bestätigen; ohne Bestätigung KEIN automatischer Transfer.
+- Die Importseite zeigt solche bisher fehlenden Gegenbuchungen an, auch ohne erneuten CSV-Upload; eine einzige Bestätigung erzeugt nur die fehlende Gutschrift und merkt die IBAN für künftige Importe.
+- Die aktuelle, nachgewiesene CHF-525-Buchung vom LohnKonto zum Sparkonto ist als Kandidat erkennbar. Die noch offene CHF-240-Differenz zum UBS-Sparkonto bleibt ohne originalen Sparkontoauszug ungeklärt. Keine erfundenen Saldo-Anker oder Zusatzbuchungen.
+- Live-Datenbankmigration zur direkten finanziellen Korrektur wurde durch Sicherheitschecks blockiert und NICHT ausgeführt. Die Korrektur ist nach Release über die bestätigte App-Funktion möglich.
+- Beta only, Stable unverändert. Version 2.4.46 · 2026.10.28-r102.
+
 # R101 – UBS CSV-Banksaldo-Abgleich und sichere Buchungs-Identität
 - UBS-Bank-Transaktionsnummer (`Transaktions-Nr.`) als kanonische Buchungs-ID statt veränderlicher Beschreibung, Händler oder Betrag; das verhindert Dubletten bei veränderten Exporten und schützt unterschiedliche Buchungen mit identischem Betrag.
 - Die UBS-CSV-Spalte Saldo wird automatisch erkannt und mit dem gebuchten Kontosaldo per Bankauszugsdatum verglichen. Der Abgleich erzeugt nie selbst eine Kontobewegung oder ändert den Saldo-Anker.
