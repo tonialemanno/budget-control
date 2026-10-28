@@ -81,7 +81,7 @@ export function renderImports({
         const iban=bankCounterpartyIban(tx.import_raw_data?.row);
         return `<div class="list-row" style="gap:12px">
           <div class="list-row-main"><strong>${escapeHtml(match.account.name)}</strong>
-            <span>${dateLabel(tx.occurred_at,locale)} · ${money(Math.abs(Number(tx.amount)),{currency:tx.currency,locale})} · IBAN endet auf …${escapeHtml(iban.slice(-4))}</span></div>
+            <span>${dateLabel(tx.occurred_at,locale)} · ${money(Math.abs(Number(tx.amount)),{currency:tx.currency,locale})} · <span>IBAN endet auf</span> …${escapeHtml(iban.slice(-4))}</span></div>
           <button class="action-button action-button--secondary" type="button" data-action="confirm-own-bank-transfer" data-id="${escapeHtml(tx.id)}">IBAN bestätigen und umbuchen</button>
         </div>`;
       }).join('')}
