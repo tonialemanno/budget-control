@@ -2760,6 +2760,7 @@ async function handleForm(form) {
   const id = form.id;
   const h = runtime.household?.id;
   const currency = runtime.household?.base_currency || 'CHF';
+  const locale = runtime.profile?.locale || 'de-CH';
 
   if (!['setup-create','password-change','admin-user-create','admin-demo-create','personal-settings','profile-settings','admin-user-access'].includes(id)) {
     if (id === 'family-add') { if (!canAdminHousehold()) throw new Error('Nur Owner oder Haushalts-Admins dürfen Mitglieder verwalten.'); }
