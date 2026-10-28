@@ -8,6 +8,7 @@ import { setLocale, t, translateElement } from './app/i18n.js';
 import { icon, hydrateStaticIcons } from './app/icons.js';
 import { analyzeImportRows, cashWithdrawalInfo, filterImportDuplicates, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
+import { bankStatementCheckpoint, reconcileBankStatement } from './app/bank-statement-reconcile.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
@@ -4431,6 +4432,7 @@ async function handleForm(form) {
     let semanticDuplicates=0;
     const importDuplicatePool=[...runtime.transactions];
     const failedFiles=[];
+    const statementChecks=[];
     const importedClosedYearCandidates=new Set();
 
     for (const item of importState.items) {
@@ -4548,6 +4550,7 @@ async function handleForm(form) {
         importedTotal+=inserted.length;
         skippedTotal+=skippedCount;
         completedFiles+=1;
+        statementChecks.push({batchId:batch.id,file:item.file.name,checkpoint:bankStatementCheckpoint(item.parsed.rows,mapping)});
       } catch (error) {
         await financeApi.updateImportBatch(batch.id,{ status:'failed' }).catch(()=>{});
         failedFiles.push(item.file.name);
@@ -4566,6 +4569,31 @@ async function handleForm(form) {
     uiState.importQuery=''; uiState.importCategory='all';
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;
     await refresh(`${fileText}: ${importedTotal} Transaktionen importiert. ${skippedTotal} Dubletten oder ungültige Zeilen wurden übersprungen.${semanticDuplicates?` Davon ${semanticDuplicates} bereits vorhandene Bankbuchung${semanticDuplicates===1?'':'en'} aus einem anderen Importformat erkannt.`:''}${linkedTransfers?` ${linkedTransfers} eigene Umbuchung${linkedTransfers===1?'':'en'} über Gegenkonto/IBAN erkannt und verbunden.`:''}${linkedCashWithdrawals?` ${linkedCashWithdrawals} Bargeldbezug${linkedCashWithdrawals===1?'':'e'} automatisch als Umbuchung verbunden.`:''}${cashWithdrawalsToReview?` ${cashWithdrawalsToReview} Auslands-Bargeldbezug${cashWithdrawalsToReview===1?'':'e'} ohne eindeutigen Originalbetrag bitte prüfen.`:''}`);
+    for(const {batchId,file,checkpoint} of statementChecks) {
+      if(!checkpoint) continue;
+      const currentAccount=runtime.accounts.find((row)=>row.account_id===accountId);
+      const check=reconcileBankStatement({checkpoint,account:currentAccount,transactions:runtime.transactions});
+      const payload={
+        statement_date:checkpoint.date||null,
+        bank_statement_balance:checkpoint.ambiguous?null:checkpoint.balance,
+        ledger_balance_at_statement:check.ledgerBalance??null,
+        balance_difference:check.difference??null,
+        reconciliation_status:check.status,
+        reconciliation_note:check.reason||null,
+      };
+      try {
+        await financeApi.updateImportBatch(batchId,payload);
+        const cached=runtime.importBatches.find((row)=>row.id===batchId);
+        if(cached)Object.assign(cached,payload);
+        if(check.status==='difference'){
+          showToast(`Bankabgleich ${file}: Banksaldo ${moneyText(check.bankBalance,{currency:check.currency,locale})}, AIONE ${moneyText(check.ledgerBalance,{currency:check.currency,locale})}; Differenz ${moneyText(check.difference,{currency:check.currency,locale})}. Bitte Importprüfung öffnen – keine automatische Saldo-Korrektur.`,'error');
+        } else if(check.status==='matched') {
+          showToast(`Bankabgleich ${file}: AIONE und Banksaldo stimmen überein.`);
+        }
+      }catch(error){showToast(`Bankabgleich ${file} konnte nicht gespeichert werden: ${humanError(error)}`,'error');}
+    }
+    if(statementChecks.some((item)=>Boolean(item.checkpoint)))render();
+
     if(failedFiles.length) showToast(`${failedFiles.length} Datei${failedFiles.length===1?' konnte':'en konnten'} nicht importiert werden: ${failedFiles.join(', ')}`,'error');
     if(importedClosedYearCandidates.size&&canAdminHousehold()){
       const candidate=Math.max(...importedClosedYearCandidates);
