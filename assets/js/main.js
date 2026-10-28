@@ -9,6 +9,7 @@ import { icon, hydrateStaticIcons } from './app/icons.js';
 import { analyzeImportRows, cashWithdrawalInfo, filterImportDuplicates, guessMapping, rowToTransaction, applyCategoryRules, transactionFingerprint, merchantFromTransaction, normalizeMerchantKey, resolveCanonicalMerchant, suggestKnownCategoryCandidates } from './app/csv-import.js';
 import { parseImportFile } from './app/import-file.js';
 import { bankStatementCheckpoint, reconcileBankStatement } from './app/bank-statement-reconcile.js';
+import { detectOwnBankTransfer } from './app/own-bank-transfers.js';
 import { countryConfig } from './country/index.js';
 import { convertAmount } from './app/fx.js';
 import { buildCategorizationGroups } from './app/categorization.js';
@@ -1942,13 +1943,25 @@ function normalizeAccountReference(value) {
   return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 }
 
-function ownAccountForReference(reference,currentAccountId=null) {
+function ownAccountForReference(reference,currentAccountId=null,tx=null) {
   const key=normalizeAccountReference(reference);
   if(!key) return null;
-  return runtime.accounts.find((account)=>{
-    if(account.account_id===currentAccountId) return false;
-    return normalizeAccountReference(account.external_account_ref)===key;
-  })||null;
+  const direct=runtime.accounts.find((account)=>
+    account.account_id!==currentAccountId
+    && account.is_archived!==true
+    && normalizeAccountReference(account.external_account_ref)===key
+  );
+  if(direct) return direct;
+  // Accounts configured before IBAN recognition may already have a recurring
+  // transfer and verified historical opposite-side postings. Learn safely
+  // from BOTH pieces of evidence rather than guessing from the payee name.
+  if(!tx) return null;
+  return detectOwnBankTransfer({
+    transaction:{...tx,account_id:currentAccountId,counterparty_account_ref:reference},
+    accounts:runtime.accounts,
+    recurringRules:runtime.recurringRules,
+    transactions:runtime.transactions,
+  })?.account||null;
 }
 
 function importedTransferCounterpart(tx,otherAccountId,allTransactions=[]) {
@@ -2014,7 +2027,7 @@ async function reconcileImportedOwnTransfers(insertedRows=[]) {
   const known=[...runtime.transactions,...insertedRows];
   for(const tx of insertedRows){
     if(!tx||tx.transfer_group_id||!tx.counterparty_account_ref) continue;
-    const otherAccount=ownAccountForReference(tx.counterparty_account_ref,tx.account_id);
+    const otherAccount=ownAccountForReference(tx.counterparty_account_ref,tx.account_id,tx);
     if(!otherAccount) continue;
     const currentAccount=runtime.accounts.find((row)=>row.account_id===tx.account_id);
     if(!currentAccount||currentAccount.currency!==otherAccount.currency) continue;
@@ -2068,7 +2081,7 @@ function renderImportReview() {
       const tx = rowToTransaction(row,mapping);
       if (!tx) continue;
       validRows+=1;
-      const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId);
+      const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,importAccountId,tx);
       const cashInfo=cashWithdrawalInfo(tx);
       const cashAccount=cashAccountForWithdrawal({...tx,account_id:importAccountId,currency:importAccount?.currency||currency},cashInfo);
       const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
@@ -4456,7 +4469,7 @@ async function handleForm(form) {
         for (const row of item.parsed.rows) {
           const tx = rowToTransaction(row,mapping);
           if (!tx) continue;
-          const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId);
+          const ownCounterAccount=ownAccountForReference(tx.counterparty_account_ref,accountId,tx);
           const cashInfo=cashWithdrawalInfo({...tx,account_id:accountId,currency:account.currency||currency});
           const cashAccount=cashAccountForWithdrawal({...tx,account_id:accountId,currency:account.currency||currency},cashInfo);
           const autoCash=Boolean(cashInfo&&cashAccount&&(!cashInfo.foreign||cashInfo.originalAmount));
