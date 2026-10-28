@@ -27,6 +27,7 @@ const tx={...parsed,account_id:'salary',currency:'CHF'};
 const inferred=detectOwnBankTransfer({transaction:tx,accounts,recurringRules:[rule],transactions:transfers});
 assert.equal(inferred?.account.account_id,'savings');
 assert.equal(inferred?.reason,'verified-recurring-precedent');
+assert.equal(inferred?.requiresConfirmation,true,'Unknown beneficiary IBAN must never be auto-posted');
 assert.equal(detectOwnBankTransfer({transaction:tx,accounts,recurringRules:[rule],transactions:[]}),null,'No historical evidence: do not guess');
 assert.equal(detectOwnBankTransfer({transaction:tx,accounts,recurringRules:[{...rule,amount:600}],transactions:transfers}),null);
 assert.equal(detectOwnBankTransfer({transaction:tx,accounts,recurringRules:[{...rule,description:'Versicherung'}],transactions:transfers}),null);
@@ -36,6 +37,7 @@ assert.equal(detectOwnBankTransfer({transaction:{...tx,counterparty_account_ref:
 // Explicit saved IBAN may link directly but not across currencies or wrong source account.
 const savedAccounts=accounts.map(a=>a.account_id==='savings'?{...a,external_account_ref:'CH11 0020 3203 8604 15M1 M'}:a);
 assert.equal(detectOwnBankTransfer({transaction:tx,accounts:savedAccounts}).account.account_id,'savings');
+assert.equal(detectOwnBankTransfer({transaction:tx,accounts:savedAccounts}).requiresConfirmation,false);
 assert.equal(detectOwnBankTransfer({transaction:{...tx,currency:'EUR'},accounts:savedAccounts}),null);
 assert.equal(detectOwnBankTransfer({transaction:{...tx,amount:525},accounts:savedAccounts}),null);
 
