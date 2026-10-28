@@ -76,7 +76,7 @@ export function renderImports({
         <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">Eine oder mehrere CSV-/PDF-Dateien desselben Kontos gemeinsam einlesen</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
-          <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select><small>${selectedAccount?`Vorauswahl: ${escapeHtml(selectedAccount.name)}. Nach einem erfolgreichen Import merkt sich AIONE dein Konto für diesen Haushalt.`:'Bitte zuerst ein Konto anlegen.'}</small></label>
+          <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select><small>${selectedAccount?`<span>Vorauswahl:</span> <strong>${escapeHtml(selectedAccount.name)}</strong>. <span>Nach einem erfolgreichen Import merkt sich AIONE dein Konto für diesen Haushalt.</span>`:'Bitte zuerst ein Konto anlegen.'}</small></label>
           <label class="field"><span>Importdateien</span>${filePicker({id:'importFile',name:'files',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length,multiple:true,label:'Dateien auswählen'})}<small>Du kannst z. B. alle 5 ZAK-Auszüge gleichzeitig markieren. ALEMANNO BUCHHALTUNG prüft sie gemeinsam und legt pro Datei einen nachvollziehbaren Importlauf an.</small></label>
         </div>
         <div id="importMapping" hidden style="margin-top:18px">
