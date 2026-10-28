@@ -243,7 +243,7 @@ export function renderTaxAdvisor({
   const selectedPayments=(taxPayments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedPlan=(taxInstallmentPlans||[]).find((p)=>p.tax_case_id===taxCase?.id&&p.status==='active')||null;
   const installmentSchedule=selectedPlan?taxInstallmentSchedule(selectedPlan,selectedPayments):null;
-  const pendingBankPayment=taxMatchId?(transactions||[]).find((tx)=>tx.id===taxMatchId&&!tx.tax_relevant)||null;
+  const pendingBankPayment=taxMatchId ? ((transactions||[]).find((tx)=>tx.id===taxMatchId&&!tx.tax_relevant)||null) : null;
   const selectedPeople=(taxPeople||[]).filter((row)=>row.tax_case_id===taxCase?.id).sort((a,b)=>num(a.person_no)-num(b.person_no));
   const selectedChildren=(taxChildren||[]).filter((row)=>row.tax_case_id===taxCase?.id);
   const selectedEmployments=(taxEmployments||[]).filter((row)=>row.tax_case_id===taxCase?.id);
