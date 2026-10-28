@@ -1,3 +1,12 @@
+# R100 – Bankimport merkt sich Konto; Geldanzeige zeigt keine falsche Verfügbarkeit
+- CSV-/PDF-Import wählt das zuletzt erfolgreich importierte Konto im aktiven Haushalt; wenn noch keines existiert, das gespeicherte Hauptkonto bzw. ein Girokonto.
+- Nach erfolgreichem Import wird das gewählte Konto im Benutzerprofil je Haushalt dauerhaft gespeichert. Kein anderes Konto wird stillschweigend verwendet.
+- «Mein Geld» zeigt den tatsächlichen *Buchungssaldo* des ausgewählten Hauptkontos separat von der Summe aller liquiden Bank-, Spar- und Bargeldkonten.
+- Die bisher irreführende Überschrift «Verfügbar» für die summierten Konto-Salden entfällt. Gesamtsumme ist ausdrücklich «nicht frei verfügbar».
+- Bei fehlendem FX-Kurs wird die Gesamtsumme als «Nicht berechenbar» dargestellt statt aus unvollständigen Beträgen ein scheinbar präzises Total zu errechnen.
+- Aktuelle Datenstände und historische Transaktionen wurden nicht verändert.
+- Beta only, Stable unverändert. Version 2.4.44 · 2026.10.28-r100.
+
 # R99 – CSV-Import jederzeit sichtbar
 - Direkter Link «CSV hochladen» in der globalen Kopfzeile für Desktop und Mobilgeräte, auch ohne Untermenü erreichbar.
 - Zweiter sichtbarer Schnellzugang direkt in der Startseiten-Aktionsleiste.

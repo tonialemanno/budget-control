@@ -1,8 +1,9 @@
 import { pageHeader, sectionHeading, transactionRow } from '../app/components.js';
 import { escapeHtml, money } from '../app/format.js';
-import { convertAmount, fxLabel } from '../app/fx.js';
+import { convertAmount, fxLabel, sumInCurrency } from '../app/fx.js';
 import { icon } from '../app/icons.js';
-import { accountShare } from '../app/finance-insights.js';
+import { accountShare, primaryOperatingAccount } from '../app/finance-insights.js';
+import { primaryAccountPreferenceId } from '../app/user-preferences.js';
 
 function moduleVisible(key, moduleAccess, hiddenModules) {
   if (['core','money'].includes(key)) return true;
@@ -31,8 +32,13 @@ export function renderMoney({
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
   const liquidTypes = new Set(['checking','savings','cash','wallet']);
-  const liquid = accounts.filter((a)=>liquidTypes.has(a.account_type))
-    .reduce((sum,a)=>sum + (convertAmount(a.current_balance,a.currency,currency,fxRates) ?? 0),0);
+  const liquidAccounts=accounts.filter((a)=>!a.is_archived&&liquidTypes.has(a.account_type));
+  const liquid=sumInCurrency(liquidAccounts,(a)=>a.current_balance,(a)=>a.currency,currency,fxRates);
+  const primaryId=primaryAccountPreferenceId(profile,household?.id,accounts);
+  const primary=primaryOperatingAccount(accounts,[],currency,primaryId);
+  const operatingBalance=primary?convertAmount(primary.current_balance,primary.currency,currency,fxRates):null;
+  const primaryBalanceText=operatingBalance===null?'Nicht berechenbar':money(operatingBalance,{currency,locale});
+  const totalLiquidText=liquid.complete?money(liquid.total,{currency,locale}):'Nicht berechenbar';
   const recent = transactions.filter((tx)=>tx.status === 'booked').slice(0,6);
   const shares=accountShare(accounts,currency,fxRates);
   const accountMap=new Map(shares.map((row)=>[row.account.account_id,row.share]));
@@ -61,7 +67,16 @@ export function renderMoney({
     })}
 
     <article class="card card--accent wallet-summary-card">
-      <div><span class="hero-label">Verfügbar · ${currency}</span><div class="hero-value">${money(liquid,{currency,locale})}</div><span class="hero-caption">${accounts.length} Konten · ${fxLabel(fxRates,currency)}</span></div>
+      <div>
+        <span class="hero-label"><span>Buchungssaldo Hauptkonto</span> · ${currency}</span>
+        <div class="hero-value">${primaryBalanceText}</div>
+        <span class="hero-caption">${primary?escapeHtml(primary.name):'<span>Kein Hauptkonto</span>'} · <span>Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen</span></span>
+        <div class="wallet-total-comparison">
+          <span><span>Konten zusammen (inkl. Sparkonten &amp; Bargeld)</span> · ${currency}</span>
+          <strong>${totalLiquidText}</strong>
+          <small><span>Kein frei verfügbares Geld.</span> <span>${liquid.complete?fxLabel(fxRates,currency):'Währungsumrechnung unvollständig.'}</span></small>
+        </div>
+      </div>
       <div class="wallet-summary-actions">
         ${canWrite?'<a class="action-button action-button--primary" href="#/transactions?create=expense">'+icon('plus')+' Ausgabe</a>':''}
         ${canWrite?'<a class="action-button action-button--secondary" href="#/transactions?create=income">Einnahme</a>':''}

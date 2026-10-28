@@ -30,7 +30,7 @@ import {
   createReceivableMovement, recordReceivableMovement, recordBillMovement, recordTaxMovement,
   merchantDefaultCategory,
 } from './app/transaction-engine.js';
-import { financeMonthMode, withPrimaryAccountPreference } from './app/user-preferences.js';
+import { financeMonthMode, withPrimaryAccountPreference, withImportAccountPreference } from './app/user-preferences.js';
 import { hasDeferredSettingsChanges, markDeferredSettingsDirty } from './app/deferred-settings.js';
 import { rankCategoriesByUsage } from './app/category-ranking.js';
 import { merchantSimilarity, similarMerchantCandidates, preferredTransactionToKeep, transactionMergeCandidates } from './app/duplicate-intelligence.js';
@@ -4554,6 +4554,14 @@ async function handleForm(form) {
       }
     }
 
+    if (completedFiles>0 && runtime.user?.id && runtime.household?.id===h) {
+      try {
+        const preferences=withImportAccountPreference(profilePreferences(),h,accountId);
+        runtime.profile=await financeApi.updateProfile(runtime.user.id,{preferences});
+      } catch(error) {
+        showToast('Import wurde gespeichert, aber das zuletzt verwendete Konto konnte nicht gemerkt werden.','error');
+      }
+    }
     importState.items=[];
     uiState.importQuery=''; uiState.importCategory='all';
     const fileText=`${completedFiles} Datei${completedFiles===1?'':'en'} verarbeitet`;

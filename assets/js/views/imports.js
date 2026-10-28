@@ -2,6 +2,7 @@ import { dataTable, pageHeader, statusPill, filePicker } from '../app/components
 import { dateLabel, escapeHtml, money } from '../app/format.js';
 import { icon } from '../app/icons.js';
 import { merchantFromTransaction } from '../app/csv-import.js';
+import { preferredImportAccountId } from '../app/user-preferences.js';
 
 function txMerchant(tx) {
   return merchantFromTransaction(tx)?.name || tx.merchants?.name || tx.counterparty || tx.description || 'Unbekannt';
@@ -45,7 +46,9 @@ export function renderImports({
 } = {}) {
   const currency = household?.base_currency || 'CHF';
   const locale = profile?.locale || 'de-CH';
-  const accountOptions = accounts.map((a)=>`<option value="${a.account_id}">${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
+  const selectedAccountId=preferredImportAccountId(profile,household?.id,accounts,importBatches);
+  const selectedAccount=accounts.find((row)=>row.account_id===selectedAccountId);
+  const accountOptions = accounts.map((a)=>`<option value="${a.account_id}" ${a.account_id===selectedAccountId?'selected':''}>${escapeHtml(a.name)} · ${escapeHtml(a.currency)}</option>`).join('');
   const recentRows = importBatches.slice(0,10).map((b)=>`<tr><td><strong>${escapeHtml(b.file_name)}</strong><div class="table-meta">${escapeHtml(b.accounts?.name||'')}</div></td><td>${dateLabel(b.created_at,locale)}</td><td>${b.imported_count}</td><td>${b.skipped_count}</td><td>${statusPill(b.status==='completed'?'active':b.status==='failed'?'warning':'pending',b.status==='completed'?'Fertig':b.status==='failed'?'Fehler':'Läuft')}</td></tr>`);
   const latest = importBatches[0] || null;
   const latestTransactions = latest ? transactions.filter((tx)=>tx.import_batch_id===latest.id) : [];
@@ -73,7 +76,7 @@ export function renderImports({
         <div class="card-heading"><div><h3 class="card-title">Bankdaten importieren</h3><p class="card-subtitle">Eine oder mehrere CSV-/PDF-Dateien desselben Kontos gemeinsam einlesen</p></div><span class="list-row-leading">${icon('arrow-down-left')}</span></div>
         ${accounts.length ? '' : `<div class="inline-alert"><strong>Kein Konto vorhanden.</strong><span>Lege zuerst ein Konto an.</span></div>`}
         <div class="form-grid">
-          <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select></label>
+          <label class="field"><span>Zielkonto</span><select class="text-control" name="accountId" required ${accounts.length?'':'disabled'}>${accountOptions}</select><small>${selectedAccount?`<span>Vorauswahl:</span> <strong>${escapeHtml(selectedAccount.name)}</strong>. <span>Nach einem erfolgreichen Import merkt sich AIONE dein Konto für diesen Haushalt.</span>`:'Bitte zuerst ein Konto anlegen.'}</small></label>
           <label class="field"><span>Importdateien</span>${filePicker({id:'importFile',name:'files',accept:'.csv,text/csv,application/pdf,.pdf',required:true,disabled:!accounts.length,multiple:true,label:'Dateien auswählen'})}<small>Du kannst z. B. alle 5 ZAK-Auszüge gleichzeitig markieren. ALEMANNO BUCHHALTUNG prüft sie gemeinsam und legt pro Datei einen nachvollziehbaren Importlauf an.</small></label>
         </div>
         <div id="importMapping" hidden style="margin-top:18px">
