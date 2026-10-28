@@ -1956,12 +1956,13 @@ function ownAccountForReference(reference,currentAccountId=null,tx=null) {
   // transfer and verified historical opposite-side postings. Learn safely
   // from BOTH pieces of evidence rather than guessing from the payee name.
   if(!tx) return null;
-  return detectOwnBankTransfer({
+  const detected=detectOwnBankTransfer({
     transaction:{...tx,account_id:currentAccountId,counterparty_account_ref:reference},
     accounts:runtime.accounts,
     recurringRules:runtime.recurringRules,
     transactions:runtime.transactions,
-  })?.account||null;
+  });
+  return detected?.requiresConfirmation ? null : detected?.account||null;
 }
 
 function importedTransferCounterpart(tx,otherAccountId,allTransactions=[]) {
