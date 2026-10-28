@@ -70,7 +70,7 @@ export function renderMoney({
       <div>
         <span class="hero-label"><span>Buchungssaldo Hauptkonto</span> · ${currency}</span>
         <div class="hero-value">${primaryBalanceText}</div>
-        <span class="hero-caption">${escapeHtml(primary?.name||'Kein Hauptkonto')} · <span>Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen</span></span>
+        <span class="hero-caption">${primary?escapeHtml(primary.name):'<span>Kein Hauptkonto</span>'} · <span>Aus Kontobuchungen berechnet, nicht mit der Bank abgeglichen</span></span>
         <div class="wallet-total-comparison">
           <span><span>Konten zusammen (inkl. Sparkonten &amp; Bargeld)</span> · ${currency}</span>
           <strong>${totalLiquidText}</strong>
