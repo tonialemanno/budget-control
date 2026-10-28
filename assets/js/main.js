@@ -2409,9 +2409,10 @@ function transactionTaxYear(txLike={}) {
 }
 async function ensureTransactionTaxCase(year) {
   if(!moduleEnabled('tax')||runtime.household?.country_code!=='CH') return null;
-  const existing=runtime.taxCases.find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code==='SG');
+  const region=runtime.household?.tax_region_code||'SG';
+  const existing=runtime.taxCases.find((row)=>Number(row.tax_year)===Number(year)&&row.country_code==='CH'&&row.canton_code===region);
   if(existing) return existing;
-  return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:'SG'});
+  return financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:Number(year),countryCode:'CH',cantonCode:region});
 }
 
 function findMatchingRecurringRule(txLike={}) {
@@ -4070,7 +4071,7 @@ async function handleForm(form) {
     if (!canWriteHousehold()) throw new Error('Du hast für diesen Haushalt nur Leserechte.');
     const year=numberValue(data,'taxYear',uiState.taxYear);
     let taxCase=runtime.taxCases.find((row)=>Number(row.tax_year)===year&&row.country_code==='CH'&&row.canton_code==='SG');
-    if(!taxCase) taxCase=await financeApi.ensureTaxCase({householdId:h,taxYear:year,countryCode:'CH',cantonCode:'SG'});
+    if(!taxCase) taxCase=await financeApi.ensureTaxCase({householdId:h,taxYear:year,countryCode:'CH',cantonCode:runtime.household.tax_region_code||'SG'});
     await financeApi.updateTaxCase(taxCase.id,{
       municipality:nullValue(data,'municipality'),
       tax_period_from:nullValue(data,'taxPeriodFrom'),
@@ -5718,7 +5719,7 @@ async function handleAction(target) {
   if (action === 'tax-case-create') {
     if (!moduleEnabled('tax')) throw new Error('Das Modul Steuern & Steuerberater ist ausgeblendet oder nicht freigeschaltet.');
     const year=Number(target.dataset.year)||uiState.taxYear;
-    await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:'SG'});
+    await financeApi.ensureTaxCase({householdId:runtime.household.id,taxYear:year,countryCode:'CH',cantonCode:runtime.household.tax_region_code||'SG'});
     uiState.taxYear=year; await refresh(`Steuerfall ${year} angelegt.`); return;
   }
   if (action === 'tax-person-delete') {
