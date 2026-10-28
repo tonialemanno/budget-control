@@ -35,6 +35,7 @@ export function renderProfile({
       <div class="profile-hero-copy">
         <h3>${escapeHtml(name)}</h3>
         <span>${escapeHtml(user?.email||'')}</span>
+        <small class="table-meta" style="overflow-wrap:anywhere">Benutzer-ID: ${escapeHtml(user?.id||'—')}</small>
         <div class="chip-row">
           <span class="chip chip--active">${escapeHtml(roleLabel(householdRole))}</span>
           ${adminRole?'<span class="chip chip--active">App-Admin</span>':''}
